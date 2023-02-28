@@ -1,0 +1,81 @@
+$primary:   #687881;
+$secondary: #bbc8cf;
+
+$body: #f3f3f3;
+
+// Import all of Bootstrap's CSS
+@import '~bootstrap/scss/bootstrap';
+
+// Import Animate.css' CSS
+@import 'animate.css';
+
+// Import Toastify's CSS
+@import 'toastify-js/src/toastify.css';
+
+body {
+    background-color: $body;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%23bdc6cb' fill-opacity='0.24'%3E%3Cpath d='M0 38.59l2.83-2.83 1.41 1.41L1.41 40H0v-1.41zM0 1.4l2.83 2.83 1.41-1.41L1.41 0H0v1.41zM38.59 40l-2.83-2.83 1.41-1.41L40 38.59V40h-1.41zM40 1.41l-2.83 2.83-1.41-1.41L38.59 0H40v1.41zM20 18.6l2.83-2.83 1.41 1.41L21.41 20l2.83 2.83-1.41 1.41L20 21.41l-2.83 2.83-1.41-1.41L18.59 20l-2.83-2.83 1.41-1.41L20 18.59z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.bg-body-overlay { background-color: shade-color($body, 2%); }
+.bg-body-overlay-lighter { background-color: shade-color($body, 1%); }
+
+html { height: 100%; }
+
+main { min-height: 100%; }
+
+.modal-body { overflow-wrap: anywhere; }
+
+input[type="file"] { display: none; }
+
+.terminal-container { overflow: auto; }
+
+.terminal {
+    white-space: nowrap;
+    height: 70Vh;
+    overflow: auto;
+}
+
+.list-group-item-action {
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+#gcodePreviewCanvas {
+    width: 100%;
+    height: 50vh;
+}
+
+.control-hint-snap-left { left: -1rem !important; }
+
+.list-group-item::-webkit-scrollbar { display: none; }
+
+@media (vertical-viewport-segments: 2) and (device-posture: folded) {
+    body { overflow: hidden; }
+
+    header {
+        position: fixed;
+        width: 100%;
+        z-index: 99999999999999;
+        top: -100vh;
+        transition: top 0.5s ease 0s;
+    }
+
+    .left-pane {
+        width: 100%;
+        height: calc( env(viewport-segment-height 0 0) - 2vh );
+        overflow-y: scroll;
+        margin-top: 2vh;
+    }
+
+    .right-pane {
+        width: 100%;
+        position: relative;
+        margin-top: 1vh;
+        height: calc( env(viewport-segment-height 0 0) );
+    }
+
+    .terminal {
+        height: calc( env(viewport-segment-height 0 0) - 200px );
+    }
+}

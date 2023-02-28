@@ -1,0 +1,33 @@
+{
+    "type": "commonjs",
+    "private": true,
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "watch": "vite build --watch"
+    },
+    "devDependencies": {
+        "autoprefixer": "^10.4.13",
+        "axios": "^1.1.2",
+        "bootstrap": "^5.2.3",
+        "chokidar": "^3.5.3",
+        "laravel-echo": "^1.15.0",
+        "laravel-vite-plugin": "^0.7.2",
+        "lodash": "^4.17.19",
+        "postcss": "^8.4.20",
+        "pusher-js": "^8.0.1",
+        "sass": "^1.57.1",
+        "vite": "^4.0.0"
+    },
+    "dependencies": {
+        "@popperjs/core": "^2.11.6",
+        "alpinejs": "^3.11.1",
+        "animate.css": "^4.1.1",
+        "bs5-utils": "^1.0.3",
+        "dotenv": "^16.0.3",
+        "gcode-preview": "^2.9.0",
+        "swipe-listener": "^1.3.0",
+        "toastify-js": "^1.12.0",
+        "ua-parser-js": "^1.0.33"
+    }
+}

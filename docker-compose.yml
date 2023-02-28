@@ -1,0 +1,185 @@
+version: "3.9"
+services:
+  dummy:
+    build: .
+    volumes:
+      - .:/var/www
+  proxy:
+    image: nginx
+    restart: always
+    volumes:
+      - ./proxy/nginxconfig.io:/etc/nginx/nginxconfig.io
+      - ./proxy/internal:/etc/nginx/internal
+      - ./proxy/conf.d:/etc/nginx/conf.d
+      - ./proxy/nginx.conf:/etc/nginx/nginx.conf
+      - ./proxy/ssl:/etc/nginx/ssl
+      - ./public:/public:ro
+    ports:
+      - 80:80
+      - 443:443
+      - 6001:6001
+    depends_on:
+      - web
+  web:
+    build: .
+    restart: always
+    environment:
+      - ROLE=server
+    volumes:
+      - .:/var/www
+      - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+    ports:
+      - 8081:80
+    depends_on:
+      - redis
+      - mongo
+      - mariadb
+  scheduler:
+    build: .
+    restart: always
+    privileged: true
+    environment:
+      - ROLE=scheduler
+    volumes:
+      - .:/var/www
+      - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev:/dev
+    depends_on:
+      - redis
+      - mongo
+      - mariadb
+  short-scheduler:
+    build: .
+    restart: always
+    privileged: true
+    environment:
+      - ROLE=scheduler
+      - KIND=short
+    volumes:
+      - .:/var/www
+      - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev:/dev
+    depends_on:
+      - redis
+      - mongo
+      - mariadb
+  mapper:
+    build: .
+    restart: always
+    privileged: true
+    environment:
+      - ROLE=mapper
+    volumes:
+      - .:/var/www
+      - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev:/dev
+    depends_on:
+      - redis
+      - mongo
+      - mariadb
+  queue:
+    build: .
+    restart: always
+    privileged: true
+    environment:
+      - ROLE=queue
+      - UPLOAD_LIMIT=1G
+    volumes:
+      - .:/var/www
+      - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev:/dev
+    depends_on:
+      - redis
+      - mongo
+      - mariadb
+  broadcasts-queue:
+    build: .
+    restart: always
+    environment:
+      - ROLE=queue
+      - QUEUE=broadcasts
+      - UPLOAD_LIMIT=1G
+    volumes:
+      - .:/var/www
+      - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev:/dev
+    depends_on:
+      - redis
+      - mongo
+      - mariadb
+  ws-server:
+    build: .
+    restart: always
+    environment:
+      - ROLE=ws-server
+    volumes:
+      - .:/var/www
+    depends_on:
+      - redis
+      - mongo
+      - mariadb
+  watcher:
+    build: .
+    restart: always
+    environment:
+      - ROLE=watcher
+    volumes:
+      - .:/var/www
+  streamer:
+    build: .
+    restart: always
+    environment:
+      - ROLE=streamer
+      - PORT_SCAN_START=60000
+      - PORT_SCAN_END=60016
+    privileged: true
+    ports:
+      - 60000-60016:60000-60016
+    volumes:
+      - .:/var/www
+      - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev:/dev
+      - /sys/class/video4linux:/sys/class/video4linux
+      - /sys/devices:/sys/devices
+      - /opt/vc/include:/opt/vc/include:ro # RPi Camera includes
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - redis
+      - mongo
+      - mariadb
+      - mapper
+  redis:
+    image: redis
+    restart: always
+    # environment:
+    #   - ALLOW_EMPTY_PASSWORD=yes
+    # command: /opt/bitnami/scripts/redis/run.sh --appendonly yes
+    ports:
+      - 6379:6379
+    # volumes:
+    #   - redis:/bitnami/redis/data
+  mongo:
+    image: mongo:4.4.6
+    restart: always
+    command: mongod --quiet
+    volumes:
+      - mongo:/data/db
+    ports:
+      - 27017:27017 # TODO: Remove this!
+  mariadb:
+    image: mariadb
+    restart: always
+    environment:
+      - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=true
+    volumes:
+      - mariadb:/var/lib/mysql
+volumes:
+  # redis:
+  mongo:
+  mariadb:
