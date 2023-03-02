@@ -136,7 +136,7 @@ class PrintGcode implements ShouldQueue
             $exception->getTraceAsString()
         );
 
-        $this->finished(true);
+        $this->finished(resetPrinter: true);
     }
 
     private function tryLastSeenUpdate() : bool {
@@ -172,7 +172,7 @@ class PrintGcode implements ShouldQueue
                ->replace(':', '')                 // M114 returns data split by ":", remove them so that they match what G0 or G1 would look like
                ->explode(' ');
 
-        foreach ($command as $index => $argument) {
+        foreach ($command as $argument) {
             if (!isset( $argument[0] )) continue;
 
             switch ($argument[0]) {
