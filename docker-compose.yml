@@ -29,7 +29,7 @@ services:
     depends_on:
       - redis
       - mongo
-      - mariadb
+      # - mariadb
   scheduler:
     build: .
     restart: always
@@ -44,7 +44,7 @@ services:
     depends_on:
       - redis
       - mongo
-      - mariadb
+      # - mariadb
   short-scheduler:
     build: .
     restart: always
@@ -60,7 +60,7 @@ services:
     depends_on:
       - redis
       - mongo
-      - mariadb
+      # - mariadb
   mapper:
     build: .
     restart: always
@@ -75,7 +75,7 @@ services:
     depends_on:
       - redis
       - mongo
-      - mariadb
+      # - mariadb
   queue:
     build: .
     restart: always
@@ -91,7 +91,7 @@ services:
     depends_on:
       - redis
       - mongo
-      - mariadb
+      # - mariadb
   broadcasts-queue:
     build: .
     restart: always
@@ -107,7 +107,7 @@ services:
     depends_on:
       - redis
       - mongo
-      - mariadb
+      # - mariadb
   ws-server:
     build: .
     restart: always
@@ -118,7 +118,7 @@ services:
     depends_on:
       - redis
       - mongo
-      - mariadb
+      # - mariadb
   watcher:
     build: .
     restart: always
@@ -148,7 +148,7 @@ services:
     depends_on:
       - redis
       - mongo
-      - mariadb
+      # - mariadb
       - mapper
   redis:
     image: redis
@@ -168,14 +168,16 @@ services:
       - mongo:/data/db
     ports:
       - 27017:27017 # TODO: Remove this!
-  mariadb:
-    image: mariadb
-    restart: always
-    environment:
-      - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=true
-    volumes:
-      - mariadb:/var/lib/mysql
+  # TODO: Re-enable Telescope
+  #
+  # mariadb:
+  #   image: mariadb
+  #   restart: always
+  #   environment:
+  #     - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=true
+  #   volumes:
+  #     - mariadb:/var/lib/mysql
 volumes:
   # redis:
   mongo:
-  mariadb:
+  # mariadb:
