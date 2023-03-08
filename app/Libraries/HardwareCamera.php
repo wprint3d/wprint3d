@@ -69,7 +69,7 @@ class HardwareCamera {
                 }
 
                 if ($shouldRecordFormats) {
-                    if ($line->startsWith('Size')) {
+                    if ($line->startsWith('Size') && $line->contains('Discrete')) {
                         $index++;
 
                         $formats[ $index ]  = $line->replace('Size: Discrete ', '');
