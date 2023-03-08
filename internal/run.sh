@@ -9,6 +9,7 @@
 export PATH="$PATH":$(pwd)/bin;
 
 wait-for-it mongo:27017;
+wait-for-it mariadb:3306;
 
 if [[ -z $ROLE ]]; then
     echo "End of script reached, this container will run as a dummy and, as such, it won't actually do anything.";
