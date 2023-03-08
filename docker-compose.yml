@@ -10,8 +10,6 @@ services:
       - ./proxy/nginx.conf:/etc/nginx/nginx.conf
       - ./proxy/ssl:/etc/nginx/ssl
       - ./public:/public:ro
-    networks:
-      - master
     ports:
       - 80:80
       - 443:443
@@ -26,8 +24,6 @@ services:
     volumes:
       - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
-    networks:
-      - master
     ports:
       - 8081:80
     depends_on:
@@ -45,8 +41,6 @@ services:
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-    networks:
-      - master
     depends_on:
       - redis
       - mongo
@@ -63,8 +57,6 @@ services:
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-    networks:
-      - master
     depends_on:
       - redis
       - mongo
@@ -80,8 +72,6 @@ services:
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-    networks:
-      - master
     depends_on:
       - redis
       - mongo
@@ -98,8 +88,6 @@ services:
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-    networks:
-      - master
     depends_on:
       - redis
       - mongo
@@ -116,8 +104,6 @@ services:
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-    networks:
-      - master
     depends_on:
       - redis
       - mongo
@@ -129,8 +115,6 @@ services:
       - ROLE=ws-server
     volumes:
       - .:/var/www
-    networks:
-      - master
     depends_on:
       - redis
       - mongo
@@ -142,8 +126,6 @@ services:
       - ROLE=watcher
     volumes:
       - .:/var/www
-    networks:
-      - master
   streamer:
     build: .
     restart: always
@@ -152,8 +134,6 @@ services:
       - PORT_SCAN_START=60000
       - PORT_SCAN_END=60016
     privileged: true
-    networks:
-      - master
     ports:
       - 60000-60016:60000-60016
     volumes:
@@ -176,8 +156,6 @@ services:
     # environment:
     #   - ALLOW_EMPTY_PASSWORD=yes
     # command: /opt/bitnami/scripts/redis/run.sh --appendonly yes
-    networks:
-      - master
     ports:
       - 6379:6379
     # volumes:
@@ -188,8 +166,6 @@ services:
     command: mongod --quiet
     volumes:
       - mongo:/data/db
-    networks:
-      - master
     ports:
       - 27017:27017 # TODO: Remove this!
   mariadb:
@@ -199,12 +175,7 @@ services:
       - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=true
     volumes:
       - mariadb:/var/lib/mysql
-    networks:
-      - master
 volumes:
   # redis:
   mongo:
   mariadb:
-networks:
-  master:
-    enable_ipv6: false
