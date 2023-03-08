@@ -1,9 +1,5 @@
 version: "3.9"
 services:
-  dummy:
-    build: .
-    volumes:
-      - .:/var/www
   proxy:
     image: nginx
     restart: always
