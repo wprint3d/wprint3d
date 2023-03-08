@@ -24,8 +24,6 @@ services:
     volumes:
       - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
-    ports:
-      - 8081:80
     depends_on:
       - redis
       - mongo
