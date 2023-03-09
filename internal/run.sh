@@ -45,6 +45,9 @@ else
                 sleep 0.1;
             done;
 
+            # Wait for Vite to become available (no timeout)
+            wait-for-it watcher:5173 -t 0;
+
             # TODO: Re-enable Telescope
             #
             # # Create a database for Laravel Telescope if it doesn't exist
