@@ -89,6 +89,9 @@ else
                 php artisan queue:work --queue="$QUEUE" --timeout=0;
             done;
         elif [[ "$ROLE" == 'ws-server' ]]; then
+            # Wait for Vite to become available (no timeout)
+            wait-for-it watcher:5173 -t 0;
+
             while true; do
                 php artisan websockets:serve --host 0.0.0.0 --port 6001;
             done;
