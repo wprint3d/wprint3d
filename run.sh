@@ -27,6 +27,11 @@ fi;
 
 export PATH="$PATH":$(pwd)/bin;
 
+# If there's less than 65536 file watchers allowed, increase it to 65536.
+if [[ $(cat /proc/sys/fs/inotify/max_user_watches) -lt 65536 ]]; then
+    echo fs.inotify.max_user_watches=65536 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
+fi;
+
 docker compose build;
 
 for container_name in $(docker ps --format '{{ .Names }}'  | grep buildx_buildkit_builder); do
