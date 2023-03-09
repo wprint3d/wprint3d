@@ -16,6 +16,10 @@ services:
       - 6001:6001
     depends_on:
       - web
+    deploy:
+      resources:
+         limits:
+           memory: 128M
   web:
     build: .
     restart: always
@@ -166,6 +170,10 @@ services:
       - mongo:/data/db
     ports:
       - 27017:27017 # TODO: Remove this!
+    deploy:
+      resources:
+         limits:
+           memory: 128M
   # TODO: Re-enable Telescope
   #
   # mariadb:
