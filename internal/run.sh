@@ -22,11 +22,13 @@ else
     while true; do
         touch /var/www/.composer_busy.lock;
 
-        echo 'Waiting for composer dependencies to become available...';
+        if [[ "$ROLE" != 'server' ]] && [[ -f /var/www/.composer_busy.lock ]]; then
+            echo 'Waiting for composer dependencies to become available...';
 
-        while [[ "$ROLE" != 'server' ]] && [[ -f /var/www/.composer_busy.lock ]]; do
-            sleep 1;
-        done;
+            while [[ "$ROLE" != 'server' ]] && [[ -f /var/www/.composer_busy.lock ]]; do
+                sleep 1;
+            done;
+        fi;
 
         if [[ "$ROLE" == 'server' ]]; then
             composer install;
