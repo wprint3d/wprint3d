@@ -20,7 +20,7 @@ services:
     deploy:
       resources:
          limits:
-           memory: 128M
+           memory: 64M
   web:
     build: .
     restart: always
