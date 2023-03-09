@@ -28,4 +28,9 @@ fi;
 export PATH="$PATH":$(pwd)/bin;
 
 docker compose build;
+
+for container_name in $(docker ps --format '{{ .Names }}'  | grep buildx_buildkit_builder); do
+    docker stop "$container_name";
+done;
+
 docker compose up -d;
