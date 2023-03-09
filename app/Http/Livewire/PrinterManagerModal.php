@@ -3,6 +3,7 @@
 namespace App\Http\Livewire;
 
 use App\Models\Printer;
+
 use Illuminate\Support\Facades\Log;
 
 use Livewire\Component;
@@ -10,8 +11,7 @@ use Livewire\Component;
 class PrinterManagerModal extends Component
 {
     protected $listeners = [
-        'loadPrinterManagement' => 'loadPrinter',
-        'refreshComponent'      => '$refresh'
+        'loadPrinterManagement' => 'loadPrinter'
     ];
 
     public $availablePanes = [ 'connection', 'specifications', 'cameras' ];
@@ -22,8 +22,6 @@ class PrinterManagerModal extends Component
         Log::info( __METHOD__ . ': ' . $printerId );
 
         $this->printer = Printer::find( $printerId );
-
-        $this->emit('refreshComponent');
 
         $this->dispatchBrowserEvent('printerLoaded', $this->printer);
     }
