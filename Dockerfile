@@ -31,6 +31,10 @@ COPY internal /internal
 #
 # In this block, we check for the existence of the file /opt/vc/LICENCE, if it
 # does exist, the RPi camera dependencies are bundled with the image.
+#
+# Note that we're manually removing "input_raspicam" as it's broken on 64-bit
+# builds of Raspberry Pi OS and it's terribly slow too, so we'll just build and
+# use "input_libcamera" instead.
 RUN curl -O 'https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2016.10.31_all.deb' &&\
     dpkg -i ./raspberrypi-archive-keyring_2016.10.31_all.deb &&\
     if [ -e /internal/vc/LICENCE ]; then \
@@ -45,6 +49,7 @@ RUN curl -O 'https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-arch
     fi &&\
     git clone https://github.com/ArduCAM/mjpg-streamer.git &&\
     cd mjpg-streamer/mjpg-streamer-experimental &&\
+    sed -i 's/add_subdirectory(plugins\/input_raspicam)//g' CMakeLists.txt &&\
     make -j$(( $(nproc --all) * 2 )) &&\
     make install
 
