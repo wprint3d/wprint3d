@@ -20,20 +20,20 @@ if [[ -z $ROLE ]]; then
     tail -f /dev/null;
 else
     while true; do
-        touch /var/www/.composer_busy.lock;
-
-        if [[ "$ROLE" != 'server' ]] && [[ -f /var/www/.composer_busy.lock ]]; then
+        if [[ "$ROLE" != 'server' ]]; then
             echo 'Waiting for composer dependencies to become available...';
 
-            while [[ "$ROLE" != 'server' ]] && [[ -f /var/www/.composer_busy.lock ]]; do
+            php artisan > /dev/null;
+
+            while [[ $? -ne 0 ]]; do
+                php artisan > /dev/null;
+
                 sleep 1;
             done;
         fi;
 
         if [[ "$ROLE" == 'server' ]]; then
             composer install;
-
-            rm -fv /var/www/.composer_busy.lock;
 
             echo 'Waiting for Redis to be ready...';
 
