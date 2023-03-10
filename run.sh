@@ -53,7 +53,7 @@ fi;
 # If on a RPi, check if we're missing the firmware modules to support the
 # camera. If they're missing, prepare them by copying everything to a local
 # path.
-if [[ ! -e /opt/vc ]]; then
+if [[ -e /opt/vc ]]; then
     cp -rfv /opt/vc ./internal/vc;
 fi;
 
