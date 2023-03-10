@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Avoid running on an unrelated path, get absolute path to the script.
+#
+# For more information, please see https://stackoverflow.com/a/4774063.
+SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )";
+
+cd "$SCRIPT_PATH";
+
 if [[ ! -d 'bin' ]]; then
     printf 'Creating prebuilts storage... ';
 
