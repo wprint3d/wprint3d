@@ -25,17 +25,20 @@ RUN docker-php-ext-enable mongodb redis dio swoole
 # Install several officially supported PHP extensions: cURL, XML, ZIP, DOM, MySQLi, PDO MySQL, Sockets and PCNTL.
 RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) curl xml zip dom mysqli pdo_mysql sockets pcntl
 
+COPY internal /internal
+
 # Build and install MJPG Streamer
 #
 # In this block, we check for the existence of the file /opt/vc/LICENCE, if it
 # does exist, the RPi camera dependencies are bundled with the image.
 RUN curl -O 'https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2016.10.31_all.deb' &&\
     dpkg -i ./raspberrypi-archive-keyring_2016.10.31_all.deb &&\
-    if [ -e /opt/vc/LICENCE ]; then \
+    if [ -e /internal/vc/LICENCE ]; then \
+        cp -rfv /internal/vc /opt/vc; \
         echo 'deb http://archive.raspberrypi.org/debian/ bullseye main' >> /etc/apt/sources.list.d/raspi.list; \
     fi &&\
     apt-get update &&\
-    if [ -e /opt/vc/LICENCE ]; then \
+    if [ -e /internal/vc/LICENCE ]; then \
         apt-get install -y libjpeg62-turbo-dev libcamera-dev liblivemedia-dev v4l-utils; \
     else \
         apt-get install -y libjpeg62-turbo-dev v4l-utils; \

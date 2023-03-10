@@ -43,6 +43,13 @@ if [[ ! -e /sys/fs/cgroup/memory.stat ]] && [[ -e /boot/cmdline.txt ]]; then
     exit 1;
 fi;
 
+# If on a RPi, check if we're missing the firmware modules to support the
+# camera. If they're missing, prepare them by copying everything to a local
+# path.
+if [[ ! -e /opt/vc ]]; then
+    cp -rfv /opt/vc ./internal/vc;
+fi;
+
 docker compose build;
 
 for container_name in $(docker ps --format '{{ .Names }}'  | grep buildx_buildkit_builder); do
