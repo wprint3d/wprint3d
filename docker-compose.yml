@@ -146,7 +146,7 @@ services:
       - /dev:/dev
       - /sys/class/video4linux:/sys/class/video4linux
       - /sys/devices:/sys/devices
-      - /opt/vc/include:/opt/vc/include:ro # RPi Camera includes
+      - /opt/vc:/opt/vc:ro # RPi Camera includes
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - redis
@@ -174,7 +174,7 @@ services:
     deploy:
       resources:
          limits:
-           memory: 128M
+           memory: 72M
   # TODO: Re-enable Telescope
   #
   # mariadb:
