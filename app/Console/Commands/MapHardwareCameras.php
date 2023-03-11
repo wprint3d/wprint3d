@@ -82,7 +82,8 @@ class MapHardwareCameras extends Command
                 'node'              => $device,
                 'mode'              => $mode,
                 'format'            => $currentFormat,
-                'availableFormats'  => $formats
+                'availableFormats'  => $formats,
+                'requiresLibCamera' => $hwCamera->getRequiresLibCamera()
             ];
 
             if (!isset( $camera->enabled )) $fields['enabled'] = true;

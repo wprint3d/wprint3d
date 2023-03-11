@@ -241,9 +241,13 @@ else
                         echo "Refreshing device at node $device with ID $_ID";
 
                         if [[ "$ENABLED" -eq 1 ]] && [[ -e "$device" ]]; then
-                            ps -fax | grep mjpg_streamer | grep $device 2>&1 > /dev/null;
+                            ps -fax | grep mjpg_streamer | grep -- $device 2>&1 > /dev/null;
+                            TESTS_UVC=$?;
 
-                            if [[ $? -eq 1 ]]; then # not yet started
+                            ps -fax | grep mjpg_streamer | grep -- "--camera ${DEVICE_INDEX}" 2>&1 > /dev/null;
+                            TESTS_LIB_CAMERA=$?;
+
+                            if [[ $TESTS_UVC -eq 1 ]] && [[ "$TESTS_LIB_CAMERA" -eq 1 ]]; then # not yet started
                                 port=$(getFreePort);
 
                                 if [[ "$port" == '' ]]; then
@@ -251,12 +255,22 @@ else
                                 else
                                     # php artisan map:set-hardware-camera-port "$DEVICE_INDEX" "$port";
 
-                                    mjpg_streamer \
-                                        -i "input_uvc.so -d ${device} -r ${RESOLUTION} -f ${FRAMERATE}" \
-                                        -o "output_http.so -p ${port}" &
+                                    if [[ "$REQUIRES_LIB_CAMERA" != '1' ]]; then
+                                        mjpg_streamer \
+                                            -i "input_uvc.so -d ${device} -r ${RESOLUTION} -f ${FRAMERATE}" \
+                                            -o "output_http.so -p ${port}" &
+                                    else
+                                        mjpg_streamer \
+                                            -i "input_libcamera.so --camera ${DEVICE_INDEX} -r ${RESOLUTION} -f ${FRAMERATE}" \
+                                            -o "output_http.so -p ${port}" &
+                                    fi;
                                 fi;
                             else
                                 port=$(ps -fax | grep mjpg_streamer | grep "$device" | sed 's/.*-p //' | sed 's/ //g');
+
+                                if [[ "$port" == '' ]]; then
+                                    port=$(ps -fax | grep mjpg_streamer | grep -- "--camera ${DEVICE_INDEX}" | sed 's/.*-p //' | sed 's/ //g');
+                                fi;
                             fi;
 
                             if [[ "$port" != '' ]]; then
@@ -267,10 +281,16 @@ else
                                 printf "\n}"                                                                >> /tmp/cameras.conf;
                             fi;
                         else # camera removed or bus error, kill and de-allocate resources
-                            pid=$(ps -fax | grep mjpg_streamer | sed 's/^[ \t]*//' | cut -d ' ' -f 1 | grep "$device");
+                            pid=$(ps -fax | grep mjpg_streamer | grep "$device" | sed 's/^[ \t]*//' | cut -d ' ' -f 1);
 
                             if [[ "$pid" != '' ]]; then
                                 kill $pid;
+                            else
+                                pid=$(ps -fax | grep mjpg_streamer | grep "--camera ${DEVICE_INDEX}" | sed 's/^[ \t]*//' | cut -d ' ' -f 1);
+
+                                if [[ "$pid" != '' ]]; then
+                                    kill $pid;
+                                fi;
                             fi;
                         fi;
                     fi;

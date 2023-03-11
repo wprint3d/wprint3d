@@ -15,6 +15,7 @@ class Camera extends Model
         'label',
         'mode',
         'format',
-        'availableFormats'
+        'availableFormats',
+        'requiresLibCamera'
     ];
 }
