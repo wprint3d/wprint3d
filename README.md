@@ -20,7 +20,7 @@ Pause states        | ✓\*        | ✓\*        | No support
 - [Give yourself permission to run Docker commands](https://docs.docker.com/engine/install/linux-postinstall/) by following the guide linked here, this is extremely important because we'll need to set up a few [privileged containers](https://docs.docker.com/engine/reference/commandline/run/#-full-container-capabilities---privileged).
 - Clone this repository wherever you want, just make sure you'd have write permission with the user you're currently logged in.
 
-    `git clone -b alpha https://github.com/FacuM/wprint3d`
+    `git clone -b alpha https://github.com/wprint3d/wprint3d`
 - Change to the created directory by running `cd wprint3d`.
 - Now, using your favorite text editor, create a new file called `.env` and copy the contents of `.env.example` into it.
 - Finally, within this file, change `APP_HOST` to match your system's IP address, this will let you expose the service on your local network.
