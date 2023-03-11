@@ -43,7 +43,7 @@ RUN curl -O 'https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-arch
     fi &&\
     apt-get update &&\
     if [ -e /internal/vc/LICENCE ]; then \
-        apt-get install -y libjpeg62-turbo-dev libcamera-dev liblivemedia-dev v4l-utils; \
+        apt-get install -y libjpeg62-turbo-dev libcamera-apps-lite libcamera-dev liblivemedia-dev v4l-utils; \
     else \
         apt-get install -y libjpeg62-turbo-dev v4l-utils; \
     fi &&\
