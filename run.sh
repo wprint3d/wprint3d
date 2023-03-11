@@ -54,6 +54,8 @@ fi;
 # camera. If they're missing, prepare them by copying everything to a local
 # path.
 if [[ -e /opt/vc ]]; then
+    echo 'Copying camera firmware...';
+
     cp -rfv /opt/vc ./internal/vc;
 fi;
 
