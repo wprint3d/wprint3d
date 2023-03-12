@@ -445,10 +445,35 @@ class PrintGcode implements ShouldQueue
 
             $log->debug('SENT');
 
-            $received = $serial->readUntilBlank(
-                lineNumber: $lineNumber,
-                maxLine:    $lineNumberCount
-            );
+            try {
+                $received = $serial->readUntilBlank(
+                    lineNumber: $lineNumber,
+                    maxLine:    $lineNumberCount
+                );
+            } catch (TimedOutException $exception) {
+                /*
+                 * NOTE:
+                 * 
+                 * On low-end devices, the CPU load could cause the false
+                 * impression of the printer being frozen or crashed, (the
+                 * serial connection went out of sync), because of that, we'll
+                 * try to fetch the statistics of the default extruder before
+                 * giving up. If said query suceeds, the print will be
+                 * automatically resumed.
+                 */
+
+                $log->warning('Timed out, looks like we haven\'t received a newline after the output of the last command. Let\'s try to get the statistics before giving up... Message: ' . $exception->getMessage());
+
+                try {
+                    $log->info('Trying to re-establish serial connection...');
+
+                    $received = $serial->query('M105');
+
+                    $log->info('A timing issue caused the serial connection to hang temporarily, trying again though, showed that the printer is still alive. Continuing print...');
+                } catch (TimedOutException $statisticsTimedOutException) {
+                    throw $exception; // throw the previous exception instead of the current one
+                }
+            }
 
             $log->debug('RECV: ' . $received);
             $log->debug('PROG: ' . $lineNumber . ' / ' . $lineNumberCount);
