@@ -125,11 +125,10 @@ services:
       - redis
       - mongo
       # - mariadb
-  watcher:
+  bundler:
     build: .
-    restart: always
     environment:
-      - ROLE=watcher
+      - ROLE=bundler
     volumes:
       - .:/var/www
   streamer:

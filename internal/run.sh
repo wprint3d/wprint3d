@@ -14,6 +14,23 @@ wait-for-it mongo:27017;
 #
 # wait-for-it mariadb:3306;
 
+waitForAssetBundler() {
+    if [[ $(php artisan get:env ASSETS_WATCHER_ENABLED --default=true) == 'true' ]]; then
+        # Wait for Vite to become available (no timeout)
+        wait-for-it bundler:5173 -t 0;
+    else
+        echo 'Waiting for the asset bundler to exit...';
+
+        PING_EXIT_STATUS=0;
+
+        while [[ $PING_EXIT_STATUS -eq 0 ]]; do
+            ping -c 1 bundler 2>&1 > /dev/null;
+
+            PING_EXIT_STATUS=$?;
+        done;
+    fi;
+}
+
 if [[ -z $ROLE ]]; then
     echo "End of script reached, this container will run as a dummy and, as such, it won't actually do anything.";
 
@@ -45,8 +62,7 @@ else
                 sleep 0.1;
             done;
 
-            # Wait for Vite to become available (no timeout)
-            wait-for-it watcher:5173 -t 0;
+            waitForAssetBundler;
 
             # TODO: Re-enable Telescope
             #
@@ -89,8 +105,7 @@ else
                 php artisan queue:work --queue="$QUEUE" --timeout=0;
             done;
         elif [[ "$ROLE" == 'ws-server' ]]; then
-            # Wait for Vite to become available (no timeout)
-            wait-for-it watcher:5173 -t 0;
+            waitForAssetBundler;
 
             while true; do
                 php artisan websockets:serve --host 0.0.0.0 --port 6001;
@@ -188,16 +203,22 @@ else
                     sleep 60;
                 done;
             fi;
-        elif [[ "$ROLE" == 'watcher' ]]; then
+        elif [[ "$ROLE" == 'bundler' ]]; then
             php artisan down;
 
             npm i;
 
             npm run build;
 
+            BUILD_EXIT_STATUS=$?;
+
             php artisan up;
 
-            npm run dev;
+            if [[ $(php artisan get:env ASSETS_WATCHER_ENABLED --default=true) == 'true' ]]; then
+                npm run dev;
+            else
+                exit $BUILD_EXIT_STATUS;
+            fi;
         elif [[ "$ROLE" == 'streamer' ]]; then
             getFreePort() {
                 port=$PORT_SCAN_START;
@@ -222,6 +243,8 @@ else
             fi;
 
             truncate --size 0 /tmp/cameras.conf;
+
+            waitForAssetBundler;
 
             while true; do
                 truncate --size 0 /tmp/cameras.conf;

@@ -53,6 +53,9 @@ RUN curl -O 'https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-arch
     make -j$(( $(nproc --all) * 2 )) &&\
     make install
 
+# Install the ping tool
+RUN apt-get update && apt-get install -y inetutils-ping
+
 # Install the Composer PHP package manager
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
