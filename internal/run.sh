@@ -94,12 +94,13 @@ else
             fi;
         elif [[ "$ROLE" == 'queue' ]]; then
             php artisan cache:clear;
-            php artisan queue:flush;
-            php artisan queue:restart;
 
             if [[ -z $QUEUE ]]; then
                 QUEUE=default;
             fi;
+
+            php artisan queue:flush --queue="$QUEUE";
+            php artisan queue:restart --queue="$QUEUE";
 
             while true; do
                 php artisan queue:work --queue="$QUEUE" --timeout=0;
