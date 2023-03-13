@@ -238,15 +238,7 @@ else
                 printf $port;
             }
 
-            if [[ ! -e '/var/www/proxy/internal/cameras.conf' ]]; then
-                truncate --size 0 /var/www/proxy/internal/cameras.conf;
-            fi;
-
-            truncate --size 0 /tmp/cameras.conf;
-
-            waitForAssetBundler;
-
-            while true; do
+            detectCameras() {
                 truncate --size 0 /tmp/cameras.conf;
 
                 for device in $(ls /dev/video*); do
@@ -317,7 +309,7 @@ else
                             fi;
                         fi;
                     fi;
-                done;
+                done
 
                 printf '\n';
 
@@ -331,9 +323,24 @@ else
 
                     docker exec -t wprint3d-proxy-1 nginx -s reload;
                 fi;
+            }
 
-                sleep 5;
-            done;
+            if [[ ! -e '/var/www/proxy/internal/cameras.conf' ]]; then
+                truncate --size 0 /var/www/proxy/internal/cameras.conf;
+            fi;
+
+            truncate --size 0 /tmp/cameras.conf;
+
+            waitForAssetBundler;
+
+            detectCameras;
+
+            inotifywait -m /dev -e create -e delete -e delete_self |
+                while read directory action file ; do
+                    echo "EVENT: $directory $action $file";
+
+                    detectCameras;
+                done;
         fi;
     done;
 fi;
