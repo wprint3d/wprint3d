@@ -60,6 +60,8 @@ class HardwareCamera {
 
             $index = -1;
 
+            $resolution = null;
+
             foreach ($output->explode( PHP_EOL ) as $line) {
                 $line = Str::of( $line )->trim();
 
@@ -73,9 +75,11 @@ class HardwareCamera {
                     if ($line->startsWith('Size') && $line->contains('Discrete')) {
                         $index++;
 
-                        $this->formats[ $index ]  = $line->replace('Size: Discrete ', '');
-                    } else if ($line->startsWith('Interval')) {
-                        $this->formats[ $index ] .= '@' . $line->replaceMatches('/Interval: Discrete .*\(/', '')->replaceMatches('/ fps.*/', '');
+                        $resolution = $line->replace('Size: Discrete ', '');
+                    } else if ($line->startsWith('Interval') && $resolution) {
+                        $this->formats[ $index ] = $resolution . '@' . $line->replaceMatches('/Interval: Discrete .*\(/', '')->replaceMatches('/ fps.*/', '');
+
+                        $index++;
                     }
                 }
             }
