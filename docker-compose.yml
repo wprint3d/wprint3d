@@ -154,6 +154,8 @@ services:
     depends_on:
       - redis
       - mongo
+      - bundler
+      - proxy
       # - mariadb
       - mapper
   redis:
