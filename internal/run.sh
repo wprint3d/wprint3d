@@ -275,9 +275,13 @@ else
                                             -i "input_uvc.so -d ${device} -r ${RESOLUTION} -f ${FRAMERATE}" \
                                             -o "output_http.so -p ${port}" &
                                     else
-                                        mjpg_streamer \
-                                            -i "input_libcamera.so --camera ${DEVICE_INDEX} -r ${RESOLUTION} -f ${FRAMERATE}" \
-                                            -o "output_http.so -p ${port}" &
+                                        if [[ $(php artisan get:env LIB_CAMERA_ENABLED --default=false) == 'true' ]]; then
+                                            mjpg_streamer \
+                                                -i "input_libcamera.so --camera ${DEVICE_INDEX} -r ${RESOLUTION} -f ${FRAMERATE}" \
+                                                -o "output_http.so -p ${port}" &
+                                        else
+                                            echo "This camera requires Libcamera, but it's disabled. Enable it by setting the LIB_CAMERA_ENABLED environment variable to 'true'.";
+                                        fi;
                                     fi;
                                 fi;
                             else

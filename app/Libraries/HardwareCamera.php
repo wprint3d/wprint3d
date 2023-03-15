@@ -87,6 +87,8 @@ class HardwareCamera {
     }
 
     private function loadLibCameraFormats() : void {
+        if (!env('LIB_CAMERA_ENABLED', false)) { return; }
+
         $process = new Process([
             'libcamera-vid',
             '--list-cameras'
