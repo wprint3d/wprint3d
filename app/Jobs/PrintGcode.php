@@ -193,12 +193,11 @@ class PrintGcode implements ShouldQueue
         /*
          * NOTE:
          * 
-         * On low-end devices, the CPU load could cause the false
-         * impression of the printer being frozen or crashed, (the
-         * serial connection went out of sync), because of that, we'll
-         * try to fetch the statistics of the default extruder before
-         * giving up. If said query suceeds, the print will be
-         * automatically resumed.
+         * On low-end devices, the CPU load could cause the false impression of
+         * the printer being frozen or crashed (the serial connection went out
+         * of sync), because of that, we'll try to fetch the statistics of the
+         * default extruder before giving up. If said query succeeds, the print
+         * will be automatically resumed.
          */
 
         $log->warning('Timed out, looks like we haven\'t received a newline after the output of the last command. Let\'s try to get the statistics before giving up... Message: ' . $previousException->getMessage());
