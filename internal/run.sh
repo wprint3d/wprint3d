@@ -256,13 +256,11 @@ else
                         echo "Refreshing device at node $device with ID $_ID";
 
                         if [[ "$ENABLED" -eq 1 ]] && [[ -e "$device" ]]; then
-                            ps -fax | grep mjpg_streamer | grep -- $device 2>&1 > /dev/null;
-                            TESTS_UVC=$?;
+                            UVC_PID=$(ps -fax | grep mjpg_streamer | grep -- $device 2>&1 | xargs | cut -d ' ' -f 1);
 
-                            ps -fax | grep mjpg_streamer | grep -- "--camera ${DEVICE_INDEX}" 2>&1 > /dev/null;
-                            TESTS_LIB_CAMERA=$?;
+                            LIB_CAMERA_PID=$(ps -fax | grep libcamera_camera.sh | grep ${device} | xargs | cut -d ' ' -f 1);
 
-                            if [[ $TESTS_UVC -eq 1 ]] && [[ "$TESTS_LIB_CAMERA" -eq 1 ]]; then # not yet started
+                            if [[ $UVC_PID == '' ]] && [[ "$LIB_CAMERA_PID" == '' ]]; then # not yet started
                                 port=$(getFreePort);
 
                                 if [[ "$port" == '' ]]; then
@@ -276,19 +274,24 @@ else
                                             -o "output_http.so -p ${port}" &
                                     else
                                         if [[ $(php artisan get:env LIB_CAMERA_ENABLED --default=false) == 'true' ]]; then
-                                            mjpg_streamer \
-                                                -i "input_libcamera.so --camera ${DEVICE_INDEX} -r ${RESOLUTION} -f ${FRAMERATE}" \
-                                                -o "output_http.so -p ${port}" &
+                                            /camera-streamer/tools/libcamera_camera.sh \
+                                                --camera-fps=${FRAMERATE} \
+                                                --camera-width=$(echo -n ${RESOLUTION} | cut -d 'x' -f 1) \
+                                                --camera-height=$(echo -n ${RESOLUTION} | cut -d 'x' -f 2) \
+                                                --http-port=${port} \
+                                                --virtual-address=${device} &
                                         else
                                             echo "This camera requires Libcamera, but it's disabled. Enable it by setting the LIB_CAMERA_ENABLED environment variable to 'true'.";
                                         fi;
                                     fi;
                                 fi;
                             else
+                                echo "PIDS - UVC: ${UVC_PID} | LIB CAMERA: ${LIB_CAMERA_PID}";
+
                                 port=$(ps -fax | grep mjpg_streamer | grep "$device" | sed 's/.*-p //' | sed 's/ //g');
 
                                 if [[ "$port" == '' ]]; then
-                                    port=$(ps -fax | grep mjpg_streamer | grep -- "--camera ${DEVICE_INDEX}" | sed 's/.*-p //' | sed 's/ //g');
+                                    port=$(ps -fax | grep libcamera_camera.sh | grep ${device} | sed 's/.*--http-port=//' | cut -d ' ' -f 1);
                                 fi;
                             fi;
 
@@ -300,19 +303,18 @@ else
                                 printf "\n}"                                                                >> /tmp/cameras.conf;
                             fi;
                         else # camera removed or bus error, kill and de-allocate resources
-                            pid=$(ps -fax | grep mjpg_streamer | grep "$device" | sed 's/^[ \t]*//' | cut -d ' ' -f 1);
-
-                            if [[ "$pid" != '' ]]; then
+                            if [[ "$UVC_PID" != '' ]]; then
                                 kill $pid;
-                            else
-                                pid=$(ps -fax | grep mjpg_streamer | grep "--camera ${DEVICE_INDEX}" | sed 's/^[ \t]*//' | cut -d ' ' -f 1);
-
-                                if [[ "$pid" != '' ]]; then
+                            elif [[ "$LIB_CAMERA_PID" != '' ]]; then
+                                # kill parent and child processes
+                                for pid in $(pstree -p -a ${LIB_CAMERA_PID} | cut -d ',' -f 2 | cut -d ' ' -f 1); do
                                     kill $pid;
-                                fi;
+                                done;
                             fi;
                         fi;
                     fi;
+
+                    rm -fv /var/www/internal/.requires_camera_detection;
                 done
 
                 printf '\n';
@@ -337,13 +339,34 @@ else
 
             waitForAssetBundler;
 
+            CURRENT_SUM=$(ps -x | grep -e mjpg -e camera-streamer | grep -v -e grep -e sed | sed 's/.*mjpg//' | md5sum | cut -d ' ' -f 1);
+
+            while true; do
+                NEW_SUM=$(ps -x | grep -e mjpg -e camera-streamer | grep -v -e grep -e sed | sed 's/.*mjpg//' | md5sum | cut -d ' ' -f 1);
+
+                if [[ "$CURRENT_SUM" != "$NEW_SUM" ]]; then
+                    echo "Camera configuration change detected, probing cameras... CSUM = ${CURRENT_SUM}, NSUM = ${NEW_SUM}";
+
+                    CURRENT_SUM="$NEW_SUM";
+
+                    touch /var/www/internal/.requires_camera_detection;
+                fi;
+
+                sleep 5;
+            done &
+
             detectCameras;
 
-            inotifywait -m /dev -e create -e delete -e delete_self |
-                while read directory action file ; do
-                    echo "EVENT: $directory $action $file";
+            inotifywait -m /dev /var/www/internal -e create -e delete -e delete_self |
+                while read event ; do
+                    echo "EVENT: $event";
 
-                    detectCameras;
+                    ACTION=$(printf "$event" | cut -d ' ' -f 2);
+                    FILENAME=$(printf "$event" | cut -d ' ' -f 3);
+
+                    if ([[ "$ACTION" != 'DELETE' ]] && [[ "$FILENAME" == '.requires_camera_detection' ]]) || [[ "$FILENAME" != '.requires_camera_detection' ]]; then
+                        detectCameras;
+                    fi;
                 done;
         fi;
     done;
