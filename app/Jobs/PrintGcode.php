@@ -21,6 +21,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 
 use Illuminate\Foundation\Bus\Dispatchable;
 
+use Illuminate\Log\Logger;
+
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
@@ -34,6 +36,8 @@ use Illuminate\Support\Facades\Log;
 use MongoDB\BSON\UTCDateTime;
 
 use Throwable;
+
+use Exception;
 
 class PrintGcode implements ShouldQueue
 {
@@ -183,6 +187,31 @@ class PrintGcode implements ShouldQueue
         }
 
         return $position;
+    }
+
+    private function retrySerialConnection(Exception $previousException, Serial &$serial, Logger &$log) {
+        /*
+         * NOTE:
+         * 
+         * On low-end devices, the CPU load could cause the false
+         * impression of the printer being frozen or crashed, (the
+         * serial connection went out of sync), because of that, we'll
+         * try to fetch the statistics of the default extruder before
+         * giving up. If said query suceeds, the print will be
+         * automatically resumed.
+         */
+
+        $log->warning('Timed out, looks like we haven\'t received a newline after the output of the last command. Let\'s try to get the statistics before giving up... Message: ' . $previousException->getMessage());
+
+        try {
+            $log->info('Trying to re-establish serial connection...');
+
+            $serial->query('M105');
+
+            $log->info('A timing issue caused the serial connection to hang temporarily, trying again though, showed that the printer is still alive. Continuing print...');
+        } catch (TimedOutException $statisticsTimedOutException) {
+            throw $previousException; // throw the previous exception instead of the current one
+        }
     }
 
     /**
@@ -451,28 +480,7 @@ class PrintGcode implements ShouldQueue
                     maxLine:    $lineNumberCount
                 );
             } catch (TimedOutException $exception) {
-                /*
-                 * NOTE:
-                 * 
-                 * On low-end devices, the CPU load could cause the false
-                 * impression of the printer being frozen or crashed, (the
-                 * serial connection went out of sync), because of that, we'll
-                 * try to fetch the statistics of the default extruder before
-                 * giving up. If said query suceeds, the print will be
-                 * automatically resumed.
-                 */
-
-                $log->warning('Timed out, looks like we haven\'t received a newline after the output of the last command. Let\'s try to get the statistics before giving up... Message: ' . $exception->getMessage());
-
-                try {
-                    $log->info('Trying to re-establish serial connection...');
-
-                    $received = $serial->query('M105');
-
-                    $log->info('A timing issue caused the serial connection to hang temporarily, trying again though, showed that the printer is still alive. Continuing print...');
-                } catch (TimedOutException $statisticsTimedOutException) {
-                    throw $exception; // throw the previous exception instead of the current one
-                }
+                $this->retrySerialConnection($exception, $serial, $log);
             }
 
             $log->debug('RECV: ' . $received);
@@ -501,14 +509,18 @@ class PrintGcode implements ShouldQueue
 
                 if (isset( $statistics['extruders'] )) {
                     foreach (array_keys($statistics['extruders']) as $extruderIndex) {
-                        $this->printer->setStatistics(
-                            lines:          $serial->query(
-                                command:    'M105 T' . $extruderIndex,
-                                lineNumber: $lineNumber,
-                                maxLine:    $lineNumberCount
-                            ),
-                            extruderIndex:  $extruderIndex
-                        );
+                        try {
+                            $this->printer->setStatistics(
+                                lines:          $serial->query(
+                                    command:    'M105 T' . $extruderIndex,
+                                    lineNumber: $lineNumber,
+                                    maxLine:    $lineNumberCount
+                                ),
+                                extruderIndex:  $extruderIndex
+                            );
+                        } catch (TimedOutException $exception) {
+                            $this->retrySerialConnection($exception, $serial, $log);
+                        }
                     }
                 }
             }
