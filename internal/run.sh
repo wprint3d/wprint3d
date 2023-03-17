@@ -339,10 +339,10 @@ else
 
             waitForAssetBundler;
 
-            CURRENT_SUM=$(ps -x | grep -e mjpg -e camera-streamer | grep -v -e grep -e sed | sed 's/.*mjpg//' | md5sum | cut -d ' ' -f 1);
+            CURRENT_SUM=$(ps -x | grep -e mjpg -e camera-streamer | grep -v -e grep -e sed | sed 's/.*mjpg//' | sed 's/.*camera-streamer//' | md5sum | cut -d ' ' -f 1);
 
             while true; do
-                NEW_SUM=$(ps -x | grep -e mjpg -e camera-streamer | grep -v -e grep -e sed | sed 's/.*mjpg//' | md5sum | cut -d ' ' -f 1);
+                NEW_SUM=$(ps -x | grep -e mjpg -e camera-streamer | grep -v -e grep -e sed | sed 's/.*mjpg//' | sed 's/.*camera-streamer//' | md5sum | cut -d ' ' -f 1);
 
                 if [[ "$CURRENT_SUM" != "$NEW_SUM" ]]; then
                     echo "Camera configuration change detected, probing cameras... CSUM = ${CURRENT_SUM}, NSUM = ${NEW_SUM}";
