@@ -2,20 +2,11 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\CameraMode;
-
-use App\Libraries\HardwareCamera;
-
 use App\Models\Camera;
 
 use Illuminate\Console\Command;
 
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-
-use Illuminate\Support\Facades\Log;
-
-use Illuminate\Support\Facades\DB;
 
 class GetHardwareCamera extends Command
 {
