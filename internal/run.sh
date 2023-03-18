@@ -225,7 +225,7 @@ else
 
                 maxPort=$PORT_SCAN_END;
 
-                while [[ $(ps -fax | grep mjpg_streamer | grep "$port" 2>&1 > /dev/null ; printf $?) -eq 0 ]]; do
+                while ps -fax | grep -e mjpg_streamer -e camera-streamer | grep "$port" 2>&1 > /dev/null; do
                     port=$(( $port + 1 ));
 
                     if [[ $port -gt $maxPort ]]; then
@@ -236,6 +236,10 @@ else
                 done;
 
                 printf $port;
+            }
+
+            getFirstCSICamera() {
+                libcamera-vid --list-cameras | grep '/base' | sed 's/.*(//' | sed 's/).*//' | head -1 | xargs;
             }
 
             detectCameras() {
@@ -275,6 +279,7 @@ else
                                     else
                                         if [[ $(php artisan get:env LIB_CAMERA_ENABLED --default=false) == 'true' ]]; then
                                             /camera-streamer/tools/libcamera_camera.sh \
+                                                --camera-path=$(getFirstCSICamera) \
                                                 --camera-fps=${FRAMERATE} \
                                                 --camera-width=$(echo -n ${RESOLUTION} | cut -d 'x' -f 1) \
                                                 --camera-height=$(echo -n ${RESOLUTION} | cut -d 'x' -f 2) \
