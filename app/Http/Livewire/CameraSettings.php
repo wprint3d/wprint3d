@@ -3,6 +3,7 @@
 namespace App\Http\Livewire;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 use Livewire\Component;
 
@@ -29,6 +30,8 @@ class CameraSettings extends Component
         }
 
         $this->camera->save();
+
+        Storage::disk('internal')->put('.requires_camera_detection', '');
 
         $this->emit('cameraSettingsChanged');
     }

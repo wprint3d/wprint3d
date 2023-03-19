@@ -52,7 +52,7 @@ RUN curl -O 'https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-arch
     apt-get update &&\
     if [ -e /internal/vc/LICENCE ]; then \
         apt-get update && \
-        apt-get install -y libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev libcamera-dev liblivemedia-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev && \
+        apt-get install -y libcamera-apps-lite libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev libcamera-dev liblivemedia-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev && \
         git clone https://github.com/ayufan-research/camera-streamer.git --recursive --shallow-submodules && \
         cd camera-streamer && \
         make && \
