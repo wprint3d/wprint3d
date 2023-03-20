@@ -117,22 +117,62 @@ else
 
             IFS=$'\n';
 
-            for camera in $(ls -l /dev/video* | sed 's/  */ /g'); do # this will remove repeated spaces
-                MAJOR=$(printf   "$camera" | cut -d ' ' -f 5  | cut -d ',' -f 1);
-                MINOR=$(printf   "$camera" | cut -d ' ' -f 6  | cut -d ',' -f 1);
-                DEVNAME=$(printf "$camera" | cut -d ' ' -f 10 | cut -d ',' -f 1);
+            mapCameraLabels() {
+                HARDWARE_CAMERAS=$(php artisan get:hardware-cameras);
 
-                DEVICE_INDEX=$(printf "$DEVNAME" | sed 's-/dev/video--');
+                CURRENT_LINE=0;
+                MAX_LINE=$(echo -n "$HARDWARE_CAMERAS" | wc -l);
 
-                # find the path in /sys/devices to idProduct and idVendor for the current camera
-                SYS_PATH=$(find /sys/devices -name uevent -exec grep -Hr 'video'"$DEVICE_INDEX" {} \; | sed 's/:DEVNAME.*//g' | sed 's/video4linux.*//g')'..';
+                for var in $HARDWARE_CAMERAS; do
+                    eval "$var";
 
-                VENDOR_PRODUCT=$(cat $SYS_PATH/idVendor)':'$(cat $SYS_PATH/idProduct); # 0c45:64ab
+                    if [[ "$CURRENT_ID" != '' ]] && ([[ "$_ID" != "$CURRENT_ID" ]] || [[ "$CURRENT_LINE" -eq "$MAX_LINE" ]]); then
+                        echo "Setting label for device at node $NODE with ID $CURRENT_ID";
 
-                LABEL=$(lsusb -d "$VENDOR_PRODUCT" | sed 's/  */ /g' | cut -d ':' -f 3 | sed 's/.....//');
+                        LABEL='';
 
-                php artisan map:set-hardware-camera-label "$DEVICE_INDEX" "$LABEL"
-            done;
+                        if printf "$NODE" | grep '/dev/video' > /dev/null; then
+                            camera=$(ls -l "$NODE");
+
+                            MAJOR=$(printf   "$camera" | cut -d ' ' -f 5  | cut -d ',' -f 1);
+                            MINOR=$(printf   "$camera" | cut -d ' ' -f 6  | cut -d ',' -f 1);
+                            DEVNAME=$(printf "$camera" | cut -d ' ' -f 10 | cut -d ',' -f 1);
+
+                            DEVICE_INDEX=$(printf "$DEVNAME" | sed 's-/dev/video--');
+
+                            # find the path in /sys/devices to idProduct and idVendor for the current camera
+                            SYS_PATH=$(find /sys/devices -name uevent -exec grep -Hr 'video'"$DEVICE_INDEX" {} \; | sed 's/:DEVNAME.*//g' | sed 's/video4linux.*//g')'..';
+
+                            if [[ -e "$SYS_PATH/idVendor" ]] && [[ -e "$SYS_PATH/idProduct" ]]; then
+                                VENDOR_PRODUCT=$(cat $SYS_PATH/idVendor)':'$(cat $SYS_PATH/idProduct); # 0c45:64ab
+
+                                LABEL=$(lsusb -d "$VENDOR_PRODUCT" | sed 's/  */ /g' | cut -d ':' -f 3 | sed 's/.....//');
+                            else
+                                echo "$DEVICE_INDEX: no label is available for this device.";
+                            fi;
+                        elif printf "$NODE" | grep '/sys/firmware/devicetree' > /dev/null; then
+                            VENDOR_PRODUCT=$(cat "$NODE"/compatible);
+
+                            VENDOR=$(printf "$VENDOR_PRODUCT" | cut -d ',' -f 1)
+                            VENDOR="${VENDOR^}";
+
+                            PRODUCT=$(printf "$VENDOR_PRODUCT" | cut -d ',' -f 2);
+                            PRODUCT="${PRODUCT^^}";
+
+                            LABEL="$VENDOR"' '"$PRODUCT";
+                        fi;
+
+                        if [[ "$LABEL" != '' ]]; then
+                            php artisan map:set-hardware-camera-label "$NODE" "$LABEL";
+                        fi;
+                    fi;
+
+                    CURRENT_ID="$_ID";
+                    CURRENT_LINE=$(( $CURRENT_LINE + 1 ));
+                done;
+            }
+
+            mapCameraLabels;
 
             while true; do
                 deviceChanged=0;
@@ -177,13 +217,7 @@ else
                                 php artisan map:hardware-cameras;
 
                                 if [[ "$DEVNAME" == *'video'* ]]; then
-                                    VENDOR_PRODUCT=$(printf "$PRODUCT" | sed 's/\//:/' | sed 's/\/.*//'); # c45:64ab
-
-                                    LABEL=$(lsusb -d "$VENDOR_PRODUCT" | sed 's/  */ /g' | cut -d ':' -f 3 | sed 's/.....//');
-
-                                    echo "$VENDOR_PRODUCT"': '"$LABEL";
-
-                                    php artisan map:set-hardware-camera-label "$DEVICE_INDEX" "$LABEL"
+                                    mapCameraLabels;
                                 fi;
                             fi;
 
@@ -238,99 +272,137 @@ else
                 printf $port;
             }
 
-            getFirstCSICamera() {
-                libcamera-vid --list-cameras | grep '/base' | sed 's/.*(//' | sed 's/).*//' | head -1 | xargs;
-            }
-
-            detectCameras() {
+            # Here, we're redirecting any relevant information to stderr (>&2)
+            # instead of stdout, as stdout has been trapped by this function.
+            updateCameras() {
                 truncate --size 0 /tmp/cameras.conf;
 
-                for device in $(ls /dev/video*); do
-                    INFO=$(php artisan get:hardware-camera $(printf "$device" | sed 's-/dev/video--'));
+                IFS=$'\n';
 
-                    DEVICE_INDEX=$(printf "$device" | sed 's-/dev/video--');
+                HAS_RPI_CAM_INCLUDES=$([ ! -e /internal/vc/LICENCE ]; echo -n $?);
 
-                    if [[ "$INFO" != 'null' ]]; then
-                        IFS=$'\n';
+                CURRENT_ID='';
 
-                        for var in "$INFO"; do
-                            eval "$var";
-                        done;
+                HARDWARE_CAMERAS=$(php artisan get:hardware-cameras);
 
-                        echo "Refreshing device at node $device with ID $_ID";
+                CURRENT_LINE=0;
+                MAX_LINE=$(echo -n "$HARDWARE_CAMERAS" | wc -l);
+
+                for var in $HARDWARE_CAMERAS; do
+                    eval "$var";
+
+                    if [[ "$CURRENT_ID" != '' ]] && ([[ "$_ID" != "$CURRENT_ID" ]] || [[ "$CURRENT_LINE" -eq "$MAX_LINE" ]]); then
+                        echo "Refreshing device at node $NODE with ID $CURRENT_ID" >&2;
+
+                        # camera-streamer doesn't like the actual full path
+                        NODE=$(echo -n "$NODE" | sed 's-/sys/firmware/devicetree--');
+
+                        if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]]; then
+                            LIB_CAMERA_UVC_PID=$(ps -fax | grep usb_camera.sh       | grep -- $NODE | xargs | cut -d ' ' -f 1);
+                            LIB_CAMERA_CSI_PID=$(ps -fax | grep libcamera_camera.sh | grep -- $NODE | xargs | cut -d ' ' -f 1);
+                        else
+                            LIB_CAMERA_UVC_PID=$(ps -fax | grep mjpg_streamer       | grep -- $NODE | xargs | cut -d ' ' -f 1);
+                        fi;
 
                         if [[ "$ENABLED" -eq 1 ]] && [[ -e "$device" ]]; then
-                            UVC_PID=$(ps -fax | grep mjpg_streamer | grep -- $device 2>&1 | xargs | cut -d ' ' -f 1);
-
-                            LIB_CAMERA_PID=$(ps -fax | grep libcamera_camera.sh | grep ${device} | xargs | cut -d ' ' -f 1);
-
-                            if [[ $UVC_PID == '' ]] && [[ "$LIB_CAMERA_PID" == '' ]]; then # not yet started
+                            if [[ $LIB_CAMERA_UVC_PID == '' ]] && [[ "$LIB_CAMERA_CSI_PID" == '' ]]; then # not yet started
                                 port=$(getFreePort);
 
                                 if [[ "$port" == '' ]]; then
-                                    echo "Unable to allocate port: no ports are currently available.";
+                                    echo "Unable to allocate port: no ports are currently available." >&2;
                                 else
-                                    # php artisan map:set-hardware-camera-port "$DEVICE_INDEX" "$port";
+                                    # php artisan map:set-hardware-camera-port "$NODE" "$port";
 
-                                    if [[ "$REQUIRES_LIB_CAMERA" != '1' ]]; then
-                                        mjpg_streamer \
-                                            -i "input_uvc.so -d ${device} -r ${RESOLUTION} -f ${FRAMERATE}" \
-                                            -o "output_http.so -p ${port}" &
-                                    else
-                                        if [[ $(php artisan get:env LIB_CAMERA_ENABLED --default=false) == 'true' ]]; then
-                                            /camera-streamer/tools/libcamera_camera.sh \
-                                                --camera-path=$(getFirstCSICamera) \
-                                                --camera-fps=${FRAMERATE} \
-                                                --camera-width=$(echo -n ${RESOLUTION} | cut -d 'x' -f 1) \
-                                                --camera-height=$(echo -n ${RESOLUTION} | cut -d 'x' -f 2) \
-                                                --http-port=${port} \
-                                                --virtual-address=${device} &
+                                    if [[ "$REQUIRES_LIB_CAMERA" -ne 1 ]]; then
+                                        if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]]; then
+                                            /camera-streamer/tools/usb_camera.sh \
+                                                --camera-path=$NODE \
+                                                --camera-fps=$FRAMERATE \
+                                                --camera-width=$( echo -n $RESOLUTION | cut -d 'x' -f 1) \
+                                                --camera-height=$(echo -n $RESOLUTION | cut -d 'x' -f 2) \
+                                                --http-port=${port} &
                                         else
-                                            echo "This camera requires Libcamera, but it's disabled. Enable it by setting the LIB_CAMERA_ENABLED environment variable to 'true'.";
+                                            mjpg_streamer \
+                                                -i "input_uvc.so -d $NODE -r $RESOLUTION -f $FRAMERATE" \
+                                                -o "output_http.so -p ${port}" &
+                                        fi;
+                                    else
+                                        if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]] && [[ $(php artisan get:env LIB_CAMERA_ENABLED --default=false) == 'true' ]]; then
+                                            /camera-streamer/tools/libcamera_camera.sh \
+                                                --camera-path=$NODE \
+                                                --camera-fps=$FRAMERATE \
+                                                --camera-width=$( echo -n $RESOLUTION | cut -d 'x' -f 1) \
+                                                --camera-height=$(echo -n $RESOLUTION | cut -d 'x' -f 2) \
+                                                --http-port=${port} &
+                                        else
+                                            echo "This camera requires Libcamera, but it's disabled. Enable it by setting the LIB_CAMERA_ENABLED environment variable to 'true'." >&2;
                                         fi;
                                     fi;
                                 fi;
                             else
-                                echo "PIDS - UVC: ${UVC_PID} | LIB CAMERA: ${LIB_CAMERA_PID}";
+                                port='';
 
-                                port=$(ps -fax | grep mjpg_streamer | grep "$device" | sed 's/.*-p //' | sed 's/ //g');
+                                if [[ "$LIB_CAMERA_UVC_PID" != '' ]]; then
+                                    echo "PID UVC: ${LIB_CAMERA_UVC_PID}" >&2;
 
-                                if [[ "$port" == '' ]]; then
-                                    port=$(ps -fax | grep libcamera_camera.sh | grep ${device} | sed 's/.*--http-port=//' | cut -d ' ' -f 1);
+                                    if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]]; then
+                                        port=$(ps -fax | grep usb_camera.sh | grep $NODE | sed 's/.*--http-port=//' | cut -d ' ' -f 1);
+                                    else
+                                        port=$(ps -fax | grep mjpg_streamer | grep $NODE | sed 's/.*-p //' | sed 's/ //g');
+                                    fi;
+                                elif [[ "$LIB_CAMERA_CSI_PID" != '' ]]; then
+                                    echo "PID CSI: ${LIB_CAMERA_CSI_PID}" >&2;
+
+                                    port=$(ps -fax | grep libcamera_camera.sh | grep $NODE | sed 's/.*--http-port=//' | cut -d ' ' -f 1);
                                 fi;
                             fi;
 
                             if [[ "$port" != '' ]]; then
-                                printf "\nlocation /video/${DEVICE_INDEX} {"                                >> /tmp/cameras.conf;
+                                PROXY_PREFIX='uvc';
+
+                                if [[ "$REQUIRES_LIB_CAMERA" -eq 1 ]]; then
+                                    PROXY_PREFIX='csi';
+                                fi;
+
+                                printf "\nlocation /video/$PROXY_PREFIX/$INDEX {"                           >> /tmp/cameras.conf;
                                 printf "\n\tproxy_pass            http://streamer:${port}/?action=stream;"  >> /tmp/cameras.conf;
                                 printf "\n\tproxy_set_header Host \$host;"                                  >> /tmp/cameras.conf;
                                 printf "\n\tinclude               nginxconfig.io/proxy.conf;"               >> /tmp/cameras.conf;
                                 printf "\n}"                                                                >> /tmp/cameras.conf;
                             fi;
-                        else # camera removed or bus error, kill and de-allocate resources
-                            if [[ "$UVC_PID" != '' ]]; then
-                                kill $pid;
-                            elif [[ "$LIB_CAMERA_PID" != '' ]]; then
-                                # kill parent and child processes
-                                for pid in $(pstree -p -a ${LIB_CAMERA_PID} | cut -d ',' -f 2 | cut -d ' ' -f 1); do
-                                    kill $pid;
-                                done;
+                        else # the camera has been disabled, kill and de-allocate resources
+                            if [[ "$LIB_CAMERA_UVC_PID" != '' ]] || [[ "$LIB_CAMERA_CSI_PID" != '' ]]; then
+                                PARENT_PID='';
+
+                                if [[ "$LIB_CAMERA_UVC_PID" != '' ]]; then
+                                    PARENT_PID="$LIB_CAMERA_UVC_PID";
+                                elif [[ "$LIB_CAMERA_CSI_PID" != '' ]]; then
+                                    PARENT_PID="$LIB_CAMERA_CSI_PID";
+                                fi;
+
+                                if [[ "$PARENT_PID" != '' ]]; then
+                                    # kill parent and child processes
+                                    for pid in $(pstree -p -a ${PARENT_PID} | cut -d ',' -f 2 | cut -d ' ' -f 1); do
+                                        kill $pid;
+                                    done;
+                                fi;
                             fi;
                         fi;
                     fi;
 
-                    rm -fv /var/www/internal/.requires_camera_detection;
-                done
+                    CURRENT_ID="$_ID";
+                    CURRENT_LINE=$(( $CURRENT_LINE + 1 ));
+                done;
 
-                printf '\n';
+                rm -fv /var/www/internal/.requires_camera_detection;
 
                 CURRENT_SUM="$(md5sum /var/www/proxy/internal/cameras.conf | cut -d ' ' -f 1)"
                 NEW_SUM="$(md5sum /tmp/cameras.conf | cut -d ' ' -f 1)";
 
                 if [[ "$CURRENT_SUM" != "$NEW_SUM" ]]; then
-                    echo "Proxy server change detected, reloading... CSUM = ${CURRENT_SUM}, NSUM = ${NEW_SUM}";
+                    echo "Proxy server change detected, reloading... CSUM = ${CURRENT_SUM}, NSUM = ${NEW_SUM}" >&2;
 
-                    cp -fv /tmp/cameras.conf /var/www/proxy/internal/cameras.conf;
+                    cp -fv /tmp/cameras.conf /var/www/proxy/internal/cameras.conf >&2;
 
                     docker exec -t wprint3d-proxy-1 nginx -s reload;
                 fi;
@@ -360,7 +432,7 @@ else
                 sleep 5;
             done &
 
-            detectCameras;
+            updateCameras;
 
             inotifywait -m /dev /var/www/internal -e create -e delete -e delete_self |
                 while read event ; do
@@ -370,7 +442,7 @@ else
                     FILENAME=$(printf "$event" | cut -d ' ' -f 3);
 
                     if ([[ "$ACTION" != 'DELETE' ]] && [[ "$FILENAME" == '.requires_camera_detection' ]]) || [[ "$FILENAME" != '.requires_camera_detection' ]]; then
-                        detectCameras;
+                        updateCameras;
                     fi;
                 done;
         fi;

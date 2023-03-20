@@ -9,8 +9,8 @@
                     @if (count($availableCameras) > 0)
                         @foreach ($availableCameras as $camera)
                         <li class="list-group-item">
-                            Local camera {{ $camera->node }} ({{ $camera->format }})
-                            <a href="{{ env('WEBCAM_BASE_URL') . '/' . $camera->node }}" target="_blank" class="btn btn-sm">
+                            Local camera at {{ $camera->node }} ({{ $camera->format }})
+                            <a href="{{ $camera->url }}" target="_blank" class="btn btn-sm">
                                 @svg('eye-open')
                             </a>
                             <div class="d-flex end-0 h-100 position-absolute top-0">
@@ -38,8 +38,8 @@
                     @if (count($assignedCameras) > 0)
                         @foreach ($assignedCameras as $camera)
                             <li class="list-group-item">
-                                Local camera {{ $camera->node }} ({{ $camera->format }})
-                                <a href="{{ env('WEBCAM_BASE_URL') . '/' . $camera->node }}" target="_blank" class="btn btn-sm">
+                                Local camera at {{ $camera->node }} ({{ $camera->format }})
+                                <a href="{{ $camera->url }}" target="_blank" class="btn btn-sm">
                                     @svg('eye-open')
                                 </a>
                                 <div class="d-flex end-0 h-100 position-absolute top-0">

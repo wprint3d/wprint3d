@@ -16,8 +16,8 @@ class SetHardwareCameraLabel extends Command
      * @var string
      */
     protected $signature = 'map:set-hardware-camera-label
-                            {index : The camera device index, as in /dev/video<index> }
-                            {label : The label that should be set.                    }';
+                            { node  : The camera device node, as in /dev/video0 }
+                            { label : The label that should be set.             }';
 
     /**
      * The console command description.
@@ -35,14 +35,14 @@ class SetHardwareCameraLabel extends Command
     {
         $log = Log::channel('hardware-cameras-mapper');
 
-        $index  = $this->argument('index');
+        $node   = $this->argument('node');
         $label  = $this->argument('label');
 
         if (!$label) {
             $label = null;
         }
 
-        $camera = Camera::where('node', $index)->first();
+        $camera = Camera::where('node', $node)->first();
 
         if (!$camera) {
             $this->error('No such camera.');
