@@ -295,16 +295,16 @@ else
                         echo "Refreshing device at node $NODE with ID $CURRENT_ID" >&2;
 
                         # camera-streamer doesn't like the actual full path
-                        NODE=$(echo -n "$NODE" | sed 's-/sys/firmware/devicetree--');
+                        CAMERA_STREAMER_NODE=$(echo -n "$NODE" | sed 's-/sys/firmware/devicetree--');
 
                         if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]]; then
-                            LIB_CAMERA_UVC_PID=$(ps -fax | grep usb_camera.sh       | grep -- $NODE | xargs | cut -d ' ' -f 1);
-                            LIB_CAMERA_CSI_PID=$(ps -fax | grep libcamera_camera.sh | grep -- $NODE | xargs | cut -d ' ' -f 1);
+                            LIB_CAMERA_UVC_PID=$(ps -fax | grep usb_camera.sh       | grep -- $NODE                 | xargs | cut -d ' ' -f 1);
+                            LIB_CAMERA_CSI_PID=$(ps -fax | grep libcamera_camera.sh | grep -- $CAMERA_STREAMER_NODE | xargs | cut -d ' ' -f 1);
                         else
-                            LIB_CAMERA_UVC_PID=$(ps -fax | grep mjpg_streamer       | grep -- $NODE | xargs | cut -d ' ' -f 1);
+                            LIB_CAMERA_UVC_PID=$(ps -fax | grep mjpg_streamer       | grep -- $NODE                 | xargs | cut -d ' ' -f 1);
                         fi;
 
-                        if [[ "$ENABLED" -eq 1 ]] && [[ -e "$device" ]]; then
+                        if [[ "$ENABLED" -eq 1 ]] && [[ -e "$NODE" ]]; then
                             if [[ $LIB_CAMERA_UVC_PID == '' ]] && [[ "$LIB_CAMERA_CSI_PID" == '' ]]; then # not yet started
                                 port=$(getFreePort);
 
@@ -329,7 +329,7 @@ else
                                     else
                                         if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]] && [[ $(php artisan get:env LIB_CAMERA_ENABLED --default=false) == 'true' ]]; then
                                             /camera-streamer/tools/libcamera_camera.sh \
-                                                --camera-path=$NODE \
+                                                --camera-path=$CAMERA_STREAMER_NODE \
                                                 --camera-fps=$FRAMERATE \
                                                 --camera-width=$( echo -n $RESOLUTION | cut -d 'x' -f 1) \
                                                 --camera-height=$(echo -n $RESOLUTION | cut -d 'x' -f 2) \
@@ -353,7 +353,7 @@ else
                                 elif [[ "$LIB_CAMERA_CSI_PID" != '' ]]; then
                                     echo "PID CSI: ${LIB_CAMERA_CSI_PID}" >&2;
 
-                                    port=$(ps -fax | grep libcamera_camera.sh | grep $NODE | sed 's/.*--http-port=//' | cut -d ' ' -f 1);
+                                    port=$(ps -fax | grep libcamera_camera.sh | grep $CAMERA_STREAMER_NODE | sed 's/.*--http-port=//' | cut -d ' ' -f 1);
                                 fi;
                             fi;
 
