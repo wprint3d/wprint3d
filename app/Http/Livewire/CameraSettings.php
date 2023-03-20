@@ -43,7 +43,7 @@ class CameraSettings extends Component
         if ($this->camera) {
             $this->enabled  = $this->camera->enabled;
             $this->format   = $this->camera->format;
-            $this->url      = env('WEBCAM_BASE_URL') . '/' . $this->camera->node;
+            $this->url      = $this->camera->url;
         }
 
         return view('livewire.camera-settings');

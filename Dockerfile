@@ -33,16 +33,12 @@ COPY internal /internal
 # /opt/vc/LICENCE, if it does exist, the RPi camera dependencies are bundled
 # with the image.
 #
-# Note that we're manually removing "input_raspicam" as it's broken on 64-bit
-# builds of Raspberry Pi OS and it's terribly slow too, so we'll just build and
-# use "input_libcamera" instead. As a side note, even though we're actually
-# building "input_libcamera" into MJPG Streamer, we'll be using Camera Streamer
-# instead whenever an RPi camera is found, as it's faster and more reliable.
-#
-# The regex substitution on the first block works by automatically removing any
-# option that contains --virtual-address and everything afterwards when running
-# libcamera_camera.sh as we need that data in order to track whether the
-# process is still alive.
+# Note that we're manually removing "input_raspicam" from MJPG streamer as it's
+# broken on 64-bit builds of Raspberry Pi OS and it's terribly slow too, so
+# we'll just build and use "input_libcamera" instead. As a side note, even
+# though we're actually building "input_libcamera" into MJPG Streamer, we'll be
+# using Camera Streamer instead whenever an RPi camera is found, as it's faster
+# and more reliable.
 RUN curl -O 'https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2016.10.31_all.deb' &&\
     dpkg -i ./raspberrypi-archive-keyring_2016.10.31_all.deb &&\
     if [ -e /internal/vc/LICENCE ]; then \
@@ -50,18 +46,18 @@ RUN curl -O 'https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-arch
         echo 'deb http://archive.raspberrypi.org/debian/ bullseye main' >> /etc/apt/sources.list.d/raspi.list; \
     fi &&\
     apt-get update &&\
+    apt-get install -y meson python3 python3-pip python3-jinja2 python3-ply python3-yaml libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev libboost-program-options-dev libdrm-dev libexif-dev &&\
     if [ -e /internal/vc/LICENCE ]; then \
-        apt-get update && \
-        apt-get install -y libcamera-apps-lite libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev libcamera-dev liblivemedia-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev && \
-        git clone https://github.com/ayufan-research/camera-streamer.git --recursive --shallow-submodules && \
-        cd camera-streamer && \
-        make && \
-        make install && \
-        sed -i 's/"$@"/$(echo -n "$@" | sed "s\/--virtual-address.*\/\/")/' ./tools/libcamera_camera.sh; \
-    else \
-        apt-get install -y libjpeg62-turbo-dev v4l-utils; \
+        apt-get install -y libcamera-apps-lite liblivemedia-dev libcamera-dev; \
     fi;
 
+# camera-streamer
+RUN git clone https://github.com/ayufan-research/camera-streamer.git --recursive --shallow-submodules &&\
+    cd camera-streamer &&\
+    make &&\
+    make install;
+
+# MJPG Streamer
 RUN git clone https://github.com/ArduCAM/mjpg-streamer.git &&\
     cd mjpg-streamer/mjpg-streamer-experimental &&\
     sed -i 's/add_subdirectory(plugins\/input_raspicam)//g' CMakeLists.txt &&\

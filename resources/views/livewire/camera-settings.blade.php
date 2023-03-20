@@ -1,7 +1,7 @@
 <div class="card col-12 col-md-6 col-lg-3 mt-2 @if (!$enabled) opacity-50 @endif">
     <img src="images/camera.jpg" class="card-img-top mt-3" alt="{{ $camera->label  }}">
     <div class="card-body">
-        <h5 class="card-title"> {{ $camera->label }} at node {{ $camera->node }} </h5>
+        <h5 class="card-title"> <b>{{ $camera->label }}</b> at {{ $camera->node }} </h5>
 
         <div class="form-check form-switch">
             <input wire:model="enabled" class="form-check-input" type="checkbox" role="switch" @if ($enabled) checked

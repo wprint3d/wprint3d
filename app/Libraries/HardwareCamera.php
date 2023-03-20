@@ -10,23 +10,26 @@ use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class HardwareCamera {
 
-    private int     $videoId;
-    private array   $formats = [];
-    private ?bool   $requiresLibCamera = null;
+    private int     $index;
+    private string  $node;
 
-    const VIDEO_PATH   = '/dev';
-    const VIDEO_PREFIX = 'video';
+    private array   $formats = [];
+
+    private bool    $requiresLibCamera = false;
+
     const LIB_CAMERA_ALLOWED_FRAMERATES = [ 15, 30, 60 ];
 
-    public function __construct(int $videoId = 0)
+    public function __construct(int $index, string $node, bool $requiresLibCamera = false)
     {
-        $this->videoId = $videoId;
+        $this->index = $index;
+        $this->node  = $node;
+        $this->requiresLibCamera = $requiresLibCamera;
     }
 
     public function takeSnapshot() {
         $process = new Process([
             'fswebcam',
-            '-d', self::VIDEO_PATH . '/' . self::VIDEO_PREFIX . $this->videoId,
+            '-d', $this->node,
             '--no-banner',
             '-'
         ]);
@@ -43,7 +46,7 @@ class HardwareCamera {
     private function loadDiscreteUVCFormats() : void {
         $process = new Process([
             'v4l2-ctl',
-            '-d', self::VIDEO_PATH . '/' . self::VIDEO_PREFIX . $this->videoId,
+            '-d', $this->node,
             '--list-formats-ext'
         ]);
 
@@ -102,18 +105,18 @@ class HardwareCamera {
 
         if (!$output->contains('Available cameras')) { return; }
 
-        $currentNode = null;
+        $currentIndex = null;
 
         foreach ($output->explode( PHP_EOL ) as $line) {
             $line = Str::of( $line )->trim();
 
             if ($line->contains('/base/soc')) {
-                $currentNode = (int) $line->toString()[0]; // '0 : imx219 [3280x2464] (/base/soc/i2c0mux/i2c@1/imx219@10)' => '0'
+                $currentIndex = (int) $line->toString()[0]; // '0 : imx219 [3280x2464] (/base/soc/i2c0mux/i2c@1/imx219@10)' => '0'
 
                 continue;
             }
 
-            if ($currentNode === $this->videoId) {
+            if ($currentIndex === $this->index) {
                 $resolution =
                     $line->replaceMatches('/.*: /', '')     // 'Modes: \'SRGGB10_CSI2P\' : 640x480 [206.65 fps - (1000, 752)/1280x960 crop]' => '640x480 [206.65 fps - (1000, 752)/1280x960 crop]'
                          ->replaceMatches('/ \[.*/', '');   // '640x480 [206.65 fps - (1000, 752)/1280x960 crop]' => '640x480'
@@ -125,35 +128,16 @@ class HardwareCamera {
         }
     }
 
-    private function loadFormats() {
-        $this->loadDiscreteUVCFormats();
-
-        $this->requiresLibCamera = false;
-
-        if ($this->videoId == 0 && !$this->formats) {
-            $this->loadLibCameraFormats();
-
-            if ($this->formats) {
-                $this->requiresLibCamera = true;
-            }
-        }
-    }
-
     public function getCompatibleFormats() : array {
-        if (!$this->formats) {
-            $this->loadFormats();
+        if ($this->requiresLibCamera) {
+            $this->loadLibCameraFormats();
+        } else {
+            $this->loadDiscreteUVCFormats();
         }
 
         return $this->formats;
     }
 
-    public function getRequiresLibCamera() : bool {
-        if ($this->requiresLibCamera === null) {
-            $this->loadFormats();
-        }
-
-        return $this->requiresLibCamera;
-    }
 }
 
 ?>
