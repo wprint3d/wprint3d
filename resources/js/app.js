@@ -87,3 +87,17 @@ import UAParser from 'ua-parser-js';
 window.UAParser = new UAParser( window.navigator.userAgent );
 
 window.hasTouchScreen = window.matchMedia('(pointer: coarse)').matches;
+
+window.vibrate = input => {
+    if (HAPTICS_ENABLED) {
+        if (
+            typeof(window.navigator)         !== 'undefined'
+            &&
+            typeof(window.navigator.vibrate) !== 'undefined'
+        ) {
+            return window.navigator.vibrate(input);
+        }
+    }
+
+    return false;
+}
