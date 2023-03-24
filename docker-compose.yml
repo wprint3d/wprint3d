@@ -176,10 +176,6 @@ services:
       - mongo:/data/db
     ports:
       - 27017:27017 # TODO: Remove this!
-    deploy:
-      resources:
-         limits:
-           memory: 72M
   # TODO: Re-enable Telescope
   #
   # mariadb:
