@@ -7,6 +7,66 @@
 <script>
     window.getSelectedPrinterId = () => document.querySelector('#printerSelect').value;
 
+    window.HAPTICS_ENABLED = @json( env('HAPTICS_ENABLED', false) );
+
+    window.addEventListener('scroll', () => {
+        if (
+            (
+                Math.ceil(window.innerHeight + window.scrollY)
+                ==
+                document.body.offsetHeight
+            )
+            ||
+            window.scrollY == 0
+        ) { vibrate(7.5); }
+    });
+
+    let lastTagName     = null;
+    let lastMoveTarget  = null;
+
+    window.addEventListener('touchmove', event => {
+        lastMoveTarget = event.target;
+
+        console.debug('THIS ELEMENT:', event.target.tagName);
+
+        if ([ 'INPUT' ].includes(event.target.tagName)) {
+            vibrate(1.5);
+        }
+    });
+
+    window.addEventListener('touchend', event => {
+        console.debug(
+            'THIS TAG:', event.target.tagName,
+            'LAST TAG:', lastTagName
+        );
+
+        if (lastTagName == 'SELECT') {
+            vibrate([ 2, 5, 2 ]);
+        } else if (
+            [ 'BUTTON', 'A', 'SELECT', 'INPUT' ].includes(event.target.tagName)
+            &&
+            lastMoveTarget != event.target
+        ) {
+            if (
+                event.target.tagName == 'A'
+                &&
+                event.target.classList.contains('dropdown-item')
+            ) {
+                vibrate([ 4, 5, 2 ]);
+            } else if (event.target.tagName == 'SELECT') {
+                vibrate([ 2, 5, 2 ]);
+            } else {
+                vibrate(5);
+            }
+        }
+
+        lastTagName = event.target.tagName;
+    });
+
+    window.addEventListener('hide.bs.modal', event => {
+        vibrate([ 2, 0, 4 ]);
+    });
+
     // const playSound = () => {
     //     console.log('ps');
 
