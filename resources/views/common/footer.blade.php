@@ -51,9 +51,9 @@
                 event.target.tagName == 'A'
                 &&
                 event.target.classList.contains('dropdown-item')
-            ) {
-                vibrate([ 4, 5, 2 ]);
-            } else if (event.target.tagName == 'SELECT') {
+            ) { return; }
+
+            if (event.target.tagName == 'SELECT') {
                 vibrate([ 2, 5, 2 ]);
             } else {
                 vibrate(5);
@@ -61,6 +61,10 @@
         }
 
         lastTagName = event.target.tagName;
+    });
+
+    window.addEventListener('show.bs.modal', event => {
+        vibrate([ 4, 5, 2 ]);
     });
 
     window.addEventListener('hide.bs.modal', event => {
