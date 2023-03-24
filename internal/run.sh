@@ -8,7 +8,7 @@
 
 export PATH="$PATH":$(pwd)/bin;
 
-wait-for-it mongo:27017;
+wait-for-it mongo:27017 -t 0;
 
 # TODO: Re-enable Telescope
 #
