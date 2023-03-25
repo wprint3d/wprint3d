@@ -3,7 +3,7 @@
     <div class="tab-content mb-2">
         @foreach ($cameras as $camera)
         <div
-            class="tab-pane fade @if ($loop->first) show active @endif"
+            class="tab-pane fade tab-camera @if ($loop->first) show active @endif"
             id="pills-camera-{{ $loop->index }}"
             role="tabpanel"
             aria-labelledby="pills-camera-{{ $loop->index }}-tab"
@@ -31,3 +31,30 @@
     </ul>
     @endif
 </div>
+
+@push('scripts')
+<script>
+
+document.addEventListener('show.bs.tab', event => {
+    const previousTab   = event.relatedTarget;
+    const activeTab     = event.target;
+
+    const previousTabPane = document.querySelector(previousTab.dataset.bsTarget);
+    const activeTabPane   = document.querySelector(activeTab.dataset.bsTarget);
+
+    let previousImg = previousTabPane.querySelector('img');
+        previousImg.src = '';
+
+    let activeImg   = activeTabPane.querySelector('img');
+        activeImg.src = activeImg.dataset.src;
+});
+
+let defaultTabPane = document.querySelector('.tab-camera.active');
+
+if (defaultTabPane) {
+    let img = defaultTabPane.querySelector('img');
+        img.src = img.dataset.src;
+}
+
+</script>
+@endpush
