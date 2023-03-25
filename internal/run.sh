@@ -327,7 +327,7 @@ else
                                                 -o "output_http.so -p ${port}" &
                                         fi;
                                     else
-                                        if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]] && [[ $(php artisan get:env LIB_CAMERA_ENABLED --default=false) == 'true' ]]; then
+                                        if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]] && [[ $(php artisan get:config-or-env enableLibCamera LIB_CAMERA_ENABLED --default=false) == 'true' ]]; then
                                             /camera-streamer/tools/libcamera_camera.sh \
                                                 --camera-path=$CAMERA_STREAMER_NODE \
                                                 --camera-fps=$FRAMERATE \
@@ -335,7 +335,7 @@ else
                                                 --camera-height=$(echo -n $RESOLUTION | cut -d 'x' -f 2) \
                                                 --http-port=${port} &
                                         else
-                                            echo "This camera requires Libcamera, but it's disabled. Enable it by setting the LIB_CAMERA_ENABLED environment variable to 'true'." >&2;
+                                            echo "This camera requires Libcamera, but it's disabled. Enable it by setting the LIB_CAMERA_ENABLED environment variable to 'true'. If you've configured this setting from the browser previously, change it there instead." >&2;
                                         fi;
                                     fi;
                                 fi;

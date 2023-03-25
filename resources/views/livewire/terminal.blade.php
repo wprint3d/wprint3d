@@ -28,7 +28,10 @@
 @push('scripts')
 <script>
 
-const TERMINAL_MAX_LINES = @json( env('TERMINAL_MAX_LINES'), JSON_NUMERIC_CHECK );
+const TERMINAL_MAX_LINES = @json(
+    Configuration::get('terminalMaxLines', env('TERMINAL_MAX_LINES')),
+    JSON_NUMERIC_CHECK
+);
 
 let autoScroll = @json( $autoScroll );
 

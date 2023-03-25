@@ -2,9 +2,8 @@
 
 namespace App\Http\Livewire;
 
+use App\Models\Configuration;
 use App\Models\Printer;
-
-use Illuminate\Support\Str;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -197,12 +196,12 @@ class PrinterControl extends Component
     }
 
     public function boot() {
-        $this->distance = env('PRINTER_CONTROL_DISTANCE_DEFAULT');
-        $this->feedrate = env('PRINTER_CONTROL_FEEDRATE_DEFAULT');
+        $this->distance = Configuration::get('controlDistanceDefault', env('PRINTER_CONTROL_DISTANCE_DEFAULT'));
+        $this->feedrate = Configuration::get('controlFeedrateDefault', env('PRINTER_CONTROL_FEEDRATE_DEFAULT'));
 
         $this->extrusionLength   = 0;
-        $this->extrusionFeedrate = env('PRINTER_CONTROL_EXTRUSION_FEEDRATE');
-        $this->extrusionMinTemp  = env('PRINTER_CONTROL_EXTRUSION_MIN_TEMP');
+        $this->extrusionFeedrate = Configuration::get('controlExtrusionFeedrate', env('PRINTER_CONTROL_EXTRUSION_FEEDRATE'));
+        $this->extrusionMinTemp  = Configuration::get('controlExtrusionMinTemp',  env('PRINTER_CONTROL_EXTRUSION_MIN_TEMP'));
 
         $this->handlePrinterSelected();
 

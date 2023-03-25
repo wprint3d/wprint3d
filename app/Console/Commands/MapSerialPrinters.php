@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Libraries\Serial;
 
+use App\Models\Configuration;
 use App\Models\Printer;
 
 use App\Exceptions\TimedOutException;
@@ -13,7 +14,6 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 use MongoDB\BSON\UTCDateTime;
@@ -46,8 +46,8 @@ class MapSerialPrinters extends Command
     {
         $log = Log::channel('serial-mapper');
 
-        $negotiationTimeoutSecs = env('PRINTER_NEGOTIATION_TIMEOUT_SECS');
-        $negotiatonMaxRetries   = env('PRINTER_NEGOTIATION_MAX_RETRIES');
+        $negotiationTimeoutSecs = Configuration::get('negotiationTimeoutSecs', env('PRINTER_NEGOTIATION_TIMEOUT_SECS'));
+        $negotiatonMaxRetries   = Configuration::get('negotiationMaxRetries',  env('PRINTER_NEGOTIATION_MAX_RETRIES'));
 
         foreach (
             Arr::where(

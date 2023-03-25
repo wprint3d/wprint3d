@@ -12,11 +12,11 @@ use App\Exceptions\TimedOutException;
 
 use App\Libraries\Serial;
 
+use App\Models\Configuration;
 use App\Models\Printer;
 
 use Illuminate\Bus\Queueable;
 
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -26,7 +26,6 @@ use Illuminate\Log\Logger;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 use Illuminate\Support\Facades\Auth;
@@ -73,10 +72,11 @@ class PrintGcode implements ShouldQueue
     {
         $this->fileName = $fileName; 
         $this->gcode    = explode(PHP_EOL, $gcode);
-        $this->printer  = Printer::find( Auth::user()->activePrinter );;
-        $this->runningTimeoutSecs   = env('PRINTER_RUNNING_TIMEOUT_SECS');
-        $this->commandTimeoutSecs   = env('PRINTER_COMMAND_TIMEOUT_SECS');
-        $this->minPollIntervalSecs  = env('PRINTER_LAST_SEEN_POLL_INTERVAL_SECS');
+        $this->printer  = Printer::find( Auth::user()->activePrinter );
+
+        $this->runningTimeoutSecs   = Configuration::get('runningTimeoutSecs',       env('PRINTER_RUNNING_TIMEOUT_SECS'));
+        $this->commandTimeoutSecs   = Configuration::get('commandTimeoutSecs',       env('PRINTER_COMMAND_TIMEOUT_SECS'));
+        $this->minPollIntervalSecs  = Configuration::get('lastSeenPollIntervalSecs', env('PRINTER_LAST_SEEN_POLL_INTERVAL_SECS'));
 
         $this->printer->setCurrentLine( 0 );
     }
@@ -227,7 +227,7 @@ class PrintGcode implements ShouldQueue
 
         $log->info( 'Job started: printing "' . $this->fileName . '"' );
 
-        $statisticsQueryIntervalSecs = env('PRINTING_STATISTICS_QUERY_INTERVAL_SECS');
+        $statisticsQueryIntervalSecs = Configuration::get('jobStatisticsQueryIntervalSecs', env('PRINTING_STATISTICS_QUERY_INTERVAL_SECS'));
 
         $statistics = $this->printer->getStatistics();
 

@@ -63,28 +63,28 @@
         </div>
 
         <div class="row mt-3">
-            <div class="col" x-data="{ feedrate: {{ env('PRINTER_CONTROL_FEEDRATE_DEFAULT') }} }">
+            <div class="col" x-data="{ feedrate: {{ Configuration::get('controlFeedrateDefault', env('PRINTER_CONTROL_FEEDRATE_DEFAULT')); }} }">
                 <label class="form-label"> Feedrate </label>
                 <input
                     wire:model.lazy="feedrate"
                     x-model="feedrate"
                     type="range"
                     class="form-range"
-                    min="{{ env('PRINTER_CONTROL_FEEDRATE_MIN') }}"
-                    max="{{ env('PRINTER_CONTROL_FEEDRATE_MAX') }}"
+                    min="{{ Configuration::get('controlFeedrateMin', env('PRINTER_CONTROL_FEEDRATE_MIN')) }}"
+                    max="{{ Configuration::get('controlFeedrateMax', env('PRINTER_CONTROL_FEEDRATE_MAX')) }}"
                 >
                 <span x-text="feedrate"></span>
             </div>
 
-            <div class="col" x-data="{ distance: {{ env('PRINTER_CONTROL_DISTANCE_DEFAULT') }} }">
+            <div class="col" x-data="{ distance: {{ Configuration::get('controlDistanceDefault', env('PRINTER_CONTROL_DISTANCE_DEFAULT')) }} }">
                 <label class="form-label"> Distance (mm) </label>
                 <input
                     wire:model.lazy="distance"
                     x-model="distance"
                     type="range"
                     class="form-range"
-                    min="{{ env('PRINTER_CONTROL_DISTANCE_MIN') }}"
-                    max="{{ env('PRINTER_CONTROL_DISTANCE_MAX') }}"
+                    min="{{ Configuration::get('controlDistanceMin', env('PRINTER_CONTROL_DISTANCE_MIN')) }}"
+                    max="{{ Configuration::get('controlDistanceMax', env('PRINTER_CONTROL_DISTANCE_MAX')) }}"
                 >
                 <span x-text="distance"></span>
             </div>

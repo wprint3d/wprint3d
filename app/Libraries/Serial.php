@@ -4,6 +4,7 @@ namespace App\Libraries;
 
 use App\Events\PrinterTerminalUpdated;
 
+use App\Models\Configuration;
 use App\Models\Printer;
 
 use App\Exceptions\InitializationException;
@@ -61,11 +62,11 @@ class Serial {
 
         $this->lockKey   = $this->fileName . self::CACHE_LOCK_SUFFIX;
 
-        if (env('SERIAL_DEBUG', false)) {
+        if (Configuration::get('debugSerial', env('SERIAL_DEBUG', false))) {
             $this->log = Log::channel('serial');
         }
 
-        $this->terminalMaxLines = env('TERMINAL_MAX_LINES');
+        $this->terminalMaxLines = Configuration::get('terminalMaxLines', env('TERMINAL_MAX_LINES'));
 
         $this->configure();
 
