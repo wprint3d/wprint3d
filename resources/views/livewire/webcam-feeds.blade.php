@@ -42,11 +42,13 @@ document.addEventListener('show.bs.tab', event => {
     const previousTabPane = document.querySelector(previousTab.dataset.bsTarget);
     const activeTabPane   = document.querySelector(activeTab.dataset.bsTarget);
 
-    let previousImg = previousTabPane.querySelector('img');
-        previousImg.src = '';
+    if (activeTabPane.classList.contains('tab-camera')) {
+        let previousImg = previousTabPane.querySelector('img');
+            previousImg.src = '';
 
-    let activeImg   = activeTabPane.querySelector('img');
-        activeImg.src = activeImg.dataset.src;
+        let activeImg   = activeTabPane.querySelector('img');
+            activeImg.src = activeImg.dataset.src;
+    }
 });
 
 let defaultTabPane = document.querySelector('.tab-camera.active');
