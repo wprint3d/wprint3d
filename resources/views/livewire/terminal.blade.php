@@ -82,7 +82,7 @@ window.addEventListener('DOMContentLoaded', () => {
                  </span>`
             );
 
-            while (document.querySelectorAll('.terminal span').length > TERMINAL_MAX_LINES) {
+            if (document.querySelectorAll('.terminal span').length > TERMINAL_MAX_LINES) {
                 document.querySelector('.terminal span').remove();
             }
         });
