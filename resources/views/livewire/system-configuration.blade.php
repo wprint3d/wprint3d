@@ -1,5 +1,5 @@
 <div class="col-12 col-md-4 col-lg-3">
-    <label for="{{ $key }}" class="form-label"> {{ $label }} </label>
+    <label for="{{ $key }}" class="form-label text-truncate"> {{ $label }} </label>
 
     @if ($type == DataType::BOOLEAN)
         <select wire:model="value" class="form-select">
