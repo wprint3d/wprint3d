@@ -2,6 +2,8 @@
 
 namespace App\Libraries;
 
+use App\Models\Configuration;
+
 use Illuminate\Support\Str;
 
 use Symfony\Component\Process\Process;
@@ -90,7 +92,7 @@ class HardwareCamera {
     }
 
     private function loadLibCameraFormats() : void {
-        if (!env('LIB_CAMERA_ENABLED', false)) { return; }
+        if (!Configuration::get('enableLibCamera', env('LIB_CAMERA_ENABLED', false))) { return; }
 
         $process = new Process([
             'libcamera-vid',

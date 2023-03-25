@@ -2,16 +2,19 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Configuration;
+
 use Illuminate\Console\Command;
 
-class GetEnv extends Command
+class GetConfigOrEnv extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'get:env
+    protected $signature = 'get:config-or-env
+                            { configKey      : The key within the configuration collection         }
                             { variableName   : The name of the variable                            }
                             { --default=null : Default value (returned if the variable isn\'t set) }';
 
@@ -20,7 +23,7 @@ class GetEnv extends Command
      *
      * @var string
      */
-    protected $description = 'Get the value of a variable from the environment variables file (.env).';
+    protected $description = 'Get the value of a configuration key, if it\'s not set, return a variable from the environment variables file (.env) instead.';
 
     /**
      * Execute the console command.
@@ -29,6 +32,7 @@ class GetEnv extends Command
      */
     public function handle()
     {
+        $configKey    = $this->argument('configKey');
         $variableName = $this->argument('variableName');
         $default      = $this->option('default');
 
@@ -38,7 +42,7 @@ class GetEnv extends Command
             case 'false':   $default = false; break;
         }
 
-        $output = env($variableName, $default);
+        $output = Configuration::get($configKey, env($variableName, $default));
 
         print ($output === true || $output === false)
             ? ($output ? 'true' : 'false')

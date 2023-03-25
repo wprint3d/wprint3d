@@ -2,6 +2,8 @@
 
 namespace App\Console;
 
+use App\Models\Configuration;
+
 use Spatie\ShortSchedule\ShortSchedule;
 
 use Illuminate\Console\Scheduling\Schedule;
@@ -29,7 +31,7 @@ class Kernel extends ConsoleKernel
     protected function shortSchedule(ShortSchedule $shortSchedule)
     {
         $shortSchedule->command('printers:handle-auto-serial')->everySeconds(
-            env('PRINTER_AUTO_SERIAL_INTERVAL_SECS')
+            Configuration::get('autoSerialIntervalsecs', env('PRINTER_AUTO_SERIAL_INTERVAL_SECS'))
         )->withoutOverlapping();
     }
 

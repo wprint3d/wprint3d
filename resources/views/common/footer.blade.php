@@ -7,7 +7,9 @@
 <script>
     window.getSelectedPrinterId = () => document.querySelector('#printerSelect').value;
 
-    window.HAPTICS_ENABLED = @json( env('HAPTICS_ENABLED', false) );
+    window.HAPTICS_ENABLED = @json(
+        Configuration::get('enableHaptics', env('HAPTICS_ENABLED', false))
+    );
 
     window.addEventListener('scroll', () => {
         if (

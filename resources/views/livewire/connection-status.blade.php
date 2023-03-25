@@ -28,7 +28,7 @@
 <script>
 
 const PRINTER_LAST_SEEN_ONLINE_THRESHOLD_SECS = @json(
-    env('PRINTER_LAST_SEEN_ONLINE_THRESHOLD_SECS'),
+    Configuration::get('lastSeenThresholdSecs', env('PRINTER_LAST_SEEN_ONLINE_THRESHOLD_SECS')),
     JSON_NUMERIC_CHECK
 );
 

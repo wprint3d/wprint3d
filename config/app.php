@@ -210,7 +210,8 @@ return [
     */
 
     'aliases' => Facade::defaultAliases()->merge([
-        // 'ExampleClass' => App\Example\ExampleClass::class,
+        'Configuration' => \App\Models\Configuration::class,
+        'DataType'      => \App\Enums\DataType::class,
     ])->toArray(),
 
     'common_baud_rates' => [ 2400, 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000 ],

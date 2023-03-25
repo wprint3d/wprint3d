@@ -3,9 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Events\PrinterConnectionStatusUpdated;
-use App\Libraries\Serial;
 
+use App\Models\Configuration;
 use App\Models\Printer;
+
+use App\Libraries\Serial;
 
 use Illuminate\Console\Command;
 
@@ -43,9 +45,9 @@ class HandleAutoSerialPrinters extends Command
     {
         $log = Log::channel('printers-poller');
 
-        $minPollIntervalSecs = env('PRINTER_LAST_SEEN_POLL_INTERVAL_SECS');
+        $minPollIntervalSecs = Configuration::get('lastSeenPollIntervalSecs', env('PRINTER_LAST_SEEN_POLL_INTERVAL_SECS'));
 
-        $commandTimeoutSecs = env('PRINTER_COMMAND_TIMEOUT_SECS');
+        $commandTimeoutSecs = Configuration::get('commandTimeoutSecs', env('PRINTER_COMMAND_TIMEOUT_SECS'));
 
         foreach (Printer::cursor() as $printer) {
             if ($printer->activeFile) { continue; }
