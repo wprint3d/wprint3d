@@ -50,6 +50,8 @@ input[type="file"] { display: none; }
 
 .list-group-item::-webkit-scrollbar { display: none; }
 
+#extrusionLength { max-width: 13em; }
+
 @media (vertical-viewport-segments: 2) and (device-posture: folded) {
     body { overflow: hidden; }
 
