@@ -45,9 +45,13 @@
         if (lastTagName == 'SELECT') {
             vibrate([ 2, 5, 2 ]);
         } else if (
-            [ 'BUTTON', 'A', 'SELECT', 'INPUT' ].includes(event.target.tagName)
-            &&
-            lastMoveTarget != event.target
+            event.target.tagName == 'INPUT'
+            ||
+            (
+                [ 'BUTTON', 'A', 'SELECT' ].includes(event.target.tagName)
+                &&
+                lastMoveTarget != event.target
+            )
         ) {
             if (
                 event.target.tagName == 'A'
@@ -58,7 +62,7 @@
             if (event.target.tagName == 'SELECT') {
                 vibrate([ 2, 5, 2 ]);
             } else {
-                vibrate(5);
+                vibrate(3);
             }
         }
 
