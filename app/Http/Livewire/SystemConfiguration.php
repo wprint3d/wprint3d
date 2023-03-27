@@ -18,6 +18,7 @@ class SystemConfiguration extends Component
     public $hint;
     public $value;
     public $default;
+    public $enum;
 
     public $error;
 
@@ -69,6 +70,14 @@ class SystemConfiguration extends Component
                     return false;
                 } else {
                     $this->value = (float) $newValue;
+                }
+
+                break;
+            case DataType::ENUM:
+                if (is_numeric($newValue)) {
+                    $this->value = (int) $newValue;
+                } else {
+                    $this->value = $newValue;
                 }
 
                 break;
