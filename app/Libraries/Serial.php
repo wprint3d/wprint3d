@@ -26,8 +26,6 @@ class Serial {
     private string      $fileName;
     private int         $baudRate;
     private int         $terminalMaxLines;
-    private Repository  $lockCache;
-    private string      $lockKey;
 
     private ?string $printerId  = null;
     private ?int    $timeout    = null;
@@ -38,9 +36,6 @@ class Serial {
     const TERMINAL_PREFIX = 'tty';
 
     const CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS = 4; // ms
-
-    const CACHE_LOCK_SUFFIX = '_nodeLock';
-    const CACHE_LOCK_TTL    = 60; // seconds
 
     /**
      * __construct
@@ -57,10 +52,6 @@ class Serial {
         $this->fileName  = $fileName;
         $this->baudRate  = $baudRate;
         $this->printerId = $printerId;
-
-        $this->lockCache = Cache::store();
-
-        $this->lockKey   = $this->fileName . self::CACHE_LOCK_SUFFIX;
 
         if (Configuration::get('debugSerial', env('SERIAL_DEBUG', false))) {
             $this->log = Log::channel('serial');
@@ -80,8 +71,6 @@ class Serial {
     }
 
     private function configure() {
-        while ($this->lockCache->get($this->lockKey, false)) {} // block
-
         $this->fd = dio_open(
             self::TERMINAL_PATH . '/' . self::TERMINAL_PREFIX . $this->fileName, // filename
             O_RDWR | O_NONBLOCK | O_ASYNC                                        // flags
@@ -137,12 +126,6 @@ class Serial {
     }
 
     public function sendCommand(string $command, ?int $lineNumber = null, ?int $maxLine = null) {
-        $this->lockCache->put(
-            key:    $this->lockKey,
-            value:  true,
-            ttl:    self::CACHE_LOCK_TTL
-        );
-
         if ($this->log) {
             $this->log->debug('dio_write: ' . $command);
         }
@@ -156,8 +139,6 @@ class Serial {
         }
 
         dio_write($this->fd, $command . PHP_EOL);
-
-        $this->lockCache->forget( $this->lockKey );
     }
     
     /**
@@ -168,12 +149,6 @@ class Serial {
      * @return string
      */
     public function readUntilBlank(?int $timeout = null, ?int $lineNumber = null, ?int $maxLine = null) : string {
-        $this->lockCache->put(
-            key:    $this->lockKey,
-            value:  true,
-            ttl:    self::CACHE_LOCK_TTL
-        );
-
         if (!$timeout) {
             $timeout = $this->timeout;
         }
@@ -207,8 +182,6 @@ class Serial {
 
             usleep(self::CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS * 1000);
         }
-
-        $this->lockCache->forget( $this->lockKey );
 
         if ($timeout && time() - $sTime >= $timeout) {
             throw new TimedOutException('timed out while waiting for a newline after ' . (time() - $sTime) . ' seconds were spent trying to get a response.');
