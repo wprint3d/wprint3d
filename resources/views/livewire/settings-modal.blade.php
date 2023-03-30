@@ -64,15 +64,3 @@
         </div>
     </div>
 </div>
-
-@push('scripts')
-<script>
-
-window.addEventListener('DOMContentLoaded', () => {
-    window.addEventListener('settingsChangeSaved', () => {
-        toastify.success('Saved!');
-    });
-});
-
-</script>
-@endpush
