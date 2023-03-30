@@ -86,7 +86,7 @@
     </div>
 
     <div id="jobNoRecoveryModal" class="modal fade" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-modal="true" role="dialog">
-        <div class="modal-dialog modal-lg modal-fullscreen-md-down">
+        <div class="modal-dialog modal-md modal-fullscreen-md-down">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"> Print job failed </h5>
@@ -95,7 +95,7 @@
                     <div class="row">
                         <div class="col-12">
                             <p class="text-center m-0">
-                                Unfortunately, it looks like the previously queued print job has failed and your current settings prevent the software from taking backups. <br>
+                                Unfortunately, it looks like the queued print job has failed and your current settings prevent the software from taking backups. <br>
                                 <br>
                                 Please, consider enabling this feature later on.
                             </p>
@@ -115,7 +115,7 @@
                             <span class="visually-hidden"> Loading... </span>
                         </div>
 
-                        Abort
+                        Got it
                     </button>
                 </div>
             </div>
