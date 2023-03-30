@@ -239,6 +239,12 @@ else
                     sleep 60;
                 done;
             fi;
+        elif [[ "$ROLE" == 'serial-scheduler' ]]; then
+            while true; do
+                php artisan printers:handle-auto-serial;
+
+                sleep 1;
+            done;
         elif [[ "$ROLE" == 'bundler' ]]; then
             php artisan down;
 
