@@ -83,6 +83,9 @@ class MapSerialPrinters extends Command
                         if (Str::contains( $response, 'ok' )) {
                             $found = true;
 
+                            $printer->lastSeen = new UTCDateTime();
+                            $printer->save();
+
                             $this->info('  - Success reloading from stored settings! Got: ' . $response);
                             $log->info ('  - Success reloading from stored settings! Got: ' . $response);
 
