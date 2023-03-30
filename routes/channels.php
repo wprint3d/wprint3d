@@ -30,3 +30,9 @@ Broadcast::channel('connection-status.{printerId}', function ($user, $printerId)
 
     return $user->_id == Printer::getActiveUserId( $printerId );
 });
+
+Broadcast::channel('failed-job.{printerId}', function ($user, $printerId) {
+    Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
+
+    return $user->_id == Printer::getActiveUserId( $printerId );
+});

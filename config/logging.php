@@ -159,6 +159,13 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 1,
         ],
+
+        'job-recovery' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/job-recovery.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 1,
+        ],
     ],
 
 ];

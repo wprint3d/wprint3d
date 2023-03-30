@@ -42,6 +42,11 @@ class FileControls extends Component
             }
 
             $this->activeFile = $newActiveFile;
+
+            if ($this->activeFile && !$this->printer->hasActiveJob) {
+                $this->printer->hasActiveJob = true;
+                $this->printer->save();
+            }
         }
     }
 
@@ -82,7 +87,8 @@ class FileControls extends Component
             gcode:    Storage::get( $this->baseFilesDir . '/' . $this->selected )
         );
 
-        $this->printer->activeFile = $this->selected;
+        $this->printer->hasActiveJob = true;
+        $this->printer->activeFile   = $this->selected;
         $this->printer->save();
 
         // Reset the printer's paused state in case it was left paused.
@@ -96,7 +102,8 @@ class FileControls extends Component
     }
 
     public function stop() {
-        $this->printer->activeFile = null;
+        $this->printer->hasActiveJob = false;
+        $this->printer->activeFile   = null;
         $this->printer->save();
 
         $this->refreshActiveFile();

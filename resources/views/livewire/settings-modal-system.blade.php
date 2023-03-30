@@ -130,6 +130,15 @@
         <hr class="m-2">
 
         @livewire('system-configuration', [
+            'key'       => 'jobBackupInterval',
+            'type'      => DataType::ENUM,
+            'enum'      => 'BackupInterval',
+            'label'     => 'Backup interval',
+            'hint'      => 'Specifies how frequently should we try to backup the currently active job.',
+            'default'   => BackupInterval::fromKey( env('JOB_BACKUP_INTERVAL') )->value
+        ])
+
+        @livewire('system-configuration', [
             'key'     => 'jobStatisticsQueryIntervalSecs',
             'type'    => DataType::INTEGER,
             'label'   => 'Statistics query interval',
@@ -170,6 +179,22 @@
             'label'   => 'Libcamera support',
             'hint'    => 'Whether to enable <b>libcamera support</b>. Generally, you\'ll want this setting <b>enabled</b>, however, some <b>single-board computers</b>\' kernels are broken and make the streaming process relatively taxing on the already scarce system resources. This setting lets you <b>disable</b> this feature in favor of using a <b>USB camera</b> or <b>no camera at all</b> instead.',
             'default' => env('LIB_CAMERA_ENABLED')
+        ])
+
+        @livewire('system-configuration', [
+            'key'     => 'jobRestorationTimeoutSecs',
+            'type'    => DataType::INTEGER,
+            'label'   => 'Job restore timeout',
+            'hint'    => 'The maximum time (<b>in seconds</b>) that will be spent waiting for the printer to come back with a proper response after tapping <b>Recover</b> on a failed job.',
+            'default' => env('JOB_BACKUP_RESTORE_TIMEOUT_SECS')
+        ])
+
+        @livewire('system-configuration', [
+            'key'     => 'jobRestorationHomingTemperature',
+            'type'    => DataType::INTEGER,
+            'label'   => 'Job restore homing temperature',
+            'hint'    => 'The absolute time (<b>in celcius</b>) that is required to cool back down to before moving back home after tapping <b>Recover</b> on a failed job. This avoids leaving hot plastic pieces all over the print and the bed.',
+            'default' => env('JOB_BACKUP_RESTORE_HOMING_TEMPERATURE')
         ])
     </form>
 </div>

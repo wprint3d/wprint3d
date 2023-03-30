@@ -24,11 +24,14 @@ services:
   web:
     build: .
     restart: always
+    privileged: true
     environment:
       - ROLE=server
     volumes:
       - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev:/dev
     depends_on:
       - redis
       - mongo

@@ -2,11 +2,13 @@
 
 namespace App\Jobs;
 
+use App\Enums\BackupInterval;
 use App\Enums\FormatterCommands;
 use App\Enums\Marlin;
 use App\Enums\PauseReason;
 
 use App\Events\PrinterConnectionStatusUpdated;
+use App\Events\PrintJobFailed;
 
 use App\Exceptions\TimedOutException;
 
@@ -47,6 +49,10 @@ class PrintGcode implements ShouldQueue
     private int     $runningTimeoutSecs;
     private int     $commandTimeoutSecs;
     private int     $minPollIntervalSecs;
+    private int     $jobBackupInterval;
+
+    private int $lineNumber = 0;
+    private int $lineNumberCount;
 
     private Printer $printer;
 
@@ -77,6 +83,7 @@ class PrintGcode implements ShouldQueue
         $this->runningTimeoutSecs   = Configuration::get('runningTimeoutSecs',       env('PRINTER_RUNNING_TIMEOUT_SECS'));
         $this->commandTimeoutSecs   = Configuration::get('commandTimeoutSecs',       env('PRINTER_COMMAND_TIMEOUT_SECS'));
         $this->minPollIntervalSecs  = Configuration::get('lastSeenPollIntervalSecs', env('PRINTER_LAST_SEEN_POLL_INTERVAL_SECS'));
+        $this->jobBackupInterval    = Configuration::get('jobBackupInterval',        BackupInterval::fromKey( env('JOB_BACKUP_INTERVAL') )->value);
 
         $this->printer->setCurrentLine( 0 );
     }
@@ -105,14 +112,17 @@ class PrintGcode implements ShouldQueue
                 'M486 C',   // cancel objects
                 'M107',     // turn off fan
                 'M140 S0',  // turn off heatbed
-                'M104 S0',  // turn off temperature'
+                'M104 S0',  // turn off temperature
                 'M84 X Y E' // disable motors
             ] as $command) {
                 $serial->sendCommand( $command );
             }
+
+            $this->printer->lastLine     = null;
+            $this->printer->activeFile   = null;
+            $this->printer->hasActiveJob = false;
         }
 
-        $this->printer->activeFile  = null;
         $this->printer->save();
 
         // Disable last command reporting.
@@ -140,7 +150,11 @@ class PrintGcode implements ShouldQueue
             $exception->getTraceAsString()
         );
 
-        $this->finished(resetPrinter: true);
+        $this->printer->lastJobHasFailed = true;
+
+        PrintJobFailed::dispatch( $this->printer->_id );
+
+        $this->finished(resetPrinter: false);
     }
 
     private function tryLastSeenUpdate() : bool {
@@ -158,35 +172,6 @@ class PrintGcode implements ShouldQueue
         }
 
         return false;
-    }
-    
-    /**
-     * movementToXYZ
-     * 
-     * Convert any G0 or G1 command, or the output of M114 to XYZ updates.
-     *
-     * @return array
-     */
-    private function movementToXYZ(string $command) : array {
-        $position = [];
-
-        $command =
-            Str::of( $command )
-               ->replaceMatches('/ Count.*/', '') // we don't care about the allocated count (M114)
-               ->replace(':', '')                 // M114 returns data split by ":", remove them so that they match what G0 or G1 would look like
-               ->explode(' ');
-
-        foreach ($command as $argument) {
-            if (!isset( $argument[0] )) continue;
-
-            switch ($argument[0]) {
-                case 'X': $position['x'] = (float) Str::replace('X', '', $argument); break;
-                case 'Y': $position['y'] = (float) Str::replace('Y', '', $argument); break;
-                case 'Z': $position['z'] = (float) Str::replace('Z', '', $argument); break;
-            }
-        }
-
-        return $position;
     }
 
     private function retrySerialConnection(Exception $previousException, Serial &$serial, Logger &$log) {
@@ -334,12 +319,10 @@ class PrintGcode implements ShouldQueue
 
         unset($parsedGcode);
 
-        $log->debug(print_r($this->gcode, true));
+        $this->lineNumber      = $this->printer->getCurrentLine();
+        $this->lineNumberCount = count($this->gcode);
 
-        $lineNumber      = $this->printer->getCurrentLine();
-        $lineNumberCount = count($this->gcode);
-
-        Cache::put(env('CACHE_MAX_LINE_KEY'), $lineNumberCount);
+        Cache::put(env('CACHE_MAX_LINE_KEY'), $this->lineNumberCount);
 
         $serial = new Serial(
             fileName:  $this->printer->node,
@@ -351,24 +334,33 @@ class PrintGcode implements ShouldQueue
         $lastStatsUpdate    = time();
         $lastPrinterRefresh = time();
 
+        if ($this->jobBackupInterval != BackupInterval::NEVER) {
+            $lastBackup = time();
+
+            $this->printer->lastLine = $this->lineNumber;
+            $this->printer->save();
+        }
+
         $isBusy     = false;
         $wasPaused  = false;
 
         // default movement mode for Marlin is absolute
         $lastMovementMode = 'G90';
 
-        $absolutePosition = $this->movementToXYZ(
+        $absolutePosition = movementToXYZ(
             $serial->query('M114') // current absolute position
         );
 
         $this->printer->setAbsolutePosition(
-            x:  $absolutePosition['x'],
-            y:  $absolutePosition['y'],
-            z:  $absolutePosition['z']
+            x:  $absolutePosition['x'] ?? null,
+            y:  $absolutePosition['y'] ?? null,
+            z:  $absolutePosition['z'] ?? null
         );
 
-        while (isset($this->gcode[ $lineNumber ])) {
-            $line = $this->gcode[ $lineNumber ];
+        $log->debug(print_r($this->gcode, true));
+
+        while (isset($this->gcode[ $this->lineNumber ])) {
+            $line = $this->gcode[ $this->lineNumber ];
 
             $absolutePosition = $this->printer->getAbsolutePosition();
 
@@ -386,8 +378,8 @@ class PrintGcode implements ShouldQueue
                 if ($this->printer->getPauseReason() == PauseReason::AUTOMATIC) {
                     $received = $serial->query(
                         command:    'M105',
-                        lineNumber: $lineNumber,
-                        maxLine:    $lineNumberCount
+                        lineNumber: $this->lineNumber,
+                        maxLine:    $this->lineNumberCount
                     );
 
                     if (Str::contains($received, 'ok')) $this->printer->resume();
@@ -408,16 +400,16 @@ class PrintGcode implements ShouldQueue
                 try {
                     $received = $serial->readUntilBlank(
                         timeout:    $this->runningTimeoutSecs,
-                        lineNumber: $lineNumber,
-                        maxLine:    $lineNumberCount
+                        lineNumber: $this->lineNumber,
+                        maxLine:    $this->lineNumberCount
                     );
                 } catch (TimedOutException $exception) {
                     $log->info('Timed out, looks like we\'re out of BSY, let\'s try to keep going! Message: ' . $exception->getMessage());
 
                     $received = $serial->query(
                         command:    'M105',
-                        lineNumber: $lineNumber,
-                        maxLine:    $lineNumberCount
+                        lineNumber: $this->lineNumber,
+                        maxLine:    $this->lineNumberCount
                     );
                 }
 
@@ -439,7 +431,7 @@ class PrintGcode implements ShouldQueue
 
                 $isBusy = false;
 
-                $lineNumber = $this->printer->incrementCurrentLine();
+                $this->lineNumber = $this->printer->incrementCurrentLine();
 
                 continue;
             }
@@ -450,7 +442,7 @@ class PrintGcode implements ShouldQueue
                 $this->printer->refresh();
 
                 if (!$this->printer->activeFile) {
-                    $this->finished(true);
+                    $this->finished( resetPrinter: true );
 
                     break;
                 }
@@ -467,23 +459,23 @@ class PrintGcode implements ShouldQueue
 
             $serial->sendCommand(
                 command:    $line,
-                lineNumber: $lineNumber,
-                maxLine:    $lineNumberCount
+                lineNumber: $this->lineNumber,
+                maxLine:    $this->lineNumberCount
             );
 
             $log->debug('SENT');
 
             try {
                 $received = $serial->readUntilBlank(
-                    lineNumber: $lineNumber,
-                    maxLine:    $lineNumberCount
+                    lineNumber: $this->lineNumber,
+                    maxLine:    $this->lineNumberCount
                 );
             } catch (TimedOutException $exception) {
                 $this->retrySerialConnection($exception, $serial, $log);
             }
 
             $log->debug('RECV: ' . $received);
-            $log->debug('PROG: ' . $lineNumber . ' / ' . $lineNumberCount);
+            $log->debug('PROG: ' . $this->lineNumber . ' / ' . $this->lineNumberCount);
 
             $this->tryLastSeenUpdate();
 
@@ -512,8 +504,8 @@ class PrintGcode implements ShouldQueue
                             $this->printer->setStatistics(
                                 lines:          $serial->query(
                                     command:    'M105 T' . $extruderIndex,
-                                    lineNumber: $lineNumber,
-                                    maxLine:    $lineNumberCount
+                                    lineNumber: $this->lineNumber,
+                                    maxLine:    $this->lineNumberCount
                                 ),
                                 extruderIndex:  $extruderIndex
                             );
@@ -532,11 +524,11 @@ class PrintGcode implements ShouldQueue
                 !Str::endsWith($line, ';' . FormatterCommands::IGNORE_POSITION_CHANGE)
             ) {
                 if ($lastMovementMode == 'G90') { // absolute mode
-                    foreach ($this->movementToXYZ( $line ) as $key => $value) {
+                    foreach (movementToXYZ( $line ) as $key => $value) {
                         $absolutePosition[ $key ] = $value;
                     }
                 } else if ($lastMovementMode == 'G91') { // relative mode
-                    foreach ($this->movementToXYZ( $line ) as $key => $value) {
+                    foreach (movementToXYZ( $line ) as $key => $value) {
                         $absolutePosition[ $key ] += $value;
                     }
                 }
@@ -551,13 +543,34 @@ class PrintGcode implements ShouldQueue
             }
 
             if (Str::contains( $received, 'ok' )) {
-                $lineNumber = $this->printer->incrementCurrentLine();
+                $this->lineNumber = $this->printer->incrementCurrentLine();
+
+                if (
+                    $this->jobBackupInterval != BackupInterval::NEVER // if it's not disabled
+                    &&
+                    (
+                        $this->lineNumber == $this->lineNumberCount // and it's the last line
+                        ||
+                        (
+                            $this->jobBackupInterval == BackupInterval::ON_LINE_CHANGE // or the backup interval is set up to this value
+                            ||
+                            (
+                                $this->jobBackupInterval == BackupInterval::EVERY_5_MINUTES // or the backup interval is set to 5 minutes
+                                &&
+                                time() - $lastBackup > 5 * 60                               // and 5 minutes have passed
+                            )
+                        )
+                    )
+                ) {
+                    $this->printer->lastLine = $this->lineNumber;
+                    $this->printer->save();
+                }
             }
         }
 
         $log->info('Job finished.');
 
-        $this->finished();
+        $this->finished( resetPrinter: true );
 
         sleep(10);
     }

@@ -41,8 +41,8 @@ class Printer extends Model
         'baudRate',
         'lastSeen',
         'queuedCommands',
-        'machine',
         'cameras',
+        'machine',
         'machine.firmwareName',
         'machine.sourceCodeUrl',
         'machine.protocolVersion',
@@ -91,7 +91,10 @@ class Printer extends Model
         'settings.showInputCommands',
         'settings.showExtrusion',
         'settings.showTravel',
-        'activeFile'
+        'hasActiveJob',
+        'lastJobHasFailed',
+        'activeFile',
+        'lastLine',
     ];
     
     /**
