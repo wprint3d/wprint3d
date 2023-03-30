@@ -1,5 +1,5 @@
 <div>
-    <canvas id="gcodePreviewCanvas"></canvas>
+    <canvas id="gcodePreviewCanvas" class="preview-canvas"></canvas>
 
     <div id="selectedLayerContainer" class="d-none border p-3 mt-1 mb-2 rounded rounded-2 text-center bg-white">
         <div class="row">
@@ -140,6 +140,7 @@ window.addEventListener('shown.bs.tab', event => {
     if (canvas) {
         let newCanvas    = document.createElement('canvas');
             newCanvas.id = 'gcodePreviewCanvas';
+            newCanvas.classList = [ 'preview-canvas' ];
 
         canvas.replaceWith( newCanvas );
     }

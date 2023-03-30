@@ -10,6 +10,8 @@
 
 <body>
     @if (Auth::user())
+        <livewire:job-recovery-modal />
+
         <header class="p-3 mb-3 border-bottom bg-primary">
             <div class="mx-0 mx-lg-2">
                 <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">

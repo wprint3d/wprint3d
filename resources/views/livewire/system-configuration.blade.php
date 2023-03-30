@@ -6,6 +6,17 @@
             <option value="1" @if ($value)  selected @endif> Yes </option>
             <option value="0" @if (!$value) selected @endif> No  </option>
         </select>
+    @elseif ($type == DataType::ENUM)
+        <select wire:model="value" class="form-select">
+            @foreach ($enum::toSelectArray() as $index => $label)
+                <option
+                    value="{{ $index }}"
+                    @if ($label == $value)
+                        selected
+                    @endif
+                > {{ $label }} </option>
+            @endforeach
+        </select>
     @else
         <input
             wire:model="value"

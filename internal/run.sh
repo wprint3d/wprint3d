@@ -83,6 +83,8 @@ else
 
             php artisan make:marlin-labels;
 
+            php artisan reset:active-jobs;
+
             if [ $(php artisan get:env OCTANE_ENABLED) == 'true' ]; then
                 echo 'Starting Octane web server...';
 
