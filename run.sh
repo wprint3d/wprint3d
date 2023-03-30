@@ -59,7 +59,7 @@ if [[ -e /opt/vc ]]; then
     cp -rfv /opt/vc ./internal/vc;
 fi;
 
-docker compose build;
+docker compose build --progress plain;
 
 for container_name in $(docker ps --format '{{ .Names }}'  | grep buildx_buildkit_builder); do
     docker stop "$container_name";
