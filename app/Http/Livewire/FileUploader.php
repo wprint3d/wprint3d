@@ -16,7 +16,6 @@ class FileUploader extends Component
     protected $baseFilesDir;
 
     public $gcode;
-    public $uploaded = null;
 
     public function boot() {
         $this->baseFilesDir = env('BASE_FILES_DIR');
@@ -41,22 +40,13 @@ class FileUploader extends Component
 
         Log::debug( __METHOD__ . ': ' . $fullName );
 
-        $this->uploaded = time();
-
         $this->emit('refreshUploadedFiles');
         $this->emit('selectUploadedFile', $fullName);
+        $this->dispatchBrowserEvent('fileUploadFinished');
     }
 
     public function render()
     {
-        if (
-            $this->uploaded
-            &&
-            time() - $this->uploaded > config('file-uploader.success-retention-secs'))
-        {
-            $this->uploaded = null;
-        }
-
         return view('livewire.file-uploader');
     }
 }
