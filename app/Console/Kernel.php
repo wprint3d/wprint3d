@@ -30,9 +30,7 @@ class Kernel extends ConsoleKernel
      */
     protected function shortSchedule(ShortSchedule $shortSchedule)
     {
-        $shortSchedule->command('printers:handle-auto-serial')->everySeconds(
-            Configuration::get('autoSerialIntervalsecs', env('PRINTER_AUTO_SERIAL_INTERVAL_SECS'))
-        )->withoutOverlapping();
+        // Do nothing for now
     }
 
     /**

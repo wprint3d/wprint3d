@@ -52,13 +52,28 @@ services:
       - redis
       - mongo
       # - mariadb
-  short-scheduler:
+  # short-scheduler:
+  #   build: .
+  #   restart: always
+  #   privileged: true
+  #   environment:
+  #     - ROLE=scheduler
+  #     - KIND=short
+  #   volumes:
+  #     - .:/var/www
+  #     - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+  #     - /dev/bus/usb:/dev/bus/usb
+  #     - /dev:/dev
+  #   depends_on:
+  #     - redis
+  #     - mongo
+  #     # - mariadb
+  serial-scheduler:
     build: .
     restart: always
     privileged: true
     environment:
-      - ROLE=scheduler
-      - KIND=short
+      - ROLE=serial-scheduler
     volumes:
       - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
