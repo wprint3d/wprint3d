@@ -52,6 +52,16 @@ input[type="file"] { display: none; }
 
 #extrusionLength { max-width: 13em; }
 
+.modal-header {
+    justify-content: center !important;
+}
+
+@media (min-width: 768px) {
+    .modal-header {
+        justify-content: space-between !important;
+    }
+}
+
 @media (vertical-viewport-segments: 2) and (device-posture: folded) {
     body { overflow: hidden; }
 

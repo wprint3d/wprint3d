@@ -91,7 +91,7 @@
                 <div class="modal-header">
                     <h5 class="modal-title"> Print job failed </h5>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body d-flex d-md-block align-items-center">
                     <div class="row">
                         <div class="col-12">
                             <p class="text-center m-0">
