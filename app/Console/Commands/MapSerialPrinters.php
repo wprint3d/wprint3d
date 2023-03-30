@@ -68,6 +68,8 @@ class MapSerialPrinters extends Command
             $printer = Printer::where('node', $device)->first();
 
             if ($printer) {
+                if ($printer->activeFile) { continue; }
+
                 $serial = new Serial(
                     fileName: $printer->node,
                     baudRate: $printer->baudRate,
