@@ -247,9 +247,6 @@ class MapSerialPrinters extends Command
                     } else {
                         $this->info('  - Unexpected response: ' . $response);
 
-                        // Delete if it previously existed and is now invalid.
-                        Printer::where('node', $device)->delete();
-
                         break;
                     }
                 }
