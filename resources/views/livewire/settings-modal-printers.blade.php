@@ -2,9 +2,9 @@
     <div class="row text-start">
         @foreach ($printers as $printer)
         <div class="card col-12 col-md-6 col-lg-4 mt-2">
-            <img src="images/printer.jpg" class="card-img-top mt-3" alt="{{ $printer->machine['machineType']  }}">
+            <img src="images/printer.jpg" class="card-img-top mt-3" alt="{{ $printer->machine['machineType'] ?? 'Unknown printer'  }}">
             <div class="card-body">
-                <h5 class="card-title"> {{ $printer->machine['machineType'] }} </h5>
+                <h5 class="card-title"> {{ $printer->machine['machineType'] ?? 'Unknown printer' }} </h5>
                 <p class="card-text">
                     <ul>
                     @foreach ($printer->machine as $key => $value)
