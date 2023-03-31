@@ -8,7 +8,7 @@
                         selected
                     @endif
                 >
-                    {{ $printer->machine['machineType'] }} ({{ $printer->machine['uuid'] }})
+                    {{ $printer->machine['machineType'] ?? 'Unknown printer' }} ({{ $printer->machine['uuid'] }})
                 </option>
             @endforeach
         @else
