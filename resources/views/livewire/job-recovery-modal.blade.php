@@ -32,7 +32,7 @@
 
                                 <div class="col-12 mt-2 form-check d-flex justify-content-center">
                                     <input wire:model.defer="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" value="{{ $recoveryMainMaxLine }}">
-                                    Continue from line {{ $recoveryMainMaxLine }}
+                                    Continue from line <span class="mx-1">{{ $recoveryMainMaxLine }}</span>
                                 </div>
                             </div>
                         </div>
@@ -45,7 +45,7 @@
 
                                 <div class="col-12 mt-2 form-check d-flex justify-content-center">
                                     <input wire:model.defer="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" value="{{ $recoveryAltMaxLine }}">
-                                    Continue from line {{ $recoveryAltMaxLine }}
+                                    Continue from line <span class="mx-1">{{ $recoveryAltMaxLine }}</span>
                                 </div>
                             </div>
                         </div>
@@ -209,6 +209,14 @@
                 }
 
                 altMaxLine = mainMaxLine + 1;
+
+                radios = document.querySelectorAll('input[name="targetRecoveryLine"]');
+
+                radios[0].value = mainMaxLine;
+                radios[0].parentElement.querySelector('span').innerText = mainMaxLine;
+
+                radios[1].value = altMaxLine;
+                radios[1].parentElement.querySelector('span').innerText = altMaxLine;
 
                 if (jobBackupInterval == JOB_BACKUP_INTERVALS.NEVER) {
                     jobNoRecoveryModal.show();
