@@ -1,5 +1,3 @@
-
-
 <div>
     <select id="printerSelect" wire:model="printerId" wire:change="change" class="form-select" aria-label="Default select example">
         @if ($printers->count())
@@ -10,7 +8,7 @@
                         selected
                     @endif
                 >
-                    {{ $printer->node }}
+                    {{ $printer->machine['machineType'] }} ({{ $printer->machine['uuid'] }})
                 </option>
             @endforeach
         @else
