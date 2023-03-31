@@ -26,7 +26,7 @@ window.addEventListener('DOMContentLoaded', () => {
         .listen('PrintersMapUpdated', event => {
             console.debug('PrintersMapUpdated', event);
 
-            toastify.info('Hardware change detected, tap here to reload the page.', 60 * 60 * 1000, null, () => {
+            toastify.info('Hardware change detected, tap here to reload the page.', null, null, () => {
                 window.location.reload();
             });
         });
