@@ -107,8 +107,6 @@ class JobRecoveryModal extends Component
         }
 
         while ($this->printer->activeFile) {
-            $log->debug('HIT WHILE');
-
             $this->printer->refresh();
 
             if (time() - $restoreStartTime > $jobRestorationTimeoutSecs) {
