@@ -215,7 +215,7 @@ return [
         'BackupInterval'    => \App\Enums\BackupInterval::class
     ])->toArray(),
 
-    'common_baud_rates' => [ 2400, 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000 ],
+    'common_baud_rates' => [ 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000 ],
 
     'recorder_output_resolutions'   => [ '1280x720', '1920x1080', '3840x2160' ],
     'recorder_output_framerates'    => [ 15, 24, 30, 60, 90, 120 ],
