@@ -54,13 +54,12 @@ class Serial {
      * @return void
      */
     public function __construct(string $fileName, int $baudRate, ?int $timeout = 10, ?string $printerId = null) {
-        $this->fileName  = $fileName;
-        $this->baudRate  = $baudRate;
-        $this->printerId = $printerId;
+        $this->fileName   = $fileName;
+        $this->baudRate   = $baudRate;
+        $this->printerId  = $printerId;
 
-        $this->lockCache = Cache::store();
-
-        $this->lockKey   = $this->fileName . self::CACHE_LOCK_SUFFIX;
+        $this->lockCache  = Cache::store();
+        $this->lockKey    = $this->fileName . self::CACHE_LOCK_SUFFIX;
 
         if (Configuration::get('debugSerial', env('SERIAL_DEBUG', false))) {
             $this->log = Log::channel('serial');

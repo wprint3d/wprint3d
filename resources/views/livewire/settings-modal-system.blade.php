@@ -4,6 +4,14 @@
         <hr class="m-2">
 
         @livewire('system-configuration', [
+            'key'     => 'negotiationWaitSecs',
+            'type'    => DataType::INTEGER,
+            'label'   => 'Negotiation delay',
+            'hint'    => 'The absolute time (<b>in seconds</b>) that will be spent waiting for the printer to boot before trying to negotiate a connection.',
+            'default' => env('PRINTER_NEGOTIATION_WAIT_SECS')
+        ])
+
+        @livewire('system-configuration', [
             'key'     => 'negotiationTimeoutSecs',
             'type'    => DataType::INTEGER,
             'label'   => 'Negotiation timeout',
