@@ -6,7 +6,7 @@ use App\Models\Printer;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+
 use Livewire\Component;
 
 class SelectPrinter extends Component
@@ -17,7 +17,7 @@ class SelectPrinter extends Component
     public ?Printer     $printer;
 
     public function boot() {
-        $this->printers     = Printer::select('_id', 'node')->get();
+        $this->printers     = Printer::select('_id', 'node', 'machine.machineType', 'machine.uuid')->get();
         $this->printerId    = Auth::user()->activePrinter;
 
         if (

@@ -13,6 +13,7 @@ use App\Models\Configuration;
 use App\Models\Printer;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -70,10 +71,23 @@ class JobRecoveryModal extends Component
     public function recover() {
         $log = Log::channel('job-recovery');
 
+        $cacheMapperBusyKey = config('cache.mapper_busy_key');
+
         $jobRestorationTimeoutSecs       = Configuration::get('jobRestorationTimeoutSecs',       env('JOB_BACKUP_RESTORE_TIMEOUT_SECS'));
         $jobRestorationHomingTemperature = Configuration::get('jobRestorationHomingTemperature', env('JOB_BACKUP_RESTORE_HOMING_TEMPERATURE'));
 
         $restoreStartTime = time();
+
+        if (
+            Cache::get(
+                key:     $cacheMapperBusyKey,
+                default: false
+            )
+        ) {
+            $this->dispatchBrowserEvent('recoveryFailed', 'we\'re still negotiating a connection with this printer, please try again in a few seconds');
+
+            return;
+        }
 
         try {
             $serial = new Serial(

@@ -21,7 +21,7 @@ window.toastify.defaults.stopOnFocus    = true;
 window.toastify.defaults.escapeMarkup   = false;
 window.toastify.defaults.oldestFirst    = false;
 
-window.toastify.toast = (bgClass, text, duration = null, title = null) => {
+window.toastify.toast = (bgClass, text, duration = null, title = null, onClick = () => {}) => {
     let body = text;
 
     if (title && title.length > 0) {
@@ -33,25 +33,29 @@ window.toastify.toast = (bgClass, text, duration = null, title = null) => {
     }
 
     let toast = new toastify({
-        text: body,
-        className: bgClass,
-        style: { background: 'none' },
-        duration: duration ?? window.toastify.defaults.duration
+        text:       body,
+        className:  bgClass,
+        style:      { background: 'none' },
+        duration:   duration ?? window.toastify.defaults.duration
     }).showToast();
 
-    toast.options.onClick = () => { toast.hideToast(); };
+    toast.options.onClick = () => {
+        toast.hideToast();
+
+        onClick();
+    };
 };
 
-window.toastify.error = (text, duration = null, title = null) => {
-    window.toastify.toast('bg-danger', text, duration, title);
+window.toastify.error = (text, duration = null, title = null, onClick = () => {}) => {
+    window.toastify.toast('bg-danger', text, duration, title, onClick);
 };
 
-window.toastify.info = (text, duration = null, title = null) => {
-    window.toastify.toast('bg-info', text, duration, title);
+window.toastify.info = (text, duration = null, title = null, onClick = () => {}) => {
+    window.toastify.toast('bg-info', text, duration, title, onClick);
 };
 
-window.toastify.success = (text, duration = null, title = null) => {
-    window.toastify.toast('bg-success', text, duration, title);
+window.toastify.success = (text, duration = null, title = null, onClick = () => {}) => {
+    window.toastify.toast('bg-success', text, duration, title, onClick);
 };
 
 /**

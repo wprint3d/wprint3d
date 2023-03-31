@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Events\PrintersMapUpdated;
+
 use App\Libraries\Serial;
 
 use App\Models\Configuration;
@@ -18,8 +20,9 @@ use Illuminate\Support\Facades\Log;
 
 use MongoDB\BSON\UTCDateTime;
 
+use Illuminate\Support\Facades\Cache;
+
 use Exception;
-use Illuminate\Support\Facades\DB;
 
 class MapSerialPrinters extends Command
 {
@@ -46,18 +49,33 @@ class MapSerialPrinters extends Command
     {
         $log = Log::channel('serial-mapper');
 
+        $negotiationWaitSecs    = Configuration::get('negotiationWaitSecs',    env('PRINTER_NEGOTIATION_WAIT_SECS'));
         $negotiationTimeoutSecs = Configuration::get('negotiationTimeoutSecs', env('PRINTER_NEGOTIATION_TIMEOUT_SECS'));
         $negotiatonMaxRetries   = Configuration::get('negotiationMaxRetries',  env('PRINTER_NEGOTIATION_MAX_RETRIES'));
 
-        foreach (
-            Arr::where(
-                scandir('/dev'),
-                function ($node) {
-                    return Str::startsWith($node, 'ttyACM') || Str::startsWith($node, 'ttyUSB');
-                }
-            )
-            as $device
-        ) {
+        $baudRates          = config('app.common_baud_rates');
+        $cacheMapperBusyKey = config('cache.mapper_busy_key');
+
+        $devices = Arr::where(
+            scandir('/dev'),
+            function ($node) {
+                return Str::startsWith($node, 'ttyACM') || Str::startsWith($node, 'ttyUSB');
+            }
+        );
+
+        Cache::put(
+            key:   $cacheMapperBusyKey,
+            value: true,
+            ttl:   ($negotiationTimeoutSecs * count($baudRates) * count($devices)) + $negotiationWaitSecs + 1 // max possible time spent negotiating (+/- 1)
+        );
+
+        $this->info("Waiting {$negotiationWaitSecs} seconds for the printer to boot before trying to negotiate a connection...");
+
+        sleep( $negotiationWaitSecs );
+
+        $changeCount = 0;
+
+        foreach ($devices as $device) {
             $device = Str::replaceFirst('tty', '', $device);
 
             $this->info('Probing for printers at "' . $device . '" node...');
@@ -65,63 +83,16 @@ class MapSerialPrinters extends Command
             $found      = false;
             $retryCount = 0;
 
-            $printer = Printer::where('node', $device)->first();
-
-            if ($printer) {
-                if ($printer->activeFile) { continue; }
-
-                $serial = new Serial(
-                    fileName: $printer->node,
-                    baudRate: $printer->baudRate,
-                    timeout:  $negotiationTimeoutSecs
-                );
-
-                while (true) {
-                    $response = $serial->query('M105');
-
-                    if (containsUTF8($response)) {
-                        if (Str::contains( $response, 'ok' )) {
-                            $found = true;
-
-                            $printer->lastSeen = new UTCDateTime();
-                            $printer->save();
-
-                            $this->info('  - Success reloading from stored settings! Got: ' . $response);
-                            $log->info ('  - Success reloading from stored settings! Got: ' . $response);
-
-                            break;
-                        } else {
-                            sleep( $negotiationTimeoutSecs );
-
-                            if ($retryCount >= $negotiatonMaxRetries) break;
-
-                            $retryCount++;
-
-                            $this->info('  - Retrying...');
-                            $log->info ('  - Retrying...');
-
-                            continue;
-                        }
-                    } else {
-                        $this->info('  - Probing failed at the expected ' . $printer->baudRate . ' bps: ' . $response);
-                        $log->info ('  - Probing failed at the expected ' . $printer->baudRate . ' bps: ' . $response);
-
-                        break;
-                    }
-                }
-
-                if ($found) continue;
-            }
-
-            $found      = false;
-            $retryCount = 0;
-
-            foreach (config('app.common_baud_rates') as $baudRate) {
+            foreach ($baudRates as $baudRate) {
                 while (true) {
                     $response = '';
 
                     try {
-                        $serial = new Serial($device, $baudRate, $negotiationTimeoutSecs);
+                        $serial = new Serial(
+                            fileName: $device,
+                            baudRate: $baudRate,
+                            timeout:  $negotiationTimeoutSecs
+                        );
 
                         $response = $serial->query('M105');
                     } catch (TimedOutException $timedOutException) {
@@ -151,10 +122,6 @@ class MapSerialPrinters extends Command
 
                             continue;
                         }
-
-                        $this->info('Printer found! Node name is "' . $device . '", baud rate is ' . $baudRate . ' bps. Response was: ' . $response);
-
-                        $log->info('Printer found! Node name is ' . $device . ', baud rate is ' . $baudRate . ' bps. Response was: ' . $response);
 
                         $log->debug('Mapping extruders...');
 
@@ -212,7 +179,16 @@ class MapSerialPrinters extends Command
                             }
                         }
 
+                        if (!isset( $machine['uuid'] )) {
+                            $this->info('Invalid printer (no UUID available).');
+                            $log->info( 'Invalid printer (no UUID available).');
+
+                            continue;
+                        }
+
                         $cameras = null;
+
+                        $printer = Printer::where('machine.uuid', $machine['uuid'])->first();
 
                         if ($printer) {
                             $cameras = $printer->cameras;
@@ -222,17 +198,30 @@ class MapSerialPrinters extends Command
                             $cameras = [];
                         }
 
-                        DB::collection( (new Printer())->getTable() )
-                          ->where('node', $device)
-                          ->update([
-                                'node'      => $device,
-                                'baudRate'  => $baudRate,
-                                'machine'   => $machine,
-                                'cameras'   => $cameras,
-                                'lastSeen'  => new UTCDateTime()
-                          ], [ 'upsert' => true ]);
+                        $this->info('Printer found! Node name is "' . $device . '", baud rate is ' . $baudRate . ' bps. Response was: ' . $response);
+                        $log->info( 'Printer found! Node name is "' . $device . '", baud rate is ' . $baudRate . ' bps. Response was: ' . $response);
 
-                        $printer = Printer::where('node', $device)->first();
+                        $printer = Printer::where('machine.uuid', $machine['uuid'])->first();
+
+                        if (!$printer) {
+                            $printer = new Printer();
+                        }
+
+                        $printer->node      = $device;
+                        $printer->baudRate  = $baudRate;
+                        $printer->machine   = $machine;
+                        $printer->cameras   = $cameras;
+                        $printer->lastSeen  = new UTCDateTime();
+                        $printer->save();
+
+                        $changes = $printer->getChanges();
+
+                        if ($changes) {
+                            unset( $changes['created_at'] );
+                            unset( $changes['updated_at'] );
+
+                            $changeCount++;
+                        }
 
                         $extruderIndex = 0;
 
@@ -258,6 +247,12 @@ class MapSerialPrinters extends Command
 
                 if ($found) break;
             }
+        }
+
+        Cache::forget( $cacheMapperBusyKey );
+
+        if ($changeCount) {
+            PrintersMapUpdated::dispatch();
         }
 
         return Command::SUCCESS;
