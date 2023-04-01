@@ -54,6 +54,8 @@ class SystemConfiguration extends Component
 
                 break;
             case DataType::INTEGER:
+                if (!$newValue) { $newValue = 1; }
+
                 if (fmod($newValue, 1) !== 0.0) {
                     $this->error = 'An integer was expected.';
 
