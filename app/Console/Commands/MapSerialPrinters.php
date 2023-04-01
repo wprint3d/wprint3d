@@ -111,8 +111,8 @@ class MapSerialPrinters extends Command
 
                     if (containsUTF8($response)) {
                         if (!Str::contains( $response, 'ok' )) {
-                            $this->warn(  '  - At ' . $baudRate . ', this looks like a printer but it didn\'t expose a proper reply, let\'s wait a few seconds and try again. Got: ' . $response);
-                            $log->warning('  - At ' . $baudRate . ', this looks like a printer but it didn\'t expose a proper reply, let\'s wait a few seconds and try again. Got: ' . $response);
+                            $this->warn(  "  - At {$baudRate}, this looks like a printer but it didn't expose a proper reply, let's wait a few seconds and try again. Got: {$response}");
+                            $log->warning("  - At {$baudRate}, this looks like a printer but it didn't expose a proper reply, let's wait a few seconds and try again. Got: {$response}");
 
                             sleep( $negotiationTimeoutSecs );
 
@@ -172,9 +172,14 @@ class MapSerialPrinters extends Command
                                 if ($info->startsWith('Cap:')) {
                                     $keyValue = $info->replaceFirst('Cap:', '')->explode(':');
 
-                                    $machine['capabilities'][
-                                        Str::of( $keyValue[0] )->lower()->camel()->toString()
-                                    ] = !!$keyValue[1] ?? false;
+                                    try {
+                                        $machine['capabilities'][
+                                            Str::of( $keyValue[0] )->lower()->camel()->toString()
+                                        ] = !!$keyValue[1] ?? false;
+                                    } catch (Exception $exception) {
+                                        $this->warn(  "  -> Parse error: {$exception->getMessage()}");
+                                        $log->warning("  -> Parse error: {$exception->getMessage()}");
+                                    }
                                 }
                             }
                         }
