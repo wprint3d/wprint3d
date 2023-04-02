@@ -122,9 +122,7 @@ class Serial {
             $terminal .= $line;
 
             if ($this->terminalMaxLines) {
-                while (
-                    Str::substrCount($terminal, PHP_EOL) > $this->terminalMaxLines
-                ) {
+                while (Str::substrCount($terminal, PHP_EOL) > $this->terminalMaxLines) {
                     $terminal = Str::substr(
                         string: $terminal,
                         start:  strpos($terminal, PHP_EOL) + 1
@@ -137,6 +135,8 @@ class Serial {
     }
 
     public function sendCommand(string $command, ?int $lineNumber = null, ?int $maxLine = null) {
+        $this->configure();
+
         $this->lockCache->put(
             key:    $this->lockKey,
             value:  true,
@@ -168,6 +168,8 @@ class Serial {
      * @return string
      */
     public function readUntilBlank(?int $timeout = null, ?int $lineNumber = null, ?int $maxLine = null) : string {
+        $this->configure();
+
         $this->lockCache->put(
             key:    $this->lockKey,
             value:  true,
