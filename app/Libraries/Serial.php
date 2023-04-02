@@ -203,8 +203,6 @@ class Serial {
             }
 
             if ($timeout && (time() - $sTime >= $timeout)) break;
-
-            usleep(self::CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS * 1000);
         }
 
         $this->lockCache->forget( $this->lockKey );
