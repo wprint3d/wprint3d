@@ -129,64 +129,71 @@ class MapSerialPrinters extends Command
                             'capabilities' => []
                         ];
 
-                        foreach (Str::of( $serial->query('M115') )->explode(PHP_EOL) as $line => $info) {
-                            if ($line == 0) {
-                                $writingKey = true;
+                        try {
+                            foreach (Str::of( $serial->query('M115') )->explode(PHP_EOL) as $line => $info) {
+                                if ($line == 0) {
+                                    $writingKey = true;
 
-                                $key = '';
+                                    $key = '';
 
-                                for ($index = 0; $index < strlen($info); $index++) {
-                                    if ($writingKey) {
-                                        if ($info[ $index ] == ' ') continue;
+                                    for ($index = 0; $index < strlen($info); $index++) {
+                                        if ($writingKey) {
+                                            if ($info[ $index ] == ' ') continue;
 
-                                        if ($info[ $index ] == ':') {
-                                            $writingKey = false;
+                                            if ($info[ $index ] == ':') {
+                                                $writingKey = false;
 
-                                            $key = Str::of( $key )->lower()->camel()->toString();
+                                                $key = Str::of( $key )->lower()->camel()->toString();
+                                            } else {
+                                                $key .= $info[ $index ];
+                                            }
                                         } else {
-                                            $key .= $info[ $index ];
-                                        }
-                                    } else {
-                                        if (!isset($machine[ $key ])) {
-                                            $machine[ $key ] = '';
-                                        }
+                                            if (!isset($machine[ $key ])) {
+                                                $machine[ $key ] = '';
+                                            }
 
-                                        $machine[ $key ] .= $info[ $index ];
+                                            $machine[ $key ] .= $info[ $index ];
 
-                                        if (
-                                            isset($info[ $index + 1 ]) && $info[ $index + 1] == ' '         // current + 1 must be a space
-                                            &&
-                                            isset($info[ $index + 2 ]) && ctype_upper($info[ $index + 2 ])  // current + 2 must be uppercase
-                                            &&
-                                            isset($info[ $index + 3 ]) && ctype_upper($info[ $index + 3 ])  // current + 3 must be uppercase
-                                        ) {
-                                            $key = '';
+                                            if (
+                                                isset($info[ $index + 1 ]) && $info[ $index + 1] == ' '         // current + 1 must be a space
+                                                &&
+                                                isset($info[ $index + 2 ]) && ctype_upper($info[ $index + 2 ])  // current + 2 must be uppercase
+                                                &&
+                                                isset($info[ $index + 3 ]) && ctype_upper($info[ $index + 3 ])  // current + 3 must be uppercase
+                                            ) {
+                                                $key = '';
 
-                                            $writingKey = true;
+                                                $writingKey = true;
+                                            }
                                         }
                                     }
-                                }
-                            } else {
-                                $info = Str::of( $info );
+                                } else {
+                                    $info = Str::of( $info );
 
-                                if ($info->startsWith('Cap:')) {
-                                    $keyValue = $info->replaceFirst('Cap:', '')->explode(':');
+                                    if ($info->startsWith('Cap:')) {
+                                        $keyValue = $info->replaceFirst('Cap:', '')->explode(':');
 
-                                    try {
-                                        $machine['capabilities'][
-                                            Str::of( $keyValue[0] )->lower()->camel()->toString()
-                                        ] = !!$keyValue[1] ?? false;
-                                    } catch (Exception $exception) {
-                                        $this->warn(  "  -> Parse error: {$exception->getMessage()}");
-                                        $log->warning("  -> Parse error: {$exception->getMessage()}");
+                                        try {
+                                            $machine['capabilities'][
+                                                Str::of( $keyValue[0] )->lower()->camel()->toString()
+                                            ] = !!$keyValue[1] ?? false;
+                                        } catch (Exception $exception) {
+                                            $this->warn(  "  -> Parse error: {$exception->getMessage()}");
+                                            $log->warning("  -> Parse error: {$exception->getMessage()}");
+                                        }
                                     }
                                 }
                             }
+                        } catch (Exception $exception) {
+                            $this->info("  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}");
+                            $log->info( "  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}");
+
+                            continue;
                         }
 
                         if (!isset( $machine['uuid'] )) {
-                            $this->info('Invalid printer (no UUID available).');
-                            $log->info( 'Invalid printer (no UUID available).');
+                            $this->info('  -> Invalid printer (no UUID available).');
+                            $log->info( '  -> Invalid printer (no UUID available).');
 
                             continue;
                         }
