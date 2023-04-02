@@ -37,7 +37,8 @@ class Serial {
     const TERMINAL_PATH   = '/dev';
     const TERMINAL_PREFIX = 'tty';
 
-    const CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS = 4; // ms
+    const CONSOLE_READ_BUFFER_SIZE_BYTES        = 4096; // bytes
+    const CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS = 32;   // ms
 
     const CACHE_LOCK_SUFFIX = '_nodeLock';
     const CACHE_LOCK_TTL    = 60; // seconds
@@ -186,7 +187,7 @@ class Serial {
         $blankTime = millis();
 
         while (true) {
-            $read = dio_read($this->fd);
+            $read = dio_read($this->fd, self::CONSOLE_READ_BUFFER_SIZE_BYTES);
 
             $millis = millis();
 
