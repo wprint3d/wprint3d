@@ -56,6 +56,11 @@ input[type="file"] { display: none; }
     justify-content: center !important;
 }
 
+.terminal-command-kind {
+    padding-left: 0.25em;
+    margin-right: 0.25em;
+}
+
 @media (min-width: 768px) {
     .modal-header {
         justify-content: space-between !important;
