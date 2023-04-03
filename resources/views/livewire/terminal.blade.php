@@ -1,7 +1,27 @@
 <div>
     <div class="terminal bg-body-overlay rounded rounded-2 border border-1 p-2 mb-2">
         @foreach ($terminal as $line)
-            <span> {{ $line }} <br> </span>
+            <span>
+                <span
+                    class="
+                        terminal-command-kind
+                        @if (Str::contains($line, ' > '))
+                            bg-secondary
+                        @else
+                            @if (Str::contains($line, 'ok') || Str::contains($line, 'T:'))
+                                bg-success
+                            @else
+                                @if (Str::contains($line, 'busy'))
+                                    bg-warning
+                                @else
+                                    bg-danger
+                                @endif
+                            @endif
+                        @endif
+                    "
+                ></span>
+                {{ $line }} <br>
+            </span>
         @endforeach
     </div>
 
@@ -76,8 +96,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
             lastRunningStatus = event.running;
 
+            let targetClass = 'bg-danger';
+
+            if (event.command.indexOf(' > ') > -1) {
+                targetClass = 'bg-secondary';
+            } else if (event.command.indexOf('ok') > -1 || event.command.indexOf('T:') > -1) {
+                targetClass = 'bg-success';
+            } else if (event.command.indexOf('busy') > -1) {
+                targetClass = 'bg-warning';
+            }
+
             terminal.insertAdjacentHTML('beforeend', 
                 `<span>
+                    <span class="terminal-command-kind ${targetClass}"></span>
                     ${event.dateString}: ${event.command.trim().replaceAll('\n', '<br>')} <br>
                  </span>`
             );
