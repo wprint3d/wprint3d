@@ -23,20 +23,6 @@ use Symfony\Component\HttpFoundation\Response;
 |
 */
 
-Route::prefix('serial')->group(function () {
-    Route::get('negotiate/{device}', function ($device) {
-        $serial = new Serial($device, 115200);
-
-        $response = $serial->query('M105');
-
-        if (!Str::startsWith($response, 'ok')) {
-            return response([ 'message' => $response ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-
-        return '';
-    });
-});
-
 Route::prefix('device')->group(function () {
     Route::get('variant/{model}', function ($model) {
         $deviceVariant = DeviceVariant::where('model', $model)->project([ '_id' => false ])->first();
