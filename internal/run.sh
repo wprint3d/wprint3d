@@ -241,6 +241,8 @@ else
                 done;
             fi;
         elif [[ "$ROLE" == 'serial-scheduler' ]]; then
+            wait-for-it ws-server:6001 -t 0;
+
             while true; do
                 php artisan printers:handle-auto-serial;
 
