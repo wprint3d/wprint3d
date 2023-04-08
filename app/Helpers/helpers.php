@@ -1,6 +1,25 @@
 <?php
 
+use Illuminate\Log\Logger;
+
+use Illuminate\Support\Facades\Cache;
+
 use Illuminate\Support\Str;
+
+function tryToWaitForMapper(?Logger $log = null) {
+    while (
+        Cache::get(
+            key:     config('cache.mapper_busy_key'),
+            default: false
+        )
+    ) {
+        if ($log) {
+            $log->debug('Waiting for the mapper to shutdown...');
+        }
+
+        sleep(1);
+    }
+}
 
 function millis() : float {
     return floor(microtime(true) * 1000);

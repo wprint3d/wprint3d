@@ -77,6 +77,8 @@ class HandleAutoSerialPrinters extends Command
                 );
 
                 try {
+                    tryToWaitForMapper($log);
+
                     $queuedCommands = $printer->getResetQueuedCommands();
 
                     foreach ($queuedCommands as $command) {
@@ -110,6 +112,8 @@ class HandleAutoSerialPrinters extends Command
 
                         foreach (array_keys($statistics['extruders']) as $extruderIndex) {
                             if ($extruderIndex == 0) continue;
+
+                            tryToWaitForMapper($log);
 
                             $printer->setStatistics( $serial->query('M105 T' . $extruderIndex), $extruderIndex );
                         }

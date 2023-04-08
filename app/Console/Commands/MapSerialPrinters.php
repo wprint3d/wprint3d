@@ -102,9 +102,9 @@ class MapSerialPrinters extends Command
 
                         break;
                     } catch (Exception $exception) {
-                        $this->info('  - Unknown error: ' . $exception->getMessage());
+                        $this->info('  - Negotiation at ' . $baudRate . ' bps: ' . $exception->getMessage());
 
-                        $log->info('Unknown error from serial port at node ' . $device . ' while trying with a baud rate of ' . $baudRate . ' bps: ' . $exception->getMessage());
+                        $log->info('Negotiation error from serial port at node ' . $device . ' while trying with a baud rate of ' . $baudRate . ' bps: ' . $exception->getMessage());
 
                         break;
                     }
