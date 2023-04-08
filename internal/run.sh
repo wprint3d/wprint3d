@@ -241,6 +241,8 @@ else
                 done;
             fi;
         elif [[ "$ROLE" == 'serial-scheduler' ]]; then
+            # we need "web" up in order to have the Marlin class available
+            wait-for-it web:80         -t 0;
             wait-for-it ws-server:6001 -t 0;
 
             while true; do
