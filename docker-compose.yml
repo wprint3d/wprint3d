@@ -33,7 +33,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - redis
+      - keydb
       - mongo
       - bundler
       # - mariadb
@@ -49,7 +49,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - redis
+      - keydb
       - mongo
       # - mariadb
   # short-scheduler:
@@ -65,7 +65,7 @@ services:
   #     - /dev/bus/usb:/dev/bus/usb
   #     - /dev:/dev
   #   depends_on:
-  #     - redis
+  #     - keydb
   #     - mongo
   #     # - mariadb
   serial-scheduler:
@@ -80,7 +80,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - redis
+      - keydb
       - mongo
       # - mariadb
   mapper:
@@ -98,7 +98,7 @@ services:
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
     depends_on:
-      - redis
+      - keydb
       - mongo
       # - mariadb
   queue:
@@ -114,7 +114,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - redis
+      - keydb
       - mongo
       # - mariadb
   broadcasts-queue:
@@ -130,7 +130,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - redis
+      - keydb
       - mongo
       # - mariadb
   ws-server:
@@ -141,7 +141,7 @@ services:
     volumes:
       - .:/var/www
     depends_on:
-      - redis
+      - keydb
       - mongo
       # - mariadb
   bundler:
@@ -170,22 +170,18 @@ services:
       - /run/udev:/run/udev:ro
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      - redis
+      - keydb
       - mongo
       - bundler
       - proxy
       # - mariadb
       - mapper
-  redis:
-    image: redis
+  keydb:
+    image: eqalpha/keydb
     restart: always
-    # environment:
-    #   - ALLOW_EMPTY_PASSWORD=yes
-    # command: /opt/bitnami/scripts/redis/run.sh --appendonly yes
+    command: keydb-server --save "" --appendonly no # disable persistence
     ports:
       - 6379:6379
-    # volumes:
-    #   - redis:/bitnami/redis/data
   mongo:
     image: mongo:4.4.6
     restart: always
@@ -204,6 +200,6 @@ services:
   #   volumes:
   #     - mariadb:/var/lib/mysql
 volumes:
-  # redis:
+  # keydb:
   mongo:
   # mariadb:
