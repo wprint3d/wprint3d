@@ -2,6 +2,7 @@
 
 namespace App\Libraries;
 
+use App\Enums\SerialForkType;
 use App\Events\PrinterTerminalUpdated;
 
 use App\Models\Configuration;
@@ -10,57 +11,70 @@ use App\Models\Printer;
 use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
 
-use Illuminate\Cache\Repository;
+use Illuminate\Console\Command;
 
 use Illuminate\Log\Logger;
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 use Illuminate\Support\Str;
+
+use Exception;
+use Redis;
 
 class Serial {
 
     private $fd;
 
+    private Redis $cache;
+
+    private string      $uid;
     private string      $fileName;
     private int         $baudRate;
     private int         $terminalMaxLines;
-    private Repository  $lockCache;
-    private string      $lockKey;
 
     private ?string $printerId  = null;
     private ?int    $timeout    = null;
 
+    private array $children;
+
     private ?Logger $log = null;
+
+    const UID_PREFIX = 'ser';
 
     const TERMINAL_PATH   = '/dev';
     const TERMINAL_PREFIX = 'tty';
 
-    const CONSOLE_READ_BUFFER_SIZE_BYTES        = 4096; // bytes
-    const CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS = 32;   // ms
+    const CONSOLE_READ_BUFFER_SIZE_BYTES        = 2048; // bytes
+    const CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS = 16;   // ms
 
-    const CACHE_LOCK_SUFFIX = '_nodeLock';
-    const CACHE_LOCK_TTL    = 60; // seconds
+    const CACHE_RESPONSE_LINE_SUFFIX    = '_response';
+    const CACHE_LAST_ERROR_LINE_SUFFIX  = '_lastError';
+    const CACHE_IS_DESTRUCTING_SUFFIX   = '_isDestructing';
+    const CACHE_DO_READ_SUFFIX          = '_doRead';
+    const CACHE_NEXT_COMMAND_SUFFIX     = '_nextCommand';
+    const CACHE_NEXT_TIMEOUT_SUFFIX     = '_nextTimeout';
+    const CACHE_NEXT_LINE_NUMBER_SUFFIX = '_nextLineNumber';
+    const CACHE_NEXT_MAX_LINE_SUFFIX    = '_nextMaxLine';
 
     /**
      * __construct
      *
-     * @param  string $fileName
-     * @param  int    $baudRate
-     * @param  ?int   $timeout
+     * @param  string   $fileName  - the node file name (as in, if you're looking for 'ttyUSB0', you'd write 'USB0')
+     * @param  int      $baudRate  - the rate (in bits per second) on which data will be processed
+     * @param  ?int     $timeout   - the maximum amount of time that can be spent on a read
+     * @param  ?string  $printerId - the ObjectId of the printer related to this transaction
      * 
      * @throws InitializationException
      * 
      * @return void
      */
     public function __construct(string $fileName, int $baudRate, ?int $timeout = 10, ?string $printerId = null) {
+        $this->uid        = uniqid(self::UID_PREFIX, true);
+        $this->cache      = $this->store();
         $this->fileName   = $fileName;
         $this->baudRate   = $baudRate;
         $this->printerId  = $printerId;
-
-        $this->lockCache  = Cache::store();
-        $this->lockKey    = $this->fileName . self::CACHE_LOCK_SUFFIX;
 
         if (Configuration::get('debugSerial', env('SERIAL_DEBUG', false))) {
             $this->log = Log::channel('serial');
@@ -77,11 +91,133 @@ class Serial {
         if (!$this->fd) {
             throw new InitializationException('Failed to open connection.');
         }
+
+        $this->forgetCache($this->cache, self::CACHE_IS_DESTRUCTING_SUFFIX );
+
+        $pid = -1;
+
+        $this->children = [];
+
+        foreach (SerialForkType::asArray() as $thread) {
+            $pid = pcntl_fork();
+
+            if ($pid === -1) { // fork error
+                throw new InitializationException('failed to fork thread');
+            } else if ($pid === 0) { // child
+                $cache = $this->store();
+
+                while (true) {
+                    try {
+                        $this->getCache( $cache, self::CACHE_IS_DESTRUCTING_SUFFIX );
+
+                        switch ($thread) {
+                            case SerialForkType::READER:
+                                if ($this->getCache( $cache, self::CACHE_DO_READ_SUFFIX )) {
+                                    $this->setCache(
+                                        cache:  $cache,
+                                        suffix: self::CACHE_RESPONSE_LINE_SUFFIX,
+                                        value:  $this->readUntilBlank(
+                                            timeout:    $this->getCache( $cache, self::CACHE_NEXT_TIMEOUT_SUFFIX     ),
+                                            lineNumber: $this->getCache( $cache, self::CACHE_NEXT_LINE_NUMBER_SUFFIX ),
+                                            maxLine:    $this->getCache( $cache, self::CACHE_NEXT_MAX_LINE_SUFFIX    ),
+                                        )
+                                    );
+
+                                    usleep( (self::CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS / 4) * 1000 );
+
+                                    $this->forgetCache( $cache, self::CACHE_DO_READ_SUFFIX );
+                                }
+                            break;
+                            case SerialForkType::WRITER:
+                                if ($this->getCache( $cache, self::CACHE_NEXT_COMMAND_SUFFIX )) {
+                                    $this->sendCommand(
+                                        command:    $this->getCache( $cache, self::CACHE_NEXT_COMMAND_SUFFIX     ),
+                                        lineNumber: $this->getCache( $cache, self::CACHE_NEXT_LINE_NUMBER_SUFFIX ),
+                                        maxLine:    $this->getCache( $cache, self::CACHE_NEXT_MAX_LINE_SUFFIX    )
+                                    );
+
+                                    $this->forgetCache( $cache, self::CACHE_NEXT_COMMAND_SUFFIX );
+                                }
+                            break;
+                            default:
+                                $this->log->warning( __METHOD__ . ": we shouldn\'t be here! Invalid thread type, got: {$thread}" );
+                        }
+                    } catch (Exception $exception) { // catch all exceptions, we'll handle them later
+                        $this->forgetCache( $cache, self::CACHE_DO_READ_SUFFIX      );
+                        $this->forgetCache( $cache, self::CACHE_NEXT_COMMAND_SUFFIX );
+
+                        $this->setCache(
+                            cache:  $cache,
+                            suffix: self::CACHE_LAST_ERROR_LINE_SUFFIX,
+                            value:  serialize([
+                                'class'     => get_class($exception),
+                                'message'   =>
+                                    $exception->getMessage() . PHP_EOL .
+                                    $exception->getTraceAsString()
+                            ])
+                        );
+                    }
+
+                    if ($this->getCache( $cache, self::CACHE_IS_DESTRUCTING_SUFFIX )) {
+                        exit( Command::SUCCESS );
+                    }
+
+                    usleep( (self::CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS / 8) * 1000 );
+                }
+
+                exit( Command::SUCCESS );
+            } else { // parent
+                $this->children[] = $pid;
+            }
+        }
+    }
+
+    public function __destruct()
+    {
+        $cache = $this->store();
+
+        $this->setCache(
+            cache:  $cache,
+            suffix: self::CACHE_IS_DESTRUCTING_SUFFIX,
+            value:  true
+        );
+
+        // Waiting for children to finish
+        foreach ($this->children as $pid) {
+            pcntl_waitpid($pid, $status);
+        }
+    }
+
+    private function store(): Redis {
+        $redis = new Redis();
+        $redis->connect(
+            host: env('REDIS_HOST'),
+            port: env('REDIS_PORT')
+        );
+
+        return $redis;
+    }
+
+    private function setCache(Redis &$cache, string $suffix, mixed $value): bool {
+        return $cache->set(
+            key:    config('cache.prefix') . $this->uid . '_' . $this->fileName . $suffix,
+            value:  $value
+        );
+    }
+
+    private function getCache(Redis &$cache, string $suffix): mixed {
+        return $cache->get(
+            config('cache.prefix') . $this->uid . '_' . $this->fileName . $suffix
+        );
+    }
+
+    private function forgetCache(Redis &$cache, string $suffix): int {
+        return $cache->del(
+            config('cache.prefix') . $this->uid . '_' . $this->fileName . $suffix
+        );
     }
 
     private function configure() {
-        while ($this->lockCache->get($this->lockKey, false)) {} // block
-
         $this->fd = dio_open(
             self::TERMINAL_PATH . '/' . self::TERMINAL_PREFIX . $this->fileName, // filename
             O_RDWR | O_NONBLOCK | O_ASYNC                                        // flags
@@ -109,8 +245,6 @@ class Serial {
 
             $line = $dateString . ': ' . $message;
 
-            // Log::info('PTU: ' . $this->printerId);
-
             PrinterTerminalUpdated::dispatch(
                 $this->printerId, // printerId
                 $dateString,      // dateString
@@ -137,12 +271,6 @@ class Serial {
     public function sendCommand(string $command, ?int $lineNumber = null, ?int $maxLine = null) {
         $this->configure();
 
-        $this->lockCache->put(
-            key:    $this->lockKey,
-            value:  true,
-            ttl:    self::CACHE_LOCK_TTL
-        );
-
         if ($this->log) {
             $this->log->debug('dio_write: ' . $command);
         }
@@ -157,24 +285,24 @@ class Serial {
 
         dio_write($this->fd, $command . PHP_EOL);
 
-        $this->lockCache->forget( $this->lockKey );
+        if ($this->log) {
+            $this->log->debug('SENT');
+        }
     }
     
     /**
      * readUntilBlank
      *
-     * @param  ?int $timeout - custom timeout
+     * @param  ?int $timeout    - custom timeout
+     * @param  ?int $lineNumber - the current line number
+     * @param  ?int $maxLine    - the maximum line number
+     * 
+     * @throws TimedOutException
      * 
      * @return string
      */
     public function readUntilBlank(?int $timeout = null, ?int $lineNumber = null, ?int $maxLine = null) : string {
         $this->configure();
-
-        $this->lockCache->put(
-            key:    $this->lockKey,
-            value:  true,
-            ttl:    self::CACHE_LOCK_TTL
-        );
 
         if (!$timeout) {
             $timeout = $this->timeout;
@@ -208,14 +336,14 @@ class Serial {
             if ($timeout && (time() - $sTime >= $timeout)) break;
         }
 
-        $this->lockCache->forget( $this->lockKey );
-
         if ($timeout && time() - $sTime >= $timeout) {
             throw new TimedOutException('timed out while waiting for a newline after ' . (time() - $sTime) . ' seconds were spent trying to get a response.');
         }
 
         if ($this->log) {
             $this->log->debug( __METHOD__ . ': ' . json_encode($result) );
+
+            $this->log->debug('RECV: ' . $result);
         }
 
         $this->appendLog(
@@ -227,10 +355,64 @@ class Serial {
         return trim($result);
     }
 
-    public function query(string $command, ?int $lineNumber = null, ?int $maxLine = null) : string {
-        $this->sendCommand( $command, $lineNumber, $maxLine );
+    public function query(?string $command = null, ?int $lineNumber = null, ?int $maxLine = null, ?int $timeout = null): string {
+        if ($lineNumber !== null) {
+            $this->setCache(
+                cache:  $this->cache,
+                suffix: self::CACHE_NEXT_LINE_NUMBER_SUFFIX,
+                value:  $lineNumber
+            );
+        }
 
-        return $this->readUntilBlank();
+        if ($maxLine !== null) {
+            $this->setCache(
+                cache:  $this->cache,
+                suffix: self::CACHE_NEXT_MAX_LINE_SUFFIX,
+                value:  $maxLine
+            );
+        }
+
+        if ($timeout !== null) {
+            $this->setCache(
+                cache:  $this->cache,
+                suffix: self::CACHE_NEXT_TIMEOUT_SUFFIX,
+                value:  $timeout
+            );
+        }
+
+        $this->setCache(
+            cache:  $this->cache,
+            suffix: self::CACHE_DO_READ_SUFFIX,
+            value:  true
+        );
+
+        if ($command) {
+            $this->setCache(
+                cache:  $this->cache,
+                suffix: self::CACHE_NEXT_COMMAND_SUFFIX,
+                value:  $command
+            );
+        }
+
+        while ($this->getCache( $this->cache, self::CACHE_DO_READ_SUFFIX )) {
+            usleep( (self::CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS / 2) * 1000 );
+        }
+
+        $response  = $this->getCache( $this->cache, self::CACHE_RESPONSE_LINE_SUFFIX   );
+        $lastError = $this->getCache( $this->cache, self::CACHE_LAST_ERROR_LINE_SUFFIX );
+
+        if ($lastError) {
+            $lastError = unserialize( $lastError );
+        }
+
+        $this->forgetCache( $this->cache, self::CACHE_RESPONSE_LINE_SUFFIX   );
+        $this->forgetCache( $this->cache, self::CACHE_LAST_ERROR_LINE_SUFFIX );
+
+        if ($lastError) {
+            throw new $lastError['class']( $lastError['message'] );
+        }
+
+        return $response;
     }
 
     public static function nodeExists(string $fileName) : bool {
