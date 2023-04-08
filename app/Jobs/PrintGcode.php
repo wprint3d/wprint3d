@@ -95,6 +95,8 @@ class PrintGcode implements ShouldQueue
      */
     public function finished(bool $resetPrinter = false)
     {
+        $log = Log::channel( self::LOG_CHANNEL );
+
         $this->printer->setCurrentLine( 0 );
 
         Cache::put(env('CACHE_MAX_LINE_KEY'), null);
@@ -115,7 +117,14 @@ class PrintGcode implements ShouldQueue
                 'M104 S0',  // turn off temperature
                 'M84 X Y E' // disable motors
             ] as $command) {
-                $serial->sendCommand( $command );
+                try {
+                    $serial->query( $command );
+                } catch (Exception $exception) {
+                    $log->warning(
+                        __METHOD__ . ': failed to send command: ' . $exception->getMessage() . PHP_EOL .
+                        $exception->getTraceAsString()
+                    );
+                }
             }
 
             $this->printer->lastLine     = null;
@@ -174,7 +183,7 @@ class PrintGcode implements ShouldQueue
         return false;
     }
 
-    private function retrySerialConnection(Exception $previousException, Serial &$serial, Logger &$log) {
+    private function retrySerialConnection(Exception $previousException, Serial &$serial, Logger &$log): string {
         /*
          * NOTE:
          * 
@@ -189,10 +198,10 @@ class PrintGcode implements ShouldQueue
 
         try {
             $log->info('Trying to re-establish serial connection...');
-
-            $serial->query('M105');
-
+            
             $log->info('A timing issue caused the serial connection to hang temporarily, trying again though, showed that the printer is still alive. Continuing print...');
+
+            return $serial->query('M105');
         } catch (TimedOutException $statisticsTimedOutException) {
             throw $previousException; // throw the previous exception instead of the current one
         }
@@ -360,6 +369,8 @@ class PrintGcode implements ShouldQueue
         $log->debug(print_r($this->gcode, true));
 
         while (isset($this->gcode[ $this->lineNumber ])) {
+            tryToWaitForMapper($log);
+
             $line = $this->gcode[ $this->lineNumber ];
 
             $absolutePosition = $this->printer->getAbsolutePosition();
@@ -391,20 +402,20 @@ class PrintGcode implements ShouldQueue
             if ($wasPaused) {
                 $log->debug('RESUME');
 
-                $serial->sendCommand( 'M108' ); // break pause and continue unconditionally
+                $serial->query( 'M108' ); // break pause and continue unconditionally
 
                 $wasPaused = false;
             }
 
             if ($isBusy) {
                 try {
-                    $received = $serial->readUntilBlank(
+                    $received = $serial->query(
                         timeout:    $this->runningTimeoutSecs,
                         lineNumber: $this->lineNumber,
                         maxLine:    $this->lineNumberCount
                     );
-                } catch (TimedOutException $exception) {
-                    $log->info('Timed out, looks like we\'re out of BSY, let\'s try to keep going! Message: ' . $exception->getMessage());
+                } catch (Exception $exception) {
+                    $log->info('No response after the last BSY state, looks like we\'re out of BSY, let\'s try to keep going! Message: ' . $exception->getMessage());
 
                     $received = $serial->query(
                         command:    'M105',
@@ -457,24 +468,12 @@ class PrintGcode implements ShouldQueue
 
             $log->debug('PENDING: ' . $line);
 
-            $serial->sendCommand(
-                command:    $line,
-                lineNumber: $this->lineNumber,
-                maxLine:    $this->lineNumberCount
+            $received = $serial->query(
+                command:      $line,
+                lineNumber:   $this->lineNumber,
+                maxLine:      $this->lineNumberCount
             );
 
-            $log->debug('SENT');
-
-            try {
-                $received = $serial->readUntilBlank(
-                    lineNumber: $this->lineNumber,
-                    maxLine:    $this->lineNumberCount
-                );
-            } catch (TimedOutException $exception) {
-                $this->retrySerialConnection($exception, $serial, $log);
-            }
-
-            $log->debug('RECV: ' . $received);
             $log->debug('PROG: ' . $this->lineNumber . ' / ' . $this->lineNumberCount);
 
             $this->tryLastSeenUpdate();
