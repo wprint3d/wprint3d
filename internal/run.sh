@@ -57,7 +57,7 @@ else
             false; # Force initial return status ($?) to 1
 
             while [ $? -ne 0 ]; do
-                redis-cli -h redis get '' 2>&1 > /dev/null;
+                redis-cli -h keydb get '' 2>&1 > /dev/null;
 
                 sleep 0.1;
             done;
