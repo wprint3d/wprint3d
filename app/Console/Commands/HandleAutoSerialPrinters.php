@@ -69,6 +69,8 @@ class HandleAutoSerialPrinters extends Command
                     continue;
                 }
 
+                tryToWaitForMapper($log);
+
                 $serial = new Serial(
                     fileName:  $printer->node,
                     baudRate:  $printer->baudRate,
@@ -77,8 +79,6 @@ class HandleAutoSerialPrinters extends Command
                 );
 
                 try {
-                    tryToWaitForMapper($log);
-
                     $queuedCommands = $printer->getResetQueuedCommands();
 
                     foreach ($queuedCommands as $command) {
