@@ -86,7 +86,7 @@ class HandleAutoSerialPrinters extends Command
                     }
 
                     if ($queuedCommands) {
-                        $serial->readUntilBlank();
+                        $serial->query();
 
                         $log->info( $printer->node . ': the following commands were processed: ' . Arr::join($queuedCommands, ', ') );
                     }
