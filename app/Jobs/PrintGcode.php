@@ -111,6 +111,7 @@ class PrintGcode implements ShouldQueue
 
             // Send command sequence for board reset
             foreach ([
+                'M108',     // break and continue (get out of M0/M1)
                 'M486 C',   // cancel objects
                 'M107',     // turn off fan
                 'M140 S0',  // turn off heatbed
