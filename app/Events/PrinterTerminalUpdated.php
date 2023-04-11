@@ -51,6 +51,10 @@ class PrinterTerminalUpdated implements ShouldBroadcastNow
             $this->meaning = Marlin::getLabel(
                 $cleanedUpCommand->replace('> ', '')->toString()
             );
+        } else if ($cleanedUpCommand->contains( Printer::MARLIN_TEMPERATURE_INDICATOR )) {
+            Printer::setStatisticsOf( $this->printerId, $cleanedUpCommand, 0);
+
+            PrinterConnectionStatusUpdated::dispatch( $this->printerId );
         }
     }
 
