@@ -96,7 +96,7 @@ class Printer extends Model
         'activeFile',
         'lastLine',
     ];
-    
+
     /**
      * getStatistics
      * 
@@ -108,16 +108,20 @@ class Printer extends Model
             default: []
         );
     }
-    
+
     /**
-     * setStatistics
-     *
-     * @param  string $rawData (return status of M105)
-     * @param  int    $extruderIndex
-     *
-     * @return bool - whether it's been saved successfully
+     * getStatisticsOf
+     * 
+     * @return array
      */
-    public function setStatistics(string $lines, int $extruderIndex) : bool {
+    public static function getStatisticsOf(string $printerId) : array {
+        return Cache::get(
+            key:     $printerId . self::CACHE_STATISTICS_SUFFIX,
+            default: []
+        );
+    }
+
+    private static function tryStatisticsUpdate(string $printerId, string $lines, int $extruderIndex) {
         $lines = Str::of( $lines )->explode(PHP_EOL)->toArray();
 
         $rawData = '';
@@ -148,7 +152,7 @@ class Printer extends Model
 
             $hotend = explode('/', $temperatures[0]);
 
-            $statistics = $this->getStatistics();
+            $statistics = self::getStatisticsOf( $printerId );
             $statistics['extruders'][ $extruderIndex ] = [
                 'temperature'   => doubleval( trim($hotend[0]) )
             ];
@@ -167,7 +171,7 @@ class Printer extends Model
             }
 
             Cache::put(
-                key:    $this->_id . self::CACHE_STATISTICS_SUFFIX,
+                key:    $printerId . self::CACHE_STATISTICS_SUFFIX,
                 value:  $statistics,
                 ttl:    self::CACHE_TTL
             );
@@ -178,6 +182,38 @@ class Printer extends Model
         }
 
         return true;
+    }
+
+    /**
+     * setStatistics
+     *
+     * @param  string $rawData (return status of M105)
+     * @param  int    $extruderIndex
+     *
+     * @return bool - whether it's been saved successfully
+     */
+    public function setStatistics(string $lines, int $extruderIndex) : bool {
+        return self::tryStatisticsUpdate(
+            printerId:     $this->_id,
+            lines:         $lines,
+            extruderIndex: $extruderIndex
+        );
+    }
+
+    /**
+     * setStatisticsOf
+     *
+     * @param  string $rawData (return status of M105)
+     * @param  int    $extruderIndex
+     *
+     * @return bool - whether it's been saved successfully
+     */
+    public static function setStatisticsOf(string $printerId, string $lines, int $extruderIndex) : bool {
+        return self::tryStatisticsUpdate(
+            printerId:     $printerId,
+            lines:         $lines,
+            extruderIndex: $extruderIndex
+        );
     }
     
     /**
