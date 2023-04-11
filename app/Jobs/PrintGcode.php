@@ -350,8 +350,7 @@ class PrintGcode implements ShouldQueue
             $this->printer->save();
         }
 
-        $isBusy     = false;
-        $wasPaused  = false;
+        $wasPaused = false;
 
         // default movement mode for Marlin is absolute
         $lastMovementMode = 'G90';
@@ -393,10 +392,12 @@ class PrintGcode implements ShouldQueue
                         maxLine:    $this->lineNumberCount
                     );
 
-                    if (Str::contains($received, 'ok')) $this->printer->resume();
+                    if (Str::contains($received, 'ok')) {
+                        $this->printer->resume();
+                    } else {
+                        sleep(1);
+                    }
                 }
-
-                sleep(1);
             }
 
             if ($wasPaused) {
@@ -405,42 +406,6 @@ class PrintGcode implements ShouldQueue
                 $serial->query( 'M108' ); // break pause and continue unconditionally
 
                 $wasPaused = false;
-            }
-
-            if ($isBusy) {
-                try {
-                    $received = $serial->query(
-                        timeout:    $this->runningTimeoutSecs,
-                        lineNumber: $this->lineNumber,
-                        maxLine:    $this->lineNumberCount
-                    );
-                } catch (Exception $exception) {
-                    $log->info('No response after the last BSY state, looks like we\'re out of BSY, let\'s try to keep going! Message: ' . $exception->getMessage());
-
-                    $received = $serial->query(
-                        command:    'M105',
-                        lineNumber: $this->lineNumber,
-                        maxLine:    $this->lineNumberCount
-                    );
-                }
-
-                if (Str::contains($received, Printer::MARLIN_TEMPERATURE_INDICATOR)) {
-                    $this->printer->setStatistics($received, 0);
-
-                    PrinterConnectionStatusUpdated::dispatch( $this->printer->_id );
-                }
-
-                if (!Str::contains($received, 'ok')) {
-                    $log->info('BSY: ' . $received);
-
-                    $this->tryLastSeenUpdate();
-
-                    continue;
-                }
-
-                $log->debug('LEFT BSY');
-
-                $isBusy = false;
 
                 $this->lineNumber = $this->printer->incrementCurrentLine();
 
@@ -480,19 +445,7 @@ class PrintGcode implements ShouldQueue
 
             $this->printer->setLastCommand( Marlin::getLabel($line) );
 
-            if (Str::contains($received, 'busy')) {
-                $isBusy = true;
-
-                $log->debug('NOW BSY!');
-
-                continue;
-            }
-
-            if (
-                !$isBusy
-                &&
-                time() - $lastStatsUpdate > $statisticsQueryIntervalSecs
-            ) {
+            if (time() - $lastStatsUpdate > $statisticsQueryIntervalSecs) {
                 $lastStatsUpdate = time();
 
                 $statistics = $this->printer->getStatistics();
