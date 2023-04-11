@@ -60,7 +60,7 @@
         ])
 
         @livewire('system-configuration', [
-            'key'     => 'autoSerialIntervalsecs',
+            'key'     => 'autoSerialIntervalSecs',
             'type'    => DataType::INTEGER,
             'label'   => 'Automatic poll interval',
             'hint'    => 'This is the interval (<b>in seconds</b>) in which idling printers will be reached for various automated polling operations, such as temperature, power supply status, firmware details, etc.',
