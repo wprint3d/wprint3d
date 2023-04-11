@@ -65,9 +65,7 @@ class Terminal extends Component
             return;
         }
 
-        $lines = Str::of(
-            $this->printer->getConsole( $this->printer->_id )
-        )->explode(PHP_EOL);
+        $lines = Str::of( $this->printer->getConsole() )->explode(PHP_EOL);
 
         if (!$lines) {
             $this->terminal = [ 'Nothing to display.' ];
