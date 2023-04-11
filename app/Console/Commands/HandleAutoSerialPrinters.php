@@ -74,13 +74,7 @@ class HandleAutoSerialPrinters extends Command
                     $queuedCommands = $printer->getResetQueuedCommands();
 
                     foreach ($queuedCommands as $command) {
-                        $serial->sendCommand( $command );
-                    }
-
-                    if ($queuedCommands) {
-                        $serial->query();
-
-                        $log->info( $printer->node . ': the following commands were processed: ' . Arr::join($queuedCommands, ', ') );
+                        $log->info( $printer->node . ': PROCESSED: ' . $serial->query($command) );
                     }
 
                     if (
