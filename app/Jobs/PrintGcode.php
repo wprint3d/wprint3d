@@ -111,6 +111,8 @@ class PrintGcode implements ShouldQueue
 
             // Send command sequence for board reset
             foreach ([
+                'M77',      // stop print job timer
+                'M73 P0',   // reset print progress
                 'M108',     // break and continue (get out of M0/M1)
                 'M486 C',   // cancel objects
                 'M107',     // turn off fan
@@ -231,7 +233,9 @@ class PrintGcode implements ShouldQueue
 
         $statistics = $this->printer->getStatistics();
 
-        $parsedGcode = [];
+        $parsedGcode = [
+            'M75' // start print job timer
+        ];
 
         // default movement mode for Marlin is absolute
         $lastMovementMode = 'G90';
@@ -373,6 +377,8 @@ class PrintGcode implements ShouldQueue
 
         $log->debug(print_r($this->gcode, true));
 
+        $progressPercentage = 0;
+
         while (isset($this->gcode[ $this->lineNumber ])) {
             tryToWaitForMapper($log);
 
@@ -498,6 +504,25 @@ class PrintGcode implements ShouldQueue
                     y:  $absolutePosition['y'],
                     z:  $absolutePosition['z']
                 );
+            }
+
+            $lastProgressPercentage = round(
+                num:       ($this->lineNumber * 100) / $this->lineNumberCount,
+                precision: 2
+            );
+
+            if ($lastProgressPercentage > 0) {
+                $lastProgressPercentage = ceil($lastProgressPercentage);
+            }
+
+            if ($lastProgressPercentage > 100) {
+                $lastProgressPercentage = 100;
+            }
+
+            if ($lastProgressPercentage != $progressPercentage) {
+                $serial->query("M73 P{$lastProgressPercentage}");
+
+                $progressPercentage = $lastProgressPercentage;
             }
 
             if (Str::contains( $received, 'ok' )) {
