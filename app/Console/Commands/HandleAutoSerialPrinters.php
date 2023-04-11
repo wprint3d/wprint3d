@@ -47,10 +47,10 @@ class HandleAutoSerialPrinters extends Command
 
         $minPollIntervalSecs    = Configuration::get('lastSeenPollIntervalSecs', env('PRINTER_LAST_SEEN_POLL_INTERVAL_SECS'));
         $commandTimeoutSecs     = Configuration::get('commandTimeoutSecs',       env('PRINTER_COMMAND_TIMEOUT_SECS'));
-        $autoSerialIntervalsecs = Configuration::get('autoSerialIntervalsecs',   env('PRINTER_AUTO_SERIAL_INTERVAL_SECS'));
+        $autoSerialIntervalSecs = Configuration::get('autoSerialIntervalSecs',   env('PRINTER_AUTO_SERIAL_INTERVAL_SECS'));
 
         while (true) {
-            sleep( $autoSerialIntervalsecs );
+            sleep( $autoSerialIntervalSecs );
 
             foreach (Printer::cursor() as $printer) {
                 if ($printer->activeFile) { continue; }

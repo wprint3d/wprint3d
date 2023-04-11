@@ -223,6 +223,11 @@ class PrintGcode implements ShouldQueue
         $log->info( 'Job started: printing "' . $this->fileName . '"' );
 
         $statisticsQueryIntervalSecs = Configuration::get('jobStatisticsQueryIntervalSecs', env('PRINTING_STATISTICS_QUERY_INTERVAL_SECS'));
+        $autoSerialIntervalsecs      = Configuration::get('autoSerialIntervalsecs',         env('PRINTER_AUTO_SERIAL_INTERVAL_SECS'));
+
+        $log->info("Waiting {$autoSerialIntervalsecs} seconds before starting the job for the serial queue to clean up...");
+
+        sleep($autoSerialIntervalsecs);
 
         $statistics = $this->printer->getStatistics();
 
