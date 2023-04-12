@@ -169,23 +169,6 @@ class PrintGcode implements ShouldQueue
         $this->finished(resetPrinter: false);
     }
 
-    private function tryLastSeenUpdate() : bool {
-        if (
-            time() - $this->printer->lastSeen->toDateTime()->getTimestamp()
-            >=
-            $this->minPollIntervalSecs
-        ) {
-            $this->printer->lastSeen = new UTCDateTime();
-            $this->printer->save();
-
-            PrinterConnectionStatusUpdated::dispatch( $this->printer->_id );
-
-            return true;
-        }
-
-        return false;
-    }
-
     private function retrySerialConnection(Exception $previousException, Serial &$serial, Logger &$log): string {
         /*
          * NOTE:
@@ -453,7 +436,7 @@ class PrintGcode implements ShouldQueue
 
             $log->debug('PROG: ' . $this->lineNumber . ' / ' . $this->lineNumberCount);
 
-            $this->tryLastSeenUpdate();
+            $this->printer->updateLastSeen();
 
             $this->printer->setLastCommand( Marlin::getLabel($line) );
 

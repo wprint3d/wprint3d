@@ -106,8 +106,7 @@ class HandleAutoSerialPrinters extends Command
 
                         $log->debug('OK: ' . $response);
 
-                        $printer->lastSeen = new UTCDateTime();
-                        $printer->save();
+                        $printer->updateLastSeen();
 
                         PrinterConnectionStatusUpdated::dispatch( $printer->_id );
                     }

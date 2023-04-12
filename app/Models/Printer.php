@@ -12,9 +12,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
-use Exception;
-
 use Jenssegers\Mongodb\Eloquent\Model;
+
+use MongoDB\BSON\UTCDateTime;
+
+use Exception;
 
 class Printer extends Model
 {
@@ -33,6 +35,7 @@ class Printer extends Model
     const CACHE_ACTIVE_USER_ID_SUFFIX    = '_activeUserId';
     const CACHE_CURRENT_LINE_SUFFIX      = '_currentLine';
     const CACHE_ABSOLUTE_POSITION_SUFFIX = '_absolutePosition';
+    const CACHE_LAST_SEEN_SUFFIX         = '_lastSeen';
 
     const MARLIN_TEMPERATURE_INDICATOR = 'T:';
 
@@ -502,5 +505,25 @@ class Printer extends Model
         }
 
         return $userId;
+    }
+
+    public function getLastSeen() {
+        return Cache::get( $this->_id . self::CACHE_LAST_SEEN_SUFFIX );
+    }
+
+    public function updateLastSeen() {
+        return Cache::put(
+            key:     $this->_id . self::CACHE_LAST_SEEN_SUFFIX, 
+            value:   new UTCDateTime(),
+            ttl:     self::CACHE_TTL
+        );
+    }
+
+    public static function updateLastSeenOf(string $printerId) {
+        return Cache::put(
+            key:     $printerId . self::CACHE_LAST_SEEN_SUFFIX, 
+            value:   new UTCDateTime(),
+            ttl:     self::CACHE_TTL
+        );
     }
 }
