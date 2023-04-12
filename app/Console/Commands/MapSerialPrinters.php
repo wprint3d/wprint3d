@@ -223,8 +223,8 @@ class MapSerialPrinters extends Command
                         $printer->baudRate  = $baudRate;
                         $printer->machine   = $machine;
                         $printer->cameras   = $cameras;
-                        $printer->lastSeen  = new UTCDateTime();
                         $printer->save();
+                        $printer->updateLastSeen();
 
                         $changes = $printer->getChanges();
 

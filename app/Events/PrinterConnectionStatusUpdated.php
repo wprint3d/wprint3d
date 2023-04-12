@@ -32,7 +32,7 @@ class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
         if (!$printer) throw new Exception('No such printer.');
 
         $this->printerId    = $printer->_id;
-        $this->lastSeen     = $printer->lastSeen->toDateTime()->getTimestamp();
+        $this->lastSeen     = $printer->getLastSeen()->toDateTime()->getTimestamp();
         $this->statistics   = $printer->getStatistics();
     }
 
