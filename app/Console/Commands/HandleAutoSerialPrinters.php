@@ -77,10 +77,16 @@ class HandleAutoSerialPrinters extends Command
                         $log->info( $printer->node . ': PROCESSED: ' . $serial->query($command) );
                     }
 
+                    $lastSeen = $printer->getLastSeen();
+
                     if (
-                        time() - $printer->lastSeen->toDateTime()->getTimestamp()
-                        >
-                        $minPollIntervalSecs
+                        !$lastSeen
+                        ||
+                        (
+                            time() - $lastSeen->toDateTime()->getTimestamp()
+                            >
+                            $minPollIntervalSecs
+                        )
                     ) { // should update lastSeen?
                         $response = $serial->query('M105');
 

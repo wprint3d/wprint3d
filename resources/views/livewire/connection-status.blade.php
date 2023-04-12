@@ -49,9 +49,13 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             connectionStatusText.innerHTML = (
-                (Date.now() / 1000) - event.lastSeen
-                >
-                PRINTER_LAST_SEEN_ONLINE_THRESHOLD_SECS
+                !event.lastSeen
+                ||
+                (
+                    (Date.now() / 1000) - event.lastSeen
+                    >
+                    PRINTER_LAST_SEEN_ONLINE_THRESHOLD_SECS
+                )
             ) ? 'offline'
               : 'online';
 

@@ -22,7 +22,7 @@ class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
     public $queue = 'broadcasts';
 
     public string   $printerId;
-    public string   $lastSeen;
+    public ?string  $lastSeen;
     public array    $statistics;
 
     public function __construct(string $printerId)
@@ -32,8 +32,14 @@ class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
         if (!$printer) throw new Exception('No such printer.');
 
         $this->printerId    = $printer->_id;
-        $this->lastSeen     = $printer->getLastSeen()->toDateTime()->getTimestamp();
         $this->statistics   = $printer->getStatistics();
+        $this->lastSeen     = null;
+
+        $lastSeen = $printer->getLastSeen();
+
+        if ($lastSeen) {
+            $this->lastSeen = $lastSeen->toDateTime()->getTimestamp();
+        }
     }
 
     /**
