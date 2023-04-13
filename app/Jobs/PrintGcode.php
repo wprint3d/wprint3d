@@ -547,7 +547,5 @@ class PrintGcode implements ShouldQueue
         $log->info('Job finished.');
 
         $this->finished( resetPrinter: true );
-
-        sleep(10);
     }
 }
