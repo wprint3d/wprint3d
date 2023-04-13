@@ -226,13 +226,16 @@ class PrintGcode implements ShouldQueue
         foreach ($this->gcode as $index => $line) {
             unset($this->gcode[ $index ]); // mark as free for GC
 
-            // strip comments and empty lines)
+            // strip comments
             if (Str::startsWith($line, ';') || !$line) continue;
 
             $command = 
                 Str::of( $line )
                    ->replaceMatches('/;.*/', '')
                    ->trim();
+
+            // skip empty lines
+            if (!$command->length()) continue;
 
             if ($command->exactly('G90') || $command->exactly('G91')) {
                 $lastMovementMode = $command->toString();
