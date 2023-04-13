@@ -457,13 +457,14 @@ class Printer extends Model
         );
     }
 
-    public function setAbsolutePosition(float $x, float $y, float $z) : bool {
+    public function setAbsolutePosition(?float $x, ?float $y, ?float $z, ?float $e) : bool {
         return Cache::put(
             key:     $this->_id . self::CACHE_ABSOLUTE_POSITION_SUFFIX,
             value:   [
                 'x' => $x,
                 'y' => $y,
-                'z' => $z
+                'z' => $z,
+                'e' => $e
             ]
         );
     }

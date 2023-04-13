@@ -308,6 +308,7 @@ class PrintGcode implements ShouldQueue
                 // get back on top of the printed object
                 $parsedGcode[] = 'G90';                                                                             // set absolute movement mode
                 $parsedGcode[] = ";" . FormatterCommands::GO_BACK;                                                  // move back to previous location
+                $parsedGcode[] = ";" . FormatterCommands::RESTORE_EXTRUDER;                                         // restore the previous extruder travel value
 
                 if ($lastMovementMode) {
                     $parsedGcode[] = $lastMovementMode;                                                             // reset last movement mode (if defined)
@@ -351,14 +352,15 @@ class PrintGcode implements ShouldQueue
         // default movement mode for Marlin is absolute
         $lastMovementMode = 'G90';
 
-        $absolutePosition = movementToXYZ(
+        $absolutePosition = movementToXYZE(
             $serial->query('M114') // current absolute position
         );
 
         $this->printer->setAbsolutePosition(
             x:  $absolutePosition['x'] ?? null,
             y:  $absolutePosition['y'] ?? null,
-            z:  $absolutePosition['z'] ?? null
+            z:  $absolutePosition['z'] ?? null,
+            e:  $absolutePosition['e'] ?? null
         );
 
         $log->debug(print_r($this->gcode, true));
@@ -374,6 +376,10 @@ class PrintGcode implements ShouldQueue
 
             if ($line == ';' . FormatterCommands::GO_BACK) {
                 $line = "G0 X{$absolutePosition['x']} Y{$absolutePosition['y']} Z{$absolutePosition['z']} F" . self::COLOR_SWAP_MOVEMENT_FEED_RATE;
+            }
+
+            if ($line == ';' . FormatterCommands::RESTORE_EXTRUDER) {
+                $line = "G92 E{$absolutePosition['e']}";
             }
 
             if (!$this->printer->isRunning()) {
@@ -474,11 +480,11 @@ class PrintGcode implements ShouldQueue
                 !Str::endsWith($line, ';' . FormatterCommands::IGNORE_POSITION_CHANGE)
             ) {
                 if ($lastMovementMode == 'G90') { // absolute mode
-                    foreach (movementToXYZ( $line ) as $key => $value) {
+                    foreach (movementToXYZE( $line ) as $key => $value) {
                         $absolutePosition[ $key ] = $value;
                     }
                 } else if ($lastMovementMode == 'G91') { // relative mode
-                    foreach (movementToXYZ( $line ) as $key => $value) {
+                    foreach (movementToXYZE( $line ) as $key => $value) {
                         $absolutePosition[ $key ] += $value;
                     }
                 }
@@ -488,7 +494,8 @@ class PrintGcode implements ShouldQueue
                 $this->printer->setAbsolutePosition(
                     x:  $absolutePosition['x'],
                     y:  $absolutePosition['y'],
-                    z:  $absolutePosition['z']
+                    z:  $absolutePosition['z'],
+                    e:  $absolutePosition['e']
                 );
             }
 

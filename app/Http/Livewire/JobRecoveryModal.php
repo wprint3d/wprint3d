@@ -146,7 +146,13 @@ class JobRecoveryModal extends Component
         // default movement mode for Marlin is absolute
         $lastMovementMode = 'G90';
 
-        $previousPosition = [ 'x' => null, 'y' => null, 'z' => null ];
+        $previousPosition = [
+            'x' => null,
+            'y' => null,
+            'z' => null,
+            'e' => null
+        ];
+
         $absolutePosition = $previousPosition;
 
         $minLayerPositionXY = [ 'x' => null, 'y' => null ];
@@ -165,11 +171,11 @@ class JobRecoveryModal extends Component
                 !Str::endsWith($line, ';' . FormatterCommands::IGNORE_POSITION_CHANGE)
             ) {
                 if ($lastMovementMode == 'G90') { // absolute mode
-                    foreach (movementToXYZ( $line ) as $key => $value) {
+                    foreach (movementToXYZE( $line ) as $key => $value) {
                         $absolutePosition[ $key ] = $value;
                     }
                 } else if ($lastMovementMode == 'G91') { // relative mode
-                    foreach (movementToXYZ( $line ) as $key => $value) {
+                    foreach (movementToXYZE( $line ) as $key => $value) {
                         if ($absolutePosition[ $key ] === null) {
                             $absolutePosition[ $key ]  = $value;
                         } else {
@@ -215,17 +221,20 @@ class JobRecoveryModal extends Component
             if ($index == $this->printer->lastLine) { break; }
         }
 
-        if ($absolutePosition['x'] === null || $absolutePosition['y'] === null || $absolutePosition['z'] === null) {
-            $log->warning("{$this->printer->node}: {$this->printer->activeFile}: failed to assert absolute position, forcibly aborting job recovery. | X = {$absolutePosition['x']} - Y = {$absolutePosition['y']} - Z = {$absolutePosition['z']}");
+        foreach (array_keys($absolutePosition) as $key) {
+            if ($absolutePosition[$key] === null) {
+                $log->warning("{$this->printer->node}: {$this->printer->activeFile}: failed to assert absolute position, forcibly aborting job recovery. | X = {$absolutePosition['x']} - Y = {$absolutePosition['y']} - Z = {$absolutePosition['z']} - E = {$absolutePosition['e']}");
 
-            $this->dispatchBrowserEvent('recoveryJobFailedNoPosition');
+                $this->dispatchBrowserEvent('recoveryJobFailedNoPosition');
 
-            $this->skip();
+                $this->skip();
 
-            return;
+                return;
+            }
         }
 
-        $preSetUpCommands[] = 'G91';                                        // relative mode
+        $preSetUpCommands[] = 'G90';                                        // absolute mode
+        $preSetUpCommands[] = 'G92 X0 Y0 Z0 E0';                            // set all axis to 0
         $preSetUpCommands[] = 'G1 E-' . self::E_AXIS_RETRACT_OFFSET;        // retract N mm
         $preSetUpCommands[] = 'G0 Z'  . self::Z_AXIS_HOLDING_OFFSET;        // make the nozzle go up
         $preSetUpCommands[] = "M109 R{$jobRestorationHomingTemperature}";   // wait for hotend cooldown
@@ -260,10 +269,10 @@ class JobRecoveryModal extends Component
             $log->debug('$startPos: minimum layer XY available, decreasing XY to a safer resting position: ' . json_encode( $startPos ) . ', minimum is: ' . json_encode( $minLayerPositionXY ));
         }
 
-        $setUpCommands[] = 'G28'; // auto-home all axis
-        $setUpCommands[] = 'G90'; // absolute mode
-        $setUpCommands[] = "G0 X{$startPos['x']} Y{$startPos['y']} Z{$startPos['z']}"; // move to target X/Y/Z + offset
-        $setUpCommands[] = "G0 Z{$absolutePosition['z']}";                             // move to target Z
+        $setUpCommands[] = 'G28';                                    // auto-home all axis
+        $setUpCommands[] = "G0 Z{$startPos['z']}";                   // move to target Z   + offset
+        $setUpCommands[] = "G0 X{$startPos['x']} Y{$startPos['y']}"; // move to target X/Y + offset
+        $setUpCommands[] = "G0 Z{$absolutePosition['z']}";           // move to target Z
 
         $postSetUpCommands[] = "G0 X{$absolutePosition['x']} Y{$absolutePosition['y']}"; // move to target X/Y
         $postSetUpCommands[] = 'G1 E' . self::E_AXIS_RETRACT_OFFSET;                     // de-retract N mm

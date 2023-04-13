@@ -42,26 +42,28 @@ function containsUTF8(string $string) : bool {
 /**
  * movementToXYZ
  * 
- * Convert any G0 or G1 command, or the output of M114 to XYZ updates.
+ * Convert any G0 or G1 command, or the output of M114 to XYZE updates.
  *
  * @return array
  */
-function movementToXYZ(string $command) : array {
+function movementToXYZE(string $command) : array {
     $position = [];
 
     $command =
         Str::of( $command )
             ->replaceMatches('/ Count.*/', '') // we don't care about the allocated count (M114)
             ->replace(':', '')                 // M114 returns data split by ":", remove them so that they match what G0 or G1 would look like
+            ->replace('ok', '')                // M114 contains the "ok" word, remove it
+            ->trim()                           // trim spaces at beginning and end
             ->explode(' ');
 
     foreach ($command as $argument) {
         if (!isset( $argument[0] )) continue;
 
-        switch ($argument[0]) {
-            case 'X': $position['x'] = (float) Str::replace('X', '', $argument); break;
-            case 'Y': $position['y'] = (float) Str::replace('Y', '', $argument); break;
-            case 'Z': $position['z'] = (float) Str::replace('Z', '', $argument); break;
+        foreach ([ 'X', 'Y', 'Z', 'E' ] as $axis) {
+            if ($argument[0] == $axis) {
+                $position[ strtolower($axis) ] = Str::replace($axis, '', $argument);
+            }
         }
     }
 
