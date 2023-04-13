@@ -46,7 +46,6 @@ class Serial {
     const CACHE_REFRESH_RATE_MICROS = 500; // microseconds
 
     const CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS = 16; // ms
-    const CONSOLE_MIN_RESPONSE_RATE_MILLIS      = .5; // ms
 
     /**
      * __construct
@@ -307,8 +306,6 @@ class Serial {
                 );
             }
         }
-
-        usleep( self::CONSOLE_MIN_RESPONSE_RATE_MILLIS * 1000 );
 
         return trim($result);
     }
