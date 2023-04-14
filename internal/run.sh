@@ -40,11 +40,7 @@ else
         if [[ "$ROLE" != 'server' ]]; then
             echo 'Waiting for composer dependencies to become available...';
 
-            php artisan > /dev/null;
-
-            while [[ $? -ne 0 ]]; do
-                php artisan > /dev/null;
-
+            while ! php artisan 2>&1 > /dev/null; do
                 sleep 1;
             done;
         fi;
