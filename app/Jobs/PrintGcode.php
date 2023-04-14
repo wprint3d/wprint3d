@@ -302,12 +302,15 @@ class PrintGcode implements ShouldQueue
                 }
 
                 $parsedGcode[] = 'G91';                                                                             // set relative movement mode
+                $parsedGcode[] = 'G92 E0';                                                                          // reset (E)xtruder to 0
                 $parsedGcode[] = "G0 E{$loadLength} F" . self::COLOR_SWAP_EXTRUDER_FEED_RATE;                       // load the new filament
+                $parsedGcode[] = 'G92 E0';                                                                          // reset (E)xtruder to 0 (again)
                 $parsedGcode[] = "G0 E-{$resumeRetractionLength}";                                                  // retract a little bit
 
                 // get back on top of the printed object
                 $parsedGcode[] = 'G90';                                                                             // set absolute movement mode
                 $parsedGcode[] = ";" . FormatterCommands::GO_BACK;                                                  // move back to previous location
+                $parsedGcode[] = "G0 E{$resumeRetractionLength}";                                                   // de-retract
                 $parsedGcode[] = ";" . FormatterCommands::RESTORE_EXTRUDER;                                         // restore the previous extruder travel value
 
                 if ($lastMovementMode) {
