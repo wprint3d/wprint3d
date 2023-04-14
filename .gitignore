@@ -20,3 +20,4 @@ bin
 devices/*
 proxy/internal
 internal/vc
+internal/.bundler-exit-status

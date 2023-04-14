@@ -10,9 +10,17 @@ export PATH="$PATH":$(pwd)/bin;
 
 wait-for-it mongo:27017 -t 0;
 
+echo 'Waiting for Redis to be ready...';
+
+while ! redis-cli -h keydb get '' 2>&1 > /dev/null; do
+    sleep 1;
+done;
+
 # TODO: Re-enable Telescope
 #
 # wait-for-it mariadb:3306;
+
+rm -fv '/var/www/internal/.bundler-exit-status';
 
 waitForAssetBundler() {
     if [[ $(php artisan get:env ASSETS_WATCHER_ENABLED --default=true) == 'true' ]]; then
@@ -21,12 +29,8 @@ waitForAssetBundler() {
     else
         echo 'Waiting for the asset bundler to exit...';
 
-        PING_EXIT_STATUS=0;
-
-        while [[ $PING_EXIT_STATUS -eq 0 ]]; do
-            ping -c 1 bundler 2>&1 > /dev/null;
-
-            PING_EXIT_STATUS=$?;
+        while [[ ! -e '/var/www/internal/.bundler-exit-status' ]]; do
+            sleep 1;
         done;
     fi;
 }
@@ -47,16 +51,6 @@ else
 
         if [[ "$ROLE" == 'server' ]]; then
             composer install;
-
-            echo 'Waiting for Redis to be ready...';
-
-            false; # Force initial return status ($?) to 1
-
-            while [ $? -ne 0 ]; do
-                redis-cli -h keydb get '' 2>&1 > /dev/null;
-
-                sleep 0.1;
-            done;
 
             waitForAssetBundler;
 
@@ -260,7 +254,9 @@ else
             if [[ $(php artisan get:env ASSETS_WATCHER_ENABLED --default=true) == 'true' ]]; then
                 npm run dev;
             else
-                exit $BUILD_EXIT_STATUS;
+                printf $BUILD_EXIT_STATUS > /var/www/internal/.bundler-exit-status;
+
+                sleep infinity; # sleep forever
             fi;
         elif [[ "$ROLE" == 'streamer' ]]; then
             getFreePort() {

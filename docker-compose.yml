@@ -146,6 +146,7 @@ services:
       # - mariadb
   bundler:
     build: .
+    restart: always
     environment:
       - ROLE=bundler
     volumes:
