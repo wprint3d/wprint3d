@@ -82,10 +82,7 @@ class FileControls extends Component
             return;
         }
 
-        PrintGcode::dispatch(
-            fileName: $this->selected,
-            gcode:    Storage::get( $this->baseFilesDir . '/' . $this->selected )
-        );
+        PrintGcode::dispatch( $this->selected );
 
         $this->printer->hasActiveJob = true;
         $this->printer->activeFile   = $this->selected;

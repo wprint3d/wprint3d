@@ -32,6 +32,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 use Throwable;
 
@@ -56,7 +57,8 @@ class PrintGcode implements ShouldQueue
     public $failOnTimeout = false;
 
     private string  $fileName;
-    private array   $gcode;
+    private mixed   $gcode;
+    private string  $lastMovementMode;
     private int     $runningTimeoutSecs;
     private int     $commandTimeoutSecs;
     private int     $minPollIntervalSecs;
@@ -80,15 +82,20 @@ class PrintGcode implements ShouldQueue
     const COLOR_SWAP_EXTRUDER_FEED_RATE         = 250;  // mm/min
     const COLOR_SWAP_MOVEMENT_FEED_RATE         = 500;  // mm/min
 
+    const STREAM_MAX_LINE_LENGTH_BYTES   = 1024; // bytes
+    const STREAM_BUFFER_SIZE_MIN_LINES   = 100;  // lines
+    const STREAM_BUFFER_SIZE_MAX_LINES   = 1000; // lines
+    const STREAM_BUFFER_CHUNK_SIZE_LINES = 250;  // lines
+    const STREAM_BUFFER_INTERVAL_SECS    = 10;   // seconds
+
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct(string $fileName, string $gcode)
+    public function __construct(string $fileName)
     {
-        $this->fileName = $fileName; 
-        $this->gcode    = explode(PHP_EOL, $gcode);
+        $this->fileName = $fileName;
         $this->printer  = Printer::find( Auth::user()->activePrinter );
 
         $this->runningTimeoutSecs   = Configuration::get('runningTimeoutSecs',       env('PRINTER_RUNNING_TIMEOUT_SECS'));
@@ -204,6 +211,136 @@ class PrintGcode implements ShouldQueue
         }
     }
 
+    private function bufferChunk(mixed $stream, array &$buffer) {
+        if (count($buffer) <= self::STREAM_BUFFER_SIZE_MIN_LINES) {
+            $readLineCount = 0;
+
+            while (
+                $readLineCount < self::STREAM_BUFFER_CHUNK_SIZE_LINES
+                &&
+                (
+                    $line = stream_get_line(
+                        stream: $stream,
+                        length: self::STREAM_MAX_LINE_LENGTH_BYTES,
+                        ending: PHP_EOL
+                    )
+                ) !== false
+            ) {
+                // strip comments
+                if (Str::startsWith($line, ';') || !$line) continue;
+
+                $command = 
+                    Str::of( $line )
+                    ->replaceMatches('/;.*/', '')
+                    ->trim();
+
+                // skip empty lines
+                if (!$command->length()) continue;
+
+                $command = Str::of($command);
+
+                if ($command->exactly('G90') || $command->exactly('G91')) {
+                    $this->lastMovementMode = $command->toString();
+                }
+
+                if ($command->exactly('M600') || $command->startsWith('M600 ')) {
+                    // $extruders = [];
+
+                    $retractionDistance     = null;
+                    $loadLength             = null;
+                    $resumeTemperature      = null;
+                    $resumeRetractionLength = null;
+
+                    $changeLocation = [
+                        'X' => self::COLOR_SWAP_DEFAULT_X,
+                        'Y' => self::COLOR_SWAP_DEFAULT_Y,
+                        'Z' => self::COLOR_SWAP_DEFAULT_Z
+                    ];
+
+                    foreach ($command->explode(' ') as $argument) {
+                        if (!isset( $argument[0] )) continue;
+
+                        switch ($argument[0]) {
+                            // case 'B': not implemented yet
+                            case 'E': $retractionDistance       = Str::replaceFirst('E', '', $argument); break;
+                            case 'L': $loadLength               = Str::replaceFirst('L', '', $argument); break;
+                            case 'R': $resumeTemperature        = Str::replaceFirst('R', '', $argument); break;
+                            // case 'T': $extruders[]              = Str::replaceFirst('T', '', $argument); break; - what am I even supposed to do with this index?
+                            case 'U': $resumeRetractionLength   = Str::replaceFirst('U', '', $argument); break;
+                            case 'X': $changeLocation['X']      = Str::replaceFirst('X', '', $argument); break;
+                            case 'Y': $changeLocation['Y']      = Str::replaceFirst('Y', '', $argument); break;
+                            case 'Z': $changeLocation['Z']      = Str::replaceFirst('Z', '', $argument); break;
+                        }
+                    }
+
+                    if (!$retractionDistance) {
+                        $retractionDistance = self::COLOR_SWAP_DEFAULT_RETRACTION_LENGTH;
+                    }
+
+                    if (!$loadLength) {
+                        $loadLength = self::COLOR_SWAP_DEFAULT_LOAD_LENGTH;
+                    }
+
+                    // if (!$extruders) {
+                    //     $extruders = array_keys( $statistics['extruders'] );
+                    // }
+
+                    if (!$resumeRetractionLength) {
+                        $resumeRetractionLength = self::COLOR_SWAP_DEFAULT_RETRACTION_LENGTH;
+                    }
+
+                    $appendedCommands = [];
+
+                    $appendedCommands[] = 'G91';                                                                             // set relative movement mode
+                    $appendedCommands[] = 'M300 S885 P150';                                                                  // for now, we're just gonna beep once instead of reconstructing the whole sequence
+                    $appendedCommands[] = "G0 E-{$retractionDistance}";                                                      // retract before moving to change location
+
+                    // move to change location
+                    $appendedCommands[] = 'G90';                                                                             // set absolute movement mode
+                    $appendedCommands[] = "G0 X-{$changeLocation['X']} Y-{$changeLocation['Y']} Z{$changeLocation['Z']} ;" . FormatterCommands::IGNORE_POSITION_CHANGE;
+
+                    $appendedCommands[] = 'M0';                                                                              // wait for filament change
+
+                    if ($resumeTemperature) {
+                        $appendedCommands[] = "M109 S{$resumeTemperature}";                                                  // wait for temperature before resuming
+                    }
+
+                    $appendedCommands[] = 'G91';                                                                             // set relative movement mode
+                    $appendedCommands[] = 'G92 E0';                                                                          // reset (E)xtruder to 0
+                    $appendedCommands[] = "G0 E{$loadLength} F" . self::COLOR_SWAP_EXTRUDER_FEED_RATE;                       // load the new filament
+                    $appendedCommands[] = 'G92 E0';                                                                          // reset (E)xtruder to 0 (again)
+                    $appendedCommands[] = "G0 E-{$resumeRetractionLength}";                                                  // retract a little bit
+
+                    // get back on top of the printed object
+                    $appendedCommands[] = 'G90';                                                                             // set absolute movement mode
+                    $appendedCommands[] = ";" . FormatterCommands::GO_BACK;                                                  // move back to previous location
+                    $appendedCommands[] = "G0 E{$resumeRetractionLength}";                                                   // de-retract
+                    $appendedCommands[] = ";" . FormatterCommands::RESTORE_EXTRUDER;                                         // restore the previous extruder travel value
+
+                    if ($this->lastMovementMode) {
+                        $appendedCommands[] = $this->lastMovementMode;                                                       // reset last movement mode (if defined)
+                    }
+
+                    $this->lineNumberCount += count($appendedCommands);
+
+                    $buffer = array_merge($buffer, $appendedCommands);
+
+                    unset($appendedCommands);
+
+                    Cache::put(env('CACHE_MAX_LINE_KEY'), $this->lineNumberCount);
+
+                    continue;
+                }
+
+                $buffer[] = $line;
+
+                $readLineCount++;
+
+                if (count($buffer) >= self::STREAM_BUFFER_SIZE_MAX_LINES) { break; }
+            }
+        }
+    }
+
     /**
      * Execute the job.
      *
@@ -211,6 +348,8 @@ class PrintGcode implements ShouldQueue
      */
     public function handle()
     {
+        $this->gcode = Storage::getDriver()->readStream( env('BASE_FILES_DIR') . '/' . $this->fileName );
+
         $this->printer->activeFile = $this->fileName;
         $this->printer->save();
 
@@ -225,130 +364,44 @@ class PrintGcode implements ShouldQueue
 
         sleep($autoSerialIntervalSecs);
 
-        $statistics = $this->printer->getStatistics();
-
-        $parsedGcode = [
-            'M75' // start print job timer
-        ];
-
-        // default movement mode for Marlin is absolute
-        $lastMovementMode = 'G90';
-
-        foreach ($this->gcode as $index => $line) {
-            unset($this->gcode[ $index ]); // mark as free for GC
-
-            // strip comments
-            if (Str::startsWith($line, ';') || !$line) continue;
-
-            $command = 
-                Str::of( $line )
-                   ->replaceMatches('/;.*/', '')
-                   ->trim();
-
-            // skip empty lines
-            if (!$command->length()) continue;
-
-            if ($command->exactly('G90') || $command->exactly('G91')) {
-                $lastMovementMode = $command->toString();
-            }
-
-            if ($command->exactly('M600') || $command->startsWith('M600 ')) {
-                // $extruders = [];
-
-                $retractionDistance     = null;
-                $loadLength             = null;
-                $resumeTemperature      = null;
-                $resumeRetractionLength = null;
-
-                $changeLocation = [
-                    'X' => self::COLOR_SWAP_DEFAULT_X,
-                    'Y' => self::COLOR_SWAP_DEFAULT_Y,
-                    'Z' => self::COLOR_SWAP_DEFAULT_Z
-                ];
-
-                foreach ($command->explode(' ') as $argument) {
-                    if (!isset( $argument[0] )) continue;
-
-                    switch ($argument[0]) {
-                        // case 'B': not implemented yet
-                        case 'E': $retractionDistance       = Str::replaceFirst('E', '', $argument); break;
-                        case 'L': $loadLength               = Str::replaceFirst('L', '', $argument); break;
-                        case 'R': $resumeTemperature        = Str::replaceFirst('R', '', $argument); break;
-                        // case 'T': $extruders[]              = Str::replaceFirst('T', '', $argument); break; - what am I even supposed to do with this index?
-                        case 'U': $resumeRetractionLength   = Str::replaceFirst('U', '', $argument); break;
-                        case 'X': $changeLocation['X']      = Str::replaceFirst('X', '', $argument); break;
-                        case 'Y': $changeLocation['Y']      = Str::replaceFirst('Y', '', $argument); break;
-                        case 'Z': $changeLocation['Z']      = Str::replaceFirst('Z', '', $argument); break;
-                    }
-                }
-
-                if (!$retractionDistance) {
-                    $retractionDistance = self::COLOR_SWAP_DEFAULT_RETRACTION_LENGTH;
-                }
-
-                if (!$loadLength) {
-                    $loadLength = self::COLOR_SWAP_DEFAULT_LOAD_LENGTH;
-                }
-
-                // if (!$extruders) {
-                //     $extruders = array_keys( $statistics['extruders'] );
-                // }
-
-                if (!$resumeRetractionLength) {
-                    $resumeRetractionLength = self::COLOR_SWAP_DEFAULT_RETRACTION_LENGTH;
-                }
-
-                $parsedGcode[] = 'G91';                                                                             // set relative movement mode
-                $parsedGcode[] = 'M300 S885 P150';                                                                  // for now, we're just gonna beep once instead of reconstructing the whole sequence
-                $parsedGcode[] = "G0 E-{$retractionDistance}";                                                      // retract before moving to change location
-
-                // move to change location
-                $parsedGcode[] = 'G90';                                                                             // set absolute movement mode
-                $parsedGcode[] = "G0 X-{$changeLocation['X']} Y-{$changeLocation['Y']} Z{$changeLocation['Z']} ;" . FormatterCommands::IGNORE_POSITION_CHANGE;
-
-                $parsedGcode[] = 'M0';                                                                              // wait for filament change
-
-                if ($resumeTemperature) {
-                    $parsedGcode[] = "M109 S{$resumeTemperature}";                                                  // wait for temperature before resuming
-                }
-
-                $parsedGcode[] = 'G91';                                                                             // set relative movement mode
-                $parsedGcode[] = 'G92 E0';                                                                          // reset (E)xtruder to 0
-                $parsedGcode[] = "G0 E{$loadLength} F" . self::COLOR_SWAP_EXTRUDER_FEED_RATE;                       // load the new filament
-                $parsedGcode[] = 'G92 E0';                                                                          // reset (E)xtruder to 0 (again)
-                $parsedGcode[] = "G0 E-{$resumeRetractionLength}";                                                  // retract a little bit
-
-                // get back on top of the printed object
-                $parsedGcode[] = 'G90';                                                                             // set absolute movement mode
-                $parsedGcode[] = ";" . FormatterCommands::GO_BACK;                                                  // move back to previous location
-                $parsedGcode[] = "G0 E{$resumeRetractionLength}";                                                   // de-retract
-                $parsedGcode[] = ";" . FormatterCommands::RESTORE_EXTRUDER;                                         // restore the previous extruder travel value
-
-                if ($lastMovementMode) {
-                    $parsedGcode[] = $lastMovementMode;                                                             // reset last movement mode (if defined)
-                }
-
-                continue;
-            }
-
-            // remove inline comments
-            $parsedGcode[] = $command->toString();
-        }
-
-        $this->gcode = array_values( $parsedGcode );
-
-        unset($parsedGcode);
-
         $this->lineNumber      = $this->printer->getCurrentLine();
-        $this->lineNumberCount = count($this->gcode);
+        $this->lineNumberCount = 0;
 
-        Cache::put(env('CACHE_MAX_LINE_KEY'), $this->lineNumberCount);
+        // count lines
+        while (
+            stream_get_line(
+                stream: $this->gcode,
+                length: self::STREAM_MAX_LINE_LENGTH_BYTES,
+                ending: PHP_EOL
+            ) !== false
+        ) { $this->lineNumberCount++; }
+
+        // back to line 0
+        rewind( $this->gcode );
+
+        $statistics = $this->printer->getStatistics();
 
         $serial = new Serial(
             fileName:  $this->printer->node,
             baudRate:  $this->printer->baudRate,
             printerId: $this->printer->_id,
             timeout:   $this->commandTimeoutSecs
+        );
+
+        $buffer = [
+            'M75' // start print job timer
+        ];
+
+        $this->lineNumberCount++;
+
+        Cache::put(env('CACHE_MAX_LINE_KEY'), $this->lineNumberCount);
+
+        // default movement mode for Marlin is absolute
+        $this->lastMovementMode = 'G90';
+
+        $this->bufferChunk(
+            stream: $this->gcode,
+            buffer: $buffer
         );
 
         $lastStatsUpdate    = time();
@@ -363,9 +416,6 @@ class PrintGcode implements ShouldQueue
 
         $wasPaused = false;
 
-        // default movement mode for Marlin is absolute
-        $lastMovementMode = 'G90';
-
         $absolutePosition = movementToXYZE(
             $serial->query('M114') // current absolute position
         );
@@ -377,14 +427,14 @@ class PrintGcode implements ShouldQueue
             e:  $absolutePosition['e'] ?? null
         );
 
-        $log->debug(print_r($this->gcode, true));
-
         $progressPercentage = 0;
 
-        while (isset($this->gcode[ $this->lineNumber ])) {
+        while ($buffer) {
             tryToWaitForMapper($log);
 
-            $line = $this->gcode[ $this->lineNumber ];
+            $index = array_key_first($buffer);
+
+            $line = $buffer[ $index ];
 
             $absolutePosition = $this->printer->getAbsolutePosition();
 
@@ -487,17 +537,17 @@ class PrintGcode implements ShouldQueue
             }
 
             if ($line == 'G90' || $line == 'G91') {
-                $lastMovementMode = $line;
+                $this->lastMovementMode = $line;
             } else if (
                 (Str::startsWith($line, 'G0') || Str::startsWith($line, 'G1'))
                 &&
                 !Str::endsWith($line, ';' . FormatterCommands::IGNORE_POSITION_CHANGE)
             ) {
-                if ($lastMovementMode == 'G90') { // absolute mode
+                if ($this->lastMovementMode == 'G90') { // absolute mode
                     foreach (movementToXYZE( $line ) as $key => $value) {
                         $absolutePosition[ $key ] = $value;
                     }
-                } else if ($lastMovementMode == 'G91') { // relative mode
+                } else if ($this->lastMovementMode == 'G91') { // relative mode
                     foreach (movementToXYZE( $line ) as $key => $value) {
                         $absolutePosition[ $key ] += $value;
                     }
@@ -556,6 +606,13 @@ class PrintGcode implements ShouldQueue
                     $this->printer->save();
                 }
             }
+
+            unset($buffer[ $index ]);
+
+            $this->bufferChunk(
+                stream: $this->gcode,
+                buffer: $buffer
+            );
         }
 
         $log->info('Job finished.');
