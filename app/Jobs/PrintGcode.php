@@ -7,7 +7,6 @@ use App\Enums\FormatterCommands;
 use App\Enums\Marlin;
 use App\Enums\PauseReason;
 
-use App\Events\PrinterConnectionStatusUpdated;
 use App\Events\PrintJobFailed;
 
 use App\Exceptions\TimedOutException;
@@ -34,8 +33,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
-use MongoDB\BSON\UTCDateTime;
-
 use Throwable;
 
 use Exception;
@@ -43,6 +40,20 @@ use Exception;
 class PrintGcode implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    /**
+     * The number of times the job may be attempted.
+     *
+     * @var int
+     */
+    public $tries = 1;
+
+    /**
+     * Indicate if the job should be marked as failed on timeout.
+     *
+     * @var bool
+     */
+    public $failOnTimeout = false;
 
     private string  $fileName;
     private array   $gcode;
