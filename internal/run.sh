@@ -294,6 +294,14 @@ else
 
                 HARDWARE_CAMERAS=$(php artisan get:hardware-cameras);
 
+                if [[ $? -ne 0 ]]; then
+                    echo 'Something went wrong while trying to update the list of connected cameras.';
+
+                    sleep 1;
+
+                    exit 1;
+                fi;
+
                 CURRENT_LINE=0;
                 MAX_LINE=$(echo -n "$HARDWARE_CAMERAS" | wc -l);
 
