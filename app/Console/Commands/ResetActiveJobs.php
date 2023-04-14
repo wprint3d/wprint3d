@@ -30,8 +30,11 @@ class ResetActiveJobs extends Command
     public function handle()
     {
         foreach (Printer::all() as $printer) {
-            $printer->hasActiveJob = false;
-            $printer->save();
+            if ($printer->hasActiveJob) {
+                $printer->hasActiveJob     = false;
+                $printer->lastJobHasFailed = true;
+                $printer->save();
+            }
         }
 
         return Command::SUCCESS;
