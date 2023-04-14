@@ -58,7 +58,7 @@
                         type="button"
                         class="btn btn-secondary"
                         data-bs-dismiss="modal"
-                        wire:loading.class="disabled"
+                        wire:loading.attr="disabled"
                     >
                         <div wire:loading>
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -71,7 +71,7 @@
                         wire:click="recover"
                         type="button"
                         class="btn btn-primary"
-                        wire:loading.class="disabled"
+                        wire:loading.attr="disabled"
                     >
                         <div wire:loading>
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
