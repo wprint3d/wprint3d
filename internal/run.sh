@@ -256,7 +256,9 @@ else
             else
                 printf $BUILD_EXIT_STATUS > /var/www/internal/.bundler-exit-status;
 
-                sleep infinity; # sleep forever
+                while [[ -e /var/www/internal/.bundler-exit-status ]]; do
+                    sleep 5;
+                done;
             fi;
         elif [[ "$ROLE" == 'streamer' ]]; then
             getFreePort() {
