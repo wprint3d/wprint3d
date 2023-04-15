@@ -80,8 +80,8 @@ class JobRecoveryModal extends Component
 
         $cacheMapperBusyKey = config('cache.mapper_busy_key');
 
-        $jobRestorationTimeoutSecs       = Configuration::get('jobRestorationTimeoutSecs',       env('JOB_BACKUP_RESTORE_TIMEOUT_SECS'));
-        $jobRestorationHomingTemperature = Configuration::get('jobRestorationHomingTemperature', env('JOB_BACKUP_RESTORE_HOMING_TEMPERATURE'));
+        $jobRestorationTimeoutSecs       = Configuration::get('jobRestorationTimeoutSecs');
+        $jobRestorationHomingTemperature = Configuration::get('jobRestorationHomingTemperature');
 
         $restoreStartTime = time();
 
@@ -415,7 +415,7 @@ class JobRecoveryModal extends Component
     }
 
     public function mount() {
-        $this->jobBackupInterval    = Configuration::get('jobBackupInterval', BackupInterval::fromKey( env('JOB_BACKUP_INTERVAL') )->value);
+        $this->jobBackupInterval    = Configuration::get('jobBackupInterval');
         $this->jobBackupIntervals   = BackupInterval::asArray();
     }
 

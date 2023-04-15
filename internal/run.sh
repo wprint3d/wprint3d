@@ -342,7 +342,7 @@ else
                                                 -o "output_http.so -p ${port}" &
                                         fi;
                                     else
-                                        if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]] && [[ $(php artisan get:config-or-env enableLibCamera LIB_CAMERA_ENABLED --default=false) == 'true' ]]; then
+                                        if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]] && [[ $(php artisan get:config enableLibCamera --default=true) == 'true' ]]; then
                                             /camera-streamer/tools/libcamera_camera.sh \
                                                 --camera-path=$CAMERA_STREAMER_NODE \
                                                 --camera-fps=$FRAMERATE \
