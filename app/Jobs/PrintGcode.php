@@ -332,7 +332,7 @@ class PrintGcode implements ShouldQueue
                     continue;
                 }
 
-                $buffer[] = $line;
+                $buffer[] = (string) $command;
 
                 $readLineCount++;
 
