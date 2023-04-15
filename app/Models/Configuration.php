@@ -15,8 +15,14 @@ class Configuration extends Model
     public static function get($key, $default = null) {
         $config = self::where('key', $key)->first();
 
-        if (!$config) { return $default; }
+        if ($config) {
+            return $config->value;
+        }
 
-        return $config->value;
+        $config = config("system.defaults.{$key}");
+
+        if ($config !== null) { return $config; }
+
+        return $default;
     }
 }

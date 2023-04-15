@@ -98,10 +98,10 @@ class PrintGcode implements ShouldQueue
         $this->fileName = $fileName;
         $this->printer  = Printer::find( Auth::user()->activePrinter );
 
-        $this->runningTimeoutSecs   = Configuration::get('runningTimeoutSecs',       env('PRINTER_RUNNING_TIMEOUT_SECS'));
-        $this->commandTimeoutSecs   = Configuration::get('commandTimeoutSecs',       env('PRINTER_COMMAND_TIMEOUT_SECS'));
-        $this->minPollIntervalSecs  = Configuration::get('lastSeenPollIntervalSecs', env('PRINTER_LAST_SEEN_POLL_INTERVAL_SECS'));
-        $this->jobBackupInterval    = Configuration::get('jobBackupInterval',        BackupInterval::fromKey( env('JOB_BACKUP_INTERVAL') )->value);
+        $this->runningTimeoutSecs   = Configuration::get('runningTimeoutSecs');
+        $this->commandTimeoutSecs   = Configuration::get('commandTimeoutSecs');
+        $this->minPollIntervalSecs  = Configuration::get('lastSeenPollIntervalSecs');
+        $this->jobBackupInterval    = Configuration::get('jobBackupInterval');
 
         $this->printer->setCurrentLine( 0 );
     }
@@ -276,8 +276,8 @@ class PrintGcode implements ShouldQueue
 
         $log->info( 'Job started: printing "' . $this->fileName . '"' );
 
-        $statisticsQueryIntervalSecs = Configuration::get('jobStatisticsQueryIntervalSecs', env('PRINTING_STATISTICS_QUERY_INTERVAL_SECS'));
-        $autoSerialIntervalSecs      = Configuration::get('autoSerialIntervalSecs',         env('PRINTER_AUTO_SERIAL_INTERVAL_SECS'));
+        $statisticsQueryIntervalSecs = Configuration::get('jobStatisticsQueryIntervalSecs');
+        $autoSerialIntervalSecs      = Configuration::get('autoSerialIntervalSecs');
 
         $log->info("Waiting {$autoSerialIntervalSecs} seconds before starting the job for the serial queue to clean up...");
 

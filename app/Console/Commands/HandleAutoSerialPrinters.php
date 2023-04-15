@@ -45,9 +45,9 @@ class HandleAutoSerialPrinters extends Command
     {
         $log = Log::channel('printers-poller');
 
-        $minPollIntervalSecs    = Configuration::get('lastSeenPollIntervalSecs', env('PRINTER_LAST_SEEN_POLL_INTERVAL_SECS'));
-        $commandTimeoutSecs     = Configuration::get('commandTimeoutSecs',       env('PRINTER_COMMAND_TIMEOUT_SECS'));
-        $autoSerialIntervalSecs = Configuration::get('autoSerialIntervalSecs',   env('PRINTER_AUTO_SERIAL_INTERVAL_SECS'));
+        $minPollIntervalSecs    = Configuration::get('lastSeenPollIntervalSecs');
+        $commandTimeoutSecs     = Configuration::get('commandTimeoutSecs');
+        $autoSerialIntervalSecs = Configuration::get('autoSerialIntervalSecs');
 
         while (true) {
             sleep( $autoSerialIntervalSecs );

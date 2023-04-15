@@ -196,12 +196,12 @@ class PrinterControl extends Component
     }
 
     public function boot() {
-        $this->distance = Configuration::get('controlDistanceDefault', env('PRINTER_CONTROL_DISTANCE_DEFAULT'));
-        $this->feedrate = Configuration::get('controlFeedrateDefault', env('PRINTER_CONTROL_FEEDRATE_DEFAULT'));
+        $this->distance = Configuration::get('controlDistanceDefault');
+        $this->feedrate = Configuration::get('controlFeedrateDefault');
 
         $this->extrusionLength   = 0;
-        $this->extrusionFeedrate = Configuration::get('controlExtrusionFeedrate', env('PRINTER_CONTROL_EXTRUSION_FEEDRATE'));
-        $this->extrusionMinTemp  = Configuration::get('controlExtrusionMinTemp',  env('PRINTER_CONTROL_EXTRUSION_MIN_TEMP'));
+        $this->extrusionFeedrate = Configuration::get('controlExtrusionFeedrate');
+        $this->extrusionMinTemp  = Configuration::get('controlExtrusionMinTemp');
 
         $this->handlePrinterSelected();
 

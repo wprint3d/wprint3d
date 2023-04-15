@@ -49,9 +49,9 @@ class MapSerialPrinters extends Command
     {
         $log = Log::channel('serial-mapper');
 
-        $negotiationWaitSecs    = Configuration::get('negotiationWaitSecs',    env('PRINTER_NEGOTIATION_WAIT_SECS'));
-        $negotiationTimeoutSecs = Configuration::get('negotiationTimeoutSecs', env('PRINTER_NEGOTIATION_TIMEOUT_SECS'));
-        $negotiatonMaxRetries   = Configuration::get('negotiationMaxRetries',  env('PRINTER_NEGOTIATION_MAX_RETRIES'));
+        $negotiationWaitSecs    = Configuration::get('negotiationWaitSecs');
+        $negotiationTimeoutSecs = Configuration::get('negotiationTimeoutSecs');
+        $negotiatonMaxRetries   = Configuration::get('negotiationMaxRetries');
 
         $baudRates          = config('app.common_baud_rates');
         $cacheMapperBusyKey = config('cache.mapper_busy_key');

@@ -92,7 +92,7 @@ class HardwareCamera {
     }
 
     private function loadLibCameraFormats() : void {
-        if (!Configuration::get('enableLibCamera', env('LIB_CAMERA_ENABLED', false))) { return; }
+        if (!Configuration::get('enableLibCamera')) { return; }
 
         $process = new Process([
             'libcamera-vid',

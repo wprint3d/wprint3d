@@ -17,7 +17,7 @@ class SystemConfiguration extends Component
     public $label;
     public $hint;
     public $value;
-    public $default;
+    public $default = null;
     public $enum;
 
     public $error;

@@ -6,16 +6,15 @@ use App\Models\Configuration;
 
 use Illuminate\Console\Command;
 
-class GetConfigOrEnv extends Command
+class GetConfig extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'get:config-or-env
-                            { configKey      : The key within the configuration collection         }
-                            { variableName   : The name of the variable                            }
+    protected $signature = 'get:config
+                            { key            : The key within the configuration collection         }
                             { --default=null : Default value (returned if the variable isn\'t set) }';
 
     /**
@@ -32,9 +31,8 @@ class GetConfigOrEnv extends Command
      */
     public function handle()
     {
-        $configKey    = $this->argument('configKey');
-        $variableName = $this->argument('variableName');
-        $default      = $this->option('default');
+        $key     = $this->argument('key');
+        $default = $this->option('default');
 
         switch ($default) {
             case 'null':    $default = null;  break;
@@ -42,7 +40,7 @@ class GetConfigOrEnv extends Command
             case 'false':   $default = false; break;
         }
 
-        $output = Configuration::get($configKey, env($variableName, $default));
+        $output = Configuration::get($key, $default);
 
         print ($output === true || $output === false)
             ? ($output ? 'true' : 'false')

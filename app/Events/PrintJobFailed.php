@@ -34,7 +34,7 @@ class PrintJobFailed implements ShouldBroadcast
         $this->printerId  = $printer->_id;
         $this->activeFile = $printer->activeFile;
         $this->lastLine   = $printer->lastLine;
-        $this->jobBackupInterval = Configuration::get('jobBackupInterval', BackupInterval::fromKey( env('JOB_BACKUP_INTERVAL') )->value);
+        $this->jobBackupInterval = Configuration::get('jobBackupInterval');
     }
 
     /**
