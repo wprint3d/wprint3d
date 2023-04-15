@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\PauseReason;
 
+use App\Events\CommandQueued;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use Illuminate\Support\Facades\Cache;
@@ -421,11 +423,17 @@ class Printer extends Model
 
         $result[] = $command;
 
-        return Cache::put(
+        $queued = Cache::put(
             key:     $this->_id . self::CACHE_QUEUED_COMMANDS_SUFFIX,
             value:   $result,
             ttl:     self::CACHE_TTL
         );
+
+        if ($queued) {
+            CommandQueued::dispatch( $this->_id );
+        }
+
+        return $queued;
     }
 
     public function getCurrentLine() : int {

@@ -166,6 +166,13 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 1,
         ],
+
+        'queued-commands-listener' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/queued-commands-listener.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 1,
+        ],
     ],
 
 ];

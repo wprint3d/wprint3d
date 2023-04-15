@@ -71,12 +71,6 @@ class HandleAutoSerialPrinters extends Command
                 );
 
                 try {
-                    $queuedCommands = $printer->getResetQueuedCommands();
-
-                    foreach ($queuedCommands as $command) {
-                        $log->info( $printer->node . ': PROCESSED: ' . $serial->query($command) );
-                    }
-
                     $lastSeen = $printer->getLastSeen();
 
                     if (
