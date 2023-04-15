@@ -26,6 +26,13 @@ class SystemConfiguration extends Component
         $this->value = Configuration::get($this->key, $this->default);
 
         switch ($this->type) {
+            case DataType::BOOLEAN:
+                $this->value =
+                    $this->value === false
+                        ? '0'
+                        : '1';
+
+                break;
             case DataType::INTEGER:
                 if (!$this->value || $this->value < 1) {
                     // Back to defaults
