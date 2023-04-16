@@ -26,7 +26,7 @@ function millis() : float {
 }
 
 function nowHuman() : string {
-    return now()->format('Y-m-d H:i:s');
+    return date('Y-m-d H:i:s');
 }
 
 function containsUTF8(string $string) : bool {
