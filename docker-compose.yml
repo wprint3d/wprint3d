@@ -191,6 +191,9 @@ services:
       - mongo:/data/db
     ports:
       - 27017:27017 # TODO: Remove this!
+  memcached:
+    image: memcached
+    restart: always
   # TODO: Re-enable Telescope
   #
   # mariadb:
