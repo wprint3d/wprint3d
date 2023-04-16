@@ -11,15 +11,13 @@ use Illuminate\Support\Str;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
 use Illuminate\Foundation\Events\Dispatchable;
 
-use Illuminate\Queue\SerializesModels;
-
-class PrinterTerminalUpdated implements ShouldBroadcastNow
+class PrinterTerminalUpdated implements ShouldBroadcast
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable, InteractsWithSockets;
 
     public $queue = 'broadcasts';
 
@@ -36,10 +34,10 @@ class PrinterTerminalUpdated implements ShouldBroadcastNow
      *
      * @return void
      */
-    public function __construct(string $printerId, string $dateString, string $command, ?int $line = null, ?int $maxLine = null, bool $running = true)
+    public function __construct(string $printerId, string $command, ?int $line = null, ?int $maxLine = null, ?int $terminalMaxLines = null)
     {
         $this->printerId    = $printerId;
-        $this->dateString   = $dateString;
+        $this->dateString   = nowHuman();
         $this->command      = $command;
         $this->line         = $line;
         $this->maxLine      = $maxLine;
@@ -60,6 +58,29 @@ class PrinterTerminalUpdated implements ShouldBroadcastNow
 
             PrinterConnectionStatusUpdated::dispatch( $this->printerId );
         }
+
+        $terminal = Printer::getConsoleOf( $this->printerId );
+
+        if (!$terminal) {
+            $terminal = '';
+        }
+
+        $dateString = nowHuman();
+
+        $line = $dateString . ': ' . $command;
+
+        $terminal .= trim($line) . PHP_EOL;
+
+        if ($terminalMaxLines) {
+            while (Str::substrCount($terminal, PHP_EOL) > $terminalMaxLines) {
+                $terminal = Str::substr(
+                    string: $terminal,
+                    start:  strpos($terminal, PHP_EOL) + 1
+                );
+            }
+        }
+
+        Printer::setConsoleOf( $this->printerId, $terminal );
     }
 
     /**

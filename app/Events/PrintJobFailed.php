@@ -2,7 +2,6 @@
 
 namespace App\Events;
 
-use App\Enums\BackupInterval;
 use App\Models\Configuration;
 use App\Models\Printer;
 
@@ -11,15 +10,13 @@ use Exception;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
 use Illuminate\Foundation\Events\Dispatchable;
 
-use Illuminate\Queue\SerializesModels;
-
-class PrintJobFailed implements ShouldBroadcastNow
+class PrintJobFailed implements ShouldBroadcast
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable, InteractsWithSockets;
 
     public $queue = 'broadcasts';
 
@@ -30,7 +27,7 @@ class PrintJobFailed implements ShouldBroadcastNow
 
     public function __construct(string $printerId)
     {
-        $printer = Printer::select('lastSeen', 'activeFile', 'lastLine')->find( $printerId );
+        $printer = Printer::select('activeFile', 'lastLine')->find( $printerId );
 
         if (!$printer) throw new Exception('No such printer.');
 
