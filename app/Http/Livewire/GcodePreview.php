@@ -26,6 +26,9 @@ class GcodePreview extends Component
     private ?Printer $printer;
     private string   $baseFilesDir;
 
+    // TODO: Implement streaming instead of halting based off this constant.
+    const FILE_SIZE_LIMIT_BYTES = 4194304;
+
     public function refreshGcode() {
         $this->gcode        = [];
         $this->currentLine  = 0;
@@ -34,11 +37,17 @@ class GcodePreview extends Component
             $printer = Printer::select('activeFile')->find( $this->user->activePrinter );
 
             if ($printer && $printer->activeFile) {
-                $gcode = Storage::get( $this->baseFilesDir . '/' . $printer->activeFile );
+                $filePath = $this->baseFilesDir . '/' . $printer->activeFile;
 
-                if ($gcode) {
-                    $this->gcode        = Str::of( $gcode )->explode(PHP_EOL)->toArray();
-                    $this->currentLine  = $printer->getCurrentLine();
+                if (Storage::size( $filePath ) > self::FILE_SIZE_LIMIT_BYTES) {
+                    $this->dispatchBrowserEvent('gcodePreviewFailedTooLarge');
+                } else {
+                    $gcode = Storage::get( $filePath );
+
+                    if ($gcode) {
+                        $this->gcode        = Str::of( $gcode )->explode(PHP_EOL)->toArray();
+                        $this->currentLine  = $printer->getCurrentLine();
+                    }
                 }
             }
         }

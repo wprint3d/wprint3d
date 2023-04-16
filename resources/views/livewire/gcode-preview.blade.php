@@ -191,6 +191,12 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    window.addEventListener('gcodePreviewFailedTooLarge', event => {
+        console.debug('gcodePreviewFailedTooLarge:', event);
+
+        toastify.info('The G-code preview won\'t be available: the selected file is too large.');
+    });
+
     window.addEventListener('gcodeChanged', event => {
         console.debug('gcodeChanged:', event);
 
