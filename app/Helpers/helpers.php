@@ -1,5 +1,9 @@
 <?php
 
+use App\Enums\FormatterCommands;
+
+use App\Jobs\PrintGcode;
+
 use Illuminate\Log\Logger;
 
 use Illuminate\Support\Facades\Cache;
@@ -68,6 +72,111 @@ function movementToXYZE(string $command) : array {
     }
 
     return $position;
+}
+
+/**
+ * convertColorSwapToSequence
+ *
+ * @param  string $command          - the original M600 sentence
+ * @param  string $lastMovementMode - the last movement mode (either G90 or G91)
+ * 
+ * @return array
+ */
+function convertColorSwapToSequence(string $command, string $lastMovementMode): array {
+    // $extruders = [];
+
+    $retractionDistance     = null;
+    $loadLength             = null;
+    $resumeTemperature      = null;
+    $resumeRetractionLength = null;
+
+    $changeLocation = [
+        'X' => PrintGcode::COLOR_SWAP_DEFAULT_X,
+        'Y' => PrintGcode::COLOR_SWAP_DEFAULT_Y,
+        'Z' => PrintGcode::COLOR_SWAP_DEFAULT_Z
+    ];
+
+    $command = Str::of($command);
+
+    foreach ($command->explode(' ') as $argument) {
+        if (!isset( $argument[0] )) continue;
+
+        switch ($argument[0]) {
+            // case 'B': not implemented yet
+            case 'E': $retractionDistance       = Str::replaceFirst('E', '', $argument); break;
+            case 'L': $loadLength               = Str::replaceFirst('L', '', $argument); break;
+            case 'R': $resumeTemperature        = Str::replaceFirst('R', '', $argument); break;
+            // case 'T': $extruders[]              = Str::replaceFirst('T', '', $argument); break; - what am I even supposed to do with this index?
+            case 'U': $resumeRetractionLength   = Str::replaceFirst('U', '', $argument); break;
+            case 'X': $changeLocation['X']      = Str::replaceFirst('X', '', $argument); break;
+            case 'Y': $changeLocation['Y']      = Str::replaceFirst('Y', '', $argument); break;
+            case 'Z': $changeLocation['Z']      = Str::replaceFirst('Z', '', $argument); break;
+        }
+    }
+
+    if (!$retractionDistance) {
+        $retractionDistance = PrintGcode::COLOR_SWAP_DEFAULT_RETRACTION_LENGTH;
+    }
+
+    if (!$loadLength) {
+        $loadLength = PrintGcode::COLOR_SWAP_DEFAULT_LOAD_LENGTH;
+    }
+
+    // if (!$extruders) {
+    //     $extruders = array_keys( $statistics['extruders'] );
+    // }
+
+    if (!$resumeRetractionLength) {
+        $resumeRetractionLength = PrintGcode::COLOR_SWAP_DEFAULT_RETRACTION_LENGTH;
+    }
+
+    $appendedCommands = [];
+
+    $appendedCommands[] = 'G91';                                                                             // set relative movement mode
+    $appendedCommands[] = 'M300 S885 P150';                                                                  // for now, we're just gonna beep once instead of reconstructing the whole sequence
+    $appendedCommands[] = "G0 E-{$retractionDistance}";                                                      // retract before moving to change location
+
+    // move to change location
+    $appendedCommands[] = 'G90';                                                                             // set absolute movement mode
+    $appendedCommands[] = "G0 X-{$changeLocation['X']} Y-{$changeLocation['Y']} Z{$changeLocation['Z']} ;" . FormatterCommands::IGNORE_POSITION_CHANGE;
+
+    $appendedCommands[] = 'M0';                                                                              // wait for filament change
+
+    if ($resumeTemperature) {
+        $appendedCommands[] = "M109 S{$resumeTemperature}";                                                  // wait for temperature before resuming
+    }
+
+    $appendedCommands[] = 'G91';                                                                             // set relative movement mode
+    $appendedCommands[] = 'G92 E0';                                                                          // reset (E)xtruder to 0
+    $appendedCommands[] = "G0 E{$loadLength} F" . PrintGcode::COLOR_SWAP_EXTRUDER_FEED_RATE;                 // load the new filament
+    $appendedCommands[] = 'G92 E0';                                                                          // reset (E)xtruder to 0 (again)
+    $appendedCommands[] = "G0 E-{$resumeRetractionLength}";                                                  // retract a little bit
+
+    // get back on top of the printed object
+    $appendedCommands[] = 'G90';                                                                             // set absolute movement mode
+    $appendedCommands[] = ";" . FormatterCommands::GO_BACK;                                                  // move back to previous location
+    $appendedCommands[] = "G0 E{$resumeRetractionLength}";                                                   // de-retract
+    $appendedCommands[] = ";" . FormatterCommands::RESTORE_EXTRUDER;                                         // restore the previous extruder travel value
+
+    if ($lastMovementMode) {
+        $appendedCommands[] = $lastMovementMode;                                                             // reset last movement mode (if defined)
+    }
+
+    return $appendedCommands;
+}
+
+function getGCode(string $line) {
+    $line = Str::of( $line );
+
+    // strip comments
+    if ($line->startsWith(';') || !$line->length()) return null;
+
+    $line = $line->replaceMatches('/;.*/', '')->trim();
+
+    // avoid empty lines
+    if (!$line->length()) return null;
+
+    return $line;
 }
 
 ?>

@@ -157,79 +157,139 @@ class JobRecoveryModal extends Component
 
         $minLayerPositionXY = [ 'x' => null, 'y' => null ];
 
-        $gcode = Storage::get( $this->baseFilesDir . '/' . $this->printer->activeFile );
-        $gcode = explode(PHP_EOL, $gcode);
+        $gcode = Storage::getDriver()->readStream( env('BASE_FILES_DIR') . '/' . $this->printer->activeFile );
 
-        foreach ($gcode as $index => $line) {
-            $previousPosition = $absolutePosition;
+        /*
+         * This block ensures that the RECOVERED_FILE_PREFIX + time() string
+         * combination doesn't get stacked multiple times on a filename. This
+         * issue could appear if a print fails multiple times.
+         * 
+         * Result is 'rec_##########_cube'.
+         */
+        $newFileName =
+            self::RECOVERED_FILE_PREFIX . '_' . time() . // rec_##########
+            '_' .
+            Str::of( $this->printer->activeFile )->replaceMatches('/' . self::RECOVERED_FILE_PREFIX . '_[0-9]*_/', ''); // 'rec_##########_cube' => 'cube'
 
-            if ($line == 'G90' || $line == 'G91') {
-                $lastMovementMode = $line;
-            } else if (
-                (Str::startsWith($line, 'G0') || Str::startsWith($line, 'G1'))
-                &&
-                !Str::endsWith($line, ';' . FormatterCommands::IGNORE_POSITION_CHANGE)
-            ) {
-                if ($lastMovementMode == 'G90') { // absolute mode
-                    foreach (movementToXYZE( $line ) as $key => $value) {
-                        $absolutePosition[ $key ] = $value;
-                    }
-                } else if ($lastMovementMode == 'G91') { // relative mode
-                    foreach (movementToXYZE( $line ) as $key => $value) {
-                        if ($absolutePosition[ $key ] === null) {
-                            $absolutePosition[ $key ]  = $value;
-                        } else {
-                            $absolutePosition[ $key ] += $value;
+        $targetFilePath = Storage::path(
+            env('BASE_FILES_DIR')
+            . '/' .
+            $newFileName
+        );
+
+        $targetFile = fopen(
+            filename: $targetFilePath,
+            mode:     'w' // Create the file, then, open for r/w.
+        );
+
+        $lineNumber      = 0;
+        $lineNumberCount = 0;
+
+        while (
+            (
+                $line = stream_get_line(
+                    stream: $gcode,
+                    length: PrintGcode::STREAM_MAX_LINE_LENGTH_BYTES,
+                    ending: PHP_EOL
+                )
+            ) !== false
+        ) {
+            $line = getGCode( $line );
+
+            if (!$line) continue;
+
+            /*
+             * If a color swap is detected, we're gonna do the conversion in
+             * memory, just in order to count the lines that would've been
+             * added and thus, making sure that the line number is matched
+             * properly.
+             */
+            if ($line->startsWith('M600')) {
+                $lineNumberCount += count(
+                    convertColorSwapToSequence(
+                        command:          $line,
+                        lastMovementMode: $lastMovementMode
+                    )
+                );
+            } else {
+                $lineNumberCount++;
+            }
+
+            if ($lineNumberCount < $this->printer->lastLine) {
+                $previousPosition = $absolutePosition;
+
+                if ($line == 'G90' || $line == 'G91') {
+                    $lastMovementMode = (string) $line;
+                } else if (
+                    ($line->startsWith('G0') || $line->startsWith('G1'))
+                    &&
+                    !$line->endsWith(';' . FormatterCommands::IGNORE_POSITION_CHANGE)
+                ) {
+                    if ($lastMovementMode == 'G90') { // absolute mode
+                        foreach (movementToXYZE( $line ) as $key => $value) {
+                            $absolutePosition[ $key ] = $value;
+                        }
+                    } else if ($lastMovementMode == 'G91') { // relative mode
+                        foreach (movementToXYZE( $line ) as $key => $value) {
+                            if ($absolutePosition[ $key ] === null) {
+                                $absolutePosition[ $key ]  = $value;
+                            } else {
+                                $absolutePosition[ $key ] += $value;
+                            }
                         }
                     }
-                }
-            } else if (
-                Str::startsWith($line, 'M104')  // set hotend temperature
-                ||
-                Str::startsWith($line, 'M140')  // set bed temperature
-                ||
-                Str::startsWith($line, 'M109')  // wait for hotend temperature
-                ||
-                Str::startsWith($line, 'M190')  // wait for bed temperature
-            ) {
-                $warmUpCommands[] = $line;
-            } else if (
-                $line == 'M82'                  // (E) extruder absolute mode
-                ||
-                $line == 'M83'                  // (E) extruder relative mode
-                ||
-                Str::startsWith($line, 'G21')   // use millimeters to measure distances
-            ) {
-                $setUpCommands[] = $line;
-            }
-
-            if ($absolutePosition['x'] !== null && $absolutePosition['y'] !== null) {
-                if ($minLayerPositionXY['x'] === null || $absolutePosition['x'] < $minLayerPositionXY['x']) {
-                    $minLayerPositionXY['x'] = $absolutePosition['x'];
+                } else if (
+                    $line->startsWith('M104')  // set hotend temperature
+                    ||
+                    $line->startsWith('M140')  // set bed temperature
+                    ||
+                    $line->startsWith('M109')  // wait for hotend temperature
+                    ||
+                    $line->startsWith('M190')  // wait for bed temperature
+                ) {
+                    $warmUpCommands[] = (string) $line;
+                } else if (
+                    $line->exactly('M82')   // (E) extruder absolute mode
+                    ||
+                    $line->exactly('M83')   // (E) extruder relative mode
+                    ||
+                    $line->exactly('G21')   // use millimeters to measure distances
+                ) {
+                    $setUpCommands[] = (string) $line;
                 }
 
-                if ($minLayerPositionXY['y'] === null || $absolutePosition['y'] < $minLayerPositionXY['y']) {
-                    $minLayerPositionXY['y'] = $absolutePosition['y'];
+                if ($absolutePosition['x'] !== null && $absolutePosition['y'] !== null) {
+                    if ($minLayerPositionXY['x'] === null || $absolutePosition['x'] < $minLayerPositionXY['x']) {
+                        $minLayerPositionXY['x'] = $absolutePosition['x'];
+                    }
+
+                    if ($minLayerPositionXY['y'] === null || $absolutePosition['y'] < $minLayerPositionXY['y']) {
+                        $minLayerPositionXY['y'] = $absolutePosition['y'];
+                    }
                 }
-            }
 
-            // Reset on layer change
-            if ($absolutePosition['z'] != $previousPosition['z']) {
-                $minLayerPositionXY = [ 'x' => null, 'y' => null ];
-            }
+                // Reset on layer change
+                if ($absolutePosition['z'] != $previousPosition['z']) {
+                    $minLayerPositionXY = [ 'x' => null, 'y' => null ];
+                }
 
-            if ($index == $this->printer->lastLine) { break; }
-        }
+                Log::info('absolutePosition: ' . json_encode($absolutePosition));
+            } else {
+                foreach (array_keys($absolutePosition) as $key) {
+                    if ($absolutePosition[$key] === null) {
+                        $log->warning("{$this->printer->node}: {$this->printer->activeFile}: failed to assert absolute position, forcibly aborting job recovery. | X = {$absolutePosition['x']} - Y = {$absolutePosition['y']} - Z = {$absolutePosition['z']} - E = {$absolutePosition['e']}");
 
-        foreach (array_keys($absolutePosition) as $key) {
-            if ($absolutePosition[$key] === null) {
-                $log->warning("{$this->printer->node}: {$this->printer->activeFile}: failed to assert absolute position, forcibly aborting job recovery. | X = {$absolutePosition['x']} - Y = {$absolutePosition['y']} - Z = {$absolutePosition['z']} - E = {$absolutePosition['e']}");
+                        $this->dispatchBrowserEvent('recoveryJobFailedNoPosition');
 
-                $this->dispatchBrowserEvent('recoveryJobFailedNoPosition');
+                        $this->skip();
 
-                $this->skip();
+                        fclose( $targetFile );      // close stream
 
-                return;
+                        unlink( $targetFilePath );  // delete the file
+
+                        return;
+                    }
+                }
             }
         }
 
@@ -245,7 +305,7 @@ class JobRecoveryModal extends Component
          */
         $startPos = [
             'x' => $absolutePosition['x'] + self::X_AXIS_HOLDING_OFFSET,
-            'y' => $absolutePosition['x'] + self::Y_AXIS_HOLDING_OFFSET,
+            'y' => $absolutePosition['y'] + self::Y_AXIS_HOLDING_OFFSET,
             'z' => $absolutePosition['z'] + self::Z_AXIS_HOLDING_OFFSET
         ];
 
@@ -283,36 +343,64 @@ class JobRecoveryModal extends Component
         $log->debug('setUpCommands: '     . json_encode( $setUpCommands     ));
         $log->debug('postSetUpCommands: ' . json_encode( $postSetUpCommands ));
 
-        $gcode = array_merge(
-            $warmUpCommands,
-            $preSetUpCommands,
-            $setUpCommands,
-            $warmUpCommands,
-            $postSetUpCommands,
-            array_splice(
-                array:  $gcode,
-                offset: $this->printer->lastLine
-            )
+        fwrite(
+            stream: $targetFile,
+            data: implode(
+                separator: PHP_EOL,
+                array: array_merge(
+                    $warmUpCommands,
+                    $preSetUpCommands,
+                    $setUpCommands,
+                    $warmUpCommands,
+                    $postSetUpCommands,
+                    [ '; End of recovery sequence' ]
+                )
+            ) . PHP_EOL
         );
 
-        $gcode = implode(PHP_EOL, $gcode);
+        rewind( $gcode );
 
-        /*
-         * This block ensures that the RECOVERED_FILE_PREFIX + time() string
-         * combination doesn't get stacked multiple times on a filename. This
-         * issue could appear if a print fails multiple times.
-         * 
-         * Result is 'rec_##########_cube'.
-         */
-        $newFileName =
-            self::RECOVERED_FILE_PREFIX . '_' . time() . // rec_##########
-            '_' .
-            Str::of( $this->printer->activeFile )->replaceMatches('/' . self::RECOVERED_FILE_PREFIX . '_[0-9]*_/', ''); // 'rec_##########_cube' => 'cube'
+        while (
+            (
+                $line = stream_get_line(
+                    stream: $gcode,
+                    length: PrintGcode::STREAM_MAX_LINE_LENGTH_BYTES,
+                    ending: PHP_EOL
+                )
+            ) !== false
+        ) {
+            $line = getGCode( $line );
 
-        Storage::put(
-            path:     env('BASE_FILES_DIR') . '/' . $newFileName,
-            contents: $gcode
-        );
+            if (!$line) continue;
+
+            /*
+             * If a color swap is detected, we're gonna do the conversion in
+             * memory, just in order to count the lines that would've been
+             * added and thus, making sure that the line number is matched
+             * properly.
+             */
+            if ($line->startsWith('M600')) {
+                $lineNumber += count(
+                    convertColorSwapToSequence(
+                        command:          $line,
+                        lastMovementMode: $lastMovementMode
+                    )
+                );
+            } else {
+                $lineNumber++;
+            }
+
+            if ($lineNumber >= $this->printer->lastLine) {
+                fwrite(
+                    stream: $targetFile,
+                    data:   $line . PHP_EOL
+                );
+            }
+
+            $log->info( $lineNumber . ' => ' . $line );
+        }
+
+        fclose( $targetFile );
 
         $this->emit('refreshUploadedFiles');
 
@@ -321,10 +409,7 @@ class JobRecoveryModal extends Component
         $this->printer->lastJobHasFailed = false;
         $this->printer->save();
 
-        PrintGcode::dispatch(
-            fileName: $this->printer->activeFile,
-            gcode:    $gcode
-        );
+        PrintGcode::dispatch( $this->printer->activeFile );
 
         $this->dispatchBrowserEvent('recoveryCompleted');
     }
