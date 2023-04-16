@@ -45,7 +45,7 @@ class Serial {
 
     const CACHE_REFRESH_RATE_MICROS = 500; // microseconds
 
-    const CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS = 16; // ms
+    const CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS = 8; // ms
 
     /**
      * __construct
