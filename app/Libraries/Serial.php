@@ -5,7 +5,6 @@ namespace App\Libraries;
 use App\Events\PrinterTerminalUpdated;
 
 use App\Models\Configuration;
-use App\Models\Printer;
 
 use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
@@ -16,8 +15,6 @@ use Illuminate\Log\Logger;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-
-use Illuminate\Support\Str;
 
 use Exception;
 
@@ -109,23 +106,13 @@ class Serial {
 
     private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null) : void {
         if ($this->printerId) {
-            $terminal = Printer::getConsoleOf( $this->printerId );
-
-            if (!$terminal) {
-                $terminal = '';
-            }
-
-            $dateString = nowHuman();
-
-            $line = $dateString . ': ' . $message;
-
             try {
                 PrinterTerminalUpdated::dispatch(
-                    $this->printerId, // printerId
-                    $dateString,      // dateString
-                    $message,         // command
-                    $lineNumber,      // line
-                    $maxLine          // maxLine
+                    $this->printerId,       // printerId
+                    $message,               // command
+                    $lineNumber,            // line
+                    $maxLine,               // maxLine
+                    $this->terminalMaxLines // terminalMaxLines
                 );
             } catch (Exception $exception) {
                 if ($this->log) {
@@ -135,19 +122,6 @@ class Serial {
                     );
                 }
             }
-
-            $terminal .= trim($line) . PHP_EOL;
-
-            if ($this->terminalMaxLines) {
-                while (Str::substrCount($terminal, PHP_EOL) > $this->terminalMaxLines) {
-                    $terminal = Str::substr(
-                        string: $terminal,
-                        start:  strpos($terminal, PHP_EOL) + 1
-                    );
-                }
-            }
-
-            Printer::setConsoleOf( $this->printerId, $terminal );
         }
     }
 

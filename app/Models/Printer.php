@@ -520,6 +520,10 @@ class Printer extends Model
         return Cache::get( $this->_id . self::CACHE_LAST_SEEN_SUFFIX );
     }
 
+    public static function getLastSeenOf(string $printerId) {
+        return Cache::get( $printerId . self::CACHE_LAST_SEEN_SUFFIX );
+    }
+
     public function updateLastSeen() {
         return Cache::put(
             key:     $this->_id . self::CACHE_LAST_SEEN_SUFFIX, 
