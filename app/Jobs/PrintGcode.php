@@ -429,9 +429,9 @@ class PrintGcode implements ShouldQueue
 
         $progressPercentage = 0;
 
-        while ($buffer) {
-            tryToWaitForMapper($log);
+        tryToWaitForMapper($log);
 
+        while ($buffer) {
             $index = array_key_first($buffer);
 
             $line = $buffer[ $index ];
