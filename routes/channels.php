@@ -36,3 +36,21 @@ Broadcast::channel('failed-job.{printerId}', function ($user, $printerId) {
 
     return $user->_id == Printer::getActiveUserId( $printerId );
 });
+
+Broadcast::channel('recovery-stage-changed.{printerId}', function ($user, $printerId) {
+    Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
+
+    return $user->_id == Printer::getActiveUserId( $printerId );
+});
+
+Broadcast::channel('recovery-progress.{printerId}', function ($user, $printerId) {
+    Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
+
+    return $user->_id == Printer::getActiveUserId( $printerId );
+});
+
+Broadcast::channel('recovery-completed.{printerId}', function ($user, $printerId) {
+    Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
+
+    return $user->_id == Printer::getActiveUserId( $printerId );
+});

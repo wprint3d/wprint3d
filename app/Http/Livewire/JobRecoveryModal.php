@@ -4,6 +4,11 @@ namespace App\Http\Livewire;
 
 use App\Enums\BackupInterval;
 use App\Enums\FormatterCommands;
+use App\Enums\RecoveryStage;
+
+use App\Events\RecoveryCompleted;
+use App\Events\RecoveryProgress;
+use App\Events\RecoveryStageChanged;
 
 use App\Jobs\PrintGcode;
 
@@ -30,6 +35,7 @@ class JobRecoveryModal extends Component
 
     public $jobBackupInterval;
     public $jobBackupIntervals;
+    public $jobRecoveryStages;
 
     public $recoveryMainMaxLine = 0;
     public $recoveryAltMaxLine  = 1;
@@ -184,6 +190,11 @@ class JobRecoveryModal extends Component
 
         $lineNumber      = 0;
         $lineNumberCount = 0;
+
+        RecoveryStageChanged::dispatch(
+            $this->printer->_id,       // printerId
+            RecoveryStage::COUNT_LINES // stage
+        );
 
         while (
             (
@@ -360,6 +371,13 @@ class JobRecoveryModal extends Component
 
         rewind( $gcode );
 
+        RecoveryStageChanged::dispatch(
+            $this->printer->_id,      // printerId
+            RecoveryStage::PARSE_FILE // stage
+        );
+
+        $progressPercentage = 0;
+
         while (
             (
                 $line = stream_get_line(
@@ -397,7 +415,24 @@ class JobRecoveryModal extends Component
                 );
             }
 
-            $log->info( $lineNumber . ' => ' . $line );
+            $newProgressPercentage = ($lineNumber * 100) / $lineNumberCount;
+
+            if ($newProgressPercentage > 1) {
+                $newProgressPercentage = ceil( $newProgressPercentage );
+            } else if ($newProgressPercentage > 100) {
+                $newProgressPercentage = 100;
+            } else {
+                $newProgressPercentage = round($newProgressPercentage);
+            }
+
+            if ($progressPercentage != $newProgressPercentage) {
+                $progressPercentage = $newProgressPercentage;
+
+                RecoveryProgress::dispatch(
+                    $this->printer->_id, // printerId
+                    $progressPercentage  // stage
+                );
+            }
         }
 
         fclose( $targetFile );
@@ -411,12 +446,13 @@ class JobRecoveryModal extends Component
 
         PrintGcode::dispatch( $this->printer->activeFile );
 
-        $this->dispatchBrowserEvent('recoveryCompleted');
+        RecoveryCompleted::dispatch( $this->printer->_id );
     }
 
     public function mount() {
         $this->jobBackupInterval    = Configuration::get('jobBackupInterval');
         $this->jobBackupIntervals   = BackupInterval::asArray();
+        $this->jobRecoveryStages    = RecoveryStage::asArray();
     }
 
     public function render()

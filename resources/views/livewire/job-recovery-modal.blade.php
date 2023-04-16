@@ -51,36 +51,53 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button
-                        wire:click="skip"
-                        id="skipRecoveryBtn"
-                        type="button"
-                        class="btn btn-secondary"
-                        data-bs-dismiss="modal"
-                        wire:loading.attr="disabled"
-                        wire:target="recover"
-                    >
-                        <div wire:loading>
-                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                            <span class="visually-hidden"> Loading... </span>
+                <div class="modal-footer justify-content-between">
+                    <div class="col-4 col-sm-3">
+                        <div class="progress d-none">
+                            <div
+                                id="recoveryProgress"
+                                class="progress-bar progress-bar-striped progress-bar-animated"
+                                role="progressbar"
+                                aria-label="Recovery progress"
+                                aria-valuenow="0"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                            ></div>
                         </div>
+                    </div>
+                    <div id="recoveryStage" class="col text-center"></div>
+                    <div>
+                        <button
+                            wire:click="skip"
+                            id="skipRecoveryBtn"
+                            type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal"
+                            wire:loading.attr="disabled"
+                            wire:target="recover"
+                        >
+                            <div wire:loading>
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="visually-hidden"> Loading... </span>
+                            </div>
 
-                        Skip
-                    </button>
-                    <button
-                        wire:click="recover"
-                        type="button"
-                        class="btn btn-primary"
-                        wire:loading.attr="disabled"
-                    >
-                        <div wire:loading>
-                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                            <span class="visually-hidden"> Loading... </span>
-                        </div>
+                            Skip
+                        </button>
+                        <button
+                            wire:click="recover"
+                            id="recoverBtn"
+                            type="button"
+                            class="btn btn-primary"
+                            wire:loading.attr="disabled"
+                        >
+                            <div wire:loading>
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="visually-hidden"> Loading... </span>
+                            </div>
 
-                        Recover
-                    </button>
+                            Recover
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -137,6 +154,7 @@
         jobBackupInterval = @json( $jobBackupInterval );
 
     const JOB_BACKUP_INTERVALS = @json( $jobBackupIntervals );
+    const JOB_RECOVERY_STAGES  = @json( $jobRecoveryStages );
 
     const refreshRecoveryPreview = (canvas, fromIndex, toIndex) => {
         let preview,
@@ -182,6 +200,18 @@
             document.querySelector('#jobNoRecoveryModal')
         );
 
+        let recoveryStage    = document.querySelector('#recoveryStage');
+        let recoveryProgress = document.querySelector('#recoveryProgress');
+
+        const resetDynamicElements = () => {
+            recoveryStage.innerText = '';
+
+            recoveryProgress.style.width = 0 + '%'
+            recoveryProgress.setAttribute('aria-valuenow', 0);
+
+            recoveryProgress.parentElement.classList.add('d-none');
+        }
+
         if (
             activeFile
             &&
@@ -226,13 +256,39 @@
                 }
             });
 
-        window.addEventListener('recoveryCompleted', () => {
-            respawnModal = false;
+        Echo.private(`recovery-stage-changed.${getSelectedPrinterId()}`)
+            .listen('RecoveryStageChanged', event => {
+                console.debug('RecoveryStageChanged:', event);
 
-            jobRecoveryModal.hide();
-        });
+                if (event.stage == JOB_RECOVERY_STAGES.COUNT_LINES) {
+                    recoveryStage.innerText = 'Counting lines...';
+                } else if (event.stage == JOB_RECOVERY_STAGES.PARSE_FILE) {
+                    recoveryStage.innerText = 'Parsing file...';
+                }
+            });
+
+        Echo.private(`recovery-progress.${getSelectedPrinterId()}`)
+            .listen('RecoveryProgress', event => {
+                console.debug('RecoveryProgress:', event);
+
+                recoveryProgress.style.width = event.percentage + '%'
+                recoveryProgress.setAttribute('aria-valuenow', event.percentage);
+            });
+
+        Echo.private(`recovery-completed.${getSelectedPrinterId()}`)
+            .listen('RecoveryCompleted', event => {
+                console.debug('RecoveryCompleted:', event);
+
+                resetDynamicElements();
+
+                respawnModal = false;
+
+                jobRecoveryModal.hide();
+            });
 
         window.addEventListener('recoveryFailed', event => {
+            resetDynamicElements();
+
             respawnModal = true;
 
             jobRecoveryModal.hide();
@@ -241,6 +297,8 @@
         });
 
         window.addEventListener('recoveryTimedOut',  () => {
+            resetDynamicElements();
+
             respawnModal = true;
 
             jobRecoveryModal.hide();
@@ -249,6 +307,8 @@
         });
 
         window.addEventListener('recoveryJobFailedNoPosition', () => {
+            resetDynamicElements();
+
             respawnModal = false;
 
             jobRecoveryModal.hide();
@@ -280,6 +340,12 @@
 
         document.querySelector('#skipRecoveryBtn').addEventListener('click', () => {
             respawnModal = false;
+        });
+
+        document.querySelector('#recoverBtn').addEventListener('click', () => {
+            recoveryStage.innerText = 'Waiting for server...';
+
+            recoveryProgress.parentElement.classList.remove('d-none');
         });
     });
 
