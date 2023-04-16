@@ -59,6 +59,7 @@
                         class="btn btn-secondary"
                         data-bs-dismiss="modal"
                         wire:loading.attr="disabled"
+                        wire:target="recover"
                     >
                         <div wire:loading>
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
