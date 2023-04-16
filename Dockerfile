@@ -74,6 +74,12 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 RUN apt-get update &&\
     apt-get install -y udev
 
+# PHP extension: memcached
+RUN apt-get update &&\
+    apt-get -y install libmemcached-dev &&\
+    pecl install -f memcached &&\
+    docker-php-ext-enable memcached
+
 WORKDIR /var/www
 
 ENTRYPOINT [ "./internal/run.sh" ]
