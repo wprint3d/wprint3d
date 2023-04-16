@@ -13,7 +13,7 @@ use Illuminate\Queue\SerializesModels;
 
 class PrintersMapUpdated implements ShouldBroadcastNow
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable, InteractsWithSockets;
 
     public $queue = 'broadcasts';
 

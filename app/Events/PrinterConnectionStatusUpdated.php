@@ -4,8 +4,6 @@ namespace App\Events;
 
 use App\Models\Printer;
 
-use Exception;
-
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 
@@ -13,32 +11,24 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 
 use Illuminate\Foundation\Events\Dispatchable;
 
-use Illuminate\Queue\SerializesModels;
-
 class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable, InteractsWithSockets;
 
     public $queue = 'broadcasts';
 
-    public string   $printerId;
-    public ?string  $lastSeen;
-    public array    $statistics;
+    public string $printerId;
+    public array  $statistics;
+    public mixed  $lastSeen;
 
     public function __construct(string $printerId)
     {
-        $printer = Printer::select('lastSeen')->find( $printerId );
+        $this->printerId  = $printerId;
+        $this->statistics = Printer::getStatisticsOf( $printerId );
+        $this->lastSeen   = Printer::getLastSeenOf( $printerId );
 
-        if (!$printer) throw new Exception('No such printer.');
-
-        $this->printerId    = $printer->_id;
-        $this->statistics   = $printer->getStatistics();
-        $this->lastSeen     = null;
-
-        $lastSeen = $printer->getLastSeen();
-
-        if ($lastSeen) {
-            $this->lastSeen = $lastSeen->toDateTime()->getTimestamp();
+        if ($this->lastSeen) {
+            $this->lastSeen = $this->lastSeen->toDateTime()->getTimestamp();
         }
     }
 
