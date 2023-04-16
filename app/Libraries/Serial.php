@@ -59,7 +59,7 @@ class Serial {
      * 
      * @return void
      */
-    public function __construct(string $fileName, int $baudRate, ?int $timeout = 10, ?string $printerId = null) {
+    public function __construct(string $fileName, int $baudRate, ?int $timeout = null, ?string $printerId = null) {
         $this->fileName  = $fileName;
         $this->baudRate  = $baudRate;
         $this->printerId = $printerId;
@@ -76,8 +76,10 @@ class Serial {
 
         $this->configure();
 
-        if ($timeout) {
-            $this->timeout = $timeout;
+        $this->timeout = $timeout;
+
+        if ($this->timeout === null) {
+            $this->timeout = Configuration::get('commandTimeoutSecs');
         }
 
         if (!$this->fd) {
