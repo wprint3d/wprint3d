@@ -226,100 +226,19 @@ class PrintGcode implements ShouldQueue
                     )
                 ) !== false
             ) {
-                // strip comments
-                if (Str::startsWith($line, ';') || !$line) continue;
+                $command = getGCode( $line );
 
-                $command = 
-                    Str::of( $line )
-                    ->replaceMatches('/;.*/', '')
-                    ->trim();
-
-                // skip empty lines
-                if (!$command->length()) continue;
-
-                $command = Str::of($command);
+                if (!$command) continue;
 
                 if ($command->exactly('G90') || $command->exactly('G91')) {
                     $this->lastMovementMode = $command->toString();
                 }
 
                 if ($command->exactly('M600') || $command->startsWith('M600 ')) {
-                    // $extruders = [];
-
-                    $retractionDistance     = null;
-                    $loadLength             = null;
-                    $resumeTemperature      = null;
-                    $resumeRetractionLength = null;
-
-                    $changeLocation = [
-                        'X' => self::COLOR_SWAP_DEFAULT_X,
-                        'Y' => self::COLOR_SWAP_DEFAULT_Y,
-                        'Z' => self::COLOR_SWAP_DEFAULT_Z
-                    ];
-
-                    foreach ($command->explode(' ') as $argument) {
-                        if (!isset( $argument[0] )) continue;
-
-                        switch ($argument[0]) {
-                            // case 'B': not implemented yet
-                            case 'E': $retractionDistance       = Str::replaceFirst('E', '', $argument); break;
-                            case 'L': $loadLength               = Str::replaceFirst('L', '', $argument); break;
-                            case 'R': $resumeTemperature        = Str::replaceFirst('R', '', $argument); break;
-                            // case 'T': $extruders[]              = Str::replaceFirst('T', '', $argument); break; - what am I even supposed to do with this index?
-                            case 'U': $resumeRetractionLength   = Str::replaceFirst('U', '', $argument); break;
-                            case 'X': $changeLocation['X']      = Str::replaceFirst('X', '', $argument); break;
-                            case 'Y': $changeLocation['Y']      = Str::replaceFirst('Y', '', $argument); break;
-                            case 'Z': $changeLocation['Z']      = Str::replaceFirst('Z', '', $argument); break;
-                        }
-                    }
-
-                    if (!$retractionDistance) {
-                        $retractionDistance = self::COLOR_SWAP_DEFAULT_RETRACTION_LENGTH;
-                    }
-
-                    if (!$loadLength) {
-                        $loadLength = self::COLOR_SWAP_DEFAULT_LOAD_LENGTH;
-                    }
-
-                    // if (!$extruders) {
-                    //     $extruders = array_keys( $statistics['extruders'] );
-                    // }
-
-                    if (!$resumeRetractionLength) {
-                        $resumeRetractionLength = self::COLOR_SWAP_DEFAULT_RETRACTION_LENGTH;
-                    }
-
-                    $appendedCommands = [];
-
-                    $appendedCommands[] = 'G91';                                                                             // set relative movement mode
-                    $appendedCommands[] = 'M300 S885 P150';                                                                  // for now, we're just gonna beep once instead of reconstructing the whole sequence
-                    $appendedCommands[] = "G0 E-{$retractionDistance}";                                                      // retract before moving to change location
-
-                    // move to change location
-                    $appendedCommands[] = 'G90';                                                                             // set absolute movement mode
-                    $appendedCommands[] = "G0 X-{$changeLocation['X']} Y-{$changeLocation['Y']} Z{$changeLocation['Z']} ;" . FormatterCommands::IGNORE_POSITION_CHANGE;
-
-                    $appendedCommands[] = 'M0';                                                                              // wait for filament change
-
-                    if ($resumeTemperature) {
-                        $appendedCommands[] = "M109 S{$resumeTemperature}";                                                  // wait for temperature before resuming
-                    }
-
-                    $appendedCommands[] = 'G91';                                                                             // set relative movement mode
-                    $appendedCommands[] = 'G92 E0';                                                                          // reset (E)xtruder to 0
-                    $appendedCommands[] = "G0 E{$loadLength} F" . self::COLOR_SWAP_EXTRUDER_FEED_RATE;                       // load the new filament
-                    $appendedCommands[] = 'G92 E0';                                                                          // reset (E)xtruder to 0 (again)
-                    $appendedCommands[] = "G0 E-{$resumeRetractionLength}";                                                  // retract a little bit
-
-                    // get back on top of the printed object
-                    $appendedCommands[] = 'G90';                                                                             // set absolute movement mode
-                    $appendedCommands[] = ";" . FormatterCommands::GO_BACK;                                                  // move back to previous location
-                    $appendedCommands[] = "G0 E{$resumeRetractionLength}";                                                   // de-retract
-                    $appendedCommands[] = ";" . FormatterCommands::RESTORE_EXTRUDER;                                         // restore the previous extruder travel value
-
-                    if ($this->lastMovementMode) {
-                        $appendedCommands[] = $this->lastMovementMode;                                                       // reset last movement mode (if defined)
-                    }
+                    $appendedCommands = convertColorSwapToSequence(
+                        command:          $command,
+                        lastMovementMode: $this->lastMovementMode
+                    );
 
                     $this->lineNumberCount += count($appendedCommands);
 
