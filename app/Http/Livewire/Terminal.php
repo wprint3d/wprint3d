@@ -65,7 +65,14 @@ class Terminal extends Component
             return;
         }
 
-        $lines = Str::of( $this->printer->getConsole() )->explode(PHP_EOL);
+        // Remove characters that aren't part of the UTF-8 encoding.
+        $lines = iconv(
+            from_encoding: 'UTF-8',
+            to_encoding:   'UTF-8//IGNORE',
+            string:        $this->printer->getConsole()
+        );
+
+        $lines = Str::of( $lines )->explode(PHP_EOL);
 
         if (!$lines) {
             $this->terminal = [ 'Nothing to display.' ];
