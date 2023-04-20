@@ -6,7 +6,7 @@ use App\Enums\BackupInterval;
 use App\Enums\FormatterCommands;
 use App\Enums\Marlin;
 use App\Enums\PauseReason;
-
+use App\Events\PrinterConnectionStatusUpdated;
 use App\Events\PrintJobFailed;
 
 use App\Exceptions\TimedOutException;
@@ -124,7 +124,8 @@ class PrintGcode implements ShouldQueue
                 fileName:  $this->printer->node,
                 baudRate:  $this->printer->baudRate,
                 printerId: $this->printer->_id,
-                timeout:   $this->commandTimeoutSecs
+                timeout:   $this->commandTimeoutSecs,
+                terminalAutoAppend: false
             );
 
             // Send command sequence for board reset
@@ -304,7 +305,8 @@ class PrintGcode implements ShouldQueue
             fileName:  $this->printer->node,
             baudRate:  $this->printer->baudRate,
             printerId: $this->printer->_id,
-            timeout:   $this->commandTimeoutSecs
+            timeout:   $this->commandTimeoutSecs,
+            terminalAutoAppend: false
         );
 
         $buffer = [
@@ -350,8 +352,15 @@ class PrintGcode implements ShouldQueue
 
         tryToWaitForMapper($log);
 
+        $lastSeen = $this->printer->getLastSeen();
+
+        $lastCommandUpdate  = time();
+        $lastPositionUpdate = time();
+
         while ($buffer) {
             $index = array_key_first($buffer);
+
+            $time = time();
 
             $line = $buffer[ $index ];
 
@@ -399,7 +408,7 @@ class PrintGcode implements ShouldQueue
                 continue;
             }
 
-            if (time() - $lastPrinterRefresh > self::PRINTER_REFRESH_INTERVAL_SECS) {
+            if ($time - $lastPrinterRefresh > self::PRINTER_REFRESH_INTERVAL_SECS) {
                 $lastPrinterRefresh = time();
 
                 $this->printer->refresh();
@@ -428,9 +437,22 @@ class PrintGcode implements ShouldQueue
 
             $log->debug('PROG: ' . $this->lineNumber . ' / ' . $this->lineNumberCount);
 
-            $this->printer->updateLastSeen();
+            if ($time - $lastSeen > $this->minPollIntervalSecs - 1) {
+                $lastSeen = $this->printer->updateLastSeen();
+            }
 
-            $this->printer->setLastCommand( Marlin::getLabel($line) );
+            if ($time - $lastCommandUpdate >= 1) {
+                $this->printer->setLastCommand( Marlin::getLabel($line) );
+
+                $serial->tryToAppendNow(
+                    lineNumber: $this->lineNumber,
+                    maxLine:    $this->lineNumberCount
+                );
+
+                $log->info('append: ' . (time() - $lastCommandUpdate));
+
+                $lastCommandUpdate = time();
+            }
 
             if (time() - $lastStatsUpdate > $statisticsQueryIntervalSecs) {
                 $lastStatsUpdate = time();
@@ -452,15 +474,17 @@ class PrintGcode implements ShouldQueue
                             $this->retrySerialConnection($exception, $serial, $log);
                         }
                     }
+
+                    PrinterConnectionStatusUpdated::dispatch( $this->printer->_id );
                 }
             }
 
             if ($line == 'G90' || $line == 'G91') {
                 $this->lastMovementMode = $line;
             } else if (
-                (Str::startsWith($line, 'G0') || Str::startsWith($line, 'G1'))
+                (str_starts_with($line, 'G0') || str_starts_with($line, 'G1'))
                 &&
-                !Str::endsWith($line, ';' . FormatterCommands::IGNORE_POSITION_CHANGE)
+                !str_ends_with($line, ';' . FormatterCommands::IGNORE_POSITION_CHANGE)
             ) {
                 if ($this->lastMovementMode == 'G90') { // absolute mode
                     foreach (movementToXYZE( $line ) as $key => $value) {
@@ -474,12 +498,18 @@ class PrintGcode implements ShouldQueue
 
                 $log->debug('POS: ' . json_encode($absolutePosition));
 
-                $this->printer->setAbsolutePosition(
-                    x:  $absolutePosition['x'],
-                    y:  $absolutePosition['y'],
-                    z:  $absolutePosition['z'],
-                    e:  $absolutePosition['e']
-                );
+                if (
+                    $this->lineNumber == $this->lineNumberCount
+                    ||
+                    time() - $lastPositionUpdate >= 1
+                ) {
+                    $this->printer->setAbsolutePosition(
+                        x:  $absolutePosition['x'],
+                        y:  $absolutePosition['y'],
+                        z:  $absolutePosition['z'],
+                        e:  $absolutePosition['e']
+                    );
+                }
             }
 
             $lastProgressPercentage = round(
@@ -511,7 +541,11 @@ class PrintGcode implements ShouldQueue
                         $this->lineNumber == $this->lineNumberCount // and it's the last line
                         ||
                         (
-                            $this->jobBackupInterval == BackupInterval::ON_LINE_CHANGE // or the backup interval is set up to this value
+                            (
+                                $this->jobBackupInterval == BackupInterval::EVERY_SECOND // or the backup interval is set up to every second
+                                &&
+                                time() - $lastBackup >= 1
+                            )
                             ||
                             (
                                 $this->jobBackupInterval == BackupInterval::EVERY_5_MINUTES // or the backup interval is set to 5 minutes
@@ -523,6 +557,8 @@ class PrintGcode implements ShouldQueue
                 ) {
                     $this->printer->lastLine = $this->lineNumber;
                     $this->printer->save();
+
+                    $lastBackup = time();
                 }
             }
 

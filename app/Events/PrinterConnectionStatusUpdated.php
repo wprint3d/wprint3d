@@ -26,10 +26,6 @@ class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
         $this->printerId  = $printerId;
         $this->statistics = Printer::getStatisticsOf( $printerId );
         $this->lastSeen   = Printer::getLastSeenOf( $printerId );
-
-        if ($this->lastSeen) {
-            $this->lastSeen = $this->lastSeen->toDateTime()->getTimestamp();
-        }
     }
 
     /**

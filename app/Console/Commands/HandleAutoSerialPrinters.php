@@ -76,11 +76,7 @@ class HandleAutoSerialPrinters extends Command
                     if (
                         !$lastSeen
                         ||
-                        (
-                            time() - $lastSeen->toDateTime()->getTimestamp()
-                            >
-                            $minPollIntervalSecs
-                        )
+                        time() - $lastSeen > $minPollIntervalSecs
                     ) { // should update lastSeen?
                         $response = $serial->query('M105');
 

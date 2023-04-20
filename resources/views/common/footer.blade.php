@@ -5,6 +5,8 @@
 @livewireScripts
 
 <script>
+    const PHP_EOL = @json(PHP_EOL);
+
     window.getSelectedPrinterId = () => document.querySelector('#printerSelect').value;
 
     window.HAPTICS_ENABLED = @json(

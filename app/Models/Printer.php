@@ -16,8 +16,6 @@ use Illuminate\Support\Str;
 
 use Jenssegers\Mongodb\Eloquent\Model;
 
-use MongoDB\BSON\UTCDateTime;
-
 use Exception;
 
 class Printer extends Model
@@ -524,19 +522,27 @@ class Printer extends Model
         return Cache::get( $printerId . self::CACHE_LAST_SEEN_SUFFIX );
     }
 
-    public function updateLastSeen() {
-        return Cache::put(
+    public function updateLastSeen(): int {
+        $newLastSeen = time();
+
+        Cache::put(
             key:     $this->_id . self::CACHE_LAST_SEEN_SUFFIX, 
-            value:   new UTCDateTime(),
+            value:   $newLastSeen,
             ttl:     self::CACHE_TTL
         );
+
+        return $newLastSeen;
     }
 
-    public static function updateLastSeenOf(string $printerId) {
-        return Cache::put(
+    public static function updateLastSeenOf(string $printerId): int {
+        $newLastSeen = time();
+
+        Cache::put(
             key:     $printerId . self::CACHE_LAST_SEEN_SUFFIX, 
-            value:   new UTCDateTime(),
+            value:   $newLastSeen,
             ttl:     self::CACHE_TTL
         );
+
+        return $newLastSeen;
     }
 }

@@ -26,7 +26,7 @@ function tryToWaitForMapper(?Logger $log = null) {
 }
 
 function millis() : float {
-    return floor(microtime(true) * 1000);
+    return floor(hrtime(true) / 1000000);
 }
 
 function nowHuman() : string {

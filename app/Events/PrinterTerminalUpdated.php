@@ -6,8 +6,6 @@ use App\Enums\Marlin;
 
 use App\Models\Printer;
 
-use Illuminate\Support\Str;
-
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 
@@ -43,39 +41,39 @@ class PrinterTerminalUpdated implements ShouldBroadcast
         $this->maxLine      = $maxLine;
         $this->running      = Printer::getRunningStatusOf( $printerId );
 
-        $cleanedUpCommand = Str::of( $command )->trim();
-
-        if ($cleanedUpCommand->startsWith('>')) { // input
-            $this->meaning = Marlin::getLabel(
-                $cleanedUpCommand->replace('> ', '')->toString()
-            );
-        } else { // output
-            if ($cleanedUpCommand->contains( Printer::MARLIN_TEMPERATURE_INDICATOR )) { // with temperature data
-                Printer::setStatisticsOf( $this->printerId, $cleanedUpCommand, 0);
-            }
-
-            Printer::updateLastSeenOf( $this->printerId );
-
-            PrinterConnectionStatusUpdated::dispatch( $this->printerId );
-        }
-
         $terminal = Printer::getConsoleOf( $this->printerId );
 
         if (!$terminal) {
             $terminal = '';
         }
 
-        $dateString = nowHuman();
+        foreach (explode(PHP_EOL, $command) as $line) {
+            if ($line = trim( $line )) {
+                if (str_starts_with($line, '>')) { // input
+                    $this->meaning = Marlin::getLabel(
+                        str_replace('> ', '', $line)
+                    );
+                } else { // output
+                    if (strpos($line, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false) { // with temperature data
+                        Printer::setStatisticsOf( $this->printerId, $line, 0);
 
-        $line = $dateString . ': ' . $command;
+                        Printer::updateLastSeenOf( $this->printerId );
 
-        $terminal .= trim($line) . PHP_EOL;
+                        PrinterConnectionStatusUpdated::dispatch( $this->printerId );
+                    }
+                }
+
+                $line = $this->dateString . ': ' . $line;
+
+                $terminal .= $line . PHP_EOL;
+            }
+        }
 
         if ($terminalMaxLines) {
-            while (Str::substrCount($terminal, PHP_EOL) > $terminalMaxLines) {
-                $terminal = Str::substr(
+            while (substr_count($terminal, PHP_EOL) > $terminalMaxLines) {
+                $terminal = substr(
                     string: $terminal,
-                    start:  strpos($terminal, PHP_EOL) + 1
+                    offset: strpos($terminal, PHP_EOL) + 1
                 );
             }
         }
