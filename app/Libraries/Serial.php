@@ -284,17 +284,25 @@ class Serial {
             ttl:    self::CACHE_LOCK_TTL
         );
 
-        if ($command) {
-            $this->sendCommand( $command, $lineNumber, $maxLine );
+        $throwable = null;
+
+        try {
+            if ($command) {
+                $this->sendCommand( $command, $lineNumber, $maxLine );
+            }
+
+            $result = $this->readUntilBlank(
+                timeout:    $timeout,
+                lineNumber: $lineNumber,
+                maxLine:    $maxLine
+            );
+        } catch (Exception $exception) {
+            $throwable = $exception;
         }
 
-        $result = $this->readUntilBlank(
-            timeout:    $timeout,
-            lineNumber: $lineNumber,
-            maxLine:    $maxLine
-        );
-
         $this->lockCache->forget( $this->lockKey );
+
+        if ($throwable) throw $throwable;
 
         return $result;
     }
