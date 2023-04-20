@@ -96,26 +96,30 @@ window.addEventListener('DOMContentLoaded', () => {
 
             lastRunningStatus = event.running;
 
-            let targetClass = 'bg-danger';
+            event.command.split(PHP_EOL).forEach(line => {
+                if (line.trim().length > 0) {
+                    let targetClass = 'bg-danger';
 
-            if (event.command.indexOf(' > ') > -1) {
-                targetClass = 'bg-secondary';
-            } else if (event.command.indexOf('ok') > -1 || event.command.indexOf('T:') > -1) {
-                targetClass = 'bg-success';
-            } else if (event.command.indexOf('busy') > -1) {
-                targetClass = 'bg-warning';
-            }
+                    if (line.indexOf(' > ') > -1) {
+                        targetClass = 'bg-secondary';
+                    } else if (line.indexOf('ok') > -1 || line.indexOf('T:') > -1) {
+                        targetClass = 'bg-success';
+                    } else if (line.indexOf('busy') > -1) {
+                        targetClass = 'bg-warning';
+                    }
 
-            terminal.insertAdjacentHTML('beforeend', 
-                `<span>
-                    <span class="terminal-command-kind ${targetClass}"></span>
-                    ${event.dateString}: ${event.command.trim().replaceAll('\n', '<br>')} <br>
-                 </span>`
-            );
+                    terminal.insertAdjacentHTML('beforeend', 
+                        `<span>
+                            <span class="terminal-command-kind ${targetClass}"></span>
+                            ${event.dateString}: ${line.trim().replaceAll('\n', '<br>')} <br>
+                         </span>`
+                    );
 
-            if (document.querySelectorAll('.terminal span').length > TERMINAL_MAX_LINES) {
-                document.querySelector('.terminal span').remove();
-            }
+                    if (document.querySelectorAll('.terminal span').length > TERMINAL_MAX_LINES) {
+                        document.querySelector('.terminal span').remove();
+                    }
+                }
+            });
         });
 });
 
