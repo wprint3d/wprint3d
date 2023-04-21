@@ -8,6 +8,7 @@ use App\Enums\Marlin;
 use App\Enums\PauseReason;
 use App\Events\PrinterConnectionStatusUpdated;
 use App\Events\PrintJobFailed;
+use App\Events\PrintJobFinished;
 
 use App\Exceptions\TimedOutException;
 
@@ -162,8 +163,8 @@ class PrintGcode implements ShouldQueue
         // Reset the printer's paused state in case it was left paused.
         $this->printer->resume();
 
-        // Report that the printer has just finished printing.
-        $this->printer->justFinished();
+        // Report that the job has finished.
+        PrintJobFinished::dispatch( $this->printer->_id );
     }
 
     /**

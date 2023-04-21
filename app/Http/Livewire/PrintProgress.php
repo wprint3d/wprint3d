@@ -42,12 +42,6 @@ class PrintProgress extends Component
                 Cache::get( env('CACHE_MAX_LINE_KEY'), 1);
 
             $this->lastCommand = $this->printer->getLastCommand();
-
-            if ($this->printer->getResetRecentlyFinished()) {
-                $this->emit('refreshActiveFile');
-
-                $this->dispatchBrowserEvent('refreshActiveFile');
-            }
         }
     }
 

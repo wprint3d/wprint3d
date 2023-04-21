@@ -29,7 +29,6 @@ class Printer extends Model
     const CACHE_LAST_COMMAND_SUFFIX      = '_lastCommand';
     const CACHE_RUN_STATUS_SUFFIX        = '_runStatus';
     const CACHE_PAUSE_REASON_SUFFIX      = '_pauseReason';
-    const CACHE_RECENTLY_FINISHED_SUFFIX = '_recentlyFinished';
     const CACHE_CONSOLE_SUFFIX           = '_console';
     const CACHE_QUEUED_COMMANDS_SUFFIX   = '_queuedCommands';
     const CACHE_ACTIVE_USER_ID_SUFFIX    = '_activeUserId';
@@ -332,37 +331,6 @@ class Printer extends Model
         return Cache::get(
             key:     $printerId . self::CACHE_RUN_STATUS_SUFFIX,
             default: true
-        );
-    }
-
-    /**
-     * getResetRecentlyFinished
-     *
-     * @return bool
-     */
-    public function getResetRecentlyFinished() : bool {
-        $result = Cache::get(
-            key:     $this->_id . self::CACHE_RECENTLY_FINISHED_SUFFIX,
-            default: false
-        );
-
-        Cache::forget( $this->_id . self::CACHE_RECENTLY_FINISHED_SUFFIX );
-
-        return $result;
-    }
-    
-    /**
-     * justFinished
-     * 
-     * Reports that a file has just finished printing.
-     *
-     * @return bool
-     */
-    public function justFinished() : bool {
-        return Cache::put(
-            key:     $this->_id . self::CACHE_RECENTLY_FINISHED_SUFFIX,
-            value:   true,
-            ttl:     self::CACHE_TTL
         );
     }
 
