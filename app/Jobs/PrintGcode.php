@@ -476,7 +476,14 @@ class PrintGcode implements ShouldQueue
                         }
                     }
 
-                    PrinterConnectionStatusUpdated::dispatch( $this->printer->_id );
+                    try {
+                        PrinterConnectionStatusUpdated::dispatch( $this->printer->_id );
+                    } catch (Exception $exception) {
+                        $log->warning(
+                            __METHOD__ . ': PrinterConnectionStatusUpdated: event dispatch failure: ' . $exception->getMessage() . PHP_EOL .
+                            $exception->getTraceAsString()
+                        );
+                    }
                 }
             }
 
