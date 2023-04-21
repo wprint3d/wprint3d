@@ -58,6 +58,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 Livewire.emit('refreshActiveFile');
             }
         });
+
+    Echo.private(`finished-job.${getSelectedPrinterId()}`)
+        .listen('PrintJobFinished', event => {
+            console.debug('PrintJobFinished:', event);
+
+            Livewire.emit('refreshActiveFile');
+        });
 });
 
 </script>
