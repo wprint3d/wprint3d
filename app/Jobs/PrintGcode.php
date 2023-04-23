@@ -450,8 +450,6 @@ class PrintGcode implements ShouldQueue
                     maxLine:    $this->lineNumberCount
                 );
 
-                $log->info('append: ' . (time() - $lastCommandUpdate));
-
                 $lastCommandUpdate = time();
             }
 
