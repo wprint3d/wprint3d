@@ -6,6 +6,7 @@ use App\Enums\BackupInterval;
 use App\Enums\FormatterCommands;
 use App\Enums\Marlin;
 use App\Enums\PauseReason;
+
 use App\Events\PrinterConnectionStatusUpdated;
 use App\Events\PrintJobFailed;
 use App\Events\PrintJobFinished;
@@ -57,6 +58,7 @@ class PrintGcode implements ShouldQueue
      */
     public $failOnTimeout = false;
 
+    private string  $uid;
     private string  $fileName;
     private mixed   $gcode;
     private string  $lastMovementMode;
@@ -96,6 +98,7 @@ class PrintGcode implements ShouldQueue
      */
     public function __construct(string $fileName)
     {
+        $this->uid      = uniqid( more_entropy: true );
         $this->fileName = $fileName;
         $this->printer  = Printer::find( Auth::user()->activePrinter );
 
