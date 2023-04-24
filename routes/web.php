@@ -16,12 +16,6 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware('web')->group(function () {
-    config([
-        'app.asset_url' => Str::of( request()->path() )->startsWith('telescope')
-            ? env('APP_URL')
-            : env('ASSET_URL')
-    ]);
-
     Route::middleware('auth')->get('/', function () {
         return view('index');
     });

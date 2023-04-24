@@ -45,17 +45,6 @@ return [
             ],
         ],
 
-        // TODO: Re-enable Telescope
-        //
-        // 'telescope' => [
-        //     'driver'    => 'mysql',
-        //     'host'      => env('TELESCOPE_DB_HOST', '127.0.0.1'),
-        //     'port'      => env('TELESCOPE_DB_PORT', 3306),
-        //     'database'  => env('TELESCOPE_DB_DATABASE', 'telescope'),
-        //     'username'  => env('TELESCOPE_DB_USERNAME', 'root'),
-        //     'password'  => env('TELESCOPE_DB_PASSWORD')
-        // ],
-
     ],
 
     /*
