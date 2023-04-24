@@ -194,16 +194,5 @@ services:
   memcached:
     image: memcached
     restart: always
-  # TODO: Re-enable Telescope
-  #
-  # mariadb:
-  #   image: mariadb
-  #   restart: always
-  #   environment:
-  #     - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=true
-  #   volumes:
-  #     - mariadb:/var/lib/mysql
 volumes:
-  # keydb:
   mongo:
-  # mariadb:

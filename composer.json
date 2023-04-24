@@ -15,7 +15,6 @@
         "laravel/framework": "^9.19",
         "laravel/octane": "^1.4",
         "laravel/sanctum": "^3.0",
-        "laravel/telescope": "^4.10",
         "laravel/tinker": "^2.7",
         "league/csv": "^9.8",
         "league/flysystem-aws-s3-v3": "^3.0",

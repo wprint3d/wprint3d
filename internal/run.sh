@@ -16,10 +16,6 @@ while ! redis-cli -h keydb get '' 2>&1 > /dev/null; do
     sleep 1;
 done;
 
-# TODO: Re-enable Telescope
-#
-# wait-for-it mariadb:3306;
-
 rm -fv '/var/www/internal/.bundler-exit-status';
 
 waitForAssetBundler() {
@@ -53,16 +49,6 @@ else
             composer install;
 
             waitForAssetBundler;
-
-            # TODO: Re-enable Telescope
-            #
-            # # Create a database for Laravel Telescope if it doesn't exist
-            # mysql \
-            #     --host=$(php artisan tinker --execute="print env('TELESCOPE_DB_HOST')"       | tr -d '[:space:]') \
-            #     --port=$(php artisan tinker --execute="print env('TELESCOPE_DB_PORT')"       | tr -d '[:space:]') \
-            #     --user=$(php artisan tinker --execute="print env('TELESCOPE_DB_USERNAME')"   | tr -d '[:space:]') \
-            #     --password="$(php artisan tinker --execute="print env('TELESCOPE_DB_PASSWORD')" | tr -d '[:space:]')" \
-            #     --execute="CREATE DATABASE IF NOT EXISTS $(php artisan tinker --execute="print env('TELESCOPE_DB_DATABASE')" | tr -d '[:space:]')";
 
             # TODO: This is just for development and testing purposes and
             #       should be removed for production.
