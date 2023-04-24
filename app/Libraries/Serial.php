@@ -205,7 +205,7 @@ class Serial {
                         strpos($result, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false // is a message about temperature
                     )
                 ) {
-                    while (isset($result[ $lastLineIndex ])) {
+                    while (true) {
                         if ($result[ $lastLineIndex ] == PHP_EOL && ($line = trim( $line ))) {
                             $this->appendLog(
                                 message:    $line,
@@ -218,9 +218,11 @@ class Serial {
                             $line .= $result[ $lastLineIndex ];
                         }
 
-                        if (isset($result[ $lastLineIndex + 1 ])) {
-                            $lastLineIndex++;
+                        if (!isset($result[ $lastLineIndex + 1 ])) {
+                            break;
                         }
+
+                        $lastLineIndex++;
                     }
                 }
             } else if (
