@@ -205,11 +205,6 @@ class Serial {
                         strpos($result, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false // is a message about temperature
                     )
                 ) {
-                    $this->tryToAppendNow(
-                        lineNumber: $lineNumber,
-                        maxLine:    $maxLine
-                    );
-
                     while (isset($result[ $lastLineIndex ])) {
                         if ($result[ $lastLineIndex ] == PHP_EOL && ($line = trim( $line ))) {
                             $this->appendLog(
@@ -223,7 +218,9 @@ class Serial {
                             $line .= $result[ $lastLineIndex ];
                         }
 
-                        $lastLineIndex++;
+                        if (isset($result[ $lastLineIndex + 1 ])) {
+                            $lastLineIndex++;
+                        }
                     }
                 }
             } else if (
@@ -261,6 +258,10 @@ class Serial {
             $this->log->debug('RECV: ' . $result);
         }
 
+        if ($result[ $lastLineIndex ] != PHP_EOL) {
+            $lastLineIndex = 0;
+        }
+
         $terminalMessage = trim(
             substr(
                 string: $result,
@@ -269,7 +270,11 @@ class Serial {
         );
 
         if ($this->terminalAutoAppend) {
-            $this->appendLog( $terminalMessage );
+            $this->appendLog(
+                message:    $terminalMessage,
+                lineNumber: $lineNumber,
+                maxLine:    $maxLine
+            );
         } else {
             $this->terminalBuffer .= $terminalMessage . PHP_EOL;
         }
