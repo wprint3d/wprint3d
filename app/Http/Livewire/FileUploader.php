@@ -6,6 +6,7 @@ use Livewire\Component;
 
 use Livewire\WithFileUploads;
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -13,15 +14,11 @@ class FileUploader extends Component
 {
     use WithFileUploads;
 
-    protected $baseFilesDir;
-
     public $gcode;
 
-    public function boot() {
-        $this->baseFilesDir = env('BASE_FILES_DIR');
-    }
-
     public function updatedGcode() {
+        $baseFilesDir = Auth::user()->getCurrentFolder();
+
         $this->validate([
             'gcode' => 'min:0' // max:1048576', // 1GB Max TODO: Implement this!
         ]);
@@ -30,13 +27,13 @@ class FileUploader extends Component
             pathinfo($this->gcode->getClientOriginalName(), PATHINFO_FILENAME)
         );
 
-        while (Storage::exists($this->baseFilesDir . '/' . $storedFileName . $uid)) {
+        while (Storage::exists($baseFilesDir . '/' . $storedFileName . $uid)) {
             $uid = '-' . uniqid();
         }
 
         $fullName = $storedFileName . $uid;
 
-        $this->gcode->storeAs($this->baseFilesDir, $fullName);
+        $this->gcode->storeAs($baseFilesDir, $fullName);
 
         Log::debug( __METHOD__ . ': ' . $fullName );
 

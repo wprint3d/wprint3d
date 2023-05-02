@@ -90,7 +90,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    Do you really want to start printing <b>{{ $selected }}</b>?
+                    Do you really want to start printing <b>{{ basename($selected) }}</b>?
 
                     @if ($error)
                         <p class="text-danger text-center mt-4"> {{ $error }} </p>
@@ -120,7 +120,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    Do you really want to stop printing <b>{{ $printer->activeFile ?? null }}</b>?
+                    Do you really want to stop printing <b>{{ basename($printer->activeFile ?? '') }}</b>?
 
                     @if ($error)
                         <p class="text-danger text-center mt-4"> {{ $error }} </p>
@@ -150,7 +150,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    Do you really want to permanently delete <b>{{  $selected  }}</b>?
+                    Do you really want to permanently delete <b>{{ basename($selected) }}</b>?
 
                     @if ($error)
                         <p class="text-danger text-center mt-4"> {{ $error }} </p>

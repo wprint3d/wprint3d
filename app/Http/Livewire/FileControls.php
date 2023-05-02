@@ -3,13 +3,14 @@
 namespace App\Http\Livewire;
 
 use App\Jobs\PrintGcode;
-use App\Models\Printer;
-use Illuminate\Support\Facades\Auth;
-use Livewire\Component;
 
+use App\Models\Printer;
+
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
+use Livewire\Component;
 class FileControls extends Component
 {
 
