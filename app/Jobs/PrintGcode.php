@@ -59,7 +59,7 @@ class PrintGcode implements ShouldQueue
     public $failOnTimeout = false;
 
     private string  $uid;
-    private string  $fileName;
+    private string  $filePath;
     private mixed   $gcode;
     private string  $lastMovementMode;
     private int     $runningTimeoutSecs;
@@ -96,10 +96,10 @@ class PrintGcode implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(string $fileName)
+    public function __construct(string $filePath)
     {
         $this->uid      = uniqid( more_entropy: true );
-        $this->fileName = $fileName;
+        $this->filePath = $filePath;
         $this->printer  = Printer::find( Auth::user()->activePrinter );
 
         $this->runningTimeoutSecs   = Configuration::get('runningTimeoutSecs');
@@ -272,14 +272,14 @@ class PrintGcode implements ShouldQueue
      */
     public function handle()
     {
-        $this->gcode = Storage::getDriver()->readStream( env('BASE_FILES_DIR') . '/' . $this->fileName );
+        $this->gcode = Storage::getDriver()->readStream( $this->filePath );
 
-        $this->printer->activeFile = $this->fileName;
+        $this->printer->activeFile = $this->filePath;
         $this->printer->save();
 
         $log = Log::channel( self::LOG_CHANNEL );
 
-        $log->info( 'Job started: printing "' . $this->fileName . '"' );
+        $log->info( 'Job started: printing "' . $this->filePath . '"' );
 
         $statisticsQueryIntervalSecs = Configuration::get('jobStatisticsQueryIntervalSecs');
         $autoSerialIntervalSecs      = Configuration::get('autoSerialIntervalSecs');

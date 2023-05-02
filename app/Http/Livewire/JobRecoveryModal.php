@@ -163,7 +163,7 @@ class JobRecoveryModal extends Component
 
         $minLayerPositionXY = [ 'x' => null, 'y' => null ];
 
-        $gcode = Storage::getDriver()->readStream( env('BASE_FILES_DIR') . '/' . $this->printer->activeFile );
+        $gcode = Storage::getDriver()->readStream( $this->printer->activeFile );
 
         /*
          * This block ensures that the RECOVERED_FILE_PREFIX + time() string
@@ -175,16 +175,14 @@ class JobRecoveryModal extends Component
         $newFileName =
             self::RECOVERED_FILE_PREFIX . '_' . time() . // rec_##########
             '_' .
-            Str::of( $this->printer->activeFile )->replaceMatches('/' . self::RECOVERED_FILE_PREFIX . '_[0-9]*_/', ''); // 'rec_##########_cube' => 'cube'
+            Str::of( basename($this->printer->activeFile) )->replaceMatches('/' . self::RECOVERED_FILE_PREFIX . '_[0-9]*_/', ''); // 'rec_##########_cube' => 'cube'
 
-        $targetFilePath = Storage::path(
-            env('BASE_FILES_DIR')
-            . '/' .
-            $newFileName
-        );
+        $targetFilePath = env('BASE_FILES_DIR') . '/' . $newFileName;
+
+        $absolutePath = Storage::path( $targetFilePath );
 
         $targetFile = fopen(
-            filename: $targetFilePath,
+            filename: $absolutePath,
             mode:     'w' // Create the file, then, open for r/w.
         );
 
@@ -296,7 +294,7 @@ class JobRecoveryModal extends Component
 
                         fclose( $targetFile );      // close stream
 
-                        unlink( $targetFilePath );  // delete the file
+                        unlink( $absolutePath );    // delete the file
 
                         return;
                     }
@@ -438,8 +436,9 @@ class JobRecoveryModal extends Component
         fclose( $targetFile );
 
         $this->emit('refreshUploadedFiles');
+        $this->emit('recoveryCompleted', $newFileName);
 
-        $this->printer->activeFile       = $newFileName;
+        $this->printer->activeFile       = $targetFilePath;
         $this->printer->hasActiveJob     = true;
         $this->printer->lastJobHasFailed = false;
         $this->printer->save();

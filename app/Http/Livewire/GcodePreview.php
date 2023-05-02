@@ -24,7 +24,6 @@ class GcodePreview extends Component
 
     private User     $user;
     private ?Printer $printer;
-    private string   $baseFilesDir;
 
     // TODO: Implement streaming instead of halting based off this constant.
     const FILE_SIZE_LIMIT_BYTES = 4194304;
@@ -37,7 +36,7 @@ class GcodePreview extends Component
             $printer = Printer::select('activeFile')->find( $this->user->activePrinter );
 
             if ($printer && $printer->activeFile) {
-                $filePath = $this->baseFilesDir . '/' . $printer->activeFile;
+                $filePath = $printer->activeFile;
 
                 if (Storage::size( $filePath ) > self::FILE_SIZE_LIMIT_BYTES) {
                     $this->dispatchBrowserEvent('gcodePreviewFailedTooLarge');
@@ -82,8 +81,6 @@ class GcodePreview extends Component
     public function boot() {
         $this->user         = Auth::user();
         $this->printer      = Printer::select('settings')->find( $this->user->activePrinter );
-
-        $this->baseFilesDir = env('BASE_FILES_DIR');
 
         $this->showExtrusion    = $this->printer->settings['showExtrusion']     ?? true;
         $this->showTravel       = $this->printer->settings['showTravel']        ?? true;

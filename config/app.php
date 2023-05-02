@@ -211,7 +211,8 @@ return [
     'aliases' => Facade::defaultAliases()->merge([
         'Configuration'     => \App\Models\Configuration::class,
         'DataType'          => \App\Enums\DataType::class,
-        'BackupInterval'    => \App\Enums\BackupInterval::class
+        'BackupInterval'    => \App\Enums\BackupInterval::class,
+        'SortingMode'       => \App\Enums\SortingMode::class
     ])->toArray(),
 
     'common_baud_rates' => [ 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000 ],
