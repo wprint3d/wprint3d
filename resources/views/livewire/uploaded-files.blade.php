@@ -18,7 +18,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 dropdown">
+        <div class="col-12 col-sm-6 col-md-7 dropdown">
             <a class="btn btn-primary dropdown-toggle w-100" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 @svg('align-center') Sort ({{ Str::lower( SortingMode::fromValue($sortingMode)->description ?? 'Unknown' ) }})
             </a>
@@ -31,8 +31,8 @@
             </ul>
         </div>
 
-        <div class="col-12 col-sm-6">
-            <button onclick="showCreateFolderModal()" class="btn btn-primary w-100">
+        <div class="col-12 col-sm-6 col-md-5 mt-1 mt-sm-0">
+            <button onclick="showCreateFolderModal()" class="btn btn-primary w-100 text-truncate">
                 @svg('folder-open') Create folder
             </button>
         </div>
