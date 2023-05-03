@@ -31,6 +31,12 @@ Broadcast::channel('connection-status.{printerId}', function ($user, $printerId)
     return $user->_id == Printer::getActiveUserId( $printerId );
 });
 
+Broadcast::channel('preview.{printerId}', function ($user, $printerId) {
+    Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
+
+    return $user->_id == Printer::getActiveUserId( $printerId );
+});
+
 Broadcast::channel('failed-job.{printerId}', function ($user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
@@ -38,6 +44,18 @@ Broadcast::channel('failed-job.{printerId}', function ($user, $printerId) {
 });
 
 Broadcast::channel('finished-job.{printerId}', function ($user, $printerId) {
+    Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
+
+    return $user->_id == Printer::getActiveUserId( $printerId );
+});
+
+Broadcast::channel('preview-loading.{printerId}', function ($user, $printerId) {
+    Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
+
+    return $user->_id == Printer::getActiveUserId( $printerId );
+});
+
+Broadcast::channel('preview-command.{printerId}', function ($user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
     return $user->_id == Printer::getActiveUserId( $printerId );

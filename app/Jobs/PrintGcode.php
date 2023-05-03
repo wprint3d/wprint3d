@@ -66,6 +66,7 @@ class PrintGcode implements ShouldQueue
     private int     $commandTimeoutSecs;
     private int     $minPollIntervalSecs;
     private int     $jobBackupInterval;
+    private int     $streamMaxLengthBytes;
 
     private int $lineNumber = 0;
     private int $lineNumberCount;
@@ -85,7 +86,6 @@ class PrintGcode implements ShouldQueue
     const COLOR_SWAP_EXTRUDER_FEED_RATE         = 250;  // mm/min
     const COLOR_SWAP_MOVEMENT_FEED_RATE         = 500;  // mm/min
 
-    const STREAM_MAX_LINE_LENGTH_BYTES   = 1024; // bytes
     const STREAM_BUFFER_SIZE_MIN_LINES   = 100;  // lines
     const STREAM_BUFFER_SIZE_MAX_LINES   = 1000; // lines
     const STREAM_BUFFER_CHUNK_SIZE_LINES = 250;  // lines
@@ -106,6 +106,7 @@ class PrintGcode implements ShouldQueue
         $this->commandTimeoutSecs   = Configuration::get('commandTimeoutSecs');
         $this->minPollIntervalSecs  = Configuration::get('lastSeenPollIntervalSecs');
         $this->jobBackupInterval    = Configuration::get('jobBackupInterval');
+        $this->streamMaxLengthBytes = Configuration::get('streamMaxLengthBytes');
 
         $this->printer->setCurrentLine( 0 );
     }
@@ -226,7 +227,7 @@ class PrintGcode implements ShouldQueue
                 (
                     $line = stream_get_line(
                         stream: $stream,
-                        length: self::STREAM_MAX_LINE_LENGTH_BYTES,
+                        length: $this->streamMaxLengthBytes,
                         ending: PHP_EOL
                     )
                 ) !== false
@@ -295,7 +296,7 @@ class PrintGcode implements ShouldQueue
         while (
             stream_get_line(
                 stream: $this->gcode,
-                length: self::STREAM_MAX_LINE_LENGTH_BYTES,
+                length: $this->streamMaxLengthBytes,
                 ending: PHP_EOL
             ) !== false
         ) { $this->lineNumberCount++; }

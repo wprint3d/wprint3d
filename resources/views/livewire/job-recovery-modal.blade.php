@@ -1,7 +1,7 @@
 <div>
     {{-- NOTE: $availablePanes is defined within the component's blueprint (SettingsModal.php). --}}
 
-    <div id="jobRecoveryModal" class="modal fade" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-modal="true" role="dialog">
+    <div wire:ignore id="jobRecoveryModal" class="modal fade" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-modal="true" role="dialog">
         <div class="modal-dialog modal-xl modal-fullscreen-xl-down">
             <div class="modal-content">
                 <div class="modal-header">
@@ -27,7 +27,7 @@
                         </div>
 
                         <div class="col-12 col-sm-6">
-                            <div class="row">
+                            <div id="{{ $uidSideA }}" class="row recovery-preview-side-a">
                                 <canvas id="recoveryPreviewMainOption" class="preview-canvas col-12"></canvas>
 
                                 <div class="col-12 mt-2 form-check d-flex justify-content-center">
@@ -40,7 +40,7 @@
                         <hr class="d-block d-sm-none mt-2">
 
                         <div class="col-12 col-sm-6">
-                            <div class="row">
+                            <div id="{{ $uidSideB }}" class="row recovery-preview-side-b">
                                 <canvas id="recoveryPreviewAltOption" class="preview-canvas col-12"></canvas>
 
                                 <div class="col-12 mt-2 form-check d-flex justify-content-center">
@@ -75,6 +75,7 @@
                             data-bs-dismiss="modal"
                             wire:loading.attr="disabled"
                             wire:target="recover"
+                            disabled
                         >
                             <div wire:loading>
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -89,6 +90,7 @@
                             type="button"
                             class="btn btn-primary"
                             wire:loading.attr="disabled"
+                            disabled
                         >
                             <div wire:loading>
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -156,37 +158,6 @@
     const JOB_BACKUP_INTERVALS = @json( $jobBackupIntervals );
     const JOB_RECOVERY_STAGES  = @json( $jobRecoveryStages );
 
-    const refreshRecoveryPreview = (canvas, fromIndex, toIndex) => {
-        let preview,
-            parsedGcode = gcode.slice(fromIndex, toIndex);
-
-        console.log('GCRDY: ',       parsedGcode);
-        console.log('FROM INDEX: ',  currentLine);
-        console.log('TO INDEX: ',    toIndex);
-
-        preview = GCodePreview.init({
-            canvas: canvas,
-            topLayerColor:    '#000000',
-            lastSegmentColor: '#898989',
-            buildVolume: { x: 150, y: 150, z: 150 },
-            initialCameraPosition: [ 0, 400, 450 ],
-            lineWidth: 3,
-            debug: false
-        });
-
-        preview.renderExtrusion = showExtrusion;
-        preview.renderTravel    = showTravel;
-
-        preview.render();
-
-        if (parsedGcode.length > 0) {
-            preview.processGCode( parsedGcode.join('\n') );
-            preview.render();
-        }
-
-        console.log(preview);
-    };
-
     let respawnModal = false;
     
     window.addEventListener('DOMContentLoaded', () => {
@@ -200,8 +171,10 @@
             document.querySelector('#jobNoRecoveryModal')
         );
 
-        let recoveryStage    = document.querySelector('#recoveryStage');
-        let recoveryProgress = document.querySelector('#recoveryProgress');
+        let recoveryStage    = document.querySelector('#recoveryStage'),
+            recoveryProgress = document.querySelector('#recoveryProgress'),
+            skipRecoveryBtn  = document.querySelector('#skipRecoveryBtn'),
+            recoverBtn       = document.querySelector('#recoverBtn');
 
         const resetDynamicElements = () => {
             recoveryStage.innerText = '';
@@ -211,6 +184,65 @@
 
             recoveryProgress.parentElement.classList.add('d-none');
         }
+
+        const refreshRecoveryPreview = (canvas, fromIndex, toIndex, mainOption) => {
+            console.log('FROM INDEX: ',  currentLine);
+            console.log('TO INDEX: ',    toIndex);
+
+            let uid = canvas.parentElement.id;
+
+            let preview = GCodePreview.init({
+                canvas: canvas,
+                topLayerColor:    '#000000',
+                lastSegmentColor: '#898989',
+                buildVolume: { x: 150, y: 150, z: 150 },
+                initialCameraPosition: [ 0, 400, 450 ],
+                lineWidth: 3,
+                debug: false
+            });
+
+            preview.renderExtrusion = showExtrusion;
+            preview.renderTravel    = showTravel;
+
+            console.log(preview);
+
+            recoveryStage.innerText = 'Loading previews...';
+            recoveryProgress.parentElement.classList.remove('d-none');
+
+            Echo.private(`preview.${getSelectedPrinterId()}`)
+                .listen('PreviewLineReady', event => {
+                    console.debug('PreviewLineReady: ', event);
+
+                    if (!preview || event.previewUID != uid) return;
+
+                    recoveryStage.innerText = 'Loading previews... ' + (canvas.parentElement.classList.contains('recovery-preview-side-a') ? ' (main)' : ' (alternative)');
+
+                    recoveryProgress.style.width = event.percentage + '%'
+                    recoveryProgress.setAttribute('aria-valuenow', event.percentage);
+
+                    event.command.split(PHP_EOL).forEach(line => {
+                        command = parseMovement( line );
+
+                        if (preview && command) {
+                            preview.parser.parseGCode(command);
+                        }
+                    });
+                });
+
+            Echo.private(`preview.${getSelectedPrinterId()}`)
+                .listen('PreviewBuffered', event => {
+                    console.debug('PreviewBuffered: ', event);
+
+                    if (!preview || event.previewUID != uid) return;
+
+                    preview.render();
+
+                    resetDynamicElements();
+
+                    skipRecoveryBtn.removeAttribute('disabled');
+                    recoverBtn.removeAttribute('disabled');
+                });
+        };
 
         if (
             activeFile
@@ -306,14 +338,14 @@
             toastify.error('Timed out waiting for the printer to become available, please, try again later.');
         });
 
-        window.addEventListener('recoveryJobFailedNoPosition', () => {
+        window.addEventListener('recoveryJobFailedNoPosition', event => {
             resetDynamicElements();
 
             respawnModal = false;
 
             jobRecoveryModal.hide();
 
-            toastify.error('Failed to assert absolute position (not enough context in G-code).');
+            toastify.error( event.detail );
         });
 
         document.querySelector('#jobRecoveryModal').addEventListener('shown.bs.modal', () => {
@@ -330,6 +362,8 @@
                 0,                                                    // fromIndex
                 altMaxLine                                            // toIndex
             );
+
+            Livewire.emit('renderRecoveryGcode');
         });
 
         document.querySelector('#jobRecoveryModal').addEventListener('hidden.bs.modal', () => {
@@ -338,11 +372,9 @@
             }
         });
 
-        document.querySelector('#skipRecoveryBtn').addEventListener('click', () => {
-            respawnModal = false;
-        });
+        skipRecoveryBtn.addEventListener('click', () => { respawnModal = false; });
 
-        document.querySelector('#recoverBtn').addEventListener('click', () => {
+        recoverBtn.addEventListener('click', () => {
             recoveryStage.innerText = 'Waiting for server...';
 
             recoveryProgress.parentElement.classList.remove('d-none');

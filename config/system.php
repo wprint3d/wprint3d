@@ -6,6 +6,7 @@ return [
     'defaults' => [
 
         // Connection
+        'streamMaxLengthBytes'      => 256, // bytes (maximum amount of ASCII characters in a valid G-code command)
         'negotiationWaitSecs'       => 7,   // seconds
         'negotiationTimeoutSecs'    => 3,   // seconds
         'negotiationMaxRetries'     => 3,   // times

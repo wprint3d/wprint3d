@@ -117,6 +117,20 @@ services:
       - keydb
       - mongo
       # - mariadb
+  previews-queue:
+    build: .
+    restart: always
+    environment:
+      - ROLE=queue
+      - QUEUE=previews
+      - UPLOAD_LIMIT=1G
+    volumes:
+      - .:/var/www
+      - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+    depends_on:
+      - keydb
+      - mongo
+      # - mariadb
   broadcasts-queue:
     build: .
     restart: always

@@ -11,11 +11,13 @@ use App\Events\RecoveryProgress;
 use App\Events\RecoveryStageChanged;
 
 use App\Jobs\PrintGcode;
+use App\Jobs\SendLinesToClientPreview;
 
 use App\Libraries\Serial;
 
 use App\Models\Configuration;
 use App\Models\Printer;
+use App\Models\User;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -27,10 +29,12 @@ use Illuminate\Support\Str;
 use Livewire\Component;
 
 use Exception;
+use ReflectionClass;
 
 class JobRecoveryModal extends Component
 {
 
+    public ?User    $user    = null;
     public ?Printer $printer = null;
 
     public $jobBackupInterval;
@@ -42,7 +46,11 @@ class JobRecoveryModal extends Component
 
     public $targetRecoveryLine;
 
+    public string $uidSideA;
+    public string $uidSideB;
+
     protected $baseFilesDir;
+    protected $listeners = [ 'renderRecoveryGcode' => 'renderGcode' ];
 
     const RECOVERED_FILE_PREFIX = 'rec';
 
@@ -56,6 +64,13 @@ class JobRecoveryModal extends Component
     const XY_AXIS_WITH_MIN_HOLDING_OFFSET = 1; // mm
 
     public function boot() {
+        $className = (new ReflectionClass($this))->getShortName();
+
+        $this->uidSideA = uniqid( $className . '_' );
+        $this->uidSideB = uniqid( $className . '_' );
+
+        $this->user = Auth::user();
+
         $this->baseFilesDir = env('BASE_FILES_DIR');
 
         $this->printer = Printer::select('available', 'activeFile', 'hasActiveJob', 'lastJobHasFailed', 'lastLine')->find( Auth::user()->activePrinter );
@@ -68,6 +83,50 @@ class JobRecoveryModal extends Component
             $this->recoveryAltMaxLine = $this->recoveryMainMaxLine + 1;
 
             $this->targetRecoveryLine = $this->recoveryMainMaxLine;
+        }
+    }
+
+    public function renderGcode() {
+        if (!$this->user->activePrinter) {
+            Log::warning( __METHOD__ . ': unexpected code path reached, why are we allowed to call this function without having a selected printer first?' );
+
+            $this->dispatchBrowserEvent('recoveryJobPrepareError', 'No printer selected.');
+
+            $this->skip();
+
+            return;
+        }
+
+        $printer = Printer::select('activeFile')->find( $this->user->activePrinter );
+
+        if (!$printer) {
+            $this->dispatchBrowserEvent('recoveryJobPrepareError', 'The printer related to this job was unexpectedly deleted.');
+
+            $this->skip();
+        }
+
+        if (!$printer->activeFile) {
+            $this->dispatchBrowserEvent('recoveryJobPrepareError', 'The printer in an unexpected state. Did you modify the database manually?');
+
+            $this->skip();
+        }
+
+        foreach ([ $this->uidSideA, $this->uidSideB ] as $uid) {
+            switch ($uid) {
+                case $this->uidSideA:
+                    $targetLine = $this->recoveryMainMaxLine;
+                break;
+                case $this->uidSideB:
+                    $targetLine = $this->recoveryAltMaxLine;
+                break;
+            }
+
+            SendLinesToClientPreview::dispatch(
+                $uid,                       // previewUID
+                $this->user->activePrinter, // printerId
+                $targetLine,                // currentLine
+                false                       // mapLayers
+            );
         }
     }
 
@@ -88,6 +147,8 @@ class JobRecoveryModal extends Component
 
         $jobRestorationTimeoutSecs       = Configuration::get('jobRestorationTimeoutSecs');
         $jobRestorationHomingTemperature = Configuration::get('jobRestorationHomingTemperature');
+
+        $streamMaxLengthBytes = Configuration::get('streamMaxLengthBytes');
 
         $restoreStartTime = time();
 
@@ -198,7 +259,7 @@ class JobRecoveryModal extends Component
             (
                 $line = stream_get_line(
                     stream: $gcode,
-                    length: PrintGcode::STREAM_MAX_LINE_LENGTH_BYTES,
+                    length: $streamMaxLengthBytes,
                     ending: PHP_EOL
                 )
             ) !== false
@@ -288,7 +349,7 @@ class JobRecoveryModal extends Component
                     if ($absolutePosition[$key] === null) {
                         $log->warning("{$this->printer->node}: {$this->printer->activeFile}: failed to assert absolute position, forcibly aborting job recovery. | X = {$absolutePosition['x']} - Y = {$absolutePosition['y']} - Z = {$absolutePosition['z']} - E = {$absolutePosition['e']}");
 
-                        $this->dispatchBrowserEvent('recoveryJobFailedNoPosition');
+                        $this->dispatchBrowserEvent('recoveryJobPrepareError', 'Failed to assert absolute position (not enough context in G-code).');
 
                         $this->skip();
 
@@ -380,7 +441,7 @@ class JobRecoveryModal extends Component
             (
                 $line = stream_get_line(
                     stream: $gcode,
-                    length: PrintGcode::STREAM_MAX_LINE_LENGTH_BYTES,
+                    length: $streamMaxLengthBytes,
                     ending: PHP_EOL
                 )
             ) !== false
