@@ -106,6 +106,8 @@ class FileControls extends Component
 
         $this->refreshActiveFile();
 
+        $this->emit('refreshActiveFile');
+
         $this->dispatchBrowserEvent('changeSaved', [ 'action' => 'stop' ]);
     }
 
