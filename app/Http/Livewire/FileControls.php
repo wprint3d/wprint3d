@@ -57,7 +57,7 @@ class FileControls extends Component
         $this->refreshActiveFile();
 
         $this->selected     = $fileName;
-        $this->newFilename  = $fileName;
+        $this->newFilename  = basename($fileName);
     }
 
     public function selectPrinter() {
@@ -124,7 +124,7 @@ class FileControls extends Component
             return;
         }
 
-        $selectedFullPath = $this->baseFilesDir . '/' . $this->selected;
+        $selectedFullPath = $this->selected;
 
         Storage::delete($selectedFullPath);
 
@@ -162,8 +162,8 @@ class FileControls extends Component
             return;
         }
 
-        $selectedFullPath   = $this->baseFilesDir . '/' . $this->selected;
-        $targetFullPath     = $this->baseFilesDir . '/' . $this->newFilename;
+        $selectedFullPath   = $this->selected;
+        $targetFullPath     = dirname($this->selected) . '/' . $this->newFilename;
 
         if (!Storage::exists( $selectedFullPath )) {
             $this->error = 'No such file or directory.';

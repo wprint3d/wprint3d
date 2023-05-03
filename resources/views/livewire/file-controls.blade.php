@@ -181,8 +181,8 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="newFilename" class="col-form-label">Rename <b>{{  $selected  }}</b> to:</label>
-                        <input type="text" class="form-control" id="newFilename" value="{{  $selected  }}" wire:model.defer="newFilename">
+                        <label for="newFilename" class="col-form-label">Rename <b>{{ basename($selected) }}</b> to:</label>
+                        <input type="text" class="form-control" id="newFilename" value="{{ $selected }}" wire:model.defer="newFilename">
 
                         @if ($error)
                             <p class="text-danger text-center mt-4"> {{ $error }} </p>
