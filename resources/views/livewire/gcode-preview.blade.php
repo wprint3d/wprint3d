@@ -1,8 +1,28 @@
 <div>
     <canvas id="gcodePreviewCanvas" class="preview-canvas"></canvas>
 
+    <div id="previewNoFileLoadedAlert" class="alert alert-info text-center mt-2 d-none" role="alert">
+        No file has been loaded, start a print in order to preview it.
+    </div>
+
+    <div wire:ignore id="previewLoader" class="pt-2 px-3">
+        <div class="progress">
+            <div
+                class="progress-bar progress-bar-striped progress-bar-animated"
+                role="progressbar"
+                aria-label="Preview load progress"
+                aria-valuenow="0"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                style="width: 0%"
+            ></div>
+        </div>
+
+        <p class="w-100 text-center mt-2"></p>
+    </div>
+
     <div id="selectedLayerContainer" class="d-none border p-3 mt-1 mb-2 rounded rounded-2 text-center bg-white">
-        <div class="row">
+        <div wire:ignore class="row">
             <div class="col" x-data="{ layer: 0 }">
                 <label class="form-label"> Shown layer </label>
 
@@ -13,14 +33,21 @@
                     class="form-range"
                     min="1"
                     step="1"
+                    wire:loading.attr="disabled"
                 >
                 <span x-text="layer"></span>
             </div>
         </div>
 
-        <div class="row mt-2">
+        <div wire:ignore class="row mt-2">
             <div class="col">
-                <button id="resumeLiveFeedBtn" type="button" class="btn btn-primary btn-sm d-none" onclick="resumeLiveFeed()">
+                <button
+                    id="resumeLiveFeedBtn"
+                    type="button"
+                    class="btn btn-primary btn-sm d-none"
+                    onclick="resumeLiveFeed()"
+                    wire:loading.attr="disabled"
+                >
                     @svg('play') Go back to live feed
                 </button>
             </div>
@@ -29,12 +56,12 @@
 
     <ul class="list-group">
         <li class="list-group-item">
-          <input wire:model="showExtrusion" class="form-check-input me-1" type="checkbox">
-          <label class="form-check-label"> Show extrusion  </label>
+            <input id="showExtrusionCheck" wire:model="showExtrusion" class="form-check-input me-1" type="checkbox">
+            <label class="form-check-label"> Show extrusion  </label>
         </li>
         <li class="list-group-item">
-          <input wire:model="showTravel" class="form-check-input me-1" type="checkbox">
-          <label class="form-check-label"> Show travel </label>
+            <input id="showTravelCheck" wire:model="showTravel" class="form-check-input me-1" type="checkbox">
+            <label class="form-check-label"> Show travel </label>
         </li>
     </ul>
 </div>
@@ -44,20 +71,33 @@
 
 let preview = null;
 
-let gcode           = [];
-let currentLine     = 0;
-let realCurrentLine = 0;
+let bufferedLines = [];
+
+let currentLine  = 0,
+    selectedLine = null,
+    uid          = null;
 
 let showExtrusion = true;
 let showTravel    = true;
 
 let autoUpdatePreview = true;
 
-let selectedLayer           = document.querySelector('#selectedLayer');
-let selectedLayerContainer  = document.querySelector('#selectedLayerContainer');
-let resumeLiveFeedBtn       = document.querySelector('#resumeLiveFeedBtn');
+let isInteracting = false,
+    isSelected    = false;
+
+let selectedLayer            = document.querySelector('#selectedLayer'),
+    selectedLayerContainer   = document.querySelector('#selectedLayerContainer'),
+    resumeLiveFeedBtn        = document.querySelector('#resumeLiveFeedBtn'),
+    previewLoader            = document.querySelector('#previewLoader'),
+    progressBar              = previewLoader.querySelector('.progress-bar'),
+    progressLabel            = previewLoader.querySelector('p'),
+    previewNoFileLoadedAlert = document.querySelector('#previewNoFileLoadedAlert');
 
 let layerMap = [];
+
+let isBuffering = true;
+
+const WHEEL_RESET_TIME_MS = 2500;
 
 const parseMovement = line => {
     let parsed = line.trim().replace('> ', '');
@@ -73,6 +113,44 @@ const refreshPreview = () => {
 
     let canvas = document.querySelector('#gcodePreviewCanvas');
 
+    let wheelInteractionHandler = null;
+
+    canvas.addEventListener('wheel', event => {
+        console.log('wheel');
+
+        isInteracting = true;
+
+        if (wheelInteractionHandler) {
+            clearTimeout( wheelInteractionHandler );
+
+            wheelInteractionHandler = null;
+        }
+
+        wheelInteractionHandler = setTimeout(() => {
+            if (!isSelected) { isInteracting = false; }
+        }, WHEEL_RESET_TIME_MS);
+    });
+
+    [ 'touchstart', 'mousedown' ].forEach(eventName => {
+        canvas.addEventListener(eventName, event => {
+            console.log(eventName);
+
+            isInteracting = true;
+            isSelected    = true;
+        });
+    });
+
+    [ 'touchend', 'mouseup' ].forEach(eventName => {
+        canvas.addEventListener(eventName, event => {
+            console.log(eventName);
+
+            isInteracting = false;
+            isSelected    = false;
+
+            preview.render();
+        });
+    });
+
     preview = GCodePreview.init({
         canvas: canvas,
         topLayerColor:    '#000000',
@@ -87,54 +165,19 @@ const refreshPreview = () => {
     preview.renderTravel    = showTravel;
 
     preview.render();
-
-    if (gcode.length > 0) {
-        if (currentLine > 0) {
-            preview.processGCode( gcode.slice(0, currentLine).join('\n') );
-            preview.render();
-        }
-
-        console.log(gcode.length, selectedLayer.max);
-
-        if (
-            gcode.length != selectedLayer.max
-            &&
-            selectedLayerContainer.classList.contains('d-none')
-        ) {
-            selectedLayerContainer.classList.remove('d-none');
-        }
-    } else if (!selectedLayerContainer.classList.contains('d-none')) {
-        selectedLayerContainer.classList.add('d-none');
-    }
 };
 
-const mapLayers = () => {
-    layerMap = [];
+window.addEventListener('show.bs.tab', event => {
+    if (event.target.id != 'preview-tab') return;
 
-    gcode.forEach((line, index) => {
-        if (line.startsWith('G0') || line.startsWith('G1')) {
-            let parts = line.split(' ');
+    previewNoFileLoadedAlert.classList.add('d-none');
 
-            parts.forEach(part => {
-                if (part.startsWith('Z')) {
-                    part = part.replace('Z', '');
-
-                    layerMap.push( index );
-                }
-            });
-        }
-    });
-
-    console.log('layerMap:', layerMap);
-
-    selectedLayer.max   = layerMap.length;
-    selectedLayer.value = 1;
-    selectedLayer.dispatchEvent( new Event('input') );
-
-    resumeLiveFeedBtn.classList.add ('d-none');
-}
+    isBuffering = true;
+});
 
 window.addEventListener('shown.bs.tab', event => {
+    if (event.target.id != 'preview-tab') return;
+
     let canvas = document.querySelector('#gcodePreviewCanvas');
 
     if (canvas) {
@@ -146,6 +189,22 @@ window.addEventListener('shown.bs.tab', event => {
     }
 
     refreshPreview(canvas);
+
+    reloadPreviewFromServer();
+});
+
+window.addEventListener('hidden.bs.tab', event => {
+    let canvas = document.querySelector('#gcodePreviewCanvas');
+
+    if (canvas) {
+        let newCanvas    = document.createElement('canvas');
+            newCanvas.id = 'gcodePreviewCanvas';
+            newCanvas.classList = [ 'preview-canvas' ];
+
+        canvas.replaceWith( newCanvas );
+    }
+
+    preview = null;
 });
 
 const resetRender = () => {
@@ -168,15 +227,28 @@ const getNearestLayer = lineNumber => {
     return layerIndex;
 }
 
+const reloadPreviewFromServer = (mapLayers = true) => {
+    selectedLayerContainer.classList.add('d-none');
+    previewLoader.classList.remove('d-none');
+
+    progressBar.style.width = 0 + '%'
+    progressBar.setAttribute('aria-valuenow', 0);
+
+    progressLabel.innerText = (
+        mapLayers
+            ? 'Mapping layers...'
+            : 'Buffering G-code...'
+    );
+
+    Livewire.emit('reloadPreviewFromServer', selectedLine, mapLayers);
+}
+
 window.addEventListener('DOMContentLoaded', () => {
-    gcode           = @this.gcode;
-    currentLine     = @this.currentLine;
-    realCurrentLine = currentLine;
+    currentLine = @this.currentLine;
+    uid         = @this.uid;
 
     showExtrusion = @this.showExtrusion;
     showTravel    = @this.showTravel;
-
-    mapLayers();
 
     window.addEventListener('refreshSettings', event => {
         if (
@@ -191,24 +263,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    window.addEventListener('gcodePreviewFailedTooLarge', event => {
-        console.debug('gcodePreviewFailedTooLarge:', event);
-
-        toastify.info('The G-code preview won\'t be available: the selected file is too large.');
-    });
-
-    window.addEventListener('gcodeChanged', event => {
-        console.debug('gcodeChanged:', event);
-
-        gcode           = event.detail.gcode;
-        currentLine     = event.detail.currentLine;
-        realCurrentLine = currentLine;
-
-        resetRender();
-
-        mapLayers();
-    });
-
     selectedLayer.addEventListener('change', event => {
         console.debug('Auto updates disabled due to manual layer selection.');
 
@@ -218,54 +272,146 @@ window.addEventListener('DOMContentLoaded', () => {
 
         autoUpdatePreview = false;
 
-        currentLine = layerMap[ event.target.value - 1 ];
+        currentLine  = layerMap[ event.target.value - 1 ];
+        selectedLine = currentLine;
 
         refreshPreview();
+
+        reloadPreviewFromServer(
+            false // mapLayers
+        );
     });
 
     window.resumeLiveFeed = () => {
         console.debug('Auto updates have been re-enabled.');
 
-        resumeLiveFeedBtn.classList.add ('d-none');
+        resumeLiveFeedBtn.classList.add('d-none');
 
         autoUpdatePreview = true;
 
-        currentLine = realCurrentLine;
+        selectedLine = null;
 
         resetRender();
         refreshPreview();
 
-        selectedLayer.value = getNearestLayer( realCurrentLine );
-        selectedLayer.dispatchEvent( new Event('input') );
+        reloadPreviewFromServer(
+            false // mapLayers
+        );
+
+        // selectedLayer.value = getNearestLayer( realCurrentLine );
+        // selectedLayer.dispatchEvent( new Event('input') );
     };
 
     Echo.private(`console.${getSelectedPrinterId()}`)
         .listen('PrinterTerminalUpdated', event => {
             console.debug(event);
 
+            if (!preview || !autoUpdatePreview) return;
+
             if (event.line) {
-                currentLine     = event.line;
-                realCurrentLine = currentLine;
+                event.command.split(PHP_EOL).forEach(line => {
+                    command = parseMovement( line );
 
-                let command = gcode[ event.line - 1 ];
+                    if (!command) return;
 
-                if (!command) return;
+                    if (isBuffering) {
+                        bufferedLines.push(command);
+                    } else if (preview && command) {
+                        if (!isBuffering && bufferedLines.length) {
+                            bufferedLines.forEach(line => {
+                                preview.parser.parseGCode(line);
+                            });
+                        }
 
-                command = parseMovement( command );
+                        bufferedLines = [];
 
-                if (autoUpdatePreview) {
-                    if (preview && command) {
-                        preview.processGCode(command);
-                        preview.render();
+                        preview.parser.parseGCode(command);
+
+                        if (!isInteracting) {
+                            preview.render();
+                        }
                     }
+                });
 
-                    if (layerMap.indexOf( realCurrentLine ) > -1) {
-                        selectedLayer.value = layerMap.indexOf( realCurrentLine );
-                        selectedLayer.dispatchEvent( new Event('input') );
-                    }
-                }
+                currentLine = event.line;
             }
         });
+
+    Echo.private(`preview.${getSelectedPrinterId()}`)
+        .listen('PreviewLayerMapReady', event => {
+            console.debug('PreviewLayerMapReady: ', event);
+
+            if (!preview || event.previewUID != uid) return;
+
+            layerMap = event.layerMap;
+
+            progressLabel.innerText = 'Buffering G-code...';
+
+            selectedLayer.max   = layerMap.length;
+            selectedLayer.value = 1;
+            selectedLayer.dispatchEvent( new Event('input') );
+
+            resetRender();
+        });
+
+    Echo.private(`preview.${getSelectedPrinterId()}`)
+        .listen('PreviewLineReady', event => {
+            console.debug('PreviewLineReady: ', event);
+
+            if (!preview || event.previewUID != uid) return;
+
+            progressBar.style.width = event.percentage + '%'
+            progressBar.setAttribute('aria-valuenow', event.percentage);
+
+            event.command.split(PHP_EOL).forEach(line => {
+                command = parseMovement( line );
+
+                if (preview && command) {
+                    preview.parser.parseGCode(command);
+                }
+            });
+
+            currentLine = event.line;
+        });
+
+    Echo.private(`preview.${getSelectedPrinterId()}`)
+        .listen('PreviewBuffered', event => {
+            console.debug('PreviewBuffered: ', event);
+
+            if (!preview || event.previewUID != uid) return;
+
+            previewLoader.classList.add('d-none');
+
+            isBuffering = false;
+
+            preview.render();
+
+            selectedLayer.value = getNearestLayer( currentLine );
+            selectedLayer.dispatchEvent( new Event('input') );
+
+            selectedLayerContainer.classList.remove('d-none');
+        });
+
+    window.addEventListener('previewNoFileLoaded', event => {
+        resetRender();
+
+        previewLoader.classList.add('d-none');
+
+        previewNoFileLoadedAlert.classList.remove('d-none');
+    });
+
+    window.addEventListener('selectedFileChanged', () => {
+        reloadPreviewFromServer();
+    });
+
+    [ 'showExtrusionCheck', 'showTravelCheck' ].forEach(id => {
+        document.querySelector('#' + id).addEventListener('change', event => {
+            resetRender();
+            reloadPreviewFromServer(
+                false // mapLayers
+            );
+        });
+    });
 });
 
 </script>

@@ -2,21 +2,24 @@
 
 namespace App\Http\Livewire;
 
+use App\Jobs\SendLinesToClientPreview;
+
 use App\Models\Printer;
 use App\Models\User;
 
-use Illuminate\Support\Str;
-
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-
 use Livewire\Component;
 
 class GcodePreview extends Component
 {
-    protected $listeners = [ 'refreshActiveFile' => 'refreshGcode' ];
+    protected $listeners = [
+        'refreshActiveFile'       => 'reportFileChange',
+        'reloadPreviewFromServer' => 'refreshGcode'
+    ];
 
-    public array $gcode       = [];
+    public string $uid;
+
+    public array $layerMap    = [];
     public int   $currentLine = 0;
 
     public bool $showExtrusion;
@@ -25,36 +28,34 @@ class GcodePreview extends Component
     private User     $user;
     private ?Printer $printer;
 
-    // TODO: Implement streaming instead of halting based off this constant.
-    const FILE_SIZE_LIMIT_BYTES = 4194304;
+    public function reportFileChange() {
+        $this->dispatchBrowserEvent('selectedFileChanged');
+    }
 
-    public function refreshGcode() {
-        $this->gcode        = [];
-        $this->currentLine  = 0;
+    public function refreshGcode($selectedLine = null, bool $mapLayers = true) {
+        $this->currentLine = 0;
 
         if ($this->user && $this->user->activePrinter) {
             $printer = Printer::select('activeFile')->find( $this->user->activePrinter );
 
             if ($printer && $printer->activeFile) {
-                $filePath = $printer->activeFile;
+                $this->currentLine =
+                    $selectedLine !== null && is_numeric($selectedLine)
+                        ? (int) $selectedLine
+                        : $printer->getCurrentLine();
 
-                if (Storage::size( $filePath ) > self::FILE_SIZE_LIMIT_BYTES) {
-                    $this->dispatchBrowserEvent('gcodePreviewFailedTooLarge');
-                } else {
-                    $gcode = Storage::get( $filePath );
+                SendLinesToClientPreview::dispatch(
+                    $this->uid,                 // previewUID
+                    $this->user->activePrinter, // printerId
+                    $this->currentLine,         // currentLine
+                    $mapLayers                  // mapLayers
+                );
 
-                    if ($gcode) {
-                        $this->gcode        = Str::of( $gcode )->explode(PHP_EOL)->toArray();
-                        $this->currentLine  = $printer->getCurrentLine();
-                    }
-                }
+                return;
             }
         }
 
-        $this->dispatchBrowserEvent('gcodeChanged', [
-            'gcode'         => $this->gcode,
-            'currentLine'   => $this->currentLine
-        ]);
+        $this->dispatchBrowserEvent('previewNoFileLoaded');
     }
 
     public function updated() {
@@ -79,13 +80,13 @@ class GcodePreview extends Component
     }
 
     public function boot() {
+        $this->uid = uniqid();
+
         $this->user         = Auth::user();
         $this->printer      = Printer::select('settings')->find( $this->user->activePrinter );
 
         $this->showExtrusion    = $this->printer->settings['showExtrusion']     ?? true;
         $this->showTravel       = $this->printer->settings['showTravel']        ?? true;
-
-        $this->refreshGcode();
     }
 
     public function render()
