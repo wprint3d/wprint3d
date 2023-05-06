@@ -272,7 +272,7 @@ else
 
                 IFS=$'\n';
 
-                HAS_RPI_CAM_INCLUDES=$([ ! -e /internal/vc/LICENCE ]; echo -n $?);
+                HAS_RPI_CAM_INCLUDES=$([[ $(uname -m) != 'aarch64' ]] && [[ $(uname -m) != 'arm' ]]; echo -n $?);
 
                 CURRENT_ID='';
 

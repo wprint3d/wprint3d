@@ -1,5 +1,7 @@
 FROM php:8.2
 
+SHELL ["/bin/bash", "-c"]
+
 # Node.js
 RUN curl -sL https://deb.nodesource.com/setup_16.x -o /tmp/nodesource_setup.sh &&\
     bash /tmp/nodesource_setup.sh;
@@ -29,9 +31,11 @@ COPY internal /internal
 
 # Build and install Camera Streamer and MJPG Streamer
 #
-# In the two blocks shown below, we check for the existence of the file
-# /opt/vc/LICENCE, if it does exist, the RPi camera dependencies are bundled
-# with the image.
+# In the two blocks shown below, we check if the architecture is either "arm"
+# or "aarch64" by checking the output of `uname -a`, if it does, the RPi camera
+# dependencies are bundled with the image. This is generally valid as most
+# devices that are part of either of thsose architectures, DO have a built-in
+# hardware encoder/decoder that camera-streamer can take advantage of.
 #
 # Note that we're manually removing "input_raspicam" from MJPG streamer as it's
 # broken on 64-bit builds of Raspberry Pi OS and it's terribly slow too, so
@@ -41,13 +45,12 @@ COPY internal /internal
 # and more reliable.
 RUN curl -O 'https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2016.10.31_all.deb' &&\
     dpkg -i ./raspberrypi-archive-keyring_2016.10.31_all.deb &&\
-    if [ -e /internal/vc/LICENCE ]; then \
-        cp -rfv /internal/vc /opt/vc; \
+    if [[ $(uname -m) == 'aarch64' ]] || [[ $(uname -m) == 'arm' ]]; then \
         echo 'deb http://archive.raspberrypi.org/debian/ bullseye main' >> /etc/apt/sources.list.d/raspi.list; \
     fi &&\
     apt-get update &&\
     apt-get install -y meson python3 python3-pip python3-jinja2 python3-ply python3-yaml libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev libboost-program-options-dev libdrm-dev libexif-dev &&\
-    if [ -e /internal/vc/LICENCE ]; then \
+    if [[ $(uname -m) == 'aarch64' ]] || [[ $(uname -m) == 'arm' ]]; then \
         apt-get install -y libcamera-apps-lite liblivemedia-dev libcamera-dev; \
     fi;
 
