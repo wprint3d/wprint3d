@@ -30,7 +30,7 @@ return [
             |
             */
 
-            'path' => 'vendor/codeat3/blade-elusive-icons/resources/svg',
+            'path' => 'vendor/davidhsianturi/blade-bootstrap-icons/resources/svg',
 
             /*
             |-----------------------------------------------------------------
@@ -93,9 +93,9 @@ return [
             */
         
             'attributes' => [
-                'width' => '1em',
-                'height' => '1em',
-                'style' => 'margin-top: 0.1em; margin-bottom: 0.25em'
+                'width' => '1.3em',
+                'height' => '1.3em',
+                'style' => 'margin-top: 0.075em; margin-bottom: 0.1em'
             ],
         
         ],

@@ -48,7 +48,7 @@
                     onclick="resumeLiveFeed()"
                     wire:loading.attr="disabled"
                 >
-                    @svg('play') Go back to live feed
+                    @svg('play-fill') Go back to live feed
                 </button>
             </div>
         </div>

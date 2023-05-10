@@ -101,6 +101,17 @@
         // Remove the 'hidden' class from the install button container.
         divInstall.classList.toggle('hidden', false);
     });
+
+    const initializeTooltips = () => {
+        tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipList        = [ ...tooltipTriggerList ].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+    };
+
+    initializeTooltips();
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('shown.bs.modal', initializeTooltips);
+    });
 </script>
 
 @stack('scripts')

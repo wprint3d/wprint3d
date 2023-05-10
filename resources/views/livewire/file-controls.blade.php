@@ -13,7 +13,7 @@
                     @endif
                 "
             >
-                @svg('pause')
+                @svg('play-fill')
             </button>
             <button
                 type="button"
@@ -28,7 +28,7 @@
                 "
             >
                 <div class="animate__animated animate__slow animate__infinite animate__flash">
-                    @svg('play')
+                    @svg('play-fill')
                 </div>
             </button>
             <button
@@ -44,7 +44,7 @@
                     disabled
                 @endif
             >
-                @svg('play')
+                @svg('play-fill')
             </button>
             <button
                 type="button"
@@ -54,7 +54,7 @@
                     disabled
                 @endif
             >
-                @svg('stop')
+                @svg('stop-fill')
             </button>
 
             <div class="btn-group" role="group">
@@ -63,10 +63,10 @@
                 </button>
                 <ul class="dropdown-menu">
                     <li>
-                        <a class="dropdown-item" href="#" onclick="openModal('delete')"> @svg('trash') Remove </a>
+                        <a class="dropdown-item" href="#" onclick="openModal('delete')"> @svg('trash-fill') Remove </a>
                     </li>
                     <li>
-                        <a class="dropdown-item" href="#" onclick="openModal('rename')"> @svg('file-edit') Rename </a>
+                        <a class="dropdown-item" href="#" onclick="openModal('rename')"> @svg('pencil-square') Rename </a>
                     </li>
                 </ul>
             </div>
