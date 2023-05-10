@@ -48,7 +48,8 @@ input[type="file"] { display: none; }
 
 .control-hint-snap-left { left: -1rem !important; }
 
-.list-group-item::-webkit-scrollbar { display: none; }
+.list-group-item::-webkit-scrollbar,
+.list-group-item span::-webkit-scrollbar { display: none; }
 
 #extrusionLength { max-width: 13em; }
 

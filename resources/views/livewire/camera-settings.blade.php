@@ -21,7 +21,7 @@
         </div>
 
         <button class="btn btn-primary mt-3 mx-auto d-block" onclick="window.open('{{ $url }}')" @if (!$enabled) disabled @endif>
-            @svg('eye-open') Preview
+            @svg('eye-fill') Preview
         </button>
     </div>
 </div>

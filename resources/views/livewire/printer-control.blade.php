@@ -16,7 +16,7 @@
                 <div class="row mb-2">
                     <div class="col"></div>
                     <div class="col">
-                        <button wire:click="up"     class="btn border"> @svg('arrow-up') </button>
+                        <button wire:click="up"     class="btn border"> @svg('caret-up-fill') </button>
                     </div>
                     <div class="col"></div>
                 </div>
@@ -25,19 +25,19 @@
                         <div class="control-hint-snap-left position-absolute align-items-center d-flex h-100 start-0 fs-5 fw-light mb-1">
                             X
                         </div>
-                        <button wire:click="left"   class="btn border"> @svg('arrow-left') </button>
+                        <button wire:click="left"   class="btn border"> @svg('caret-left-fill') </button>
                     </div>
                     <div class="col">
-                        <button wire:click="home"   class="btn border"> @svg('home') </button>
+                        <button wire:click="home"   class="btn border"> @svg('house-door-fill') </button>
                     </div>
                     <div class="col p-0">
-                        <button wire:click="right"  class="btn border"> @svg('arrow-right') </button>
+                        <button wire:click="right"  class="btn border"> @svg('caret-right-fill') </button>
                     </div>
                 </div>
                 <div class="row mb-3">
                     <div class="col"></div>
                     <div class="col">
-                        <button wire:click="down"   class="btn border"> @svg('arrow-down') </button>
+                        <button wire:click="down"   class="btn border"> @svg('caret-down-fill') </button>
                     </div>
                     <div class="col"></div>
                 </div>
@@ -46,7 +46,7 @@
             <div class="col col-md-12 col-lg-6 align-self-center">
                 <div class="row">
                     <div class="col">
-                        <button wire:click="yForward" class="btn border"> @svg('arrow-up') </button>
+                        <button wire:click="yForward" class="btn border"> @svg('caret-up-fill') </button>
                     </div>
                 </div>
                 <div class="row">
@@ -56,7 +56,7 @@
                 </div>
                 <div class="row">
                     <div class="col">
-                        <button wire:click="yBackward" class="btn border"> @svg('arrow-down') </button>
+                        <button wire:click="yBackward" class="btn border"> @svg('caret-down-fill') </button>
                     </div>
                 </div>
             </div>
@@ -155,7 +155,7 @@
                     </div>
                     <div class="btn-group mx-1" role="group" aria-label="Hotend temperature">
                         <button wire:click="setHotendTemperature" type="button" class="btn btn-outline-secondary">
-                            @svg('ok')
+                            @svg('check-lg')
                         </button>
                     </div>
                 </div>
@@ -174,7 +174,7 @@
                     </div>
                     <div class="btn-group mx-1" role="group" aria-label="Hotend temperature">
                         <button wire:click="setBedTemperature" type="button" class="btn btn-outline-secondary">
-                            @svg('ok')
+                            @svg('check-lg')
                         </button>
                     </div>
                 </div>
