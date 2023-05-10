@@ -89,6 +89,8 @@ else
                 php artisan websockets:serve --host 0.0.0.0 --port 6001;
             done;
         elif [[ "$ROLE" == 'mapper' ]]; then
+            wait-for-it ws-server:6001 -t 0;
+
             # Try to recognize a printer within them before enabling the udev monitor
             php artisan map:serial-printers;
             php artisan map:hardware-cameras;
@@ -190,9 +192,9 @@ else
                         fi;
 
                         if [[ $deviceChanged -eq 1 ]]; then
-                            if [[ "$DEVNAME" != '' ]] && ([[ "$nodePath" == *'tty'* ]] || [[ "$nodePath" == *'video'* ]]) && [[ "$ACTION" == 'add' ]]; then
-                                php artisan map:serial-printers;
+                            if [[ "$DEVNAME" != '' ]] && ([[ "$nodePath" == *'tty'* ]] || [[ "$nodePath" == *'video'* ]]) && ([[ "$ACTION" == 'add' ]] || [[ "$ACTION" == 'remove' ]]); then
                                 php artisan map:hardware-cameras;
+                                php artisan map:serial-printers;
 
                                 if [[ "$DEVNAME" == *'video'* ]]; then
                                     mapCameraLabels;
@@ -201,6 +203,9 @@ else
 
                             deviceChanged=0;
                             nodePath='';
+
+                            DEVNAME='';
+                            ACTION='';
                         fi;
                     done;
             done;
