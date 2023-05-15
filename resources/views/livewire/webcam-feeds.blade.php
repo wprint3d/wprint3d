@@ -35,7 +35,19 @@
 @push('scripts')
 <script>
 
-document.addEventListener('show.bs.tab', event => {
+const applySrcToActiveCamera = () => {
+    let defaultTabPane = document.querySelector('.tab-camera.active');
+
+    if (defaultTabPane) {
+        let img = defaultTabPane.querySelector('img');
+
+        if (img) {
+            img.src = img.dataset.src;
+        }
+    }
+}
+
+document.addEventListener('shown.bs.tab', event => {
     const previousTab   = event.relatedTarget;
     const activeTab     = event.target;
 
@@ -44,19 +56,18 @@ document.addEventListener('show.bs.tab', event => {
 
     if (activeTabPane.classList.contains('tab-camera')) {
         let previousImg = previousTabPane.querySelector('img');
-            previousImg.src = '';
 
-        let activeImg   = activeTabPane.querySelector('img');
-            activeImg.src = activeImg.dataset.src;
+        if (previousImg) {
+            previousImg.src = '';
+        }
+
+        applySrcToActiveCamera();
     }
 });
 
-let defaultTabPane = document.querySelector('.tab-camera.active');
+applySrcToActiveCamera();
 
-if (defaultTabPane) {
-    let img = defaultTabPane.querySelector('img');
-        img.src = img.dataset.src;
-}
+window.addEventListener('webcamFeedsChanged', applySrcToActiveCamera);
 
 </script>
 @endpush

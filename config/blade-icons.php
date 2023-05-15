@@ -95,7 +95,7 @@ return [
             'attributes' => [
                 'width' => '1.3em',
                 'height' => '1.3em',
-                'style' => 'margin-top: 0.075em; margin-bottom: 0.1em'
+                'style' => 'margin-top: 0.075em; margin-bottom: 0.1em; margin-left: 0.075em; margin-right: 0.075em;'
             ],
         
         ],

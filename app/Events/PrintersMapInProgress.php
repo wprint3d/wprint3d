@@ -9,7 +9,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 
 use Illuminate\Foundation\Events\Dispatchable;
 
-class PrintersMapUpdated implements ShouldBroadcastNow
+class PrintersMapInProgress implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets;
 
@@ -24,6 +24,6 @@ class PrintersMapUpdated implements ShouldBroadcastNow
      */
     public function broadcastOn()
     {
-        return new Channel('printers-map-updated');
+        return new Channel('printers-map-updating');
     }
 }

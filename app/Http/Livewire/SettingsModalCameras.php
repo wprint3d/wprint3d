@@ -10,8 +10,16 @@ class SettingsModalCameras extends Component
 {
     public $cameras;
 
-    public function boot() {
+    protected $listeners = [ 'hardwareChangeDetected' => 'refreshCameras' ];
+
+    public function refreshCameras() {
         $this->cameras = Camera::all();
+
+        $this->emit('cameraSettingsChanged');
+    }
+
+    public function boot() {
+        $this->refreshCameras();
     }
 
     public function render()

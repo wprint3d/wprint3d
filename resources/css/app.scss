@@ -62,6 +62,11 @@ input[type="file"] { display: none; }
     margin-right: 0.25em;
 }
 
+.offline-camera-placeholder {
+    width: 100%;
+    min-height: 20vh;
+}
+
 @media (min-width: 768px) {
     .modal-header {
         justify-content: space-between !important;

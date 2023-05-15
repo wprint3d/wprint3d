@@ -19,7 +19,7 @@ class PrinterManagerModalCameras extends Component
 
     public $lastError;
 
-    protected $listeners = [ 'refreshPrinterCameras' => '$refresh' ];
+    protected $listeners = [ 'hardwareChangeDetected' => '$refresh' ];
 
     const NO_SUCH_CAMERA_ERROR = 'No such camera.';
 
@@ -42,7 +42,7 @@ class PrinterManagerModalCameras extends Component
             $this->printer->save();
         }
 
-        $this->emit('refreshPrinterCameras');
+        $this->emit('linkedCamerasChanged');
     }
 
     public function remove($cameraId) {
@@ -56,7 +56,7 @@ class PrinterManagerModalCameras extends Component
         $this->printer->cameras = $cameras;
         $this->printer->save();
 
-        $this->emit('refreshPrinterCameras');
+        $this->emit('linkedCamerasChanged');
     }
 
     public function render()

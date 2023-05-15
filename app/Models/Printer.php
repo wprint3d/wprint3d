@@ -44,6 +44,7 @@ class Printer extends Model
         'lastSeen',
         'queuedCommands',
         'cameras',
+        'connected',
         'machine',
         'machine.firmwareName',
         'machine.sourceCodeUrl',

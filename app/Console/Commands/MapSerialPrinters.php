@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Events\ForceReloadEveryone;
+use App\Events\PrintersMapInProgress;
 use App\Events\PrintersMapUpdated;
 
 use App\Libraries\Serial;
@@ -17,9 +19,6 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 use Illuminate\Support\Facades\Log;
-
-use MongoDB\BSON\UTCDateTime;
-
 use Illuminate\Support\Facades\Cache;
 
 use Exception;
@@ -57,9 +56,12 @@ class MapSerialPrinters extends Command
         $cacheMapperBusyKey = config('cache.mapper_busy_key');
 
         $devices = Arr::where(
-            scandir('/dev'),
+            scandir( Serial::TERMINAL_PATH ),
             function ($node) {
-                return Str::startsWith($node, 'ttyACM') || Str::startsWith($node, 'ttyUSB');
+                return
+                    Str::startsWith($node, Serial::TERMINAL_PREFIX . 'ACM')
+                    ||
+                    Str::startsWith($node, Serial::TERMINAL_PREFIX . 'USB');
             }
         );
 
@@ -69,11 +71,15 @@ class MapSerialPrinters extends Command
             ttl:   ($negotiationTimeoutSecs * count($baudRates) * count($devices)) + $negotiationWaitSecs + 1 // max possible time spent negotiating (+/- 1)
         );
 
+        PrintersMapInProgress::dispatch();
+
         $this->info("Waiting {$negotiationWaitSecs} seconds for the printer to boot before trying to negotiate a connection...");
 
         sleep( $negotiationWaitSecs );
 
         $changeCount = 0;
+
+        $initialPrinterCount = Printer::count();
 
         foreach ($devices as $device) {
             $device = Str::replaceFirst('tty', '', $device);
@@ -217,21 +223,24 @@ class MapSerialPrinters extends Command
 
                         if (!$printer) {
                             $printer = new Printer();
+
+                            $changeCount++;
                         }
 
                         $printer->node      = $device;
                         $printer->baudRate  = $baudRate;
                         $printer->machine   = $machine;
                         $printer->cameras   = $cameras;
+                        $printer->connected = true;
                         $printer->save();
                         $printer->updateLastSeen();
 
                         $changes = $printer->getChanges();
 
-                        if ($changes) {
-                            unset( $changes['created_at'] );
-                            unset( $changes['updated_at'] );
+                        unset( $changes['created_at'] );
+                        unset( $changes['updated_at'] );
 
+                        if ($changes) {
                             $changeCount++;
                         }
 
@@ -261,10 +270,25 @@ class MapSerialPrinters extends Command
             }
         }
 
+        foreach (Printer::all() as $printer) {
+            if (
+                !file_exists( Serial::TERMINAL_PATH . '/' . Serial::TERMINAL_PREFIX . $printer->node )
+                &&
+                $printer->connected
+            ) {
+                $printer->connected = false;
+                $printer->save();
+
+                $changeCount++;
+            }
+        }
+
         Cache::forget( $cacheMapperBusyKey );
 
-        if ($changeCount) {
-            PrintersMapUpdated::dispatch();
+        PrintersMapUpdated::dispatch();
+
+        if (!$initialPrinterCount && Printer::count()) {
+            ForceReloadEveryone::dispatch();
         }
 
         return Command::SUCCESS;

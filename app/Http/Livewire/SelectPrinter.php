@@ -5,6 +5,7 @@ namespace App\Http\Livewire;
 use App\Models\Printer;
 
 use Illuminate\Database\Eloquent\Collection;
+
 use Illuminate\Support\Facades\Auth;
 
 use Livewire\Component;
@@ -17,17 +18,20 @@ class SelectPrinter extends Component
     public ?Printer     $printer;
 
     public function boot() {
-        $this->printers     = Printer::select('_id', 'node', 'machine.machineType', 'machine.uuid')->get();
-        $this->printerId    = Auth::user()->activePrinter;
+        $user = Auth::user();
 
-        if (
-            !$this->printerId
-            &&
-            $this->printers
-            &&
-            isset( $this->printers[0] )
-        ) {
+        $this->printerId = $user->activePrinter;
+        $this->printers  = Printer::select('_id', 'node', 'machine.machineType', 'machine.uuid')->get();
+
+        if ($this->printerId && !Printer::find( $this->printerId )) {
+            $this->printerId = null;
+        }
+
+        if (!$this->printerId && filled( $this->printers )) {
             $this->printerId = $this->printers[0]->_id;
+
+            $user->activePrinter = $this->printerId;
+            $user->save();
         }
     }
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+use Jenssegers\Mongodb\Eloquent\Builder;
 use Jenssegers\Mongodb\Eloquent\Model;
 
 class Camera extends Model
@@ -11,6 +12,8 @@ class Camera extends Model
     use HasFactory;
 
     protected $fillable = [
+        'connected',
+        'enabled',
         'node',
         'label',
         'mode',
@@ -18,4 +21,8 @@ class Camera extends Model
         'availableFormats',
         'requiresLibCamera'
     ];
+
+    public function scopeConnected(Builder $query): void {
+        $query->where('connected', true);
+    }
 }

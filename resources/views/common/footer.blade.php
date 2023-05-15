@@ -2,6 +2,8 @@
 
 <footer></footer>
 
+<livewire:updating-hardware-overlay />
+
 @livewireScripts
 
 <script>
@@ -111,6 +113,22 @@
 
     window.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('shown.bs.modal', initializeTooltips);
+
+        Echo.channel('printers-map-updated')
+            .listen('PrintersMapUpdated', event => {
+                console.debug('PrintersMapUpdated', event);
+
+                toastify.info('Hardware change applied.');
+
+                Livewire.emit('hardwareChangeDetected');
+            });
+
+        Echo.channel('system-events')
+            .listen('ForceReloadEveryone', event => {
+                console.debug('ForceReloadEveryone', event);
+
+                window.location.reload();
+            });
     });
 </script>
 
