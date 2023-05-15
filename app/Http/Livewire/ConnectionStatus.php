@@ -22,6 +22,10 @@ class ConnectionStatus extends Component
 
         if ($printerId) {
             $this->printer = Printer::select('lastSeen')->find( $printerId );
+
+            if (!$this->printer) {
+                $this->printer = null;
+            }
         }
     }
 
