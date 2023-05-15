@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Events\ForceReloadEveryone;
 use App\Events\PrintersMapInProgress;
 use App\Events\PrintersMapUpdated;
 
@@ -78,8 +77,6 @@ class MapSerialPrinters extends Command
         sleep( $negotiationWaitSecs );
 
         $changeCount = 0;
-
-        $initialPrinterCount = Printer::count();
 
         foreach ($devices as $device) {
             $device = Str::replaceFirst('tty', '', $device);
@@ -286,10 +283,6 @@ class MapSerialPrinters extends Command
         Cache::forget( $cacheMapperBusyKey );
 
         PrintersMapUpdated::dispatch();
-
-        if (!$initialPrinterCount && Printer::count()) {
-            ForceReloadEveryone::dispatch();
-        }
 
         return Command::SUCCESS;
     }

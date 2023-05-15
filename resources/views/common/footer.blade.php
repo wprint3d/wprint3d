@@ -122,13 +122,6 @@
 
                 Livewire.emit('hardwareChangeDetected');
             });
-
-        Echo.channel('system-events')
-            .listen('ForceReloadEveryone', event => {
-                console.debug('ForceReloadEveryone', event);
-
-                window.location.reload();
-            });
     });
 </script>
 
