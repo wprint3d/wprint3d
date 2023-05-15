@@ -16,22 +16,3 @@
         @endif
     </select>
 </div>
-
-@push('scripts')
-<script>
-
-window.addEventListener('DOMContentLoaded', () => {
-
-    Echo.channel('printers-map-updated')
-        .listen('PrintersMapUpdated', event => {
-            console.debug('PrintersMapUpdated', event);
-
-            toastify.info('Hardware change detected, tap here to reload the page.', null, null, () => {
-                window.location.reload();
-            });
-        });
-
-});
-
-</script>
-@endpush

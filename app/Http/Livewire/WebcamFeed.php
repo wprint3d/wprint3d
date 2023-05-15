@@ -14,6 +14,8 @@ class WebcamFeed extends Component
 
     public $camera;
 
+    protected $listeners = [ 'hardwareChangeDetected' => '$refresh' ];
+
     public function render()
     {
         // TODO: Implement snapshot-based feed.

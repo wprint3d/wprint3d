@@ -1,8 +1,5 @@
-@php
-    if ($printer) { $statistics = $printer->getStatistics(); }
-@endphp
-
 <div class="my-2">
+    @if ($printer)
     <div id="connectionStatusContainer">
         <div class="row text-center">
             <div class="col">
@@ -22,6 +19,7 @@
         </div>
         --}}
     </div>
+    @endif
 </div>
 
 @push('scripts')

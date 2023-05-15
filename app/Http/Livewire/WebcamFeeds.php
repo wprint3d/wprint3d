@@ -14,7 +14,13 @@ class WebcamFeeds extends Component
     public $printer;
     public $cameras = [];
 
-    public function boot() {
+    protected $listeners = [
+        'linkedCamerasChanged'   => '$refresh',
+        'hardwareChangeDetected' => '$refresh'
+    ];
+
+    public function render()
+    {
         $printerId = Auth::user()->activePrinter;
 
         if ($printerId) {
@@ -24,12 +30,11 @@ class WebcamFeeds extends Component
                 $this->cameras = Camera::where('enabled', true)->get()->filter(function ($camera) {
                     return in_array( (string) $camera->_id, $this->printer->cameras );
                 });
+
+                $this->dispatchBrowserEvent('webcamFeedsChanged');
             }
         }
-    }
 
-    public function render()
-    {
         return view('livewire.webcam-feeds');
     }
 }

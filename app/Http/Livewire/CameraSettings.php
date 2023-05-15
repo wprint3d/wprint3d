@@ -11,6 +11,7 @@ class CameraSettings extends Component
 {
     public $camera;
 
+    public $connected;
     public $enabled;
     public $format;
     public $url;
@@ -41,9 +42,10 @@ class CameraSettings extends Component
         Log::debug( __METHOD__ . ': ' . json_encode($this->camera) );
 
         if ($this->camera) {
-            $this->enabled  = $this->camera->enabled;
-            $this->format   = $this->camera->format;
-            $this->url      = $this->camera->url;
+            $this->connected = $this->camera->connected;
+            $this->enabled   = $this->camera->enabled;
+            $this->format    = $this->camera->format;
+            $this->url       = $this->camera->url;
         }
 
         return view('livewire.camera-settings');
