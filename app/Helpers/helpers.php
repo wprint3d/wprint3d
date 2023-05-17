@@ -179,4 +179,27 @@ function getGCode(string $line) {
     return $line;
 }
 
+function readStreamLine(mixed $stream, ?int $maxLength = null): string {
+    $line = '';
+
+    while (
+        (
+            $char = stream_get_contents(
+                stream: $stream,
+                length: 1
+            )
+        ) !== false
+        &&
+        !feof( $stream )
+    ) {
+        if ($maxLength === null || strlen($line) < $maxLength) {
+            $line .= $char;
+        }
+
+        if ($char == PHP_EOL) break;
+    }
+
+    return $line;
+}
+
 ?>

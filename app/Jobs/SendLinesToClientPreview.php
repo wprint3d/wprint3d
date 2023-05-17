@@ -78,13 +78,10 @@ class SendLinesToClientPreview implements ShouldQueue
 
         // map layers to line numbers
         while (
-            (
-                $line = stream_get_line(
-                    stream: $gcode,
-                    length: $this->streamMaxLengthBytes,
-                    ending: PHP_EOL
-                )
-            ) !== false
+            $line = readStreamLine(
+                stream:    $gcode,
+                maxLength: $this->streamMaxLengthBytes
+            )
         ) {
             $line = getGCode( $line );
 
@@ -116,13 +113,10 @@ class SendLinesToClientPreview implements ShouldQueue
 
         // send lines to client up to $currentLine
         while (
-            (
-                $line = stream_get_line(
-                    stream: $gcode,
-                    length: $this->streamMaxLengthBytes,
-                    ending: PHP_EOL
-                )
-            ) !== false
+            $line = readStreamLine(
+                stream:    $gcode,
+                maxLength: $this->streamMaxLengthBytes
+            )
         ) {
             $line = getGCode( $line );
 
