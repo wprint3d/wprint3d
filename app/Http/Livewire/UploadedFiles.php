@@ -62,14 +62,14 @@ class UploadedFiles extends Component
             usort($files, function ($fileA, $fileB) use ($basePath) {
                 return
                     Storage::lastModified( $basePath . '/' . $fileA )
-                    <
+                    >
                     Storage::lastModified( $basePath . '/' . $fileB );
             });
         } else if ($this->sortingMode == SortingMode::DATE_DESCENDING) {
             usort($files, function ($fileA, $fileB) use ($basePath) {
                 return
                     Storage::lastModified( $basePath . '/' . $fileA )
-                    >
+                    <
                     Storage::lastModified( $basePath . '/' . $fileB );
             });
         }
