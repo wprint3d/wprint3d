@@ -13,7 +13,7 @@
                     @endif
                 "
             >
-                @svg('play-fill')
+                @svg('pause-fill')
             </button>
             <button
                 type="button"
