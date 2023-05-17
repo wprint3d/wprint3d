@@ -31,7 +31,7 @@
                                 <canvas id="recoveryPreviewMainOption" class="preview-canvas col-12"></canvas>
 
                                 <div class="col-12 mt-2 form-check d-flex justify-content-center">
-                                    <input wire:model.defer="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" value="{{ $recoveryMainMaxLine }}">
+                                    <input wire:model.defer="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" value="{{ $recoveryMainMaxLine }}" checked>
                                     Continue from line <span class="mx-1">{{ $recoveryMainMaxLine }}</span>
                                 </div>
                             </div>
@@ -75,7 +75,6 @@
                             data-bs-dismiss="modal"
                             wire:loading.attr="disabled"
                             wire:target="recover"
-                            disabled
                         >
                             <div wire:loading>
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -90,7 +89,6 @@
                             type="button"
                             class="btn btn-primary"
                             wire:loading.attr="disabled"
-                            disabled
                         >
                             <div wire:loading>
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -158,11 +156,10 @@
     const JOB_BACKUP_INTERVALS = @json( $jobBackupIntervals );
     const JOB_RECOVERY_STAGES  = @json( $jobRecoveryStages );
 
-    let respawnModal = false;
-    
-    window.addEventListener('DOMContentLoaded', () => {
-        console.debug('Recovery mode logic triggered.');
+    let respawnModal       = false,
+        handleBufferEvents = true;
 
+    window.addEventListener('DOMContentLoaded', () => {
         let jobRecoveryModal = new bootstrap.Modal(
             document.querySelector('#jobRecoveryModal')
         );
@@ -213,7 +210,7 @@
                 .listen('PreviewLineReady', event => {
                     console.debug('PreviewLineReady: ', event);
 
-                    if (!preview || event.previewUID != uid) return;
+                    if (!preview || event.previewUID != uid || !handleBufferEvents) return;
 
                     recoveryStage.innerText = 'Loading previews... ' + (canvas.parentElement.classList.contains('recovery-preview-side-a') ? ' (main)' : ' (alternative)');
 
@@ -233,14 +230,11 @@
                 .listen('PreviewBuffered', event => {
                     console.debug('PreviewBuffered: ', event);
 
-                    if (!preview || event.previewUID != uid) return;
+                    if (!preview || event.previewUID != uid || !handleBufferEvents) return;
 
                     preview.render();
 
                     resetDynamicElements();
-
-                    skipRecoveryBtn.removeAttribute('disabled');
-                    recoverBtn.removeAttribute('disabled');
                 });
         };
 
@@ -349,6 +343,8 @@
         });
 
         document.querySelector('#jobRecoveryModal').addEventListener('shown.bs.modal', () => {
+            console.debug('Recovery mode logic triggered.');
+
             document.querySelector('input[name="targetRecoveryLine"]').checked = true;
 
             refreshRecoveryPreview(
@@ -367,6 +363,8 @@
         });
 
         document.querySelector('#jobRecoveryModal').addEventListener('hidden.bs.modal', () => {
+            handleBufferEvents = true;
+
             if (respawnModal) {
                 jobRecoveryModal.show();
             }
@@ -375,6 +373,8 @@
         skipRecoveryBtn.addEventListener('click', () => { respawnModal = false; });
 
         recoverBtn.addEventListener('click', () => {
+            handleBufferEvents = false;
+
             recoveryStage.innerText = 'Waiting for server...';
 
             recoveryProgress.parentElement.classList.remove('d-none');
