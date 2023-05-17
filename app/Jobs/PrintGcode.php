@@ -225,12 +225,11 @@ class PrintGcode implements ShouldQueue
                 $readLineCount < self::STREAM_BUFFER_CHUNK_SIZE_LINES
                 &&
                 (
-                    $line = stream_get_line(
-                        stream: $stream,
-                        length: $this->streamMaxLengthBytes,
-                        ending: PHP_EOL
+                    $line = readStreamLine(
+                        stream:    $stream,
+                        maxLength: $this->streamMaxLengthBytes
                     )
-                ) !== false
+                )
             ) {
                 $command = getGCode( $line );
 
@@ -294,11 +293,10 @@ class PrintGcode implements ShouldQueue
 
         // count lines
         while (
-            stream_get_line(
-                stream: $this->gcode,
-                length: $this->streamMaxLengthBytes,
-                ending: PHP_EOL
-            ) !== false
+            $line = readStreamLine(
+                stream:    $this->gcode,
+                maxLength: $this->streamMaxLengthBytes
+            )
         ) { $this->lineNumberCount++; }
 
         // back to line 0

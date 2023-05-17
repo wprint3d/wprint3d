@@ -256,13 +256,10 @@ class JobRecoveryModal extends Component
         );
 
         while (
-            (
-                $line = stream_get_line(
-                    stream: $gcode,
-                    length: $streamMaxLengthBytes,
-                    ending: PHP_EOL
-                )
-            ) !== false
+            $line = readStreamLine(
+                stream:    $gcode,
+                maxLength: $streamMaxLengthBytes
+            )
         ) {
             $line = getGCode( $line );
 
@@ -438,13 +435,10 @@ class JobRecoveryModal extends Component
         $progressPercentage = 0;
 
         while (
-            (
-                $line = stream_get_line(
-                    stream: $gcode,
-                    length: $streamMaxLengthBytes,
-                    ending: PHP_EOL
-                )
-            ) !== false
+            $line = readStreamLine(
+                stream:    $gcode,
+                maxLength: $streamMaxLengthBytes
+            )
         ) {
             $line = getGCode( $line );
 
