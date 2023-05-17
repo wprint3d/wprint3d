@@ -339,8 +339,6 @@ class JobRecoveryModal extends Component
                 if ($absolutePosition['z'] != $previousPosition['z']) {
                     $minLayerPositionXY = [ 'x' => null, 'y' => null ];
                 }
-
-                Log::info('absolutePosition: ' . json_encode($absolutePosition));
             } else {
                 foreach (array_keys($absolutePosition) as $key) {
                     if ($absolutePosition[$key] === null) {
@@ -359,6 +357,8 @@ class JobRecoveryModal extends Component
                 }
             }
         }
+
+        Log::debug( __METHOD__ . ': absolutePosition: ' . json_encode($absolutePosition) );
 
         $preSetUpCommands[] = 'G90';                                        // absolute mode
         $preSetUpCommands[] = 'G92 X0 Y0 Z0 E0';                            // set all axis to 0
