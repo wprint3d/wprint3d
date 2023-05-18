@@ -74,6 +74,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     document.querySelector('#createFolderModal').addEventListener('shown.bs.modal', () => {
         folderNameInput.value = '';
+
+        respawnModal = false;
     });
 
     window.addEventListener('folderCreationError', event => {
