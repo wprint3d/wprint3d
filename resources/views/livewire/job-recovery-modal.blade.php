@@ -234,7 +234,9 @@
 
                     preview.render();
 
-                    resetDynamicElements();
+                    if (event.previewUID == @json( $uidSideB )) {
+                        resetDynamicElements();
+                    }
                 });
         };
 
