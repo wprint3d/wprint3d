@@ -291,8 +291,7 @@ class Printer extends Model
 
         return Cache::put(
             key:     $this->_id . self::CACHE_RUN_STATUS_SUFFIX,
-            value:   false,
-            ttl:     self::CACHE_TTL
+            value:   false
         );
     }
     
