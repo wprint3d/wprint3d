@@ -48,7 +48,15 @@
                     wire:click="select('{{ $index }}')"
                 >
                     <span class="{{ $file['directory'] ? 'fw-semibold' : '' }}">
-                        @if ($file['directory']) @svg('folder-fill') @endif
+                        @if (isset( $file['active'] ) && $file['active'])
+                            @if ($file['directory'])
+                                @svg('folder-symlink-fill', [ 'class' => 'text-black-50 animate__animated animate__slow animate__infinite animate__flash' ])
+                            @else
+                                @svg('play-fill', [ 'class' => 'animate__animated animate__slow animate__infinite animate__flash' ])
+                            @endif
+                        @elseif ($file['directory'])
+                            @svg('folder-fill')
+                        @endif
                         {{ $file['name'] }}
                     </span>
                 </button>

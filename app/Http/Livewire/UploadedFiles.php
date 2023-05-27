@@ -3,6 +3,7 @@
 namespace App\Http\Livewire;
 
 use App\Enums\SortingMode;
+use App\Models\Printer;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -16,24 +17,36 @@ class UploadedFiles extends Component
 {
     public $selected    = null;
     public $files       = [];
+    public $basePath    = null;
     public $subPath     = null;
     public $sortingMode = SortingMode::NAME_ASCENDING;
+
+    public ?string $activeFile = null;
 
     protected $baseFilesDir;
 
     protected $listeners = [
         'refreshUploadedFiles'  => '$refresh',
         'selectUploadedFile'    => 'selectByName',
-        'recoveryCompleted'     => 'resetSubPath'
+        'recoveryCompleted'     => 'resetSubPath',
+        'refreshActiveFile'     => 'refreshActiveFile'
     ];
+
+    public function refreshActiveFile() {
+        $printer = Printer::select('activeFile')->find( Auth::user()->activePrinter );
+
+        if ($printer) {
+            $this->activeFile = $printer->activeFile;
+        }
+    }
 
     private function refreshFileList() {
         Auth::user()->setCurrentFolder( $this->subPath );
 
-        $basePath = $this->baseFilesDir;
+        $this->basePath = $this->baseFilesDir;
 
         if ($this->subPath) {
-            $basePath .= $this->subPath;
+            $this->basePath .= $this->subPath;
         }
 
         $this->files    = [];
@@ -42,10 +55,10 @@ class UploadedFiles extends Component
         $this->emit('prepareFile', null);
 
         $files = array_map(
-            function ($item) use ($basePath) {
-                return Str::replace($basePath . '/', '', $item);
+            function ($item) {
+                return Str::replace($this->basePath . '/', '', $item);
             },
-            Storage::files( $basePath )
+            Storage::files( $this->basePath )
         );
 
         if (
@@ -59,42 +72,62 @@ class UploadedFiles extends Component
                 $files = array_reverse($files);
             }
         } else if ($this->sortingMode == SortingMode::DATE_ASCENDING) {
-            usort($files, function ($fileA, $fileB) use ($basePath) {
+            usort($files, function ($fileA, $fileB) {
                 return
-                    Storage::lastModified( $basePath . '/' . $fileA )
+                    Storage::lastModified( $this->basePath . '/' . $fileA )
                     >
-                    Storage::lastModified( $basePath . '/' . $fileB );
+                    Storage::lastModified( $this->basePath . '/' . $fileB );
             });
         } else if ($this->sortingMode == SortingMode::DATE_DESCENDING) {
-            usort($files, function ($fileA, $fileB) use ($basePath) {
+            usort($files, function ($fileA, $fileB) {
                 return
-                    Storage::lastModified( $basePath . '/' . $fileA )
+                    Storage::lastModified( $this->basePath . '/' . $fileA )
                     <
-                    Storage::lastModified( $basePath . '/' . $fileB );
+                    Storage::lastModified( $this->basePath . '/' . $fileB );
             });
         }
 
         $directories = array_map(
-            function ($item) use ($basePath) {
-                return Str::replace($basePath . '/', '', $item);
+            function ($item) {
+                return Str::replace($this->basePath . '/', '', $item);
             },
-            Storage::directories( $basePath )
+            Storage::directories( $this->basePath )
         );
 
         foreach ($directories as $directory) {
-            $this->files[] = [
+            $directory = [
                 'name'      => $directory,
                 'directory' => true
             ];
+
+            if (
+                $this->activeFile
+                &&
+                strpos($this->activeFile, $this->basePath . '/' . $directory['name']) !== false
+            ) {
+                $directory['active'] = true;
+            }
+
+            $this->files[] = $directory;
         }
 
         $this->files = array_merge(
             $this->files,
             array_map(function ($file) {
-                return [
+                $file = [
                     'name'      => $file,
                     'directory' => false
                 ];
+
+                if (
+                    $this->activeFile
+                    &&
+                    $this->basePath . '/' . $file['name'] == $this->activeFile
+                ) {
+                    $file['active'] = true;
+                }
+
+                return $file;
             }, $files)
         );
 
@@ -177,6 +210,7 @@ class UploadedFiles extends Component
         $this->baseFilesDir = env('BASE_FILES_DIR');
 
         $this->refreshFileList();
+        $this->refreshActiveFile();
     }
 
     public function render()
