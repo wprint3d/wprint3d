@@ -167,6 +167,12 @@ const refreshPreview = () => {
     preview.render();
 };
 
+window.addEventListener('resize', () => {
+    if (preview) {
+        preview.resize();
+    }
+});
+
 window.addEventListener('show.bs.tab', event => {
     if (event.target.id != 'preview-tab') return;
 
