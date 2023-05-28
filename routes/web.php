@@ -1,7 +1,6 @@
 <?php
 
-use Illuminate\Support\Str;
-
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -21,6 +20,10 @@ Route::middleware('web')->group(function () {
     });
 
     Route::get('login', function () {
+        if (Auth::user()) {
+            return redirect()->intended('/');
+        }
+
         return view('login');
     })->name('login');
 });
