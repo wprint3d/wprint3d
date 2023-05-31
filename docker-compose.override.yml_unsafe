@@ -1,0 +1,18 @@
+# DO NOT ENABLE THIS IN A PRODUCTIVE ENVIRONMENT
+#
+# Enabling this file will expose both your cache and main database to anyone in
+# your network (or the world, if the frontend and the database ports are
+# forwarded) including both read and write access.
+#
+# In order to enable this file for testing and/or development purposes, remove
+# the "_unsafe" suffix from its name, put all the services down and then bring
+# them back up.
+
+version: "3.9"
+services:
+  keydb:
+    ports:
+      - 6379:6379
+  mongo:
+    ports:
+      - 27017:27017
