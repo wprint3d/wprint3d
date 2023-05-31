@@ -82,6 +82,16 @@ input[type="file"] { display: none; }
     min-height: 20vh;
 }
 
+#uploadedFilesList {
+    max-height: 35vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+#uploadedFilesList button {
+    min-height: 2.6em;
+}
+
 @media (min-width: 768px) {
     .modal-header {
         justify-content: space-between !important;
