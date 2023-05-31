@@ -173,8 +173,6 @@ services:
       - PORT_SCAN_START=60000
       - PORT_SCAN_END=60016
     privileged: true
-    ports:
-      - 60000-60016:60000-60016
     volumes:
       - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
@@ -195,16 +193,12 @@ services:
     image: eqalpha/keydb
     restart: always
     command: keydb-server --save "" --appendonly no # disable persistence
-    ports:
-      - 6379:6379
   mongo:
     image: mongo:4.4.6
     restart: always
     command: mongod --quiet
     volumes:
       - mongo:/data/db
-    ports:
-      - 27017:27017 # TODO: Remove this!
   memcached:
     image: memcached
     restart: always

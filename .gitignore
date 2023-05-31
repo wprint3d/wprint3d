@@ -21,3 +21,4 @@ devices/*
 proxy/internal
 internal/vc
 internal/.bundler-exit-status
+docker-compose.override.yml
