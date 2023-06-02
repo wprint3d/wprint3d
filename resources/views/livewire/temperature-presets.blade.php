@@ -33,11 +33,11 @@
                     </span>
 
                     <span wire:loading.inline>
-                        <span class="animate__animated animate__slow animate__infinite animate__flash">
+                        <span class="d-none d-md-inline">
                             @svg('thermometer-high')
                         </span>
 
-                        @svg('check-lg')
+                        @svg('check-lg', [ 'class' => 'animate__animated animate__slow animate__infinite animate__flash' ])
                     </span>
                 </button>
             </div>
