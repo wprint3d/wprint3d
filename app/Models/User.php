@@ -70,4 +70,8 @@ class User extends AuthenticatableUser
             value:   env('BASE_FILES_DIR') . $path
         );
     }
+
+    public function materials() {
+        return $this->hasMany( Material::class );
+    }
 }
