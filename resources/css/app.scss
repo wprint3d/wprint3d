@@ -18,7 +18,10 @@ $body: #f3f3f3;
 }
 
 /* Chrome, Edge, and Safari */
-*::-webkit-scrollbar { width: .35em; }
+*::-webkit-scrollbar {
+    height: .35em;
+    width:  .35em;
+}
 
 *::-webkit-scrollbar-track { background: lighten($secondary, 10%); }
 
