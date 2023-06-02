@@ -6,6 +6,7 @@
         <div class="left-pane col-sm-12 col-md-6 col-lg-5 bg-light border rounded-3 p-3">
             <livewire:select-printer />
             <livewire:connection-status />
+            <livewire:temperature-presets />
             <livewire:webcam-feeds />
             <livewire:uploaded-files />
         </div>
