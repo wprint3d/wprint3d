@@ -205,24 +205,24 @@ class Serial {
                         strpos($result, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false // is a message about temperature
                     )
                 ) {
-                    while (true) {
-                        if ($result[ $lastLineIndex ] == PHP_EOL && ($line = trim( $line ))) {
-                            $this->appendLog(
-                                message:    $line,
-                                lineNumber: $lineNumber,
-                                maxLine:    $maxLine
-                            );
+                    $newLastLineIndex = strpos(
+                        haystack: $result,
+                        needle:   PHP_EOL,
+                        offset:   $lastLineIndex + 1
+                    );
 
-                            $line = '';
-                        } else {
-                            $line .= $result[ $lastLineIndex ];
-                        }
+                    if ($newLastLineIndex !== false)  {
+                        $this->appendLog(
+                            message:    substr(
+                                string: $result,
+                                offset: $lastLineIndex,
+                                length: ($newLastLineIndex - $lastLineIndex)
+                            ),
+                            lineNumber: $lineNumber,
+                            maxLine:    $maxLine
+                        );
 
-                        if (!isset($result[ $lastLineIndex + 1 ])) {
-                            break;
-                        }
-
-                        $lastLineIndex++;
+                        $lastLineIndex = $newLastLineIndex;
                     }
                 }
             } else if (
