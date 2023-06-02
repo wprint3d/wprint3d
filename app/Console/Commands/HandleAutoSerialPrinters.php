@@ -92,12 +92,14 @@ class HandleAutoSerialPrinters extends Command
 
                         $statistics = $printer->getStatistics();
 
-                        foreach (array_keys($statistics['extruders']) as $extruderIndex) {
-                            if ($extruderIndex == 0) continue;
+                        if (isset( $statistics['extruders'] )) {
+                            foreach (array_keys($statistics['extruders']) as $extruderIndex) {
+                                if ($extruderIndex == 0) continue;
 
-                            tryToWaitForMapper($log);
+                                tryToWaitForMapper($log);
 
-                            $printer->setStatistics( $serial->query('M105 T' . $extruderIndex), $extruderIndex );
+                                $printer->setStatistics( $serial->query('M105 T' . $extruderIndex), $extruderIndex );
+                            }
                         }
 
                         $log->debug('OK: ' . $response);
