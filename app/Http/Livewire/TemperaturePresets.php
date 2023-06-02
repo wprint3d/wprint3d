@@ -53,8 +53,10 @@ class TemperaturePresets extends Component
 
         $statistics = $this->printer->getStatistics();
 
-        foreach (array_keys( $statistics['extruders'] ) as $index) {
-            $this->printer->queueCommand( "M104 I{$index} S{$material->temperatures['hotend']}" );
+        if (isset( $statistics['extruders'] )) {
+            foreach (array_keys( $statistics['extruders'] ) as $index) {
+                $this->printer->queueCommand( "M104 I{$index} S{$material->temperatures['hotend']}" );
+            }
         }
 
         $this->printer->queueCommand( "M104 S{$material->temperatures['hotend']}" );

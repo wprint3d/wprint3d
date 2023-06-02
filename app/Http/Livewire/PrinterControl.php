@@ -166,8 +166,10 @@ class PrinterControl extends Component
 
         $statistics = $this->printer->getStatistics();
 
-        foreach ($statistics['extruders'] as $index => $extruder) {
-            $this->printer->queueCommand( "M104 I{$index} S{$this->hotendTemperature}" );
+        if (isset( $statistics['extruders'] )) {
+            foreach ($statistics['extruders'] as $index => $extruder) {
+                $this->printer->queueCommand( "M104 I{$index} S{$this->hotendTemperature}" );
+            }
         }
 
         $this->printer->queueCommand( "M104 S{$this->hotendTemperature}" );
