@@ -83,7 +83,7 @@ class MapHardwareCameras extends Command
         if ($camera && $camera->mode) $mode = $camera->mode;
 
         $fields = [
-            'url'               => env('WEBCAM_BASE_URL') . '/' . ($requiresLibCamera ? 'csi' : 'uvc') . '/' . $index,
+            'url'               => env('WEBCAM_BASE_URL') . '/' . machineUUID() . '/' . ($requiresLibCamera ? 'csi' : 'uvc') . '/' . $index,
             'index'             => $index,
             'node'              => $node,
             'mode'              => $mode,
