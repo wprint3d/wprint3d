@@ -34,7 +34,7 @@ COPY internal /internal
 # In the two blocks shown below, we check if the architecture is either "arm"
 # or "aarch64" by checking the output of `uname -a`, if it does, the RPi camera
 # dependencies are bundled with the image. This is generally valid as most
-# devices that are part of either of thsose architectures, DO have a built-in
+# devices that are part of either of those architectures, DO have a built-in
 # hardware encoder/decoder that camera-streamer can take advantage of.
 #
 # Note that we're manually removing "input_raspicam" from MJPG streamer as it's

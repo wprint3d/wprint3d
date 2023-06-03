@@ -37,15 +37,40 @@ if [[ -z $ROLE ]]; then
     tail -f /dev/null;
 else
     while true; do
+        MACHINE_UUID='';
+
         if [[ "$ROLE" != 'server' ]]; then
             echo 'Waiting for composer dependencies to become available...';
 
             while ! php artisan 2>&1 > /dev/null; do
                 sleep 1;
             done;
+
+            MACHINE_UUID=$(php artisan get:machine-uuid);
+
+            if [[ "$MACHINE_UUID" == '' ]]; then
+                echo 'Waiting for the UUID for this machine to be generated...';
+                echo 'If this process takes more than a minute, try bringing your containers down and run "bash run.sh" in order to get back on track by rebuilding the image.';
+
+                while [[ "$MACHINE_UUID" == '' ]]; do
+                    sleep 1;
+
+                    MACHINE_UUID=$(php artisan get:machine-uuid);
+                done;
+            fi;
         fi;
 
         if [[ "$ROLE" == 'server' ]]; then
+            MACHINE_UUID=$(php artisan get:machine-uuid);
+
+            if [[ "$MACHINE_UUID" == '' ]]; then
+                MACHINE_UUID=$(php artisan make:machine-uuid);
+
+                echo 'A machine UUID was generated: '"$MACHINE_UUID";
+            else
+                echo 'Machine UUID loaded: '"$MACHINE_UUID";
+            fi;
+
             composer install;
 
             waitForAssetBundler;
@@ -370,11 +395,11 @@ else
                                     PROXY_PREFIX='csi';
                                 fi;
 
-                                printf "\nlocation /video/$PROXY_PREFIX/$INDEX {"                           >> /tmp/cameras.conf;
-                                printf "\n\tproxy_pass            http://streamer:${port}/?action=stream;"  >> /tmp/cameras.conf;
-                                printf "\n\tproxy_set_header Host \$host;"                                  >> /tmp/cameras.conf;
-                                printf "\n\tinclude               nginxconfig.io/proxy.conf;"               >> /tmp/cameras.conf;
-                                printf "\n}"                                                                >> /tmp/cameras.conf;
+                                printf "\nlocation /video/$MACHINE_UUID/$PROXY_PREFIX/$INDEX {" >> /tmp/cameras.conf;
+                                printf "\n\tproxy_pass            http://streamer:${port}/;"    >> /tmp/cameras.conf;
+                                printf "\n\tproxy_set_header Host \$host;"                      >> /tmp/cameras.conf;
+                                printf "\n\tinclude               nginxconfig.io/proxy.conf;"   >> /tmp/cameras.conf;
+                                printf "\n}"                                                    >> /tmp/cameras.conf;
                             fi;
                         else # the camera has been disabled, kill and de-allocate resources
                             if [[ "$LIB_CAMERA_UVC_PID" != '' ]] || [[ "$LIB_CAMERA_CSI_PID" != '' ]]; then

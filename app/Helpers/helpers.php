@@ -4,6 +4,8 @@ use App\Enums\FormatterCommands;
 
 use App\Jobs\PrintGcode;
 
+use App\Models\Configuration;
+
 use Illuminate\Log\Logger;
 
 use Illuminate\Support\Facades\Cache;
@@ -200,6 +202,20 @@ function readStreamLine(mixed $stream, ?int $maxLength = null): string {
     }
 
     return $line;
+}
+
+function machineUUID(): ?string {
+    $uuid = Cache::get('machineUUID');
+
+    if (!$uuid) {
+        $uuid = Configuration::get('machineUUID');
+
+        if ($uuid) {
+            Cache::put('machineUUID', $uuid);
+        }
+    }
+
+    return $uuid;
 }
 
 ?>
