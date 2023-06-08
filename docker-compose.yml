@@ -9,7 +9,8 @@ services:
       - ./proxy/conf.d:/etc/nginx/conf.d
       - ./proxy/nginx.conf:/etc/nginx/nginx.conf
       - ./proxy/ssl:/etc/nginx/ssl
-      - ./public:/public:ro
+      - ./public:/public
+      - ./storage/app/recordings:/public/recordings
     ports:
       - 80:80
       - 443:443
@@ -32,6 +33,7 @@ services:
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - keydb
       - mongo
@@ -138,6 +140,37 @@ services:
       - ROLE=queue
       - QUEUE=broadcasts
       - UPLOAD_LIMIT=1G
+    volumes:
+      - .:/var/www
+      - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev:/dev
+    depends_on:
+      - keydb
+      - mongo
+      # - mariadb
+  snapshots-queue:
+    build: .
+    restart: always
+    environment:
+      - ROLE=queue
+      - QUEUE=snapshots
+      - SLEEP=0.25
+    volumes:
+      - .:/var/www
+      - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev:/dev
+    depends_on:
+      - keydb
+      - mongo
+      # - mariadb
+  recordings-queue:
+    build: .
+    restart: always
+    environment:
+      - ROLE=queue
+      - QUEUE=recordings
     volumes:
       - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro

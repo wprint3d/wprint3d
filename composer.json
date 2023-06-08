@@ -9,6 +9,7 @@
         "bensampo/laravel-enum": "^6.2",
         "beyondcode/laravel-websockets": "^1.13",
         "blade-ui-kit/blade-icons": "^1.4",
+        "codeinc/human-readable-file-size": "^1.0",
         "davidhsianturi/blade-bootstrap-icons": "^1.4",
         "guzzlehttp/guzzle": "^7.2",
         "guzzlehttp/psr7": "^2.4",
@@ -21,6 +22,7 @@
         "league/csv": "^9.8",
         "league/flysystem-aws-s3-v3": "^3.0",
         "livewire/livewire": "^2.10",
+        "php-ffmpeg/php-ffmpeg": "dev-master",
         "pusher/pusher-php-server": "^7.2",
         "silviolleite/laravelpwa": "^2.0",
         "spatie/laravel-short-schedule": "^1.5",
@@ -76,6 +78,12 @@
             "pestphp/pest-plugin": true
         }
     },
+    "repositories": [
+        {
+            "url": "https://github.com/wprint3d/PHP-FFMpeg.git",
+            "type": "git"
+        }
+    ],
     "minimum-stability": "dev",
     "prefer-stable": true
 }

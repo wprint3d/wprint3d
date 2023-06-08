@@ -79,9 +79,16 @@ RUN apt-get update &&\
 
 # PHP extension: memcached
 RUN apt-get update &&\
-    apt-get -y install libmemcached-dev &&\
+    apt-get install -y libmemcached-dev &&\
     pecl install -f memcached &&\
     docker-php-ext-enable memcached
+
+# Install ffmpeg
+RUN apt-get update &&\
+    apt-get install -y ffmpeg
+
+# PHP extension: intl
+RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) intl
 
 WORKDIR /var/www
 

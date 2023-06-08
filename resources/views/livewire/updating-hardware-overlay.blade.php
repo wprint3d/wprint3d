@@ -27,6 +27,8 @@ window.addEventListener('DOMContentLoaded', () => {
             console.debug('PrintersMapInProgress', event);
 
             Livewire.emit('refreshMapperStatus');
+
+            return true;
         });
 
 });

@@ -83,18 +83,21 @@ class FileControls extends Component
             return;
         }
 
-        PrintGcode::dispatch( $this->selected );
+        // Reset the printer's paused state in case it was left paused.
+        $this->printer->resume();
+
+        PrintGcode::dispatch(
+            $this->selected,    // filePath
+            Auth::user()        // owner
+        );
 
         $this->printer->hasActiveJob = true;
         $this->printer->activeFile   = $this->selected;
         $this->printer->save();
 
-        // Reset the printer's paused state in case it was left paused.
-        $this->printer->resume();
-
         $this->refreshActiveFile();
 
-        $this->emit('refreshActiveFile');
+        $this->emit('refreshActiveFile', $this->printer->activeFile);
 
         $this->dispatchBrowserEvent('changeSaved', [ 'action' => 'start' ]);
     }
@@ -106,7 +109,7 @@ class FileControls extends Component
 
         $this->refreshActiveFile();
 
-        $this->emit('refreshActiveFile');
+        $this->emit('refreshActiveFile', $this->printer->activeFile);
 
         $this->dispatchBrowserEvent('changeSaved', [ 'action' => 'stop' ]);
     }

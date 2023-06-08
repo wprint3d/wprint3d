@@ -10,9 +10,7 @@ use Livewire\Component;
 
 class PrinterManagerModal extends Component
 {
-    protected $listeners = [
-        'loadPrinterManagement' => 'loadPrinter'
-    ];
+    protected $listeners = [ 'loadPrinterManagement' => 'loadPrinter' ];
 
     public $availablePanes = [ 'connection', 'specifications', 'cameras' ];
 

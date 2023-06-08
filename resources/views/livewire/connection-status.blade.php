@@ -92,6 +92,8 @@ window.addEventListener('DOMContentLoaded', () => {
             dispatchEvent( targetTemperatureChanged );
 
             printerStatisticsText.innerHTML = printerStatistics;
+
+            return true;
         });
 });
 

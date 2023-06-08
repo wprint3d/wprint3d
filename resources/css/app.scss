@@ -46,8 +46,6 @@ main { min-height: 100%; }
 
 input[type="file"] { display: none; }
 
-.terminal-container { overflow: auto; }
-
 .terminal {
     white-space: nowrap;
     height: 70Vh;
@@ -66,8 +64,7 @@ input[type="file"] { display: none; }
 
 .control-hint-snap-left { left: -1rem !important; }
 
-.list-group-item::-webkit-scrollbar,
-.list-group-item span::-webkit-scrollbar { display: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
 #extrusionLength { max-width: 13em; }
 
@@ -86,7 +83,7 @@ input[type="file"] { display: none; }
 }
 
 #uploadedFilesList {
-    max-height: 35vh;
+    max-height: 30vh;
     overflow-x: hidden;
     overflow-y: auto;
 }
@@ -94,6 +91,16 @@ input[type="file"] { display: none; }
 #uploadedFilesList button {
     min-height: 2.6em;
 }
+
+#recordingsContainer {
+    overflow-y: scroll;
+    max-height: 82.75vh;
+}
+
+.mh-6em { min-height: 6em; }
+
+.left-pane,
+.right-pane { max-height: 90vh; }
 
 @media (min-width: 768px) {
     .modal-header {

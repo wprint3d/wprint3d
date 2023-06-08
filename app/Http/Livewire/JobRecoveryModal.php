@@ -137,7 +137,7 @@ class JobRecoveryModal extends Component
         $this->printer->lastLine         = null;
         $this->printer->save();
 
-        $this->emit('refreshActiveFile');
+        $this->emit('refreshActiveFile', $this->printer->activeFile);
     }
 
     public function recover() {
@@ -498,7 +498,10 @@ class JobRecoveryModal extends Component
         $this->printer->lastJobHasFailed = false;
         $this->printer->save();
 
-        PrintGcode::dispatch( $this->printer->activeFile );
+        PrintGcode::dispatch(
+            $this->printer->activeFile, // filePath
+            Auth::user()                // owner
+        );
 
         RecoveryCompleted::dispatch( $this->printer->_id );
     }

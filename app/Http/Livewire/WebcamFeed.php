@@ -13,6 +13,7 @@ class WebcamFeed extends Component
     public $snapshot;
 
     public $camera;
+    public $isRecording;
 
     protected $listeners = [ 'hardwareChangeDetected' => '$refresh' ];
 
