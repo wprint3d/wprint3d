@@ -8,8 +8,6 @@ use App\Events\PreviewLineReady;
 
 use App\Exceptions\InitializationException;
 
-use App\Http\Livewire\GcodePreview;
-
 use App\Models\Configuration;
 use App\Models\Printer;
 
@@ -51,8 +49,9 @@ class SendLinesToClientPreview implements ShouldQueue
     private int    $streamMaxLengthBytes;
     private bool   $shouldMapLayers;
     private int    $lineNumber;
+    private int    $streamBufferMaxLines;
 
-    const STREAM_BUFFER_CHUNK_SIZE_LINES = 50; // lines
+    const STREAM_BUFFER_CHUNK_MAX_MEGABYTES = 0.5;
 
     /**
      * Create a new job instance.
@@ -70,6 +69,11 @@ class SendLinesToClientPreview implements ShouldQueue
         $this->streamMaxLengthBytes = Configuration::get('streamMaxLengthBytes');
         $this->shouldMapLayers      = $shouldMapLayers;
         $this->lineNumber           = 0;
+        $this->streamBufferMaxLines = (
+            (self::STREAM_BUFFER_CHUNK_MAX_MEGABYTES * 1024 * 1024) // N MB to bytes
+            /
+            $this->streamMaxLengthBytes                             // maxiumum number of bytes in a single line of G-code
+        ); // lines
     }
 
     private function mapLayers(mixed &$gcode): void {
@@ -122,7 +126,7 @@ class SendLinesToClientPreview implements ShouldQueue
 
             if (!$line) continue;
 
-            if (count($linesBuffer) > self::STREAM_BUFFER_CHUNK_SIZE_LINES) {
+            if (count($linesBuffer) > $this->streamBufferMaxLines) {
                 PreviewLineReady::dispatch(
                     $this->previewUID,                       // previewUID
                     $this->printer->_id,                     // printerId
@@ -183,13 +187,5 @@ class SendLinesToClientPreview implements ShouldQueue
         rewind( $gcode );
 
         $this->parseLines( $gcode );
-
-        //     console.log('layerMap:', layerMap);
-
-        //     selectedLayer.max   = layerMap.length;
-        //     selectedLayer.value = 1;
-        //     selectedLayer.dispatchEvent( new Event('input') );
-
-        //     resumeLiveFeedBtn.classList.add ('d-none');
     }
 }
