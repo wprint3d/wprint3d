@@ -340,7 +340,9 @@ class PrintGcode implements ShouldQueue
 
         if ($this->shouldRecord) {
             foreach ($this->printer->getRecordableCameras() as $camera) {
-                $this->recordableCameras[] = $camera;
+                if ($camera->connected) {
+                    $this->recordableCameras[] = $camera;
+                }
             }
 
             $serial->setProperty('lastSnapshot', millis());
