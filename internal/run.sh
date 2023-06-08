@@ -104,8 +104,12 @@ else
                 QUEUE=default;
             fi;
 
+            if [[ -z $SLEEP ]]; then
+                SLEEP=3;
+            fi;
+
             while true; do
-                php artisan queue:work --queue="$QUEUE" --timeout=0;
+                php artisan queue:work --queue="$QUEUE" --sleep="$SLEEP" --timeout=0;
             done;
         elif [[ "$ROLE" == 'ws-server' ]]; then
             waitForAssetBundler;
