@@ -229,6 +229,11 @@ class MapSerialPrinters extends Command
                         $printer->machine   = $machine;
                         $printer->cameras   = $cameras;
                         $printer->connected = true;
+
+                        if (!isset( $printer->recordableCameras )) {
+                            $printer->recordableCameras = [];
+                        }
+
                         $printer->save();
                         $printer->updateLastSeen();
 

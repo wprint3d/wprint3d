@@ -43,7 +43,7 @@
             @foreach ($files as $index => $file)
                 <button
                     type="button"
-                    class="list-group-item list-group-item-action overflow-scroll {{ $selected == $file['name'] ? 'active' : '' }}"
+                    class="list-group-item list-group-item-action overflow-scroll no-scrollbar {{ $selected == $file['name'] ? 'active' : '' }}"
                     aria-current="true"
                     wire:click="select('{{ $index }}')"
                 >

@@ -1,0 +1,41 @@
+<div>
+    <div id="videoPlayerModal" class="modal fade" tabindex="-1" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-xl modal-fullscreen-xl-down">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"> Video player </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <video id="videoPlayer" class="w-100 mh-100" autoplay controls></video>
+                </div>
+                <div class="modal-footer"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+
+window.addEventListener('DOMContentLoaded', () => {
+
+    let videoPlayer      = document.querySelector('#videoPlayer'),
+        videoPlayerModal = new bootstrap.Modal(
+            document.querySelector('#videoPlayerModal')
+        );
+
+    document.querySelector('#videoPlayerModal').addEventListener('shown.bs.modal', () => {
+
+    });
+
+    window.addEventListener('openVideoURL', event => {
+        videoPlayer.src = event.detail;
+
+        videoPlayerModal.show();
+    });
+
+});
+
+</script>
+@endpush

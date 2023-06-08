@@ -10,7 +10,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
-class GcodePreview extends Component
+class PreviewTab extends Component
 {
     protected $listeners = [
         'refreshActiveFile'       => 'reportFileChange',
@@ -91,6 +91,6 @@ class GcodePreview extends Component
 
     public function render()
     {
-        return view('livewire.gcode-preview');
+        return view('livewire.preview-tab');
     }
 }

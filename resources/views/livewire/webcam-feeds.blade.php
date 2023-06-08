@@ -3,13 +3,18 @@
     <div class="tab-content mb-2">
         @foreach ($cameras as $camera)
         <div
-            class="tab-pane fade tab-camera @if ($loop->first) show active @endif"
+            class="position-relative tab-pane fade tab-camera @if ($loop->first) show active @endif"
             id="pills-camera-{{ $loop->index }}"
             role="tabpanel"
             aria-labelledby="pills-camera-{{ $loop->index }}-tab"
             tabindex="0"
         >
             @livewire('webcam-feed', [ 'camera' => $camera ], key( $camera->_id ))
+
+            @livewire('webcam-feed-recording-indicator', [
+                'printerId' => $printer->_id,
+                'camera'    => $camera
+            ], key( 'ri_' . $camera->_id ))
         </div>
         @endforeach
     </div>

@@ -11,6 +11,7 @@
 <body>
     @if (Auth::user())
         <livewire:job-recovery-modal />
+        <livewire:video-player-modal />
 
         <header class="p-3 mb-3 border-bottom bg-primary">
             <div class="mx-0 mx-lg-2">
@@ -49,3 +50,18 @@
         </header>
     @endif
     <main>
+
+<script>
+
+window.handleMissingImage = element => {
+    console.error('Image load error: ', element.src);
+
+    element.outerHTML = `
+        <div class="d-flex flex-row justify-content-center w-100 h-100 border">
+            <p class="d-flex align-items-center fs-4 m-0">
+                @svg('file-x')
+            </p>
+        </div>`;
+};
+
+</script>

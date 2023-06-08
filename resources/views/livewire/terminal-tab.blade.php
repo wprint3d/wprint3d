@@ -1,5 +1,5 @@
 <div>
-    <div class="terminal bg-body-overlay rounded rounded-2 border border-1 p-2 mb-2">
+    <div class="terminal overflow-auto bg-body-overlay rounded rounded-2 border border-1 p-2 mb-2">
         @foreach ($terminal as $line)
             <span>
                 <span
@@ -120,6 +120,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
+
+            return true;
         });
 });
 

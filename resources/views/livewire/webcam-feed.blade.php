@@ -1,4 +1,4 @@
-<div {{-- wire:poll.5s='refreshFeed' --}}>
+<div class="position-relative" {{-- wire:poll.5s='refreshFeed' --}}>
     {{-- <img src="{{ $snapshot }}" /> --}}
 
     @if ($camera->connected)

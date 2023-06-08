@@ -71,6 +71,22 @@ else
                 echo 'Machine UUID loaded: '"$MACHINE_UUID";
             fi;
 
+            printf "\nlocation /recordings/$MACHINE_UUID {"                 >> /tmp/recordings.conf;
+            printf "\n\trewrite  ^/recordings/$MACHINE_UUID(.*) /$1 break;" >> /tmp/recordings.conf;
+            printf "\n\troot     /public/recordings;"                       >> /tmp/recordings.conf;
+            printf "\n}"                                                    >> /tmp/recordings.conf;
+
+            CURRENT_SUM="$(md5sum /var/www/proxy/internal/recordings.conf | cut -d ' ' -f 1)"
+            NEW_SUM="$(md5sum /tmp/recordings.conf | cut -d ' ' -f 1)";
+
+            if [[ "$CURRENT_SUM" != "$NEW_SUM" ]]; then
+                echo "Proxy server change detected, reloading... CSUM = ${CURRENT_SUM}, NSUM = ${NEW_SUM}" >&2;
+
+                cp -fv /tmp/recordings.conf /var/www/proxy/internal/recordings.conf >&2;
+
+                docker exec -t wprint3d-proxy-1 nginx -s reload;
+            fi;
+
             composer install;
 
             waitForAssetBundler;

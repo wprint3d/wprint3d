@@ -17,6 +17,7 @@ use App\Libraries\Serial;
 
 use App\Models\Configuration;
 use App\Models\Printer;
+use App\Models\User;
 
 use Illuminate\Bus\Queueable;
 
@@ -60,6 +61,7 @@ class PrintGcode implements ShouldQueue
 
     private string  $uid;
     private string  $filePath;
+    private User    $owner;
     private mixed   $gcode;
     private string  $lastMovementMode;
     private int     $runningTimeoutSecs;
@@ -72,6 +74,11 @@ class PrintGcode implements ShouldQueue
     private int $lineNumberCount;
 
     private Printer $printer;
+
+    private bool $shouldRecord;
+
+    protected int   $lastSnapshot;
+    protected array $recordableCameras;
 
     const LOG_CHANNEL = 'gcode-printer';
 
@@ -96,10 +103,11 @@ class PrintGcode implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(string $filePath)
+    public function __construct(string $filePath, User $owner)
     {
         $this->uid      = uniqid( more_entropy: true );
         $this->filePath = $filePath;
+        $this->owner    = $owner;
         $this->printer  = Printer::find( Auth::user()->activePrinter );
 
         $this->runningTimeoutSecs   = Configuration::get('runningTimeoutSecs');
@@ -109,6 +117,9 @@ class PrintGcode implements ShouldQueue
         $this->streamMaxLengthBytes = Configuration::get('streamMaxLengthBytes');
 
         $this->printer->setCurrentLine( 0 );
+
+        $this->shouldRecord      = $this->owner->settings['recording']['enabled'];
+        $this->recordableCameras = [];
     }
 
     /**
@@ -169,6 +180,21 @@ class PrintGcode implements ShouldQueue
 
         // Report that the job has finished.
         PrintJobFinished::dispatch( $this->printer->_id );
+
+        // Dispatch video rendering job (if recording was enabled).
+        if ($this->shouldRecord) {
+            foreach ($this->recordableCameras as $camera) {
+                Log::info( 'RenderVideo: dispatch! - ' . $camera->_id );
+
+                RenderVideo::dispatch(
+                    $this->owner,               // owner
+                    $camera->index,             // index
+                    $camera->requiresLibCamera, // requiresLibCamera
+                    $this->filePath,            // fileName
+                    $this->uid                  // jobUID
+                );
+            }
+        }
     }
 
     /**
@@ -311,6 +337,33 @@ class PrintGcode implements ShouldQueue
             timeout:   $this->commandTimeoutSecs,
             terminalAutoAppend: false
         );
+
+        if ($this->shouldRecord) {
+            foreach ($this->printer->getRecordableCameras() as $camera) {
+                $this->recordableCameras[] = $camera;
+            }
+
+            $serial->setProperty('lastSnapshot', millis());
+            $serial->everyBusyMillis(
+                clockName:  'lastSnapshot',
+                interval:   $this->owner->settings['recording']['captureInterval'] * 1000,
+                function:   function () {
+                    foreach ($this->recordableCameras as $camera) {
+                        $snapshotURL = $camera->getSnapshotURL();
+
+                        if ($snapshotURL) {
+                            SaveSnapshot::dispatch(
+                                $camera->index,             // index
+                                $camera->requiresLibCamera, // requiresLibCamera
+                                $snapshotURL,               // url
+                                $this->filePath,            // fileName
+                                $this->uid                  // jobUID
+                            );
+                        }
+                    }
+                }
+            );
+        }
 
         $buffer = [
             'M75' // start print job timer

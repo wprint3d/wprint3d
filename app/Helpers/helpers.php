@@ -3,6 +3,7 @@
 use App\Enums\FormatterCommands;
 
 use App\Jobs\PrintGcode;
+use App\Jobs\SaveSnapshot;
 
 use App\Models\Configuration;
 
@@ -216,6 +217,19 @@ function machineUUID(): ?string {
     }
 
     return $uuid;
+}
+
+function getSnapshotsPrefix(string $fileName, string $jobUID, int $index, bool $requiresLibCamera) {
+    return
+        SaveSnapshot::SNAPSHOTS_DIRECTORY
+        . '/' .
+        basename($fileName)
+        . '_' .
+        $jobUID
+        . '_' .
+        $index
+        . '_' .
+        ($requiresLibCamera ? '1' : '0');
 }
 
 ?>

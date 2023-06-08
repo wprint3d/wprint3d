@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 use Livewire\Component;
 
-class Terminal extends Component
+class TerminalTab extends Component
 {
     public ?array  $terminal = [];
 
@@ -124,6 +124,6 @@ class Terminal extends Component
 
     public function render()
     {
-        return view('livewire.terminal');
+        return view('livewire.terminal-tab');
     }
 }

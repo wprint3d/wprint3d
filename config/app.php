@@ -195,6 +195,10 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
 
+        /*
+         * Custom Service Providers...
+         */
+        // ProtoneMedia\LaravelFFMpeg\Support\ServiceProvider::class,
     ],
 
     /*
@@ -212,7 +216,8 @@ return [
         'Configuration'     => \App\Models\Configuration::class,
         'DataType'          => \App\Enums\DataType::class,
         'BackupInterval'    => \App\Enums\BackupInterval::class,
-        'SortingMode'       => \App\Enums\SortingMode::class
+        'SortingMode'       => \App\Enums\SortingMode::class,
+        'FFMpeg'            => \ProtoneMedia\LaravelFFMpeg\Support\FFMpeg::class,
     ])->toArray(),
 
     'common_baud_rates' => [ 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000 ],

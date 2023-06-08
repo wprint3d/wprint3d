@@ -9,7 +9,7 @@
                     @if (count($availableCameras) > 0)
                         @foreach ($availableCameras as $camera)
                             <li class="list-group-item d-flex">
-                                <span class="d-flex flex-fill flex-column justify-content-center overflow-scroll text-truncate">
+                                <span class="d-flex flex-fill flex-column justify-content-center overflow-scroll text-truncate no-scrollbar">
                                     Local camera at {{ $camera->node }} ({{ $camera->format }})
                                 </span>
                                 <div class="d-flex justify-content-center">
@@ -49,13 +49,32 @@
                     @if (count($assignedCameras) > 0)
                         @foreach ($assignedCameras as $camera)
                             <li class="list-group-item d-flex">
-                                <span class="d-flex flex-fill flex-column justify-content-center overflow-scroll text-truncate">
+                                <span class="d-flex flex-fill flex-column justify-content-center overflow-scroll text-truncate no-scrollbar">
                                     Local camera at {{ $camera->node }} ({{ $camera->format }})
                                 </span>
                                 <div class="d-flex justify-content-center">
                                     <button wire:click="remove('{{ $camera->_id }}')" class="btn btn-sm border-danger text-danger mx-2 my-auto">
                                         <div class="m-0"> @svg('dash') </div>
                                     </button>
+
+                                    <button
+                                        wire:click="toggleRecordable('{{ $camera->_id }}')"
+                                        class="
+                                            btn btn-sm mx-2 my-auto
+                                            {{ $camera->recordable ? 'border-danger text-danger' : 'border-secondary text-secondary' }}
+                                        "
+                                        data-bs-toggle="tooltip"
+                                        data-bs-title="Whether this camera should be recorded.
+                                            @if (!$camera->connected)
+                                                This camera isn't connected and it'll be skipped regardless of this setting.
+                                            @endif
+                                        "
+                                    >
+                                        <div class="m-0">
+                                            @svg('record-circle-fill')
+                                        </div>
+                                    </button>
+
                                     @if ($camera->connected)
                                         <a href="{{ $camera->url }}" target="_blank" class="btn btn-sm d-flex flex-column justify-content-center">
                                             @svg('eye-fill')

@@ -167,6 +167,13 @@ return [
             'days' => 1,
         ],
 
+        'video-renderer' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/video-renderer.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 1,
+        ],
+
         'queued-commands-listener' => [
             'driver' => 'daily',
             'path' => storage_path('logs/queued-commands-listener.log'),

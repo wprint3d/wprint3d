@@ -210,7 +210,7 @@
                 .listen('PreviewLineReady', event => {
                     console.debug('PreviewLineReady: ', event);
 
-                    if (!preview || event.previewUID != uid || !handleBufferEvents) return;
+                    if (!preview || event.previewUID != uid || !handleBufferEvents) return true;
 
                     recoveryStage.innerText = 'Loading previews... ' + (canvas.parentElement.classList.contains('recovery-preview-side-a') ? ' (main)' : ' (alternative)');
 
@@ -224,19 +224,23 @@
                             preview.parser.parseGCode(command);
                         }
                     });
+
+                    return true;
                 });
 
             Echo.private(`preview.${getSelectedPrinterId()}`)
                 .listen('PreviewBuffered', event => {
                     console.debug('PreviewBuffered: ', event);
 
-                    if (!preview || event.previewUID != uid || !handleBufferEvents) return;
+                    if (!preview || event.previewUID != uid || !handleBufferEvents) return true;
 
                     preview.render();
 
                     if (event.previewUID == @json( $uidSideB )) {
                         resetDynamicElements();
                     }
+
+                    return true;
                 });
         };
 
@@ -282,6 +286,8 @@
                 } else {
                     jobRecoveryModal.show();
                 }
+
+                return true;
             });
 
         Echo.private(`recovery-stage-changed.${getSelectedPrinterId()}`)
@@ -293,6 +299,8 @@
                 } else if (event.stage == JOB_RECOVERY_STAGES.PARSE_FILE) {
                     recoveryStage.innerText = 'Parsing file...';
                 }
+
+                return true;
             });
 
         Echo.private(`recovery-progress.${getSelectedPrinterId()}`)
@@ -301,6 +309,8 @@
 
                 recoveryProgress.style.width = event.percentage + '%'
                 recoveryProgress.setAttribute('aria-valuenow', event.percentage);
+
+                return true;
             });
 
         Echo.private(`recovery-completed.${getSelectedPrinterId()}`)
@@ -312,6 +322,8 @@
                 respawnModal = false;
 
                 jobRecoveryModal.hide();
+
+                return true;
             });
 
         window.addEventListener('recoveryFailed', event => {

@@ -158,7 +158,7 @@ const refreshPreview = () => {
         buildVolume: { x: 150, y: 150, z: 150 },
         initialCameraPosition: [ 0, 400, 450 ],
         lineWidth: 3,
-        debug: false
+        debug: true
     });
 
     preview.renderExtrusion = showExtrusion;
@@ -312,7 +312,7 @@ window.addEventListener('DOMContentLoaded', () => {
         .listen('PrinterTerminalUpdated', event => {
             console.debug(event);
 
-            if (!preview || !autoUpdatePreview) return;
+            if (!preview || !autoUpdatePreview) return true;
 
             if (event.line) {
                 event.command.split(PHP_EOL).forEach(line => {
@@ -341,13 +341,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 currentLine = event.line;
             }
+
+            return true;
         });
 
     Echo.private(`preview.${getSelectedPrinterId()}`)
         .listen('PreviewLayerMapReady', event => {
             console.debug('PreviewLayerMapReady: ', event);
 
-            if (!preview || event.previewUID != uid) return;
+            if (!preview || event.previewUID != uid) return true;
 
             layerMap = event.layerMap;
 
@@ -358,33 +360,35 @@ window.addEventListener('DOMContentLoaded', () => {
             selectedLayer.dispatchEvent( new Event('input') );
 
             resetRender();
+
+            return true;
         });
 
     Echo.private(`preview.${getSelectedPrinterId()}`)
         .listen('PreviewLineReady', event => {
             console.debug('PreviewLineReady: ', event);
 
-            if (!preview || event.previewUID != uid) return;
+            if (!preview || event.previewUID != uid) return true;
 
             progressBar.style.width = event.percentage + '%'
             progressBar.setAttribute('aria-valuenow', event.percentage);
 
             event.command.split(PHP_EOL).forEach(line => {
-                command = parseMovement( line );
-
-                if (preview && command) {
-                    preview.parser.parseGCode(command);
+                if (preview) {
+                    console.log('pgc:', preview.parser.parseGCode(line));
                 }
             });
 
             currentLine = event.line;
+
+            return true;
         });
 
     Echo.private(`preview.${getSelectedPrinterId()}`)
         .listen('PreviewBuffered', event => {
             console.debug('PreviewBuffered: ', event);
 
-            if (!preview || event.previewUID != uid) return;
+            if (!preview || event.previewUID != uid) return true;
 
             previewLoader.classList.add('d-none');
 
@@ -396,6 +400,8 @@ window.addEventListener('DOMContentLoaded', () => {
             selectedLayer.dispatchEvent( new Event('input') );
 
             selectedLayerContainer.classList.remove('d-none');
+
+            return true;
         });
 
     window.addEventListener('previewNoFileLoaded', event => {

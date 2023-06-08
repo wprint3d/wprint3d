@@ -40,9 +40,10 @@ class CreateSampleUser extends Command
             'password'  => Hash::make( self::SAMPLE_USER_PASSWORD ),
             'settings'  => [
                 'recording' => [
-                    'enabled'       => true,
-                    'resolution'    => '1280x720',
-                    'framerate'     => 30
+                    'enabled'           => true,
+                    'resolution'        => '1280x720',
+                    'framerate'         => 30,
+                    'captureInterval'   => 0.25
                 ]
             ]
         ]);

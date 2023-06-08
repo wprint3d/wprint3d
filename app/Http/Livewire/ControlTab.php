@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 use Livewire\Component;
 
-class PrinterControl extends Component
+class ControlTab extends Component
 {
     protected $listeners = [ 'selectPrinter' => 'handlePrinterSelected' ];
 
@@ -228,6 +228,6 @@ class PrinterControl extends Component
 
     public function render()
     {
-        return view('livewire.printer-control');
+        return view('livewire.control-tab');
     }
 }

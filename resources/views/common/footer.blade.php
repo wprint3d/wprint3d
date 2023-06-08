@@ -121,6 +121,8 @@
                 toastify.info('Hardware change applied.');
 
                 Livewire.emit('hardwareChangeDetected');
+
+                return true;
             });
     });
 </script>

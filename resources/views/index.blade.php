@@ -3,14 +3,14 @@
 @section('main')
 <div class="container-lg pb-3 px-4 px-lg-0">
     <div class="row gap-2">
-        <div class="left-pane col-sm-12 col-md-6 col-lg-5 bg-light border rounded-3 p-3">
+        <div class="left-pane overflow-x-auto col-sm-12 col-md-6 col-lg-5 bg-light border rounded-3 p-3">
             <livewire:select-printer />
             <livewire:connection-status />
             <livewire:temperature-presets />
             <livewire:webcam-feeds />
             <livewire:uploaded-files />
         </div>
-        <div class="right-pane terminal-container col bg-light border rounded-3 p-0 p-md-2">
+        <div class="right-pane overflow-x-auto col bg-light border rounded-3 p-0 p-md-2">
             <livewire:index-tabs />
         </div>
     </div>

@@ -11,7 +11,7 @@
                 If enabled, the recording feature will automatically create videos out of your ongoing prints and save them in real time.
             </p>
         </div>
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-md-4">
             <label class="form-label"> Resolution </label>
             <select wire:model="resolution" class="form-select">
                 @foreach ($resolutions as $value)
@@ -21,7 +21,7 @@
                 @endforeach
             </select>
         </div>
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-md-4">
             <label class="form-label"> Framerate </label>
             <select wire:model="framerate" class="form-select">
                 @foreach ($framerates as $value)
@@ -30,6 +30,10 @@
                     </option>
                 @endforeach
             </select>
+        </div>
+        <div class="col-12 col-md-4">
+            <label class="form-label"> Capture interval </label>
+            <input wire:model.lazy="captureInterval" type="number" class="form-control" placeholder="0.25" min="0.25" step="0.25">
         </div>
     </form>
 </div>

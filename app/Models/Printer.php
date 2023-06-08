@@ -16,6 +16,8 @@ use Illuminate\Support\Str;
 
 use Jenssegers\Mongodb\Eloquent\Model;
 
+use MongoDB\BSON\ObjectId;
+
 use Exception;
 
 class Printer extends Model
@@ -88,6 +90,7 @@ class Printer extends Model
         'machine.capabilities.coolerTemperature',
         'machine.capabilities.meatpack',
         'machine.capabilities.configExport',
+        'recordableCameras',
         'settings',
         'settings.autoScroll',
         'settings.showSensors',
@@ -99,6 +102,32 @@ class Printer extends Model
         'activeFile',
         'lastLine',
     ];
+
+    public function getCameras() {
+        if (!$this->cameras) {
+            return collect(); // empty 
+        }
+
+        return Camera::whereIn('_id',
+            array_map(
+                callback: fn($item) => new ObjectId($item),
+                array:    $this->cameras
+            )
+        )->cursor();
+    }
+
+    public function getRecordableCameras() {
+        if (!$this->recordableCameras) {
+            return collect(); // empty 
+        }
+
+        return Camera::whereIn('_id',
+            array_map(
+                callback: fn($item) => new ObjectId($item),
+                array:    $this->recordableCameras
+            )
+        )->cursor();
+    }
 
     /**
      * getStatistics
