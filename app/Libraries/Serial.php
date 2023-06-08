@@ -14,6 +14,8 @@ use Illuminate\Cache\Repository;
 
 use Illuminate\Log\Logger;
 
+use Illuminate\Support\Arr;
+
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -37,6 +39,10 @@ class Serial {
 
     private string  $terminalBuffer     = '';
     private bool    $terminalAutoAppend = true;
+
+    private array $clocks;
+    private array $externalProperties;
+    private array $onNewLineActions;
 
     const TERMINAL_PATH   = '/dev';
     const TERMINAL_PREFIX = 'tty';
@@ -89,6 +95,103 @@ class Serial {
         }
 
         $this->terminalAutoAppend = $terminalAutoAppend;
+
+        $this->clocks                = [];
+        $this->externalProperties    = [];
+        $this->onNewLineActions      = [];
+    }
+    
+    /**
+     * getProperty
+     *
+     * @param string $key A dot notation-based property key. 
+     * 
+     * @return mixed|null
+     */
+    public function getProperty(string $key) {
+        return Arr::get(
+            array:  $this->externalProperties,
+            key:    $key
+        );
+    }
+
+    /**
+      * setProperty
+      *
+      * @param  string $key   A dot notation-based property key. 
+      * @param  mixed  $value A value of any kind
+      * 
+      * @return array of properties
+      */
+    public function setProperty(string $key, mixed $value) {
+        return Arr::set(
+            array:  $this->externalProperties,
+            key:    $key,
+            value:  $value
+        );
+    }
+    
+    /**
+     * onNewLine
+     * 
+     * DO NOT RUN long-running sentences, use this event to dispatch jobs or
+     * to handle extremely fast calls.
+     *
+     * @param  callable $function A function to chain
+     * @return void
+     */
+    public function onNewLine(callable $function) {
+        $this->onNewLineActions[] = $function;
+    }
+    
+    /**
+     * everyBusyMillis
+     * 
+     * DO NOT RUN long-running sentences, use this event to dispatch jobs or
+     * to handle extremely fast calls.
+     * 
+     * These clocks are tried and run while busy on long-running tasks such as
+     * query().
+     *
+     * @param  string   $clockName The name of the clock
+     * @param  int      $interval  The interval in which $function should be run (in milliseconds)
+     * @param  callable $function  The function to run
+     * 
+     * @return void
+     */
+    public function everyBusyMillis(string $clockName, int $interval, callable $function) {
+        $this->clocks[ $clockName ] = [
+            'lastRun'  => millis(),
+            'tickRate' => $interval,
+            'callable' => $function
+        ];
+    }
+    
+    /**
+     * tickClocks
+     * 
+     * Try to run queued callables in $this->clocks.
+     * 
+     * @return void
+     */
+    private function tickClocks() {
+        if (!filled( $this->clocks )) return;
+
+        foreach ($this->clocks as $key => $clock) {
+            if (millis() - $clock['lastRun'] > $clock['tickRate']) {
+                try { $clock['callable'](); }
+                catch (Exception $exception) {
+                    if ($this->log) {
+                        $this->log->error(
+                            __METHOD__ . ': couldn\'t run queued callable: ' . $exception->getMessage() . PHP_EOL .
+                            $exception->getTraceAsString()
+                        );
+                    }
+                }
+
+                $this->clocks[ $key ]['lastRun'] = millis();
+            }
+        }
     }
 
     private function configure() {
@@ -177,8 +280,6 @@ class Serial {
         $sTime     = time();
         $blankTime = millis();
 
-        $line = '';
-
         $lastLineIndex = 0;
 
         while (true) {
@@ -223,6 +324,18 @@ class Serial {
                         );
 
                         $lastLineIndex = $newLastLineIndex;
+
+                        foreach ($this->onNewLineActions as $callable) {
+                            try { $callable(); }
+                            catch (Exception $exception) {
+                                if ($this->log) {
+                                    $this->log->error(
+                                        __METHOD__ . ': onNewLineActions: couldn\'t run queued callable: ' . $exception->getMessage() . PHP_EOL .
+                                        $exception->getTraceAsString()
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
             } else if (
@@ -258,7 +371,11 @@ class Serial {
             if ($timeout && (time() - $sTime >= $timeout)) break;
 
             // usleep(1);
+
+            $this->tickClocks();
         }
+
+        $this->tickClocks();
 
         $spentSecs = time() - $sTime;
 
@@ -304,6 +421,8 @@ class Serial {
         );
 
         $throwable = null;
+
+        $this->tickClocks();
 
         try {
             if ($command) {
