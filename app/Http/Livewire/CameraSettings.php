@@ -45,7 +45,7 @@ class CameraSettings extends Component
             $this->connected = $this->camera->connected;
             $this->enabled   = $this->camera->enabled;
             $this->format    = $this->camera->format;
-            $this->url       = $this->camera->url;
+            $this->url       = $this->camera->url . '?action=stream';
         }
 
         return view('livewire.camera-settings');
