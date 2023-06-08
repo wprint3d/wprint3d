@@ -423,9 +423,11 @@ class PrintGcode implements ShouldQueue
                 $this->printer->refresh();
 
                 if (!$this->printer->activeFile) {
+                    $log->info('Job aborted.');
+
                     $this->finished( resetPrinter: true );
 
-                    break;
+                    return;
                 }
             }
 
