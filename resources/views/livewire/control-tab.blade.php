@@ -5,7 +5,7 @@
         </h6>
 
         <div class="row">
-            <div class="col col-md-12 col-lg-6 d-flex flex-column align-items-center">
+            <div class="col-12 col-lg-6 d-flex flex-column align-items-center mb-2 mb-md-0">
                 <div class="row">
                     <div class="col"></div>
                     <div class="col">
@@ -43,7 +43,7 @@
                 </div>
             </div>
 
-            <div class="col col-md-12 col-lg-6 align-self-center">
+            <div class="col-12 col-lg-6 align-self-center mb-2 mb-md-0">
                 <div class="row">
                     <div class="col">
                         <button wire:click="yForward" class="btn border"> @svg('caret-up-fill') </button>
@@ -100,7 +100,7 @@
 
         <div
             x-data="{ distance: 0 }"
-            class="btn-toolbar justify-content-center mb-3"
+            class="btn-toolbar justify-content-center mb-3 d-flex flex-nowrap"
             role="toolbar"
             aria-label="Toolbar with button groups"
         >

@@ -1,5 +1,5 @@
 <div>
-    <ul class="nav nav-tabs" role="tablist">
+    <ul class="nav nav-tabs flex-nowrap overflow-x-auto overflow-y-hidden" role="tablist">
         @foreach ($tabs as $tab)
             @if ($tab != 'control' || $enableControlTab)
                 <li wire:click="select({{ $loop->index }})" class="nav-item" role="presentation">
