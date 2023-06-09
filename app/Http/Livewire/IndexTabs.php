@@ -27,7 +27,7 @@ class IndexTabs extends Component
 
         $this->enableControlTab = !$printer->activeFile;
 
-        if (!$this->enableControlTab) {
+        if (!$this->enableControlTab && $this->activeTab == 'control') {
             $this->activeTab = $this->tabs[0];
         }
     }
