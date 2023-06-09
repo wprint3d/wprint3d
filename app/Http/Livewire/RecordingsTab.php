@@ -4,6 +4,8 @@ namespace App\Http\Livewire;
 
 use App\Jobs\RenderVideo;
 
+use App\Models\Configuration;
+
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 
@@ -22,6 +24,8 @@ class RecordingsTab extends Component
 
     public $error;
     public $selected = null;
+
+    private int $renderFileBlockingSecs;
 
     protected $listeners = [
         'selectPrinter'     => '$refresh',
@@ -55,15 +59,23 @@ class RecordingsTab extends Component
                 callback: function ($file) use ($fileSize) {
                     $basename = preg_replace('/.webm$/', '', basename($file));
 
-                    return [
+                    $lastModified = Storage::lastModified( $file );
+
+                    $file = [
                         'url'       => env('APP_URL') . '/' . RenderVideo::RECORDINGS_DIRECTORY . '/' . $basename . '.webm',
                         'thumb'     => '/' . RenderVideo::RECORDINGS_DIRECTORY . '/' . $basename . '.jpg',
                         'name'      => preg_replace('/.webm$/', '', $basename),
                         'size'      => $fileSize->compute( Storage::size( $file ) ),
-                        'modified'  => Carbon::createFromTimestamp(
-                            Storage::lastModified( $file )
-                        )->diffForHumans()
+                        'modified'  => Carbon::createFromTimestamp( $lastModified )->diffForHumans()
                     ];
+
+                    if (time() - $lastModified <  $this->renderFileBlockingSecs) {
+                        Log::info(time() - $lastModified);
+
+                        $file['deletable'] = false;
+                    }
+
+                    return $file;
                 }
             )
         );
@@ -103,6 +115,10 @@ class RecordingsTab extends Component
 
             $this->error = $exception->getMessage();
         }
+    }
+
+    public function boot() {
+        $this->renderFileBlockingSecs = Configuration::get('renderFileBlockingSecs');
     }
 
     public function render()

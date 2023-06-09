@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Events\RecordingRenderFinished;
 use App\Events\RecordingRenderProgress;
 
+use App\Models\Configuration;
 use App\Models\User;
 
 use Illuminate\Bus\Queueable;
@@ -168,6 +169,9 @@ class RenderVideo implements ShouldQueue
                 )
             ) { Storage::delete( $file ); }
         }
+
+        // Allow some time to allow the delete button to re-enable
+        sleep( Configuration::get('renderFileBlockingSecs') + 1 );
 
         RecordingRenderFinished::dispatch( $this->owner->activePrinter );
     }

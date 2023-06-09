@@ -33,7 +33,13 @@
                                         <small class="text-muted align-self-center">
                                             Saved {{ $recording['modified'] }}
                                         </small>
-                                        <button class="btn btn-danger" wire:click="prepareDelete({{ $loop->index }})">
+                                        <button
+                                            class="btn btn-danger"
+                                            wire:click="prepareDelete({{ $loop->index }})"
+                                            @if (isset( $recording['deletable'] ) && !$recording['deletable'])
+                                                disabled
+                                            @endif
+                                        >
                                             @svg('trash')
                                         </button>
                                     </p>
