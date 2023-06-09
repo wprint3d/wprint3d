@@ -71,6 +71,8 @@ else
                 echo 'Machine UUID loaded: '"$MACHINE_UUID";
             fi;
 
+            # Reset config file
+            printf ''                                                        > /tmp/recordings.conf;
             printf "\nlocation /recordings/$MACHINE_UUID {"                 >> /tmp/recordings.conf;
             printf "\n\trewrite  ^/recordings/$MACHINE_UUID(.*) /$1 break;" >> /tmp/recordings.conf;
             printf "\n\troot     /public/recordings;"                       >> /tmp/recordings.conf;
