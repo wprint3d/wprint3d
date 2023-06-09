@@ -25,6 +25,8 @@ use FFMpeg\FFMpeg;
 use FFMpeg\Coordinate\Dimension;
 use FFMpeg\Coordinate\TimeCode;
 
+use FFMpeg\Filters\Video\ResizeFilter;
+
 use FFMpeg\Format\Video\WebM;
 
 class RenderVideo implements ShouldQueue
@@ -123,7 +125,11 @@ class RenderVideo implements ShouldQueue
             )
         );
 
-        $video->filters()->resize(new Dimension( $videoWidth, $videoHeight ));
+        $video->filters()->resize(
+            new Dimension( $videoWidth, $videoHeight ),
+            ResizeFilter::RESIZEMODE_INSET
+        );
+
         $video->save( $format, $targetFile ); // render the video
 
         // Generate a thumbnail
