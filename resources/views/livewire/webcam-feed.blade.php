@@ -5,6 +5,7 @@
         <img
             data-src="{{ $url }}?action=stream"
             style="transform: scale(1, 1) rotate(0deg); width: 100%; height: 100%; opacity: 1;"
+            onerror="handleBrokenCamera(this)"
         />
     @else
         <div class="offline-camera-placeholder d-flex align-items-center border">
