@@ -72,17 +72,17 @@ class SaveSnapshot implements ShouldQueue
             throw new Exception("{$this->url}: couldn\'t take screenshot: " . $response->body());
         }
 
+        $pathPrefix = getSnapshotsPrefix(
+            fileName: $this->fileName,
+            jobUID:   $this->jobUID,
+            index:    $this->index,
+            requiresLibCamera: $this->requiresLibCamera
+        );
+
         $incrementCacheKey = str_replace(
             search:     ' ',
             replace:    '+',
-            subject:    basename(
-                getSnapshotsPrefix(
-                    fileName: $this->fileName,
-                    jobUID:   $this->jobUID,
-                    index:    $this->index,
-                    requiresLibCamera: $this->requiresLibCamera
-                )
-            )
+            subject:    basename( $pathPrefix )
         );
 
         Cache::add(
@@ -92,7 +92,7 @@ class SaveSnapshot implements ShouldQueue
         );
 
         Storage::put(
-            path:       $incrementCacheKey . '_' . (Cache::increment( $incrementCacheKey )) . '.jpg',
+            path:       $pathPrefix . '_' . (Cache::increment( $incrementCacheKey )) . '.jpg',
             contents:   $response->body()
         );
     }
