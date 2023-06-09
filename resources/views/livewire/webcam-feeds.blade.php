@@ -74,5 +74,31 @@ applySrcToActiveCamera();
 
 window.addEventListener('webcamFeedsChanged', applySrcToActiveCamera);
 
+window.handleBrokenCamera = element => {
+    console.error('Camera load error: ', element.src);
+
+    element.outerHTML = `
+        <div class="offline-camera-placeholder d-flex align-items-center border">
+            <div class="d-flex flex-column flex-fill align-items-center mt-3">
+                @svg('exclamation-circle', [ 'class' => 'fs-1 text-black-50' ])
+
+                <p class="text-center mt-3">
+                    This camera is not working.
+                </p>
+
+                <p>
+                    Here's what you can try:
+                </p>
+
+                <ul>
+                    <li> Reset the USB controller. </li>
+                    <li> Re-seat the camera into the port. </li>
+                    <li> Restart the host. </li>
+                    <li> Remove it from the list of assigned cameras. </li>
+                </ul>
+            </div>
+        </div>`;
+};
+
 </script>
 @endpush
