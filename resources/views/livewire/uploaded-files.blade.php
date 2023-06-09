@@ -1,9 +1,9 @@
 <div>
     <livewire:file-controls />
 
-    <div class="row mb-3 mt-2">
+    <div class="row mb-3 mt-3 mt-lg-2">
         <div class="col-12">
-            <div class="input-group mb-1">
+            <div class="input-group mb-1 mb-lg-1">
                 <input
                     type="text"
                     class="form-control"
@@ -19,7 +19,7 @@
         </div>
 
         <div class="col-12 col-sm-6 col-md-7 dropdown">
-            <a class="btn btn-primary dropdown-toggle w-100" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="btn btn-primary dropdown-toggle w-100 text-truncate" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 @svg('filter') Sort ({{ Str::lower( SortingMode::fromValue($sortingMode)->description ?? 'Unknown' ) }})
             </a>
 

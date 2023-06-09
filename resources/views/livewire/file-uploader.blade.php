@@ -1,6 +1,6 @@
 <div>
     <form wire:submit.prevent="save">
-        <label id="uploadBtn" for="gcode" class="btn btn-primary" wire:loading.class="disabled">
+        <label id="uploadBtn" for="gcode" class="btn btn-primary w-100 mt-1 mt-sm-0" wire:loading.class="disabled">
             <input type="file" wire:model="gcode" id="gcode" wire:loading.attr="disabled">
 
             <div wire:loading>
@@ -10,7 +10,10 @@
                 Uploading
             </div>
 
-            <div wire:loading.remove> Upload G-code </div>
+            <div wire:loading.remove>
+                <div class="d-inline d-sm-none"> @svg('cloud-arrow-up') </div>
+                Upload G-code
+            </div>
         </label>
 
         {{-- @error('gcode') <span class="error text-danger">{{ $message }}</span> @enderror --}}
