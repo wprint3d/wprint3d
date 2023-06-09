@@ -22,7 +22,7 @@
                                 <title>{{ $recording['name'] }}</title>
                             </div>
                             <div class="col-md-8">
-                                <div class="card-body">
+                                <div class="card-body d-flex flex-column h-100 justify-content-center">
                                     <h5 class="card-title overflow-scroll text-nowrap no-scrollbar">
                                         {{ $recording['name'] }}
                                     </h5>
