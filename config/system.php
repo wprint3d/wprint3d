@@ -5,7 +5,7 @@ use App\Enums\BackupInterval;
 return [
     'defaults' => [
         'machineUUID'               => null, // string
-        'renderFileBlockingSecs'    => 30,   // seconds
+        'renderFileBlockingSecs'    => 60,   // seconds
 
         // Connection
         'streamMaxLengthBytes'      => 256, // bytes (maximum amount of ASCII characters in a valid G-code command)
