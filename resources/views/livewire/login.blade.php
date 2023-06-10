@@ -1,6 +1,6 @@
 <div>
     <div class="d-flex flex-column min-vh-100 justify-content-center align-items-center">
-        <form wire:submit.prevent="submit" class="bg-body d-flex flex-column p-4 rounded rounded-3">
+        <form wire:submit.prevent="submit" class="col-11 col-sm-8 col-md-6 col-lg-4 col-xxl-3 bg-body d-flex flex-column p-4 rounded rounded-3">
             <div class="mb-3">
                 <label for="exampleInputEmail1" class="form-label">Email address</label>
                 <input wire:model="mailAddress" type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp">
