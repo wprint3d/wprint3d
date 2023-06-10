@@ -158,7 +158,7 @@ class JobRecoveryModal extends Component
                 default: false
             )
         ) {
-            $this->dispatchBrowserEvent('recoveryFailed', 'we\'re still negotiating a connection with this printer, please try again in a few seconds');
+            $this->dispatchBrowserEvent('recoveryFailed', 'we\'re still negotiating a connection with this printer, please try again in a few seconds.');
 
             return;
         }
@@ -175,7 +175,7 @@ class JobRecoveryModal extends Component
                 $exception->getTraceAsString()
             );
 
-            $this->dispatchBrowserEvent('recoveryFailed', $exception->getMessage());
+            $this->dispatchBrowserEvent('recoveryFailed', $exception->getMessage() . '.');
 
             return;
         }

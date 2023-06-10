@@ -326,6 +326,16 @@
                 return true;
             });
 
+        window.addEventListener('recoveryJobPrepareError', event => {
+            resetDynamicElements();
+
+            respawnModal = false;
+
+            jobRecoveryModal.hide();
+
+            toastify.error(`Unable to prepare job: ${event.detail.toLowerCase()}`);
+        });
+
         window.addEventListener('recoveryFailed', event => {
             resetDynamicElements();
 
@@ -333,7 +343,7 @@
 
             jobRecoveryModal.hide();
 
-            toastify.error(`Unable to recover print job: ${event.detail.toLowerCase()}.`);
+            toastify.error(`Unable to recover print job: ${event.detail.toLowerCase()}`);
         });
 
         window.addEventListener('recoveryTimedOut',  () => {
@@ -344,16 +354,6 @@
             jobRecoveryModal.hide();
 
             toastify.error('Timed out waiting for the printer to become available, please, try again later.');
-        });
-
-        window.addEventListener('recoveryJobFailedNoPosition', event => {
-            resetDynamicElements();
-
-            respawnModal = false;
-
-            jobRecoveryModal.hide();
-
-            toastify.error( event.detail );
         });
 
         document.querySelector('#jobRecoveryModal').addEventListener('shown.bs.modal', () => {
