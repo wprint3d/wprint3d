@@ -12,7 +12,6 @@
                         role="tab"
                         aria-controls="{{ $tab }}-tab-pane"
                         aria-selected="true"
-                        onclick="tabChanged(this)"
                     > {{ Str::title( $tab ) }} </button>
                 </li>
             @endif
@@ -32,13 +31,3 @@
         @endforeach
     </div>
 </div>
-
-@push('scripts')
-<script>
-
-window.tabChanged = element => {
-    dispatchEvent( new Event('tabChanged') );
-}
-
-</script>
-@endpush
