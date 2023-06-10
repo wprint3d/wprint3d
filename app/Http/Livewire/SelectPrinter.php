@@ -23,9 +23,9 @@ class SelectPrinter extends Component
         $this->printer = Printer::find( $this->printerId );
 
         if ($this->printer) {
-            $user = Auth::user();
-            $user->activePrinter = $this->printer->_id;
-            $user->save();
+            if (!Auth::user()->setActivePrinter( $this->printer->_id )) {
+                return redirect()->intended('/login');
+            }
         }
 
         return redirect('/');
@@ -35,7 +35,7 @@ class SelectPrinter extends Component
     {
         $user = Auth::user();
 
-        $this->printerId = $user->activePrinter;
+        $this->printerId = $user->getActivePrinter();
         $this->printers  = Printer::select('_id', 'node', 'machine.machineType', 'machine.uuid')->get();
 
         if ($this->printerId && !Printer::find( $this->printerId )) {
@@ -43,8 +43,7 @@ class SelectPrinter extends Component
         }
 
         if (!$this->printerId && filled( $this->printers )) {
-            $user->activePrinter = $this->printers[0]->_id;
-            $user->save();
+            $user->setActivePrinter( $this->printers[0]->_id );
         }
 
         return view('livewire.select-printer');

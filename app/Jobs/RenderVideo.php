@@ -52,6 +52,7 @@ class RenderVideo implements ShouldQueue
     private bool   $requiresLibCamera;
     private string $fileName;
     private string $jobUID;
+    private string $printerId;
 
     const RECORDINGS_DIRECTORY = 'recordings';
     const LOG_CHANNEL          = 'video-renderer';
@@ -61,7 +62,7 @@ class RenderVideo implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(User $owner, int $index, bool $requiresLibCamera, string $fileName, string $jobUID)
+    public function __construct(User $owner, int $index, bool $requiresLibCamera, string $fileName, string $jobUID, string $printerId)
     {
         $this->queue = 'recordings';
 
@@ -70,6 +71,7 @@ class RenderVideo implements ShouldQueue
         $this->requiresLibCamera = $requiresLibCamera;
         $this->fileName          = $fileName;
         $this->jobUID            = $jobUID;
+        $this->printerId         = $printerId;
     }
 
     /**
@@ -105,9 +107,9 @@ class RenderVideo implements ShouldQueue
             $log->debug("{$this->fileName}: {$percentage}% completed");
 
             RecordingRenderProgress::dispatch(
-                $this->owner->activePrinter, // printerId
-                $this->fileName,             // fileName
-                $percentage                  // progress
+                $this->printerId, // printerId
+                $this->fileName,  // fileName
+                $percentage       // progress
             );
         })->setAdditionalParameters([
             '-framerate', $recorderSettings['framerate'],
@@ -179,6 +181,6 @@ class RenderVideo implements ShouldQueue
         // Allow some time to allow the delete button to re-enable
         sleep( Configuration::get('renderFileBlockingSecs') + 1 );
 
-        RecordingRenderFinished::dispatch( $this->owner->activePrinter );
+        RecordingRenderFinished::dispatch( $this->printerId );
     }
 }

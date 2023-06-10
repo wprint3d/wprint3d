@@ -3,9 +3,11 @@
 namespace App\Http\Livewire;
 
 use App\Models\Printer;
+
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+
 use Livewire\Component;
 
 class PrintProgress extends Component
@@ -20,9 +22,13 @@ class PrintProgress extends Component
     protected $listeners = [ 'selectPrinter' ];
 
     public function selectPrinter() {
-        Log::debug( __METHOD__ . ': ' . (Auth::user()->activePrinter ?? 'none') );
+        $activePrinter = Auth::user()->getActivePrinter();
 
-        $this->printer = Printer::select('_id')->find( Auth::user()->activePrinter );
+        Log::debug( __METHOD__ . ': ' . ($activePrinter ?? 'none') );
+
+        if ($activePrinter) {
+            $this->printer = Printer::select('_id')->find( $activePrinter );
+        }
     }
 
     /*
@@ -30,8 +36,6 @@ class PrintProgress extends Component
      *       the last time we were online instead of re-calculating everything.
      */
     public function hydrate() {
-        $this->printer = Printer::select('_id')->find( Auth::user()->activePrinter );
-
         if ($this->printer) {
             $currentLine = $this->printer->getCurrentLine();
 

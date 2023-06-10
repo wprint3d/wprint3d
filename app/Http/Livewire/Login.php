@@ -37,14 +37,9 @@ class Login extends Component
         ) {
             $printers = Printer::select('_id')->get();
 
-            $user = Auth::user();
-
-            $user->activePrinter =
-                $printers->count() > 0
-                    ? (string) $printers->first()->_id
-                    : null;
-
-            $user->save();
+            if ($printers->count() > 0) {
+                Auth::user()->setActivePrinter( $printers->first()->_id );
+            }
 
             return redirect()->intended('/');
         }

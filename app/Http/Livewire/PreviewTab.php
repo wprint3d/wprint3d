@@ -5,7 +5,6 @@ namespace App\Http\Livewire;
 use App\Jobs\SendLinesToClientPreview;
 
 use App\Models\Printer;
-use App\Models\User;
 
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -25,7 +24,6 @@ class PreviewTab extends Component
     public bool $showExtrusion;
     public bool $showTravel;
 
-    private User     $user;
     private ?Printer $printer;
 
     public function reportFileChange() {
@@ -35,20 +33,20 @@ class PreviewTab extends Component
     public function refreshGcode($selectedLine = null, bool $mapLayers = true) {
         $this->currentLine = 0;
 
-        if ($this->user && $this->user->activePrinter) {
-            $printer = Printer::select('activeFile')->find( $this->user->activePrinter );
+        if ($this->printer) {
+            $this->printer->refresh();
 
-            if ($printer && $printer->activeFile) {
+            if ($this->printer && $this->printer->activeFile) {
                 $this->currentLine =
                     $selectedLine !== null && is_numeric($selectedLine)
                         ? (int) $selectedLine
-                        : $printer->getCurrentLine();
+                        : $this->printer->getCurrentLine();
 
                 SendLinesToClientPreview::dispatch(
-                    $this->uid,                 // previewUID
-                    $this->user->activePrinter, // printerId
-                    $this->currentLine,         // currentLine
-                    $mapLayers                  // mapLayers
+                    $this->uid,          // previewUID
+                    $this->printer->_id, // printerId
+                    $this->currentLine,  // currentLine
+                    $mapLayers           // mapLayers
                 );
 
                 return;
@@ -80,10 +78,14 @@ class PreviewTab extends Component
     }
 
     public function boot() {
-        $this->uid = uniqid();
+        $this->uid      = uniqid();
+        $this->printer  = null;
 
-        $this->user         = Auth::user();
-        $this->printer      = Printer::select('settings')->find( $this->user->activePrinter );
+        $activePrinter = Auth::user()->getActivePrinter();
+
+        if ($activePrinter) {
+            $this->printer = Printer::select('activeFile', 'settings')->find( $activePrinter );
+        }
 
         $this->showExtrusion    = $this->printer->settings['showExtrusion']     ?? true;
         $this->showTravel       = $this->printer->settings['showTravel']        ?? true;

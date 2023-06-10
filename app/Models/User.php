@@ -21,6 +21,7 @@ class User extends AuthenticatableUser
     use HasApiTokens, HasFactory, Notifiable;
 
     const CACHE_CURRENT_DIRECTORY_SUFFIX = '_cdir';
+    const CACHE_ACTIVE_PRINTER_SUFFIX    = '_aprinter';
 
     /**
      * The attributes that are mass assignable.
@@ -68,6 +69,42 @@ class User extends AuthenticatableUser
         return Cache::put(
             key:     session()->getId() . self::CACHE_CURRENT_DIRECTORY_SUFFIX,
             value:   env('BASE_FILES_DIR') . $path
+        );
+    }
+
+    public function getActivePrinter() {
+        return Cache::get(
+            session()->getId() . self::CACHE_ACTIVE_PRINTER_SUFFIX
+        );
+    }
+    
+    /**
+     * setActivePrinter
+     *
+     * @param  ?string $printerId
+     * 
+     * @return  bool Whether the user successfully set their printer
+     */
+    public function setActivePrinter(string $printerId): bool {
+        if ($printerId === null) {
+            return true;
+        }
+
+        /*
+         * The user is trying to select a deleted printer, this doesn't make
+         * sense, so we're gonna invalidate their session and instruct all
+         * modules willing to handle the request to execute a redirection to
+         * /login.
+         */
+        if (!Printer::find( $printerId )) {
+            session()->invalidate();
+
+            return false;
+        }
+
+        return Cache::put(
+            key:     session()->getId() . self::CACHE_ACTIVE_PRINTER_SUFFIX,
+            value:   $printerId
         );
     }
 

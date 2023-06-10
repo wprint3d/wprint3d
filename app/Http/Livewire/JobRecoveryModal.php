@@ -73,7 +73,9 @@ class JobRecoveryModal extends Component
 
         $this->baseFilesDir = env('BASE_FILES_DIR');
 
-        $this->printer = Printer::select('available', 'activeFile', 'hasActiveJob', 'lastJobHasFailed', 'lastLine')->find( Auth::user()->activePrinter );
+        $this->printer =
+            Printer::select('available', 'activeFile', 'hasActiveJob', 'lastJobHasFailed', 'lastLine')
+                   ->find( $this->user->getActivePrinter() );
 
         if ($this->printer && $this->printer->lastLine !== null) {
             if ($this->printer->lastLine > 0) {
@@ -87,7 +89,7 @@ class JobRecoveryModal extends Component
     }
 
     public function renderGcode() {
-        if (!$this->user->activePrinter) {
+        if (!$this->printer) {
             Log::warning( __METHOD__ . ': unexpected code path reached, why are we allowed to call this function without having a selected printer first?' );
 
             $this->dispatchBrowserEvent('recoveryJobPrepareError', 'No printer selected.');
@@ -97,15 +99,13 @@ class JobRecoveryModal extends Component
             return;
         }
 
-        $printer = Printer::select('activeFile')->find( $this->user->activePrinter );
-
-        if (!$printer) {
+        if (!$this->printer) {
             $this->dispatchBrowserEvent('recoveryJobPrepareError', 'The printer related to this job was unexpectedly deleted.');
 
             $this->skip();
         }
 
-        if (!$printer->activeFile) {
+        if (!$this->printer->activeFile) {
             $this->dispatchBrowserEvent('recoveryJobPrepareError', 'The printer in an unexpected state. Did you modify the database manually?');
 
             $this->skip();
@@ -122,10 +122,10 @@ class JobRecoveryModal extends Component
             }
 
             SendLinesToClientPreview::dispatch(
-                $uid,                       // previewUID
-                $this->user->activePrinter, // printerId
-                $targetLine,                // currentLine
-                false                       // mapLayers
+                $uid,                   // previewUID
+                $this->printer->_id,    // printerId
+                $targetLine,            // currentLine
+                false                   // mapLayers
             );
         }
     }
@@ -500,7 +500,8 @@ class JobRecoveryModal extends Component
 
         PrintGcode::dispatch(
             $this->printer->activeFile, // filePath
-            Auth::user()                // owner
+            Auth::user(),               // owner
+            $this->printer->_id         // printerId
         );
 
         RecoveryCompleted::dispatch( $this->printer->_id );

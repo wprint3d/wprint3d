@@ -32,7 +32,6 @@ use Illuminate\Queue\SerializesModels;
 
 use Illuminate\Support\Str;
 
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -103,12 +102,12 @@ class PrintGcode implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(string $filePath, User $owner)
+    public function __construct(string $filePath, User $owner, string $printerId)
     {
         $this->uid      = uniqid( more_entropy: true );
         $this->filePath = $filePath;
         $this->owner    = $owner;
-        $this->printer  = Printer::find( Auth::user()->activePrinter );
+        $this->printer  = Printer::find( $printerId );
 
         $this->runningTimeoutSecs   = Configuration::get('runningTimeoutSecs');
         $this->commandTimeoutSecs   = Configuration::get('commandTimeoutSecs');
@@ -191,7 +190,8 @@ class PrintGcode implements ShouldQueue
                     $camera->index,             // index
                     $camera->requiresLibCamera, // requiresLibCamera
                     $this->filePath,            // fileName
-                    $this->uid                  // jobUID
+                    $this->uid,                 // jobUID
+                    $this->printer->_id         // printerId
                 );
             }
         }
