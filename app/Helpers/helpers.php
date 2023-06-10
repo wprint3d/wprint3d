@@ -232,4 +232,8 @@ function getSnapshotsPrefix(string $fileName, string $jobUID, int $index, bool $
         ($requiresLibCamera ? '1' : '0');
 }
 
+function enabled(string $featureName) {
+    return config("features.{$featureName}") ?? false;
+}
+
 ?>
