@@ -25,7 +25,7 @@ Pause states        | ✓\*        | ✓\*        | No support
 
     `git clone -b alpha https://github.com/wprint3d/wprint3d`
 - Change to the created directory by running `cd wprint3d`.
-- Now, using your favorite text editor, create a new file called `.env` and copy the contents of `.env.example` into it.
+- Now, using your favorite text editor, create a new file called `.env` and copy the contents of `.env.example` into it. If you're planning on running **WPrint 3D** on a **Raspberry Pi**, consider copying `.env.rpi` instead.
 - Finally, within this file, change `APP_HOST` to match your system's IP address, this will let you expose the service on your local network.
 - That's it! Plug your pinter in any USB port you like and turn it on! Now, run `bash run.sh` to get going. The first run might take up to **10 minutes**, so you'll probably want to find something else to do in the meantime. :)
 
