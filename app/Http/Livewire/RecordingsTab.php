@@ -65,7 +65,7 @@ class RecordingsTab extends Component
                     $lastModified = Storage::lastModified( $file );
 
                     $file = [
-                        'url'       => env('APP_URL') . '/' . RenderVideo::RECORDINGS_DIRECTORY . '/' . $basename . '.webm',
+                        'url'       => request()->schemeAndHttpHost() . '/' . RenderVideo::RECORDINGS_DIRECTORY . '/' . $basename . '.webm',
                         'thumb'     => '/' . RenderVideo::RECORDINGS_DIRECTORY . '/' . $basename . '.jpg',
                         'name'      => preg_replace('/.webm$/', '', $basename),
                         'size'      => $fileSize->compute( Storage::size( $file ) ),
