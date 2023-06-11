@@ -217,6 +217,7 @@ return [
         'DataType'          => \App\Enums\DataType::class,
         'BackupInterval'    => \App\Enums\BackupInterval::class,
         'SortingMode'       => \App\Enums\SortingMode::class,
+        'CreateSampleUser'  => \App\Console\Commands\CreateSampleUser::class,
         'FFMpeg'            => \ProtoneMedia\LaravelFFMpeg\Support\FFMpeg::class,
     ])->toArray(),
 

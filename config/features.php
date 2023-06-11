@@ -9,4 +9,6 @@
  * them locally.
  */
 
-return [];
+return [
+    'login' => [ 'remember_me' => false ]
+];
