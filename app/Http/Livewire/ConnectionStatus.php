@@ -18,7 +18,7 @@ class ConnectionStatus extends Component
     protected $listeners = [ 'selectPrinter' ];
 
     private function refreshPrinter() {
-        $printerId = Auth::user()->activePrinter;
+        $printerId = Auth::user()->getActivePrinter();
 
         if ($printerId) {
             $this->printer = Printer::select('lastSeen')->find( $printerId );

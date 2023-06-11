@@ -491,26 +491,6 @@ class Printer extends Model
         );
     }
 
-    public static function getActiveUserId(string $printerId) {
-        $userId = Cache::get( $printerId . self::CACHE_ACTIVE_USER_ID_SUFFIX );
-
-        if (!$userId) {
-            $user = User::where('activePrinter', $printerId)->first();
-
-            if ($user) {
-                Cache::put(
-                    key:    $printerId . self::CACHE_ACTIVE_USER_ID_SUFFIX,
-                    value:  (string) $user->_id,
-                    ttl:    self::CACHE_TTL
-                );
-
-                $userId = (string) $user->_id;
-            }
-        }
-
-        return $userId;
-    }
-
     public function getLastSeen() {
         return Cache::get( $this->_id . self::CACHE_LAST_SEEN_SUFFIX );
     }

@@ -29,9 +29,11 @@ class ControlTab extends Component
     const NO_PRINTER_ERROR = 'A printer must be selected.';
 
     public function handlePrinterSelected() {
-        $printerId = Auth::user()->activePrinter;
+        $activePrinter = AUth::user()->getActivePrinter();
 
-        $this->printer = Printer::select('_id')->find( $printerId );
+        if ($activePrinter) {
+            $this->printer = Printer::select('_id')->find( $activePrinter );
+        }
     }
 
     private function queueMovement(string $direction) : bool {

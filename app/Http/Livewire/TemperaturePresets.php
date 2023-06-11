@@ -29,7 +29,7 @@ class TemperaturePresets extends Component
     public function prepare() {
         $user = Auth::user();
 
-        $printerId = $user->activePrinter;
+        $printerId = $user->getActivePrinter();
 
         if ($printerId) {
             $this->printer = Printer::select('activeFile')->find( $printerId );

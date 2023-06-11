@@ -33,10 +33,14 @@ class UploadedFiles extends Component
     ];
 
     public function refreshActiveFile() {
-        $printer = Printer::select('activeFile')->find( Auth::user()->activePrinter );
+        $activePrinter = Auth::user()->getActivePrinter();
 
-        if ($printer) {
-            $this->activeFile = $printer->activeFile;
+        if ($activePrinter) {
+            $printer = Printer::select('activeFile')->find( $activePrinter );
+
+            if ($printer) {
+                $this->activeFile = $printer->activeFile;
+            }
         }
     }
 

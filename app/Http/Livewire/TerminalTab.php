@@ -53,9 +53,11 @@ class TerminalTab extends Component
     }
 
     public function selectPrinter() {
-        Log::debug( __METHOD__ . ': ' . (Auth::user()->activePrinter ?? 'none') );
+        $activePrinter = Auth::user()->getActivePrinter();
 
-        $this->printer = Printer::select('node', 'baudRate', 'settings')->find( Auth::user()->activePrinter );
+        Log::debug( __METHOD__ . ': ' . ($activePrinter ?? 'none') );
+
+        $this->printer = Printer::select('node', 'baudRate', 'settings')->find( $activePrinter );
     }
 
     public function updateTerminalLog() {
@@ -109,7 +111,11 @@ class TerminalTab extends Component
     }
 
     public function boot() {
-        $this->printer = Printer::select('node', 'baudRate', 'settings')->find( Auth::user()->activePrinter );
+        $activePrinter = Auth::user()->getActivePrinter();
+
+        if ($activePrinter) {
+            $this->printer = Printer::select('node', 'baudRate', 'settings')->find( $activePrinter );
+        }
 
         $this->autoScroll        = $this->printer->settings['autoScroll']        ?? true;
         $this->showSensors       = $this->printer->settings['showSensors']       ?? true;

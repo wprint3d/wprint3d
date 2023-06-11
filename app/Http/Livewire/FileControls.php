@@ -29,7 +29,13 @@ class FileControls extends Component
     const NO_FILE_SELECTED_ERROR = 'A file must be selected before submitting this form.';
 
     private function refreshPrinter() {
-        $this->printer = Printer::select('activeFile')->find( Auth::user()->activePrinter );
+        $activePrinter = Auth::user()->getActivePrinter();
+
+        Log::debug( __METHOD__ . ': ' . ($activePrinter ?? 'none') );
+
+        if ($activePrinter) {
+            $this->printer = Printer::select('activeFile')->find( $activePrinter );
+        }
     }
 
     public function refreshActiveFile() {
@@ -61,8 +67,6 @@ class FileControls extends Component
     }
 
     public function selectPrinter() {
-        Log::debug( __METHOD__ . ': ' . (Auth::user()->activePrinter ?? 'none') );
-
         $this->refreshPrinter();
     }
 
@@ -88,7 +92,8 @@ class FileControls extends Component
 
         PrintGcode::dispatch(
             $this->selected,    // filePath
-            Auth::user()        // owner
+            Auth::user(),       // owner
+            $this->printer->_id // printerId
         );
 
         $this->printer->hasActiveJob = true;

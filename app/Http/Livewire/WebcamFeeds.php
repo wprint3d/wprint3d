@@ -11,7 +11,7 @@ use Livewire\Component;
 
 class WebcamFeeds extends Component
 {
-    public $printer;
+    public $printer = null;
     public $cameras = [];
 
     protected $listeners = [
@@ -21,7 +21,7 @@ class WebcamFeeds extends Component
 
     public function render()
     {
-        $printerId = Auth::user()->activePrinter;
+        $printerId = Auth::user()->getActivePrinter();
 
         if ($printerId) {
             $this->printer = Printer::select('cameras')->find( $printerId );

@@ -21,7 +21,11 @@ class IndexTabs extends Component
 
         if (!$user) return;
 
-        $printer = Printer::select('activeFile')->find( $user->activePrinter );
+        $activePrinter = $user->getActivePrinter();
+
+        if (!$activePrinter) return;
+
+        $printer = Printer::select('activeFile')->find( $activePrinter );
 
         if (!$printer) return;
 
