@@ -29,7 +29,7 @@ return [
         'controlExtrusionMinTemp'   => 170,     // celsius degress
 
         // Miscelaneous
-        'jobBackupInterval'              => BackupInterval::NEVER,
+        'jobBackupInterval'              => BackupInterval::EVERY_SECOND,
         'jobStatisticsQueryIntervalSecs' => 5,                      // seconds
         'terminalMaxLines'               => 512,                    // lines
         'enableHaptics'                  => true,                   // boolean
