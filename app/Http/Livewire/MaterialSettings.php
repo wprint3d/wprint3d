@@ -2,6 +2,10 @@
 
 namespace App\Http\Livewire;
 
+use App\Events\SystemMessage;
+
+use Illuminate\Support\Facades\Auth;
+
 use Livewire\Component;
 
 class MaterialSettings extends Component
@@ -15,7 +19,7 @@ class MaterialSettings extends Component
     public function delete() {
         $this->material->delete();
 
-        $this->emit('materialsChanged');
+        SystemMessage::send('materialsChanged');
     }
 
     public function updated($name, $value) {
@@ -36,7 +40,7 @@ class MaterialSettings extends Component
 
         $this->material->update([ $name => $value ]);
 
-        $this->emit('materialsChanged');
+        SystemMessage::send('materialsChanged');
     }
 
     public function render()

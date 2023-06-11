@@ -2,6 +2,8 @@
 
 namespace App\Http\Livewire;
 
+use App\Events\SystemMessage;
+
 use Livewire\Component;
 
 use Livewire\WithFileUploads;
@@ -37,8 +39,10 @@ class FileUploader extends Component
 
         Log::debug( __METHOD__ . ': ' . $fullName );
 
-        $this->emit('refreshUploadedFiles');
+        SystemMessage::send('refreshUploadedFiles');
+
         $this->emit('selectUploadedFile', $fullName);
+
         $this->dispatchBrowserEvent('fileUploadFinished');
     }
 

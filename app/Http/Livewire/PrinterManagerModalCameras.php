@@ -2,10 +2,13 @@
 
 namespace App\Http\Livewire;
 
+use App\Events\SystemMessage;
+
 use App\Models\Camera;
 
 use Illuminate\Support\Arr;
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 use Livewire\Component;
@@ -43,7 +46,7 @@ class PrinterManagerModalCameras extends Component
             $this->printer->save();
         }
 
-        $this->emit('linkedCamerasChanged');
+        SystemMessage::send('linkedCamerasChanged');
     }
 
     public function remove($cameraId) {
@@ -57,7 +60,7 @@ class PrinterManagerModalCameras extends Component
         $this->printer->cameras = $cameras;
         $this->printer->save();
 
-        $this->emit('linkedCamerasChanged');
+        SystemMessage::send('linkedCamerasChanged');
     }
 
     public function toggleRecordable($cameraId) {
@@ -87,7 +90,7 @@ class PrinterManagerModalCameras extends Component
         $this->printer->recordableCameras = $recordableCameras;
         $this->printer->save();
 
-        $this->emit('linkedCamerasChanged');
+        SystemMessage::send('linkedCamerasChanged');
     }
 
     public function render()

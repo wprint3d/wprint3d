@@ -2,6 +2,8 @@
 
 namespace App\Http\Livewire;
 
+use App\Events\SystemMessage;
+
 use App\Jobs\RenderVideo;
 
 use App\Models\Configuration;
@@ -17,6 +19,7 @@ use Livewire\Component;
 use CodeInc\HumanReadableFileSize\HumanReadableFileSize;
 
 use Exception;
+use Illuminate\Support\Facades\Auth;
 
 class RecordingsTab extends Component
 {
@@ -106,7 +109,7 @@ class RecordingsTab extends Component
 
             $this->refreshRecordings();
 
-            $this->dispatchBrowserEvent('recordingDeleted');
+            SystemMessage::send('recordingDeleted');
         } catch (Exception $exception) {
             Log::error(
                 $exception->getMessage() . PHP_EOL .

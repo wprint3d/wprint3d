@@ -2,6 +2,8 @@
 
 namespace App\Http\Livewire;
 
+use App\Events\SystemMessage;
+
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -28,7 +30,7 @@ class SettingsModalRecording extends Component
         Log::info( __METHOD__ . ': ' . $field . ' => ' . $newValue );
 
         if ($field == 'enabled') {
-            $this->emit('recorderToggled');
+            SystemMessage::send('recorderToggled');
         } else if ($field == 'captureInterval' && (!filled( $newValue ) || !is_numeric( $newValue ) || $newValue < .25)) {
             $newValue = .25;
         }

@@ -216,6 +216,7 @@ return [
         'Configuration'     => \App\Models\Configuration::class,
         'DataType'          => \App\Enums\DataType::class,
         'BackupInterval'    => \App\Enums\BackupInterval::class,
+        'ToastMessageType'  => \App\Enums\ToastMessageType::class,
         'SortingMode'       => \App\Enums\SortingMode::class,
         'CreateSampleUser'  => \App\Console\Commands\CreateSampleUser::class,
         'FFMpeg'            => \ProtoneMedia\LaravelFFMpeg\Support\FFMpeg::class,
