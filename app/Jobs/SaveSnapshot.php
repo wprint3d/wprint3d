@@ -54,7 +54,7 @@ class SaveSnapshot implements ShouldQueue
 
         $this->index             = $index;
         $this->requiresLibCamera = $requiresLibCamera;
-        $this->url               = $url;
+        $this->url               = 'https://proxy' . $url;
         $this->fileName          = $fileName;
         $this->jobUID            = $jobUID;
     }
