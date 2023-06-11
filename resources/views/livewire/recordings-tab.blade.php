@@ -1,7 +1,7 @@
 <div>
     <div>
-        <div id="renderProgress" class="progress m-2 d-none" role="progressbar" aria-label="Animated striped example" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar progress-bar-striped progress-bar-animated"></div>
+        <div id="renderProgress" class="progress m-2 d-none bg-black bg-opacity-25" role="progressbar" aria-label="Animated striped example" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar progress-bar-striped progress-bar-animated overflow-visible"></div>
         </div>
 
         @if (filled( $recordings ))
