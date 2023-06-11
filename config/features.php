@@ -10,5 +10,9 @@
  */
 
 return [
-    'login' => [ 'remember_me' => false ]
+
+    'login'     => [ 'remember_me'  => false ],
+
+    'settings'  => [ 'profile'      => false ]
+
 ];
