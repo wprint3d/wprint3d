@@ -43,6 +43,12 @@ class CreateFolderModal extends Component
         try {
             $newPath = Auth::user()->getCurrentFolder() . '/' . $this->name;
 
+            if (Storage::exists( $newPath )) {
+                $this->dispatchBrowserEvent('folderCreationError', 'there\'s another folder with that name.');
+
+                return;
+            }
+
             if (Storage::makeDirectory( $newPath )) {
                 $this->dispatchBrowserEvent('folderCreationCompleted', $this->name);
                 $this->emit('selectedPathChanged', $newPath);
