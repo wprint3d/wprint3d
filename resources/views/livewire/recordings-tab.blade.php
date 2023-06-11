@@ -4,7 +4,7 @@
             <div class="progress-bar progress-bar-striped progress-bar-animated"></div>
         </div>
 
-        @if (filled ($recordings))
+        @if (filled( $recordings ))
             @foreach ($recordings as $recording)
                 <div class="col">
                     <div class="card m-2 shadow-sm">

@@ -2,6 +2,8 @@
 
 namespace App\Http\Livewire;
 
+use App\Events\SystemMessage;
+
 use App\Jobs\PrintGcode;
 
 use App\Models\Printer;
@@ -45,7 +47,7 @@ class FileControls extends Component
             $newActiveFile = $this->printer->activeFile ?? null;
 
             if ($this->activeFile && !$newActiveFile) {
-                $this->dispatchBrowserEvent('targetTemperatureReset');
+                SystemMessage::send('targetTemperatureReset');
             }
 
             $this->activeFile = $newActiveFile;
@@ -59,8 +61,6 @@ class FileControls extends Component
 
     public function prepareFile($fileName) {
         Log::info('prepare: ' . $fileName);
-
-        $this->refreshActiveFile();
 
         $this->selected     = $fileName;
         $this->newFilename  = basename($fileName);
@@ -100,9 +100,7 @@ class FileControls extends Component
         $this->printer->activeFile   = $this->selected;
         $this->printer->save();
 
-        $this->refreshActiveFile();
-
-        $this->emit('refreshActiveFile', $this->printer->activeFile);
+        SystemMessage::send('refreshActiveFile');
 
         $this->dispatchBrowserEvent('changeSaved', [ 'action' => 'start' ]);
     }
@@ -112,9 +110,7 @@ class FileControls extends Component
         $this->printer->activeFile   = null;
         $this->printer->save();
 
-        $this->refreshActiveFile();
-
-        $this->emit('refreshActiveFile', $this->printer->activeFile);
+        SystemMessage::send('refreshActiveFile');
 
         $this->dispatchBrowserEvent('changeSaved', [ 'action' => 'stop' ]);
     }
@@ -142,7 +138,7 @@ class FileControls extends Component
 
         $this->dispatchBrowserEvent('changeSaved', [ 'action' => 'delete' ]);
 
-        $this->emit('refreshUploadedFiles');
+        SystemMessage::send('refreshUploadedFiles');
     }
 
     public function pause() {
@@ -193,7 +189,8 @@ class FileControls extends Component
 
         $this->dispatchBrowserEvent('changeSaved', [ 'action' => 'rename' ]);
 
-        $this->emit('refreshUploadedFiles');
+        SystemMessage::send('refreshUploadedFiles');
+
         $this->emit('selectUploadedFile', $this->newFilename);
     }
 

@@ -9,6 +9,7 @@ use App\Enums\RecoveryStage;
 use App\Events\RecoveryCompleted;
 use App\Events\RecoveryProgress;
 use App\Events\RecoveryStageChanged;
+use App\Events\SystemMessage;
 
 use App\Jobs\PrintGcode;
 use App\Jobs\SendLinesToClientPreview;
@@ -137,10 +138,13 @@ class JobRecoveryModal extends Component
         $this->printer->lastLine         = null;
         $this->printer->save();
 
-        $this->emit('refreshActiveFile', $this->printer->activeFile);
+        SystemMessage::send('refreshActiveFile');
+        SystemMessage::send('recoveryAborted');
     }
 
     public function recover() {
+        SystemMessage::send('recoveryStarted');
+
         $log = Log::channel('job-recovery');
 
         $cacheMapperBusyKey = config('cache.mapper_busy_key');
@@ -160,6 +164,8 @@ class JobRecoveryModal extends Component
         ) {
             $this->dispatchBrowserEvent('recoveryFailed', 'we\'re still negotiating a connection with this printer, please try again in a few seconds.');
 
+            SystemMessage::send('recoveryAborted');
+
             return;
         }
 
@@ -177,6 +183,8 @@ class JobRecoveryModal extends Component
 
             $this->dispatchBrowserEvent('recoveryFailed', $exception->getMessage() . '.');
 
+            SystemMessage::send('recoveryAborted');
+
             return;
         }
 
@@ -185,6 +193,8 @@ class JobRecoveryModal extends Component
 
             if (time() - $restoreStartTime > $jobRestorationTimeoutSecs) {
                 $this->dispatchBrowserEvent('recoveryTimedOut');
+
+                SystemMessage::send('recoveryAborted');
 
                 return;
             }
@@ -490,8 +500,8 @@ class JobRecoveryModal extends Component
 
         fclose( $targetFile );
 
-        $this->emit('refreshUploadedFiles');
-        $this->emit('recoveryCompleted', $newFileName);
+        SystemMessage::send('refreshUploadedFiles');
+        SystemMessage::send('recoveryCompleted', $newFileName);
 
         $this->printer->activeFile       = $targetFilePath;
         $this->printer->hasActiveJob     = true;

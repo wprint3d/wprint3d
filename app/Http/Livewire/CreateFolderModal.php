@@ -2,13 +2,14 @@
 
 namespace App\Http\Livewire;
 
+use App\Events\SystemMessage;
+
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 use Illuminate\Support\Str;
 
 use Livewire\Component;
-
-use Illuminate\Support\Facades\Auth;
 
 use Exception;
 
@@ -52,6 +53,8 @@ class CreateFolderModal extends Component
             if (Storage::makeDirectory( $newPath )) {
                 $this->dispatchBrowserEvent('folderCreationCompleted', $this->name);
                 $this->emit('selectedPathChanged', $newPath);
+
+                SystemMessage::send('folderCreationCompleted');
             }
         } catch (Exception $exception) {
             $this->dispatchBrowserEvent('folderCreationError', $exception->getMessage());

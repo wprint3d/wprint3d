@@ -7,7 +7,10 @@
 @livewireScripts
 
 <script>
-    const PHP_EOL = @json(PHP_EOL);
+    const USER_ID             = @json( Auth::id() );
+    const SESSION_ID          = @json( session()->getId() );
+    const PHP_EOL             = @json( PHP_EOL );
+    const TOAST_MESSAGE_TYPES = @json( ToastMessageType::asArray() );
 
     window.getSelectedPrinterId = () => document.querySelector('#printerSelect').value;
 
@@ -121,6 +124,85 @@
                 toastify.info('Hardware change applied.');
 
                 Livewire.emit('hardwareChangeDetected');
+
+                return true;
+            });
+
+        Echo.private(`system-message.${USER_ID}`)
+            .listen('ToastMessage', event => {
+                console.debug('ToastMessage', event);
+
+                switch (event.type) {
+                    case TOAST_MESSAGE_TYPES.ERROR:
+                        toastify.error( event.message );
+                    break;
+                    case TOAST_MESSAGE_TYPES.INFO:
+                        toastify.info( event.message );
+                    break;
+                    case TOAST_MESSAGE_TYPES.SUCCESS:
+                        toastify.success( event.message );
+                    break;
+                }
+
+                return true;
+            });
+
+        Echo.private(`system-message.${USER_ID}`)
+            .listen('SystemMessage', event => {
+                console.debug('SystemMessage', event);
+
+                switch (event.name) {
+                    case 'folderCreationCompleted':
+                        Livewire.emit('refreshUploadedFiles');
+
+                        break;
+                    case 'targetTemperatureReset':
+                        dispatchEvent( new Event('targetTemperatureReset') );
+
+                        break;
+                    case 'recoveryStarted':
+                        [ 'skipRecoveryBtn', 'recoverBtn' ].forEach(id => {
+                            document.querySelector('#' + id).disabled = true;
+                        });
+
+                        break;
+                    case 'recoveryAborted':
+                        [ 'skipRecoveryBtn', 'recoverBtn' ].forEach(id => {
+                            document.querySelector('#' + id).disabled = false;
+                        });
+
+                        break;
+                    case 'recoveryCompleted':
+                        Livewire.emit('recoveryCompleted', event.detail);
+
+                        break;
+                    case 'recordingDeleted':
+                        Livewire.emit('refreshRecordings');
+
+                        dispatchEvent( new Event('recordingDeleted') );
+
+                        break;
+                    case 'refreshActiveFile':
+                        Livewire.emit('refreshActiveFile');
+
+                        break;
+                    case 'refreshUploadedFiles':
+                        Livewire.emit('refreshUploadedFiles');
+
+                        break;
+                    case 'materialsChanged':
+                        Livewire.emit('materialsChanged');
+
+                        break;
+                    case 'linkedCamerasChanged':
+                        Livewire.emit('linkedCamerasChanged');
+
+                        break;
+                    case 'recorderToggled':
+                        Livewire.emit('recorderToggled');
+
+                        break;
+                }
 
                 return true;
             });

@@ -2,7 +2,7 @@
 
 use App\Models\Printer;
 use App\Models\User;
-
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Log;
 
@@ -85,4 +85,14 @@ Broadcast::channel('recovery-completed.{printerId}', function (User $user, $prin
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
     return $printerId == $user->getActivePrinter();
+});
+
+Broadcast::channel('system-message.{userId}', function (User $user, $userId) {
+    Log::info('=> ' . json_encode($user) . ', ' . json_encode($userId));
+
+    /*
+     * True if the user ID passed in the URL is equal to the stored value in
+     * the active session.
+     */
+    return $userId == Auth::id();
 });
