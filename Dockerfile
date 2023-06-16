@@ -55,7 +55,7 @@ RUN curl -O 'https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-arch
     fi;
 
 # camera-streamer
-RUN git clone https://github.com/ayufan-research/camera-streamer.git --recursive --shallow-submodules &&\
+RUN git clone https://github.com/wprint3d/camera-streamer.git --recursive --shallow-submodules &&\
     cd camera-streamer &&\
     make &&\
     make install;
