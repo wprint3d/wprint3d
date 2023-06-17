@@ -216,8 +216,6 @@ class MapSerialPrinters extends Command
                         $this->info('Printer found! Node name is "' . $device . '", baud rate is ' . $baudRate . ' bps. Response was: ' . $response);
                         $log->info( 'Printer found! Node name is "' . $device . '", baud rate is ' . $baudRate . ' bps. Response was: ' . $response);
 
-                        $printer = Printer::where('machine.uuid', $machine['uuid'])->first();
-
                         if (!$printer) {
                             $printer = new Printer();
 
