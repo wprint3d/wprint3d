@@ -7,10 +7,23 @@
 @livewireScripts
 
 <script>
+    window.livewire_app_url = (new URL(window.location.href)).origin;
+
     const USER_ID             = @json( Auth::id() );
-    const SESSION_ID          = @json( session()->getId() );
     const PHP_EOL             = @json( PHP_EOL );
     const TOAST_MESSAGE_TYPES = @json( ToastMessageType::asArray() );
+    
+    const PUBLIC_WS_PORTS     = @json( session()->get('websocket_public_ports') );
+
+    window.ECHO_OPTIONS = {
+        broadcaster: 'pusher',
+        key:        @json( env('PUSHER_APP_KEY') ),
+        wssPort:    @json( env('EXTERNAL_WEB_SOCKET_PORT') ) ?? 6001,
+        wsHost:     window.location.hostname,
+        forceTLS:   false,
+        cluster:    'mt1',
+        enabledTransports: ['ws', 'wss'],
+    };
 
     window.getSelectedPrinterId = () => document.querySelector('#printerSelect').value;
 
@@ -115,6 +128,16 @@
     initializeTooltips();
 
     window.addEventListener('DOMContentLoaded', () => {
+        window.Echo = new Echo(window.ECHO_OPTIONS);
+
+        // Set base URL
+        axios.post(
+            window.livewire_app_url + '/base',
+            { url: window.livewire_app_url }
+        ).then(response => {
+            console.debug('/base', response);
+        });
+
         window.addEventListener('shown.bs.modal', initializeTooltips);
 
         Echo.channel('printers-map-updated')

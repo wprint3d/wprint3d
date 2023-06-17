@@ -3,15 +3,10 @@
 namespace App\Http\Livewire;
 
 use App\Models\Printer;
-use App\Models\User;
 
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Livewire\Component;
 
-use MongoDB\BSON\ObjectId;
+use Livewire\Component;
 
 class Login extends Component
 {
@@ -41,7 +36,9 @@ class Login extends Component
                 Auth::user()->setActivePrinter( $printers->first()->_id );
             }
 
-            return redirect()->intended('/');
+            $this->dispatchBrowserEvent('forceRedirect', '/');
+
+            return;
         }
 
         $this->addError('mailAddress', 'That combination of email address and password doesn\'t match our records.');

@@ -65,24 +65,10 @@ window.toastify.success = (text, duration = null, title = null, onClick = () => 
  */
 
 import Echo from 'laravel-echo';
+window.Echo = Echo;
 
 import Pusher from 'pusher-js';
 window.Pusher = Pusher;
-
-const ECHO_OPTIONS = {
-    broadcaster: 'pusher',
-    key:        import.meta.env.VITE_PUSHER_APP_KEY,
-    wsHost:     window.location.hostname,
-    wsPort:     import.meta.env.VITE_PUSHER_PORT,
-    wssPort:    import.meta.env.VITE_PUSHER_PORT,
-    forceTLS:   import.meta.env.VITE_PUSHER_SCHEME === 'https',
-    cluster:    import.meta.env.VITE_PUSHER_APP_CLUSTER,
-    enabledTransports: ['ws', 'wss'],
-};
-
-console.debug(ECHO_OPTIONS);
-
-window.Echo = new Echo(ECHO_OPTIONS);
 
 import * as GCodePreview from 'gcode-preview';
 window.GCodePreview = GCodePreview;
