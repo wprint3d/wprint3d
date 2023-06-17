@@ -7,7 +7,7 @@ RUN curl -sL https://deb.nodesource.com/setup_16.x -o /tmp/nodesource_setup.sh &
     bash /tmp/nodesource_setup.sh;
 
 # Basic dependencies
-RUN apt-get install -y coreutils git curl gnupg libcurl4-openssl-dev libxml2-dev libzip-dev nodejs fswebcam procps build-essential cmake usbutils docker.io libssl-dev pkg-config
+RUN apt-get install -y coreutils git curl gnupg libcurl4-openssl-dev libxml2-dev libzip-dev nodejs npm fswebcam procps build-essential cmake usbutils docker.io libssl-dev pkg-config
 
 # MySQL/MariaDB CLI client
 RUN apt-get install -y mariadb-client
