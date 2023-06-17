@@ -31,11 +31,10 @@ COPY internal /internal
 
 # Build and install Camera Streamer and MJPG Streamer
 #
-# In the two blocks shown below, we check if the architecture is either "arm"
-# or "aarch64" by checking the output of `uname -a`, if it does, the RPi camera
-# dependencies are bundled with the image. This is generally valid as most
-# devices that are part of either of those architectures, DO have a built-in
-# hardware encoder/decoder that camera-streamer can take advantage of.
+# In the two blocks shown below, we will compile and install the RPi camera
+# dependencies (libcamera and libcamera-apps-lite) which are then bundled with
+# the image. This is useful as most SBCs DO have a built-in hardware
+# encoder/decoder that camera-streamer can take advantage of.
 #
 # Note that we're manually removing "input_raspicam" from MJPG streamer as it's
 # broken on 64-bit builds of Raspberry Pi OS and it's terribly slow too, so
@@ -43,16 +42,23 @@ COPY internal /internal
 # though we're actually building "input_libcamera" into MJPG Streamer, we'll be
 # using Camera Streamer instead whenever an RPi camera is found, as it's faster
 # and more reliable.
-RUN curl -O 'https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2016.10.31_all.deb' &&\
-    dpkg -i ./raspberrypi-archive-keyring_2016.10.31_all.deb &&\
-    if [[ $(uname -m) == 'aarch64' ]] || [[ $(uname -m) == 'arm' ]]; then \
-        echo 'deb http://archive.raspberrypi.org/debian/ bullseye main' >> /etc/apt/sources.list.d/raspi.list; \
-    fi &&\
-    apt-get update &&\
-    apt-get install -y meson python3 python3-pip python3-jinja2 python3-ply python3-yaml libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev libboost-program-options-dev libdrm-dev libexif-dev &&\
-    if [[ $(uname -m) == 'aarch64' ]] || [[ $(uname -m) == 'arm' ]]; then \
-        apt-get install -y libcamera-apps-lite liblivemedia-dev libcamera-dev; \
-    fi;
+RUN apt-get update &&\
+    apt-get install -y meson python3 python3-pip python3-jinja2 python3-ply python3-yaml libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev libboost-program-options-dev libdrm-dev libexif-dev libglib2.0-dev libgstreamer-plugins-base1.0-dev &&\
+    git clone https://github.com/raspberrypi/libcamera.git &&\
+    cd libcamera &&\
+    meson build --buildtype=release -Dpipelines=raspberrypi -Dipas=raspberrypi -Dv4l2=true -Dgstreamer=enabled -Dtest=false -Dlc-compliance=disabled -Dcam=disabled -Dqcam=disabled -Ddocumentation=disabled -Dpycamera=disabled &&\
+    ninja -C build &&\
+    ninja -C build install;
+RUN apt-get update &&\
+    apt-get install -y libtiff5-dev libpng-dev &&\
+    git clone https://github.com/raspberrypi/libcamera-apps.git &&\
+    cd libcamera-apps &&\
+    mkdir build &&\
+    cd build &&\
+    cmake .. -DENABLE_DRM=1 -DENABLE_X11=0 -DENABLE_QT=0 -DENABLE_OPENCV=0 -DENABLE_TFLITE=0 &&\
+    make -j$(nproc --all) &&\
+    make install &&\
+    ldconfig;
 
 # camera-streamer
 RUN git clone https://github.com/wprint3d/camera-streamer.git --recursive --shallow-submodules &&\
