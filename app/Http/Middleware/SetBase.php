@@ -22,10 +22,6 @@ class SetBase
             $request->headers->set('x-forwarded-port',    $url->port);
         }
 
-        if (! session()->has('websocket_public_ports')) {;
-            session()->put('websocket_public_ports', $this->getPublicWebSocketPorts());
-        }
-
         return $next($request);
     }
 

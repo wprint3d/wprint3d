@@ -12,8 +12,6 @@
     const USER_ID             = @json( Auth::id() );
     const PHP_EOL             = @json( PHP_EOL );
     const TOAST_MESSAGE_TYPES = @json( ToastMessageType::asArray() );
-    
-    const PUBLIC_WS_PORTS     = @json( session()->get('websocket_public_ports') );
 
     window.ECHO_OPTIONS = {
         broadcaster: 'pusher',
