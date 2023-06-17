@@ -23,7 +23,7 @@ services:
          limits:
            memory: 64M
   web:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     privileged: true
     environment:
@@ -40,7 +40,7 @@ services:
       - bundler
       # - mariadb
   scheduler:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     privileged: true
     environment:
@@ -55,7 +55,7 @@ services:
       - mongo
       # - mariadb
   # short-scheduler:
-  #   image: wprint3d/wprint3d
+  #   build: .
   #   restart: always
   #   privileged: true
   #   environment:
@@ -71,7 +71,7 @@ services:
   #     - mongo
   #     # - mariadb
   serial-scheduler:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     privileged: true
     environment:
@@ -86,7 +86,7 @@ services:
       - mongo
       # - mariadb
   mapper:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     privileged: true
     environment:
@@ -104,7 +104,7 @@ services:
       - mongo
       # - mariadb
   queue:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     privileged: true
     environment:
@@ -120,7 +120,7 @@ services:
       - mongo
       # - mariadb
   previews-queue:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     environment:
       - ROLE=queue
@@ -134,7 +134,7 @@ services:
       - mongo
       # - mariadb
   broadcasts-queue:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     environment:
       - ROLE=queue
@@ -150,7 +150,7 @@ services:
       - mongo
       # - mariadb
   snapshots-queue:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     environment:
       - ROLE=queue
@@ -166,7 +166,7 @@ services:
       - mongo
       # - mariadb
   recordings-queue:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     environment:
       - ROLE=queue
@@ -181,7 +181,7 @@ services:
       - mongo
       # - mariadb
   ws-server:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     environment:
       - ROLE=ws-server
@@ -193,14 +193,14 @@ services:
       - mongo
       # - mariadb
   bundler:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     environment:
       - ROLE=bundler
     volumes:
       - .:/var/www
   streamer:
-    image: wprint3d/wprint3d
+    build: .
     restart: always
     environment:
       - ROLE=streamer
