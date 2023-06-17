@@ -51,7 +51,7 @@ return [
     |
     */
 
-    'https' => env('OCTANE_HTTPS', Str::contains(env('APP_URL'), 'https')),
+    'https' => env('OCTANE_HTTPS', true),
 
     /*
     |--------------------------------------------------------------------------

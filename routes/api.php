@@ -1,14 +1,10 @@
 <?php
 
-use App\Libraries\Serial;
-
 use App\Models\DeviceVariant;
 
 use Illuminate\Http\Request;
 
 use Illuminate\Support\Facades\Route;
-
-use Illuminate\Support\Str;
 
 use Symfony\Component\HttpFoundation\Response;
 
