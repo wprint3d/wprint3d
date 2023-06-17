@@ -7,6 +7,31 @@ SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )";
 
 cd "$SCRIPT_PATH";
 
+ENV='production';
+
+if [[ "$1" == '-h' ]] || [[ "$1" == '--help' ]]; then
+    printf 'Usage \n\n'"$0"' [-e dev | --environment dev] (builds and runs the image locally)\n';
+
+    exit 0;
+elif ([[ "$1" == '-e' ]] || [[ "$1" == '--environment' ]]); then
+    case "$2" in
+        dev)
+            ENV='dev';
+
+            ;;
+        *)
+            if [[ "$2" == '' ]]; then
+                printf 'The environment cannot be empty.\n';
+            else
+                printf 'Invalid environment "'"$2"'".\n';
+            fi;
+
+            exit 1;
+
+            ;;
+    esac;
+fi;
+
 if [[ ! -d 'bin' ]]; then
     printf 'Creating prebuilts storage... ';
 
@@ -59,10 +84,19 @@ if [[ -e /opt/vc ]]; then
     cp -rfv /opt/vc ./internal/vc;
 fi;
 
-docker compose build --progress plain;
+if [[ "$ENV" == 'dev' ]]; then
+    docker compose -f docker-compose-development.yml pull;
+    docker compose -f docker-compose-development.yml build --progress plain;
+elif [[ "$ENV" == 'production' ]]; then
+    docker compose pull;
+fi;
 
 for container_name in $(docker ps --format '{{ .Names }}'  | grep buildx_buildkit_builder); do
     docker stop "$container_name";
 done;
 
-docker compose up -d;
+if [[ "$ENV" == 'dev' ]]; then
+    docker compose -f docker-compose-development.yml up -d;
+elif [[ "$ENV" == 'production' ]]; then
+    docker compose up -d;
+fi;
