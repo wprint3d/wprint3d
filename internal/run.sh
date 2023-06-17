@@ -95,7 +95,6 @@ else
 
             # TODO: This is just for development and testing purposes and
             #       should be removed for production.
-            php artisan reset:users;
             php artisan create:sample-user;
 
             php artisan migrate;

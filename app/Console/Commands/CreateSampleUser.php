@@ -34,6 +34,10 @@ class CreateSampleUser extends Command
      */
     public function handle()
     {
+        if (User::where( 'name', self::SAMPLE_USER_MAIL_ADDRESS )->exists()) {
+            return Command::SUCCESS;
+        }
+
         User::create([
             'name'      => self::SAMPLE_USER_MAIL_ADDRESS,
             'email'     => self::SAMPLE_USER_MAIL_ADDRESS,
