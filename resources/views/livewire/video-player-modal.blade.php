@@ -9,7 +9,6 @@
                 <div class="modal-body">
                     <video id="videoPlayer" class="w-100 mh-100" autoplay controls></video>
                 </div>
-                <div class="modal-footer"></div>
             </div>
         </div>
     </div>
