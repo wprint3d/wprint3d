@@ -12,7 +12,7 @@ Pause states        | ✓\*        | ✓\*        | No support
 ## System requirements
 - Any **dual-core CPU** running at, at least, **1 GHz**
 - **1 GB** of memory running at **any speed** \*
-- **512 MB** of **storage space**
+- **2 GB** of **storage space**
 - A wired network card running at, at least, **10/100 Mbps mode** or a wireless network card connected to a device that can provide a **54 Mbps mode** (or better) for a stable live webcam feed
 - Optionally, a USB camera or a real hardwired sensor, such as a **Raspberry Pi camera**.
 
