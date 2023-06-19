@@ -96,7 +96,7 @@ for container_name in $(docker ps --format '{{ .Names }}'  | grep buildx_buildki
 done;
 
 if [[ "$ENV" == 'dev' ]]; then
-    docker compose -f docker-compose-development.yml up -d;
+    docker compose -f docker-compose-development.yml up -d --remove-orphans;
 elif [[ "$ENV" == 'production' ]]; then
-    docker compose up -d;
+    docker compose up -d --remove-orphans;
 fi;
