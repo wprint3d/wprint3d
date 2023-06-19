@@ -26,8 +26,37 @@ waitForAssetBundler() {
         echo 'Waiting for the asset bundler to exit...';
 
         while [[ ! -e '/var/www/internal/.bundler-exit-status' ]]; do
+            refreshDockerLog;
+
             sleep 1;
         done;
+    fi;
+}
+
+export LAST_UPDATE=$(date +%s);
+
+refreshDockerLog() {
+    IFS=$'\n';
+
+    TIMESTAMP=$(date +%s);
+
+    if [[ $(( "$TIMESTAMP" - "$LAST_UPDATE" )) -gt 1 ]]; then # updates every 2 seconds
+        export LAST_UPDATE="$TIMESTAMP";
+
+        for identifier in $(docker ps -a --format '{{ .ID }},{{ .Names }}'); do
+            CID=$(printf  "$identifier" | cut -d ',' -f 1);
+            NAME=$(printf "$identifier" | cut -d ',' -f 2);
+
+            LINES=$(docker logs $CID --tail 5);
+
+            for line in $LINES; do
+                printf "$NAME"'     | '"$line"'\n' >> /tmp/startup.txt;
+            done;
+        done;
+
+        if [[ -e '/tmp/startup.txt' ]]; then
+            mv /tmp/startup.txt /var/www/internal/startup/startup.txt;
+        fi;
     fi;
 }
 
@@ -61,6 +90,10 @@ else
         fi;
 
         if [[ "$ROLE" == 'server' ]]; then
+            printf '' > /var/www/internal/startup/startup.txt;
+
+            refreshDockerLog;
+
             MACHINE_UUID=$(php artisan get:machine-uuid);
 
             if [[ "$MACHINE_UUID" == '' ]]; then
@@ -89,7 +122,11 @@ else
                 docker exec -t wprint3d-proxy-1 nginx -s reload;
             fi;
 
+            refreshDockerLog;
+
             composer install;
+
+            refreshDockerLog;
 
             waitForAssetBundler;
 
@@ -102,6 +139,8 @@ else
             php artisan make:marlin-labels;
 
             php artisan reset:active-jobs;
+
+            refreshDockerLog;
 
             if [ $(php artisan get:env OCTANE_ENABLED) == 'true' ]; then
                 echo 'Starting Octane web server...';

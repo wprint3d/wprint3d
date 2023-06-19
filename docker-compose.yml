@@ -11,6 +11,7 @@ services:
       - ./proxy/ssl:/etc/nginx/ssl
       - ./public:/public
       - ./storage/app/recordings:/public/recordings
+      - ./internal/startup:/internal/startup:ro
     ports:
       - ${EXTERNAL_WEB_HTTP_PORT:-80}:80
       - ${EXTERNAL_WEB_HTTPS_PORT:-443}:443
