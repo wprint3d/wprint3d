@@ -27,8 +27,6 @@ RUN docker-php-ext-enable mongodb redis dio swoole
 # Install several officially supported PHP extensions: cURL, XML, ZIP, DOM, MySQLi, PDO MySQL, Sockets and PCNTL.
 RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) curl xml zip dom mysqli pdo_mysql sockets pcntl
 
-COPY internal /internal
-
 # Build and install Camera Streamer and MJPG Streamer
 #
 # In the two blocks shown below, we will compile and install the RPi camera
@@ -97,5 +95,8 @@ RUN apt-get update &&\
 RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) intl
 
 WORKDIR /var/www
+
+# TODO: I'm not entirely sure as to whether this is still necessary.
+COPY internal /internal
 
 ENTRYPOINT [ "./internal/run.sh" ]
