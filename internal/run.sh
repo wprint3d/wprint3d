@@ -26,7 +26,9 @@ waitForAssetBundler() {
         echo 'Waiting for the asset bundler to exit...';
 
         while [[ ! -e '/var/www/internal/.bundler-exit-status' ]]; do
-            refreshDockerLog;
+            if [[ "$ROLE" == 'server' ]]; then
+                refreshDockerLog;
+            fi;
 
             sleep 1;
         done;
