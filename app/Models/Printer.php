@@ -38,7 +38,8 @@ class Printer extends Model
     const CACHE_ABSOLUTE_POSITION_SUFFIX = '_absolutePosition';
     const CACHE_LAST_SEEN_SUFFIX         = '_lastSeen';
 
-    const MARLIN_TEMPERATURE_INDICATOR = 'T:';
+    const MARLIN_TEMPERATURE_INDICATOR      = 'T:';
+    const MARLIN_MULTI_TEMPERATURE_TEMPLATE = 'T%s:';
 
     protected $fillable = [
         'node',
@@ -174,6 +175,13 @@ class Printer extends Model
 
         try {
             $temperatures = trim( str_replace('ok', '', $rawData) );
+
+            $temperatures = preg_replace(
+                pattern:     '/' . sprintf(self::MARLIN_MULTI_TEMPERATURE_TEMPLATE, '0') . '.*/',
+                replacement: '',
+                subject:     $temperatures
+            );
+
             $temperatures = preg_split('/.:/', $temperatures, 3, PREG_SPLIT_NO_EMPTY); // split in chunks of temperature type (first goes hotend, then, bed)
 
             if (!isset( $temperatures[0] )) {
