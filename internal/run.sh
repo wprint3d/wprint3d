@@ -50,7 +50,7 @@ refreshDockerLog() {
             LINES=$(docker logs $CID --tail 5);
 
             for line in $LINES; do
-                printf "$NAME"'     | '"$line"'\n' >> /tmp/startup.txt;
+                echo "$NAME"'     | '"$line" >> /tmp/startup.txt;
             done;
         done;
 
