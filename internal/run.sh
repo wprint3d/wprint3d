@@ -57,7 +57,7 @@ refreshDockerLog() {
         done;
 
         if [[ -e '/tmp/startup.txt' ]]; then
-            mv /tmp/startup.txt /var/www/internal/startup/startup.txt;
+            mv -f /tmp/startup.txt /var/www/internal/startup/startup.txt;
         fi;
     fi;
 }
