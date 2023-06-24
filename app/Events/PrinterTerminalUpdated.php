@@ -55,8 +55,6 @@ class PrinterTerminalUpdated implements ShouldBroadcast
                     );
                 } else { // output
                     if (strpos($line, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false) { // with temperature data
-                        Printer::setStatisticsOf( $this->printerId, $line, 0);
-
                         Printer::updateLastSeenOf( $this->printerId );
 
                         PrinterConnectionStatusUpdated::dispatch( $this->printerId );
