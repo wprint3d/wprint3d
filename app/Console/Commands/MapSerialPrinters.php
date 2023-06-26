@@ -105,165 +105,159 @@ class MapSerialPrinters extends Command
 
                         break;
                     } catch (Exception $exception) {
-                        $this->info('  - Negotiation at ' . $baudRate . ' bps: ' . $exception->getMessage());
+                        $this->info('  - Negotiation error at ' . $baudRate . ' bps: ' . $exception->getMessage());
 
                         $log->info('Negotiation error from serial port at node ' . $device . ' while trying with a baud rate of ' . $baudRate . ' bps: ' . $exception->getMessage());
 
                         break;
                     }
 
-                    if (containsUTF8($response)) {
-                        if (!Str::contains( $response, 'ok' )) {
-                            $this->warn(  "  - At {$baudRate}, this looks like a printer but it didn't expose a proper reply, let's wait a few seconds and try again. Got: {$response}");
-                            $log->warning("  - At {$baudRate}, this looks like a printer but it didn't expose a proper reply, let's wait a few seconds and try again. Got: {$response}");
+                    if (!Str::contains( $response, 'ok' ) && !containsNonUTF8($response)) {
+                        $this->warn(  "  - At {$baudRate}, this looks like a printer but it didn't expose a proper reply, let's wait a few seconds and try again. Got: {$response}");
+                        $log->warning("  - At {$baudRate}, this looks like a printer but it didn't expose a proper reply, let's wait a few seconds and try again. Got: {$response}");
 
-                            sleep( $negotiationTimeoutSecs );
+                        sleep( $negotiationTimeoutSecs );
 
-                            if ($retryCount >= $negotiatonMaxRetries) break;
+                        if ($retryCount >= $negotiatonMaxRetries) break;
 
-                            $retryCount++;
+                        $retryCount++;
 
-                            continue;
-                        }
+                        continue;
+                    }
 
-                        $log->debug('Mapping extruders...');
+                    $log->debug('Mapping extruders...');
 
-                        $machine = [
-                            'capabilities' => []
-                        ];
+                    $machine = [
+                        'capabilities' => []
+                    ];
 
-                        try {
-                            foreach (Str::of( $serial->query('M115') )->explode(PHP_EOL) as $line => $info) {
-                                if ($line == 0) {
-                                    $writingKey = true;
+                    try {
+                        foreach (Str::of( $serial->query('M115') )->explode(PHP_EOL) as $line => $info) {
+                            if ($line == 0) {
+                                $writingKey = true;
 
-                                    $key = '';
+                                $key = '';
 
-                                    for ($index = 0; $index < strlen($info); $index++) {
-                                        if ($writingKey) {
-                                            if ($info[ $index ] == ' ') continue;
+                                for ($index = 0; $index < strlen($info); $index++) {
+                                    if ($writingKey) {
+                                        if ($info[ $index ] == ' ') continue;
 
-                                            if ($info[ $index ] == ':') {
-                                                $writingKey = false;
+                                        if ($info[ $index ] == ':') {
+                                            $writingKey = false;
 
-                                                $key = Str::of( $key )->lower()->camel()->toString();
-                                            } else {
-                                                $key .= $info[ $index ];
-                                            }
+                                            $key = Str::of( $key )->lower()->camel()->toString();
                                         } else {
-                                            if (!isset($machine[ $key ])) {
-                                                $machine[ $key ] = '';
-                                            }
-
-                                            $machine[ $key ] .= $info[ $index ];
-
-                                            if (
-                                                isset($info[ $index + 1 ]) && $info[ $index + 1] == ' '         // current + 1 must be a space
-                                                &&
-                                                isset($info[ $index + 2 ]) && ctype_upper($info[ $index + 2 ])  // current + 2 must be uppercase
-                                                &&
-                                                isset($info[ $index + 3 ]) && ctype_upper($info[ $index + 3 ])  // current + 3 must be uppercase
-                                            ) {
-                                                $key = '';
-
-                                                $writingKey = true;
-                                            }
+                                            $key .= $info[ $index ];
                                         }
-                                    }
-                                } else {
-                                    $info = Str::of( $info );
+                                    } else {
+                                        if (!isset($machine[ $key ])) {
+                                            $machine[ $key ] = '';
+                                        }
 
-                                    if ($info->startsWith('Cap:')) {
-                                        $keyValue = $info->replaceFirst('Cap:', '')->explode(':');
+                                        $machine[ $key ] .= $info[ $index ];
 
-                                        try {
-                                            $machine['capabilities'][
-                                                Str::of( $keyValue[0] )->lower()->camel()->toString()
-                                            ] = !!$keyValue[1] ?? false;
-                                        } catch (Exception $exception) {
-                                            $this->warn(  "  -> Parse error: {$exception->getMessage()}");
-                                            $log->warning("  -> Parse error: {$exception->getMessage()}");
+                                        if (
+                                            isset($info[ $index + 1 ]) && $info[ $index + 1] == ' '         // current + 1 must be a space
+                                            &&
+                                            isset($info[ $index + 2 ]) && ctype_upper($info[ $index + 2 ])  // current + 2 must be uppercase
+                                            &&
+                                            isset($info[ $index + 3 ]) && ctype_upper($info[ $index + 3 ])  // current + 3 must be uppercase
+                                        ) {
+                                            $key = '';
+
+                                            $writingKey = true;
                                         }
                                     }
                                 }
+                            } else {
+                                $info = Str::of( $info );
+
+                                if ($info->startsWith('Cap:')) {
+                                    $keyValue = $info->replaceFirst('Cap:', '')->explode(':');
+
+                                    try {
+                                        $machine['capabilities'][
+                                            Str::of( $keyValue[0] )->lower()->camel()->toString()
+                                        ] = !!$keyValue[1] ?? false;
+                                    } catch (Exception $exception) {
+                                        $this->warn(  "  -> Parse error: {$exception->getMessage()}");
+                                        $log->warning("  -> Parse error: {$exception->getMessage()}");
+                                    }
+                                }
                             }
-                        } catch (Exception $exception) {
-                            $this->info("  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}");
-                            $log->info( "  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}");
-
-                            continue;
                         }
+                    } catch (Exception $exception) {
+                        $this->info("  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}");
+                        $log->info( "  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}");
 
-                        if (!isset( $machine['uuid'] )) {
-                            $this->info('  -> Invalid printer (no UUID available).');
-                            $log->info( '  -> Invalid printer (no UUID available).');
-
-                            continue;
-                        }
-
-                        $cameras = null;
-
-                        $printer = Printer::where('machine.uuid', $machine['uuid'])->first();
-
-                        if ($printer) {
-                            $cameras = $printer->cameras;
-                        }
-
-                        if (!$cameras) {
-                            $cameras = [];
-                        }
-
-                        $this->info('Printer found! Node name is "' . $device . '", baud rate is ' . $baudRate . ' bps. Response was: ' . $response);
-                        $log->info( 'Printer found! Node name is "' . $device . '", baud rate is ' . $baudRate . ' bps. Response was: ' . $response);
-
-                        if (!$printer) {
-                            $printer = new Printer();
-
-                            $changeCount++;
-                        }
-
-                        $printer->node      = $device;
-                        $printer->baudRate  = $baudRate;
-                        $printer->machine   = $machine;
-                        $printer->cameras   = $cameras;
-                        $printer->connected = true;
-
-                        if (!isset( $printer->recordableCameras )) {
-                            $printer->recordableCameras = [];
-                        }
-
-                        $printer->save();
-                        $printer->updateLastSeen();
-
-                        $changes = $printer->getChanges();
-
-                        unset( $changes['created_at'] );
-                        unset( $changes['updated_at'] );
-
-                        if ($changes) {
-                            $changeCount++;
-                        }
-
-                        $extruderIndex = 0;
-
-                        while (true) {
-                            $response = $serial->query('M105 T' . $extruderIndex);
-
-                            if (!Str::contains( $response, 'ok' )) break;
-
-                            $printer->setStatistics( $response, $extruderIndex );
-
-                            $extruderIndex++;
-                        }
-
-                        $found = true;
-
-                        break;
-                    } else {
-                        $this->info('  - Unexpected response: ' . $response);
-
-                        break;
+                        continue;
                     }
+
+                    if (!isset( $machine['uuid'] )) {
+                        $this->info('  -> Invalid printer (no UUID available).');
+                        $log->info( '  -> Invalid printer (no UUID available).');
+
+                        continue;
+                    }
+
+                    $cameras = null;
+
+                    $printer = Printer::where('machine.uuid', $machine['uuid'])->first();
+
+                    if ($printer) {
+                        $cameras = $printer->cameras;
+                    }
+
+                    if (!$cameras) {
+                        $cameras = [];
+                    }
+
+                    $this->info('Printer found! Node name is "' . $device . '", baud rate is ' . $baudRate . ' bps. Response was: ' . $response);
+                    $log->info( 'Printer found! Node name is "' . $device . '", baud rate is ' . $baudRate . ' bps. Response was: ' . $response);
+
+                    if (!$printer) {
+                        $printer = new Printer();
+
+                        $changeCount++;
+                    }
+
+                    $printer->node      = $device;
+                    $printer->baudRate  = $baudRate;
+                    $printer->machine   = $machine;
+                    $printer->cameras   = $cameras;
+                    $printer->connected = true;
+
+                    if (!isset( $printer->recordableCameras )) {
+                        $printer->recordableCameras = [];
+                    }
+
+                    $printer->save();
+                    $printer->updateLastSeen();
+
+                    $changes = $printer->getChanges();
+
+                    unset( $changes['created_at'] );
+                    unset( $changes['updated_at'] );
+
+                    if ($changes) {
+                        $changeCount++;
+                    }
+
+                    $extruderIndex = 0;
+
+                    while (true) {
+                        $response = $serial->query('M105 T' . $extruderIndex);
+
+                        if (!Str::contains( $response, 'ok' )) break;
+
+                        $printer->setStatistics( $response, $extruderIndex );
+
+                        $extruderIndex++;
+                    }
+
+                    $found = true;
+
+                    break;
                 }
 
                 if ($found) break;
