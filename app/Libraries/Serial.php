@@ -54,6 +54,8 @@ class Serial {
 
     const CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS = 100; // ms
 
+    const WORKAROUND_HELLBOT_QUEUE_MATCH = 'ok T:';
+
     /**
      * __construct
      *
@@ -270,7 +272,7 @@ class Serial {
      * 
      * @return string
      */
-    private function readUntilBlank(?int $timeout = null, ?int $lineNumber = null, ?int $maxLine = null) : string {
+    private function readUntilBlank(?int $timeout = null, ?int $lineNumber = null, ?int $maxLine = null, ?string $command = null) : string {
         if (!$timeout) {
             $timeout = $this->timeout;
         }
@@ -293,6 +295,37 @@ class Serial {
                 }
 
                 $result .= $read;
+
+                /*
+                 * Workaround for Hellbot's broken firmware:
+                 * 
+                 * Automatic interval-based enqueueing of M105.
+                 * 
+                 * We're gonna convert it into a busy state-alike format in
+                 * order to avoid having such output break the parser.
+                 * 
+                 * If the command is M105, however, we're gonna consider this a
+                 * true "ok", since we can't really tell the difference. Oops!
+                 * 
+                 * tl;dr: Hellbot, please, fix it. :)
+                 * 
+                 * Example:
+                 * 
+                 * echo:enqueueing "M105"
+                 * ok T:39.54 /40.00 B:16.71 /0.00 T0:39.54 /40.00 T1:39.21 /0.00 @:21 B@:0 @0:21 @1:0
+                 * 
+                 * Becomes (stops triggering our "ok" checkpoint):
+                 * 
+                 * echo:enqueueing "M105"
+                 * T:39.54 /40.00 B:16.71 /0.00 T0:39.54 /40.00 T1:39.21 /0.00 @:21 B@:0 @0:21 @1:0
+                 */
+                if (filled( $command ) && !str_starts_with($command, 'M105')) {
+                    $result = str_replace(
+                        search:     self::WORKAROUND_HELLBOT_QUEUE_MATCH, 
+                        replace:    Printer::MARLIN_TEMPERATURE_INDICATOR,
+                        subject:    $result
+                    );
+                }
 
                 $sTime     = time();
                 $blankTime = millis();
@@ -430,6 +463,7 @@ class Serial {
             }
 
             $result = $this->readUntilBlank(
+                command:    $command,
                 timeout:    $timeout,
                 lineNumber: $lineNumber,
                 maxLine:    $maxLine
