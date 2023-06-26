@@ -49,6 +49,18 @@ class HandleAutoSerialPrinters extends Command
         $commandTimeoutSecs     = Configuration::get('commandTimeoutSecs');
         $autoSerialIntervalSecs = Configuration::get('autoSerialIntervalSecs');
 
+        $enabled = enabled('terminal.auto_temperature_query');
+
+        if (!$enabled) {
+            $log->info( 'This feature has been disabled.' );
+
+            while (true) {
+                sleep( 60 * 60 * 24 * 365 ); // 1 year
+            }
+
+            return Command::SUCCESS;
+        }
+
         while (true) {
             sleep( $autoSerialIntervalSecs );
 
