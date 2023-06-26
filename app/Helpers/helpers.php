@@ -46,6 +46,16 @@ function containsUTF8(string $string) : bool {
     return false;
 }
 
+function containsNonUTF8(string $string) : bool {
+    for ($index = 0; $index < strlen($string); $index++) {
+        if (!mb_check_encoding($string[ $index ], 'UTF-8')) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /**
  * movementToXYZ
  * 
