@@ -127,6 +127,11 @@ class Printer extends Model
                 callback: fn($item) => new ObjectId($item),
                 array:    $this->recordableCameras
             )
+        )->whereIn('_id',
+            array_map(
+                callback: fn($item) => new ObjectId($item),
+                array:    $this->cameras
+            )
         )->cursor();
     }
 
