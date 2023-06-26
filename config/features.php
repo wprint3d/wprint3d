@@ -13,6 +13,8 @@ return [
 
     'login'     => [ 'remember_me'  => false ],
 
-    'settings'  => [ 'profile'      => false ]
+    'settings'  => [ 'profile'      => false ],
+
+    'terminal'  => [ 'auto_temperature_query' => true ]
 
 ];
