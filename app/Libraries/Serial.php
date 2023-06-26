@@ -396,14 +396,12 @@ class Serial {
             } else if (
                 (
                     (
-                        strpos($result, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false // temperature report
-                        ||
                         strpos($result, 'paused') !== false // paused for user
                         ||
                         (
                             strpos($result, 'echo')   !== false // command progress
                             &&
-                            strpos($result, 'busy')   === false // busy running command
+                            strpos($result, 'busy')   === false // not busy running a command
                         )
                     )
                     &&
@@ -413,9 +411,17 @@ class Serial {
                 )
                 ||
                 (
-                    strpos($result, 'ok') !== false // command finished
+                    str_starts_with( $command, 'M105' )
                     &&
-                    strpos($result, Printer::MARLIN_TEMPERATURE_INDICATOR) === false // not a temperature report
+                    $spentBlankingMs >= self::CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS
+                    &&
+                    strpos($result, 'ok') !== false // command finished + temp data
+                )
+                ||
+                (
+                    !str_starts_with( $command, 'M105' )
+                    &&
+                    strpos($result, 'ok' . PHP_EOL) !== false // command finished
                 )
             ) {
                 if ($this->log) $this->log->debug("End of output detected: ({$spentBlankingMs} ms without data).");
