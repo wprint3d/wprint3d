@@ -96,6 +96,8 @@ else
 
             refreshDockerLog;
 
+            composer install;
+
             MACHINE_UUID=$(php artisan get:machine-uuid);
 
             if [[ "$MACHINE_UUID" == '' ]]; then
@@ -123,10 +125,6 @@ else
 
                 docker exec -t wprint3d-proxy-1 nginx -s reload;
             fi;
-
-            refreshDockerLog;
-
-            composer install;
 
             refreshDockerLog;
 
