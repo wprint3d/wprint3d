@@ -346,12 +346,34 @@ class Serial {
                     );
 
                     if ($newLastLineIndex !== false)  {
+                        $message = substr(
+                            string: $result,
+                            offset: $lastLineIndex,
+                            length: ($newLastLineIndex - $lastLineIndex)
+                        );
+
+                        // Is querying temperature?
+                        if (strpos( $message, Printer::MARLIN_TEMPERATURE_INDICATOR ) !== false) {
+                            $extruderIndex = 0;
+
+                            // Is selecting a specific extruder?
+                            if (strpos( $command, 'M105 T' ) !== false) {
+                                $extruderIndex = (int) str_replace(
+                                    search:  'M105 T',
+                                    replace: '',
+                                    subject: $command
+                                );
+                            }
+
+                            Printer::setStatisticsOf(
+                                printerId:      $this->printerId,
+                                lines:          $message,
+                                extruderIndex:  $extruderIndex
+                            );
+                        }
+
                         $this->appendLog(
-                            message:    substr(
-                                string: $result,
-                                offset: $lastLineIndex,
-                                length: ($newLastLineIndex - $lastLineIndex)
-                            ),
+                            message:    $message,
                             lineNumber: $lineNumber,
                             maxLine:    $maxLine
                         );
