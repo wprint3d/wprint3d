@@ -23,7 +23,10 @@ class TerminalTab extends Component
 
     public ?Printer $printer = null;
 
-    protected $listeners = [ 'selectPrinter' ];
+    protected $listeners = [
+        'selectPrinter'     => 'selectPrinter',
+        'refreshActiveFile' => 'refreshActivePrinter'
+    ];
 
     public function updated() {
         if (!$this->printer->settings) {
@@ -57,7 +60,7 @@ class TerminalTab extends Component
 
         Log::debug( __METHOD__ . ': ' . ($activePrinter ?? 'none') );
 
-        $this->printer = Printer::select('node', 'baudRate', 'settings')->find( $activePrinter );
+        $this->printer = Printer::select('activeFile', 'node', 'baudRate', 'settings')->find( $activePrinter );
     }
 
     public function updateTerminalLog() {
@@ -110,17 +113,20 @@ class TerminalTab extends Component
         $this->terminal = $lines->toArray();
     }
 
-    public function boot() {
+    public function refreshActivePrinter() {
         $activePrinter = Auth::user()->getActivePrinter();
 
         if ($activePrinter) {
-            $this->printer = Printer::select('node', 'baudRate', 'settings')->find( $activePrinter );
+            $this->printer = Printer::select('activeFile', 'node', 'baudRate', 'settings')->find( $activePrinter );
         }
+    }
 
+    public function boot() {
         $this->autoScroll        = $this->printer->settings['autoScroll']        ?? true;
         $this->showSensors       = $this->printer->settings['showSensors']       ?? true;
         $this->showInputCommands = $this->printer->settings['showInputCommands'] ?? true;
 
+        $this->refreshActivePrinter();
         $this->updateTerminalLog();
     }
 
