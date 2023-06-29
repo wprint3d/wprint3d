@@ -26,7 +26,16 @@
     </div>
 
     <form wire:submit.prevent>
-        <input wire:model.lazy="command" wire:keydown.enter="queueCommand" type="text" class="form-control mb-2" placeholder="Enter a custom command">
+        <input
+            wire:model.lazy="command"
+            wire:keydown.enter="queueCommand"
+            type="text"
+            class="form-control mb-2"
+            placeholder="Enter a custom command"
+            @if ($printer->activeFile)
+                disabled
+            @endif
+        >
     </form>
 
     <ul class="list-group">
