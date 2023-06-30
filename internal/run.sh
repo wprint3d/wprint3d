@@ -62,6 +62,23 @@ refreshDockerLog() {
     fi;
 }
 
+refreshThirdPartyLicenses() {
+    TPL_PATH='/var/www/THIRD_PARTY_LICENSES.txt';
+
+    printf '' > $TPL_PATH;
+
+    for license in $(find {vendor,node_modules} -name '*LICENSE*'); do \
+        PROJECT_NAME=$(printf "$license" | sed -E 's/((vendor|node_modules)\/)|(\/LICENSE.*)|(\/ORIGINAL.*)|(src\/)//g' | sort | uniq -u);
+
+        echo '================================================================================' >> $TPL_PATH;
+        echo "$PROJECT_NAME"                                                                    >> $TPL_PATH;
+        echo '================================================================================' >> $TPL_PATH;
+        echo ''                                                                                 >> $TPL_PATH;
+        cat "$license"                                                                          >> $TPL_PATH;
+        echo ''                                                                                 >> $TPL_PATH;
+    done;
+}
+
 if [[ -z $ROLE ]]; then
     echo "End of script reached, this container will run as a dummy and, as such, it won't actually do anything.";
 
@@ -129,6 +146,8 @@ else
             refreshDockerLog;
 
             waitForAssetBundler;
+
+            refreshThirdPartyLicenses;
 
             # TODO: This is just for development and testing purposes and
             #       should be removed for production.
