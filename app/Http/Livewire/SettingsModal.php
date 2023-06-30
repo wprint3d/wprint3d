@@ -8,7 +8,7 @@ use Livewire\Component;
 
 class SettingsModal extends Component
 {
-    public array $availablePanes = [ 'printers', 'materials', 'cameras', 'recording', 'system' ];
+    public array $availablePanes = [ 'printers', 'materials', 'cameras', 'recording', 'system', 'about' ];
 
     public $isPrinting;
 
