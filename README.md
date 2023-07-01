@@ -1,3 +1,5 @@
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/de0ec3d7753c4629bb0b23e12bfcf56c)](https://app.codacy.com/gh/wprint3d/wprint3d/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
 <h1 style="text-align: center;"> WPrint 3D </h1>
 
 WPrint 3D is a FDM printer web-based remote control software compatible with most common standard serial/TTY over USB printers.
