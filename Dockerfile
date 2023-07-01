@@ -7,16 +7,16 @@ RUN curl -sL https://deb.nodesource.com/setup_16.x -o /tmp/nodesource_setup.sh &
     bash /tmp/nodesource_setup.sh;
 
 # Basic dependencies
-RUN apt-get install -y coreutils git curl gnupg libcurl4-openssl-dev libxml2-dev libzip-dev nodejs npm fswebcam procps build-essential cmake usbutils docker.io libssl-dev pkg-config
+RUN apt-get install -y --no-install-recommends coreutils git curl gnupg libcurl4-openssl-dev libxml2-dev libzip-dev nodejs npm fswebcam procps build-essential cmake usbutils docker.io libssl-dev pkg-config
 
 # MySQL/MariaDB CLI client
-RUN apt-get install -y mariadb-client
+RUN apt-get install -y --no-install-recommends mariadb-client
 
 # Redis CLI client
-RUN apt-get install -y redis-tools
+RUN apt-get install -y --no-install-recommends redis-tools
 
 # Install inotify-tools
-RUN apt-get install -y inotify-tools
+RUN apt-get install -y --no-install-recommends inotify-tools
 
 # PHP extensions: MongoDB + Redis + DIO (Direct I/O) + Swoole
 RUN pecl install -f mongodb redis dio swoole
@@ -41,14 +41,14 @@ RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) curl xml zip dom mysqli p
 # using Camera Streamer instead whenever an RPi camera is found, as it's faster
 # and more reliable.
 RUN apt-get update &&\
-    apt-get install -y meson python3 python3-pip python3-jinja2 python3-ply python3-yaml libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev libboost-program-options-dev libdrm-dev libexif-dev libglib2.0-dev libgstreamer-plugins-base1.0-dev &&\
+    apt-get install -y --no-install-recommends meson python3 python3-pip python3-jinja2 python3-ply python3-yaml libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev libboost-program-options-dev libdrm-dev libexif-dev libglib2.0-dev libgstreamer-plugins-base1.0-dev &&\
     git clone https://github.com/raspberrypi/libcamera.git &&\
     cd libcamera &&\
     meson build --buildtype=release -Dpipelines=raspberrypi -Dipas=raspberrypi -Dv4l2=true -Dgstreamer=enabled -Dtest=false -Dlc-compliance=disabled -Dcam=disabled -Dqcam=disabled -Ddocumentation=disabled -Dpycamera=disabled &&\
     ninja -C build &&\
     ninja -C build install;
 RUN apt-get update &&\
-    apt-get install -y libtiff5-dev libpng-dev &&\
+    apt-get install -y --no-install-recommends libtiff5-dev libpng-dev &&\
     git clone https://github.com/raspberrypi/libcamera-apps.git &&\
     cd libcamera-apps &&\
     mkdir build &&\
@@ -72,24 +72,24 @@ RUN git clone https://github.com/ArduCAM/mjpg-streamer.git &&\
     make install
 
 # Install the ping tool
-RUN apt-get update && apt-get install -y inetutils-ping
+RUN apt-get update && apt-get install -y --no-install-recommends inetutils-ping
 
 # Install the Composer PHP package manager
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 # Install udev
 RUN apt-get update &&\
-    apt-get install -y udev
+    apt-get install -y --no-install-recommends udev
 
 # PHP extension: memcached
 RUN apt-get update &&\
-    apt-get install -y libmemcached-dev &&\
+    apt-get install -y --no-install-recommends libmemcached-dev &&\
     pecl install -f memcached &&\
     docker-php-ext-enable memcached
 
 # Install ffmpeg
 RUN apt-get update &&\
-    apt-get install -y ffmpeg
+    apt-get install -y --no-install-recommends ffmpeg
 
 # PHP extension: intl
 RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) intl
