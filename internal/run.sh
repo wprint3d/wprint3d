@@ -260,7 +260,6 @@ else
 
             while true; do
                 deviceChanged=0;
-                isPollingPrinters=0;
 
                 # monitor for kernel-ring udev events
                 udevadm monitor -p | \
