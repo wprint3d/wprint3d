@@ -41,7 +41,7 @@ class MakeMachineUUID extends Command
         $configuration->value   = Str::uuid()->toString();
         $configuration->save();
 
-        print $configuration->value;
+        echo $configuration->value;
 
         return Command::SUCCESS;
     }

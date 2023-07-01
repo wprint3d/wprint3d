@@ -56,7 +56,7 @@ class GetHardwareCameras extends Command
                         $value = !!$value ? 1 : 0;
                     }
 
-                    print $base . '="' . ((string) $value) . '"' . PHP_EOL;
+                    echo $base . '="' . ((string) $value) . '"' . PHP_EOL;
                 }
             }
         }

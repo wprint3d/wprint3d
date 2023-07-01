@@ -27,7 +27,7 @@ class GetMachineUUID extends Command
      */
     public function handle()
     {
-        print machineUUID();
+        echo machineUUID();
 
         return Command::SUCCESS;
     }
