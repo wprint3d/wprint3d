@@ -15,6 +15,8 @@ If a critical vulnerability has been detected, please report it to security@wpri
 
 You'll receive a response in 24 to 48 hs. All messages are read and replied in order of reception, however, please follow the template below in order to help better orgranize the workflow.
 
+If no response is received after 48 hs. please, [create a new issue](https://github.com/wprint3d/wprint3d/issues/new) with the subject of your e-mail. In the body, omit any specifics about the procedure and let us know that you've sent an e-mail to security@wprint3d.com.
+
 ## E-mail example
 
 **Subject:** [CRITICAL] User password exposed when a user does *XXX*
