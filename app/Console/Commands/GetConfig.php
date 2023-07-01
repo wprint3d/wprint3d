@@ -42,7 +42,7 @@ class GetConfig extends Command
 
         $output = Configuration::get($key, $default);
 
-        print ($output === true || $output === false)
+        echo ($output === true || $output === false)
             ? ($output ? 'true' : 'false')
             : $output;
 

@@ -36,7 +36,7 @@ class GetHardwareCamera extends Command
         $camera = Camera::where('node', $node)->first();
 
         if (!$camera) {
-            print 'null';
+            echo 'null';
 
             return Command::SUCCESS;
         }
@@ -58,7 +58,7 @@ class GetHardwareCamera extends Command
                     $value = !!$value ? 1 : 0;
                 }
 
-                print $base . '="' . ((string) $value) . '"' . PHP_EOL;
+                echo $base . '="' . ((string) $value) . '"' . PHP_EOL;
             }
         }
 

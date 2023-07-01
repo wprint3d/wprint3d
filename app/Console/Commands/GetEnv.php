@@ -40,7 +40,7 @@ class GetEnv extends Command
 
         $output = env($variableName, $default);
 
-        print ($output === true || $output === false)
+        echo ($output === true || $output === false)
             ? ($output ? 'true' : 'false')
             : $output;
 
