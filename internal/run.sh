@@ -49,7 +49,7 @@ refreshDockerLog() {
             CID=$(printf  "$identifier" | cut -d ',' -f 1);
             NAME=$(printf "$identifier" | cut -d ',' -f 2);
 
-            LINES="$(docker logs $CID --tail 5)";
+            LINES=$(docker logs "$CID" --tail 5);
 
             for line in $LINES; do
                 echo "$NAME"'     | '"$line" >> /tmp/startup.txt;
@@ -228,7 +228,7 @@ else
                             SYS_PATH=$(find /sys/devices -name uevent -exec grep -Hr 'video'"$DEVICE_INDEX" {} \; | sed 's/:DEVNAME.*//g' | sed 's/video4linux.*//g')'..';
 
                             if [[ -e "$SYS_PATH/idVendor" ]] && [[ -e "$SYS_PATH/idProduct" ]]; then
-                                VENDOR_PRODUCT="$(cat $SYS_PATH/idVendor)"':'"$(cat $SYS_PATH/idProduct)"; # 0c45:64ab
+                                VENDOR_PRODUCT=$(cat "$SYS_PATH"/idVendor)':'$(cat "$SYS_PATH"/idProduct); # 0c45:64ab
 
                                 LABEL=$(lsusb -d "$VENDOR_PRODUCT" | sed 's/  */ /g' | cut -d ':' -f 3 | sed 's/.....//');
                             else
@@ -407,10 +407,10 @@ else
                         CAMERA_STREAMER_NODE=$(echo -n "$NODE" | sed 's-/sys/firmware/devicetree--');
 
                         if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]]; then
-                            LIB_CAMERA_UVC_PID="$(ps -fax | grep usb_camera.sh       | grep -- $NODE                 | xargs | cut -d ' ' -f 1)";
-                            LIB_CAMERA_CSI_PID="$(ps -fax | grep libcamera_camera.sh | grep -- $CAMERA_STREAMER_NODE | xargs | cut -d ' ' -f 1)";
+                            LIB_CAMERA_UVC_PID=$(ps -fax | grep usb_camera.sh       | grep -- "$NODE"                 | xargs | cut -d ' ' -f 1);
+                            LIB_CAMERA_CSI_PID=$(ps -fax | grep libcamera_camera.sh | grep -- "$CAMERA_STREAMER_NODE" | xargs | cut -d ' ' -f 1);
                         else
-                            LIB_CAMERA_UVC_PID="$(ps -fax | grep mjpg_streamer       | grep -- $NODE                 | xargs | cut -d ' ' -f 1)";
+                            LIB_CAMERA_UVC_PID=$(ps -fax | grep mjpg_streamer       | grep -- "$NODE"                 | xargs | cut -d ' ' -f 1);
                         fi;
 
                         if [[ "$ENABLED" -eq 1 ]] && [[ -e "$NODE" ]]; then
@@ -427,8 +427,8 @@ else
                                             /camera-streamer/tools/usb_camera.sh \
                                                 --camera-path="$NODE" \
                                                 --camera-fps="$FRAMERATE" \
-                                                --camera-width="$( echo -n $RESOLUTION | cut -d 'x' -f 1)" \
-                                                --camera-height="$(echo -n $RESOLUTION | cut -d 'x' -f 2)" \
+                                                --camera-width=$( echo -n "$RESOLUTION" | cut -d 'x' -f 1) \
+                                                --camera-height=$(echo -n "$RESOLUTION" | cut -d 'x' -f 2) \
                                                 --http-port="${port}" &
                                         else
                                             mjpg_streamer \
@@ -438,11 +438,11 @@ else
                                     else
                                         if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]] && [[ $(php artisan get:config enableLibCamera --default=true) == 'true' ]]; then
                                             /camera-streamer/tools/libcamera_camera.sh \
-                                                --camera-path=$CAMERA_STREAMER_NODE \
-                                                --camera-fps=$FRAMERATE \
-                                                --camera-width=$( echo -n $RESOLUTION | cut -d 'x' -f 1) \
-                                                --camera-height=$(echo -n $RESOLUTION | cut -d 'x' -f 2) \
-                                                --http-port=${port} &
+                                                --camera-path="$CAMERA_STREAMER_NODE" \
+                                                --camera-fps="$FRAMERATE" \
+                                                --camera-width=$( echo -n "$RESOLUTION" | cut -d 'x' -f 1) \
+                                                --camera-height=$(echo -n "$RESOLUTION" | cut -d 'x' -f 2) \
+                                                --http-port="${port}" &
                                         else
                                             echo "This camera requires Libcamera, but it's disabled. Enable it by setting the LIB_CAMERA_ENABLED environment variable to 'true'. If you've configured this setting from the browser previously, change it there instead." >&2;
                                         fi;
@@ -455,14 +455,14 @@ else
                                     echo "PID UVC: ${LIB_CAMERA_UVC_PID}" >&2;
 
                                     if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]]; then
-                                        port="$(ps -fax | grep usb_camera.sh | grep $NODE | sed 's/.*--http-port=//' | cut -d ' ' -f 1)";
+                                        port=$(ps -fax | grep usb_camera.sh | grep "$NODE" | sed 's/.*--http-port=//' | cut -d ' ' -f 1);
                                     else
-                                        port="$(ps -fax | grep mjpg_streamer | grep $NODE | sed 's/.*-p //' | sed 's/ //g')";
+                                        port=$(ps -fax | grep mjpg_streamer | grep "$NODE" | sed 's/.*-p //' | sed 's/ //g');
                                     fi;
                                 elif [[ "$LIB_CAMERA_CSI_PID" != '' ]]; then
                                     echo "PID CSI: ${LIB_CAMERA_CSI_PID}" >&2;
 
-                                    port="$(ps -fax | grep libcamera_camera.sh | grep $CAMERA_STREAMER_NODE | sed 's/.*--http-port=//' | cut -d ' ' -f 1)";
+                                    port=$(ps -fax | grep libcamera_camera.sh | grep "$CAMERA_STREAMER_NODE" | sed 's/.*--http-port=//' | cut -d ' ' -f 1);
                                 fi;
                             fi;
 
