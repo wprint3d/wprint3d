@@ -169,7 +169,7 @@ class ControlTab extends Component
         $statistics = $this->printer->getStatistics();
 
         if (isset( $statistics['extruders'] )) {
-            foreach ($statistics['extruders'] as $index => $extruder) {
+            foreach (array_keys( $statistics['extruders'] ) as $index) {
                 $this->printer->queueCommand( "M104 I{$index} S{$this->hotendTemperature}" );
             }
         }
