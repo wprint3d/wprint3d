@@ -228,7 +228,7 @@ class MapSerialPrinters extends Command
                         . '/' .
                         hash(
                             algo: 'crc32',
-                            data: json_encode( $machine['uuid'] )
+                            data: json_encode( $machine )
                         );
 
                     $cameras = null;
