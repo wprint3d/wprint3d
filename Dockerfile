@@ -48,7 +48,7 @@ RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) curl xml zip dom mysqli p
 # though we're actually building "input_libcamera" into MJPG Streamer, we'll be
 # using Camera Streamer instead whenever an RPi camera is found, as it's faster
 # and more reliable.
-RUN apt-get update && apt-get install -y --no-install-recommends meson python3 python3-pip python3-jinja2 python3-ply python3-yaml libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev libboost-program-options-dev libdrm-dev libexif-dev libglib2.0-dev libgstreamer-plugins-base1.0-dev &&\ &&\
+RUN apt-get update && apt-get install -y --no-install-recommends meson python3 python3-pip python3-jinja2 python3-ply python3-yaml libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev libboost-program-options-dev libdrm-dev libexif-dev libglib2.0-dev libgstreamer-plugins-base1.0-dev &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/* &&\
     git clone https://github.com/raspberrypi/libcamera.git &&\
