@@ -223,6 +223,14 @@ class MapSerialPrinters extends Command
                         continue;
                     }
 
+                    $machine['uuid'] =
+                        $machine['uuid']
+                        . '/' .
+                        hash(
+                            algo: 'crc32',
+                            data: json_encode( $machine['uuid'] )
+                        );
+
                     $cameras = null;
 
                     $printer = Printer::where('machine.uuid', $machine['uuid'])->first();
