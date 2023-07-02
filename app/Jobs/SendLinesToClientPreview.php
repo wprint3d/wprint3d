@@ -136,9 +136,9 @@ class SendLinesToClientPreview implements ShouldQueue
                 );
 
                 $linesBuffer = [];
-            } else {
-                $linesBuffer[] = $line;
             }
+
+            $linesBuffer[] = $line;
 
             if ($lineNumber == $this->currentLine) break;
 
