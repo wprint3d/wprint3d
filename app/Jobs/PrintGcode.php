@@ -448,11 +448,13 @@ class PrintGcode implements ShouldQueue
 
                     if (Str::contains($received, 'ok')) {
                         $this->printer->resume();
-                    } else {
-                        $this->printer->refresh();
 
-                        sleep(1);
+                        break;
                     }
+
+                    $this->printer->refresh();
+
+                    sleep(1);
                 }
 
                 if (!$this->printer->activeFile) break;
