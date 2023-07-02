@@ -64,7 +64,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libtiff5-dev li
     mkdir build &&\
     cd build &&\
     cmake .. -DENABLE_DRM=1 -DENABLE_X11=0 -DENABLE_QT=0 -DENABLE_OPENCV=0 -DENABLE_TFLITE=0 &&\
-    make -j$(nproc --all) &&\
+    make -j"$(nproc --all)" &&\
     make install &&\
     ldconfig;
 
