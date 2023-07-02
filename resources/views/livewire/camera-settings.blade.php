@@ -11,7 +11,7 @@
             </span>
         </div>
 
-        <h5 class="card-title">
+        <h5 class="card-title overflow-auto text-nowrap no-scrollbar">
             <b>{{ $camera->label }}</b> at {{ $camera->node }}
         </h5>
 
