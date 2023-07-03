@@ -3,9 +3,10 @@
 use Illuminate\Http\Request;
 
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+
 use Josantonius\Url\Url;
+
 use Symfony\Component\HttpFoundation\Response;
 
 /*
@@ -37,10 +38,6 @@ Route::middleware('web')->group(function () {
     });
 
     Route::middleware('set_base')->group(function () {
-        Route::get('/test', function () {
-            return response( request()->header() );
-        });
-
         Route::middleware('auth')->get('/', function () {
             return view('index');
         });
