@@ -109,6 +109,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg &&\
 # PHP extension: intl
 RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) intl
 
+# Install supervisor(d)
+RUN apt-get update &&\
+    apt-get install -y supervisor
+
 WORKDIR /var/www
 
 # TODO: I'm not entirely sure as to whether this is still necessary.
