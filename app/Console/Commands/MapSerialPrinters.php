@@ -14,6 +14,8 @@ use App\Exceptions\TimedOutException;
 
 use Illuminate\Console\Command;
 
+use Illuminate\Log\Logger;
+
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
@@ -37,6 +39,81 @@ class MapSerialPrinters extends Command
      * @var string
      */
     protected $description = 'Re-map serial printers to the caching database.';
+    
+    /**
+     * parseFirmwareInformation
+     *
+     * Parse the output of M115 and return the firmware information (such as
+     * version, machine type, UUID, etc.) and its capabilities (whether it has
+     * a z-probe, whether it supports arcs amongst other features).
+     * 
+     * @param  Logger $log
+     * @param  string $information
+     * 
+     * @return array
+     */
+    public function parseFirmwareInformation(Logger $log, string $information) {
+        $machine = [
+            'capabilities' => []
+        ];
+
+        foreach (Str::of( $information )->explode(PHP_EOL) as $line => $info) {
+            if ($line == 0) {
+                $writingKey = true;
+
+                $key = '';
+
+                for ($index = 0; $index < strlen($info); $index++) {
+                    if ($writingKey) {
+                        if ($info[ $index ] == ' ') continue;
+
+                        if ($info[ $index ] == ':') {
+                            $writingKey = false;
+
+                            $key = Str::of( $key )->lower()->camel()->toString();
+                        } else {
+                            $key .= $info[ $index ];
+                        }
+                    } else {
+                        if (!isset($machine[ $key ])) {
+                            $machine[ $key ] = '';
+                        }
+
+                        $machine[ $key ] .= $info[ $index ];
+
+                        if (
+                            isset($info[ $index + 1 ]) && $info[ $index + 1] == ' '         // current + 1 must be a space
+                            &&
+                            isset($info[ $index + 2 ]) && ctype_upper($info[ $index + 2 ])  // current + 2 must be uppercase
+                            &&
+                            isset($info[ $index + 3 ]) && ctype_upper($info[ $index + 3 ])  // current + 3 must be uppercase
+                        ) {
+                            $key = '';
+
+                            $writingKey = true;
+                        }
+                    }
+                }
+            } else {
+                $info = Str::of( $info );
+
+                if ($info->startsWith('Cap:')) {
+                    $keyValue = $info->replaceFirst('Cap:', '')->explode(':');
+
+                    try {
+                        $machine['capabilities'][
+                            Str::of( $keyValue[0] )->lower()->camel()->toString()
+                        ] = !!$keyValue[1] ?? false;
+                    } catch (Exception $exception) {
+                        $this->warn(  "  -> Parse error: {$exception->getMessage()}");
+                        $log->warning("  -> Parse error: {$exception->getMessage()}");
+                    }
+                }
+            }
+        }
+
+        return $machine;
+    }
 
     /**
      * Execute the console command.
@@ -127,65 +204,11 @@ class MapSerialPrinters extends Command
 
                     $log->debug('Mapping extruders...');
 
-                    $machine = [
-                        'capabilities' => []
-                    ];
-
                     try {
-                        foreach (Str::of( $serial->query('M115') )->explode(PHP_EOL) as $line => $info) {
-                            if ($line == 0) {
-                                $writingKey = true;
-
-                                $key = '';
-
-                                for ($index = 0; $index < strlen($info); $index++) {
-                                    if ($writingKey) {
-                                        if ($info[ $index ] == ' ') continue;
-
-                                        if ($info[ $index ] == ':') {
-                                            $writingKey = false;
-
-                                            $key = Str::of( $key )->lower()->camel()->toString();
-                                        } else {
-                                            $key .= $info[ $index ];
-                                        }
-                                    } else {
-                                        if (!isset($machine[ $key ])) {
-                                            $machine[ $key ] = '';
-                                        }
-
-                                        $machine[ $key ] .= $info[ $index ];
-
-                                        if (
-                                            isset($info[ $index + 1 ]) && $info[ $index + 1] == ' '         // current + 1 must be a space
-                                            &&
-                                            isset($info[ $index + 2 ]) && ctype_upper($info[ $index + 2 ])  // current + 2 must be uppercase
-                                            &&
-                                            isset($info[ $index + 3 ]) && ctype_upper($info[ $index + 3 ])  // current + 3 must be uppercase
-                                        ) {
-                                            $key = '';
-
-                                            $writingKey = true;
-                                        }
-                                    }
-                                }
-                            } else {
-                                $info = Str::of( $info );
-
-                                if ($info->startsWith('Cap:')) {
-                                    $keyValue = $info->replaceFirst('Cap:', '')->explode(':');
-
-                                    try {
-                                        $machine['capabilities'][
-                                            Str::of( $keyValue[0] )->lower()->camel()->toString()
-                                        ] = !!$keyValue[1] ?? false;
-                                    } catch (Exception $exception) {
-                                        $this->warn(  "  -> Parse error: {$exception->getMessage()}");
-                                        $log->warning("  -> Parse error: {$exception->getMessage()}");
-                                    }
-                                }
-                            }
-                        }
+                        $machine = $this->parseFirmwareInformation(
+                            log:         $log,
+                            information: $serial->query('M115')
+                        );
                     } catch (Exception $exception) {
                         $this->info("  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}");
                         $log->info( "  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}");
