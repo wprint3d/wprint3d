@@ -393,6 +393,8 @@ class Serial {
                         }
                     }
                 }
+
+                $read = '';
             } else if (
                 (
                     (
