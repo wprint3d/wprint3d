@@ -32,7 +32,7 @@
             type="text"
             class="form-control mb-2"
             placeholder="Enter a custom command"
-            @if ($printer->activeFile)
+            @if (!$printer || $printer->activeFile)
                 disabled
             @endif
         >
