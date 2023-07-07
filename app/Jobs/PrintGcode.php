@@ -214,7 +214,14 @@ class PrintGcode implements ShouldQueue
 
         $this->printer->lastJobHasFailed = true;
 
-        PrintJobFailed::dispatch( $this->printer->_id );
+        try {
+            PrintJobFailed::dispatch( $this->printer->_id );
+        } catch (Exception $exception) {
+            $log->warning(
+                'PrintJobFailed: dispatch error: ' . $exception->getMessage() . PHP_EOL .
+                $exception->getTraceAsString()
+            );
+        }
 
         $this->finished(resetPrinter: false);
     }
