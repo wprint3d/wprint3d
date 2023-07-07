@@ -52,8 +52,6 @@ class Serial {
 
     const CACHE_REFRESH_RATE_MICROS = 500; // microseconds
 
-    const CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS = 100; // ms
-
     const WORKAROUND_HELLBOT_QUEUE_PATTERN = '/echo:enqueueing.*\nok T:.*\n/';
 
     /**
@@ -394,40 +392,35 @@ class Serial {
                 }
 
                 $read = '';
-            } else if (
-                (
+            } else if (filled( $result )) {
+                $lastLine = substr(
+                    string: $result,
+                    offset: strrpos( $result, PHP_EOL, 1 )
+                );
+
+                if (!filled( $lastLine )) {
+                    $lastLine = $result;
+                }
+
+                if (
+                    str_ends_with( $result, PHP_EOL )
+                    &&
                     (
-                        strpos($result, 'paused') !== false // paused for user
+                        strpos( $result, 'ok' ) !== false // finished successfully
                         ||
                         (
-                            strpos($result, 'echo')   !== false // command progress
+                            strpos( $lastLine, 'echo' )   !== false // (in last line) contains echo
                             &&
-                            strpos($result, 'busy')   === false // not busy running a command
+                            strpos( $lastLine, 'paused' ) === false // (in last line) not paused for user
+                            &&
+                            strpos( $lastLine, 'busy' )   === false // (in last line) not busy
                         )
                     )
-                    &&
-                    $spentBlankingMs >= self::CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS
-                    &&
-                    filled( $result )
-                )
-                ||
-                (
-                    str_starts_with( $command, 'M105' )
-                    &&
-                    $spentBlankingMs >= self::CONSOLE_EXPECTED_RESPONSE_RATE_MILLIS
-                    &&
-                    strpos($result, 'ok') !== false // command finished + temp data
-                )
-                ||
-                (
-                    !str_starts_with( $command, 'M105' )
-                    &&
-                    strpos($result, 'ok' . PHP_EOL) !== false // command finished
-                )
-            ) {
-                if ($this->log) $this->log->debug("End of output detected: ({$spentBlankingMs} ms without data).");
+                ) {
+                    if ($this->log) $this->log->debug("End of output detected: ({$spentBlankingMs} ms without data).");
 
-                break;
+                    break;
+                }
             }
 
             if ($timeout && (time() - $sTime >= $timeout)) break;
