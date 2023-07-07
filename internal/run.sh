@@ -65,7 +65,9 @@ refreshDockerLog() {
 refreshThirdPartyLicenses() {
     TPL_PATH='/var/www/THIRD_PARTY_LICENSES.txt';
 
-    printf '' > $TPL_PATH;
+    cat '/var/www/_STATIC_THIRD_PARTY_LICENSES.txt' > $TPL_PATH;
+
+    printf '\n\n' >> $TPL_PATH;
 
     for license in $(find {vendor,node_modules} -name '*LICENSE*'); do \
         PROJECT_NAME=$(printf "$license" | sed -E 's/((vendor|node_modules)\/)|(\/LICENSE.*)|(\/ORIGINAL.*)|(src\/)//g' | sort | uniq -u);
