@@ -456,6 +456,8 @@ class PrintGcode implements ShouldQueue
                     );
 
                     if (Str::contains($received, 'ok')) {
+                        $log->info('Resuming print...');
+
                         $this->printer->resume();
 
                         break;
@@ -537,6 +539,8 @@ class PrintGcode implements ShouldQueue
                 if (isset( $statistics['extruders'] )) {
                     foreach (array_keys($statistics['extruders']) as $extruderIndex) {
                         try {
+                            $log->debug('Trying to refresh statistics...');
+
                             $this->printer->setStatistics(
                                 lines:          $serial->query(
                                     command:    'M105 T' . $extruderIndex,
