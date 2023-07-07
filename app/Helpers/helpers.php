@@ -13,19 +13,33 @@ use Illuminate\Support\Facades\Cache;
 
 use Illuminate\Support\Str;
 
-function tryToWaitForMapper(?Logger $log = null) {
+/**
+ * tryToWaitForMapper
+ * 
+ * Try to wait for the device mapper to shut down.
+ *
+ * @param  mixed $log
+ * @return bool Whether we had to wait for the mapper 
+ */
+function tryToWaitForMapper(?Logger $log = null): bool {
+    $didWait = false;
+
     while (
         Cache::get(
             key:     config('cache.mapper_busy_key'),
             default: false
         )
     ) {
+        $didWait = true;
+
         if ($log) {
             $log->debug('Waiting for the mapper to shutdown...');
         }
 
         sleep(1);
     }
+
+    return $didWait;
 }
 
 function millis() : float {
