@@ -32,6 +32,9 @@ Pause states        | ✓\*        | ✓\*        | No support
 - Once it's done, type `ifconfig` and copy the IP address of your machine. Type that IP address into the address bar of your browser, i.e.: https://192.168.0.2
 - Follow the on-screen instructions.
 
+## Known bugs
+- SD printing may disrupt the negotiated serial connection. The connection should come back **about a minute** after finishing the print job.
+
 <!-- 
 ## Contributing
 
