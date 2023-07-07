@@ -456,9 +456,11 @@ class Serial {
             $this->log->debug('RECV: ' . $result);
         }
 
-        if ($result[ $lastLineIndex ] != PHP_EOL) {
-            $lastLineIndex = 0;
-        }
+        if (
+            !isset($result[ $lastLineIndex ])
+            ||
+            $result[ $lastLineIndex ] != PHP_EOL
+        ) { $lastLineIndex = 0; }
 
         $terminalMessage = trim(
             substr(
