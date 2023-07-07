@@ -297,7 +297,7 @@ else
                         if [[ $deviceChanged -eq 1 ]]; then
                             if [[ "$DEVNAME" != '' ]] && ([[ "$nodePath" == *'tty'* ]] || [[ "$nodePath" == *'video'* ]]) && ([[ "$ACTION" == 'add' ]] || [[ "$ACTION" == 'remove' ]]); then
                                 php artisan map:hardware-cameras;
-                                php artisan map:serial-printers;
+                                php artisan map:serial-printers   $(echo -n "$DEVNAME" | sed 's/.*tty//g');
 
                                 if [[ "$DEVNAME" == *'video'* ]]; then
                                     mapCameraLabels;
