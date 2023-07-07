@@ -31,7 +31,8 @@ class MapSerialPrinters extends Command
      *
      * @var string
      */
-    protected $signature = 'map:serial-printers';
+    protected $signature = 'map:serial-printers
+                            { node? : The target device node. i.e.: USB0, ACM0, etc. }';
 
     /**
      * The console command description.
@@ -124,6 +125,8 @@ class MapSerialPrinters extends Command
     {
         $log = Log::channel('serial-mapper');
 
+        $target = $this->argument('node');
+
         $negotiationWaitSecs    = Configuration::get('negotiationWaitSecs');
         $negotiationTimeoutSecs = Configuration::get('negotiationTimeoutSecs');
         $negotiatonMaxRetries   = Configuration::get('negotiationMaxRetries');
@@ -140,6 +143,27 @@ class MapSerialPrinters extends Command
                     Str::startsWith($node, Serial::TERMINAL_PREFIX . 'USB');
             }
         );
+
+        if (filled( $target )) {
+            $log->debug("The node \"{$target}\" was selected for this mapper instance.");
+
+            $devices = array_filter(
+                array:    $devices,
+                callback: function ($node) use ($target) {
+                    return Str::endsWith($node, $target);
+                }
+            );
+        }
+
+        if (empty( $devices )) {
+            if ($target) {
+                $log->info("The selected device node ({$target}) couldn't be found.");
+            } else {
+                $log->info('No devices detected.');
+            }
+
+            return Command::SUCCESS;
+        }
 
         Cache::put(
             key:   $cacheMapperBusyKey,
