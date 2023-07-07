@@ -38,6 +38,10 @@ Route::middleware('web')->group(function () {
     });
 
     Route::middleware('set_base')->group(function () {
+        Route::get('/index.html', function () {
+            return view('force_redirect', [ 'path' => '/' ]);
+        });
+
         Route::middleware('auth')->get('/', function () {
             return view('index');
         });
