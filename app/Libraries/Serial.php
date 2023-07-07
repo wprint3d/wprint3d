@@ -339,11 +339,15 @@ class Serial {
                         strpos($result, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false // is a message about temperature
                     )
                 ) {
-                    $newLastLineIndex = strpos(
-                        haystack: $result,
-                        needle:   PHP_EOL,
-                        offset:   $lastLineIndex + 1
-                    );
+                    $newLastLineIndex = false;
+
+                    if (isset( $result[ $lastLineIndex + 1 ] )) {
+                        $newLastLineIndex = strpos(
+                            haystack: $result,
+                            needle:   PHP_EOL,
+                            offset:   $lastLineIndex + 1
+                        );
+                    }
 
                     if ($newLastLineIndex !== false)  {
                         $message = substr(
