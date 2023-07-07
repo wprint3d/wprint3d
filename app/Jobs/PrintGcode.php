@@ -195,6 +195,8 @@ class PrintGcode implements ShouldQueue
                 );
             }
         }
+
+        $this->delete();
     }
 
     /**
