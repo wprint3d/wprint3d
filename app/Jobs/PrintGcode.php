@@ -104,6 +104,8 @@ class PrintGcode implements ShouldQueue
      */
     public function __construct(string $filePath, User $owner, string $printerId)
     {
+        $this->queue = 'prints';
+
         $this->uid      = uniqid( more_entropy: true );
         $this->filePath = $filePath;
         $this->owner    = $owner;
