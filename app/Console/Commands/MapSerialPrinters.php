@@ -55,7 +55,10 @@ class MapSerialPrinters extends Command
      * 
      * @return array
      */
-    public function parseFirmwareInformation(Logger $log, string $information) {
+    private function parseFirmwareInformation(Logger $log, string $information) {
+        $this->comment("   -> Parsing...");
+        $log->debug(   "   -> Parsing...");
+
         $machine = [
             'capabilities' => []
         ];
@@ -101,15 +104,19 @@ class MapSerialPrinters extends Command
                 $info = Str::of( $info );
 
                 if ($info->startsWith('Cap:')) {
-                    $keyValue = $info->replaceFirst('Cap:', '')->explode(':');
+                    $keyValue = $info->replaceFirst('Cap:', '')->explode(':')->toArray();
 
                     try {
-                        $machine['capabilities'][
-                            Str::of( $keyValue[0] )->lower()->camel()->toString()
-                        ] = !!$keyValue[1] ?? false;
+                        $key    = Str::of( $keyValue[0] )->lower()->camel()->toString();
+                        $value  = !!( (int) $keyValue[1]) ?? false;
+
+                        $machine['capabilities'][ $key ] = $value;
+
+                        $this->comment("     -= F: {$key}: " . ($value ? 'true' : 'false'));
+                        $log->debug(   "     -= F: {$key}: " . ($value ? 'true' : 'false'));
                     } catch (Exception $exception) {
-                        $this->warn(  "  -> Parse error: {$exception->getMessage()}");
-                        $log->warning("  -> Parse error: {$exception->getMessage()}");
+                        $this->warn(  "     -> Parse error: {$exception->getMessage()}");
+                        $log->warning("     -> Parse error: {$exception->getMessage()}");
                     }
                 }
             }
