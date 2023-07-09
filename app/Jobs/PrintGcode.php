@@ -147,14 +147,29 @@ class PrintGcode implements ShouldQueue
 
             // Send command sequence for board reset
             foreach ([
-                'M108',     // break and continue (get out of M0/M1)
-                'M77',      // stop print job timer
-                'M73 P0',   // reset print progress
-                'M486 C',   // cancel objects
-                'M107',     // turn off fan
-                'M140 S0',  // turn off heatbed
-                'M104 S0',  // turn off temperature
-                'M84 X Y E' // disable motors
+                'M108',      // break and continue (get out of M0/M1)
+                'M77',       // stop print job timer
+                'M73 P0',    // reset print progress
+                'M486 C',    // cancel objects
+                'M107',      // turn off fan
+                'M140 S0',   // turn off heatbed
+                'M104 S0',   // turn off temperature
+                'M84 X Y E', // disable motors
+                'M999'       // restart from STOP (emergency abort)
+
+                /**
+                 * More Hellbot quirks, yay! :)
+                 * 
+                 * M999 is being sent here because apparently, Hellbot printers
+                 * REALLY dislike the way in that WPrint 3D sends commands in
+                 * rapid succession. That is, after completing a print job, the
+                 * printer might be stuck unable to warm up again (probably a
+                 * buffer overflow somewhere in the custom firmware).
+                 * 
+                 * This command tells the printer that everything is fine and
+                 * that, in fact, nothing would've been lost throughout said
+                 * transaction.
+                */
             ] as $command) {
                 try {
                     $serial->query( $command );
