@@ -22,6 +22,8 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 
+use MongoDB\BSON\ObjectId;
+
 use Exception;
 
 class MapSerialPrinters extends Command
@@ -311,6 +313,17 @@ class MapSerialPrinters extends Command
                     }
 
                     $found = true;
+
+                    foreach (
+                        Printer::select('node')
+                               ->where('node', $printer->node)
+                               ->whereRaw([ '_id' => [ '$ne' => new ObjectId( $printer->_id ) ] ])
+                               ->cursor()
+                        as $matchingNodePrinter
+                    ) {
+                        $matchingNodePrinter->node = null;
+                        $matchingNodePrinter->save();
+                    }
 
                     break;
                 }

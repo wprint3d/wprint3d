@@ -316,6 +316,10 @@ class PrintGcode implements ShouldQueue
 
         $log->info( 'Job started: printing "' . $this->filePath . '"' );
 
+        if (!$this->printer->node) {
+            throw new Exception('This printer doesn\'t have a node assigned.');
+        }
+
         $statisticsQueryIntervalSecs = Configuration::get('jobStatisticsQueryIntervalSecs');
         $autoSerialIntervalSecs      = Configuration::get('autoSerialIntervalSecs');
 
