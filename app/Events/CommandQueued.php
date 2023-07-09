@@ -10,6 +10,8 @@ class CommandQueued implements ShouldQueue
 {
     use Dispatchable;
 
+    public $queue = 'control';
+
     public string $printerId;
 
     /**

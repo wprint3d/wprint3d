@@ -185,9 +185,29 @@ else
                 SLEEP=3;
             fi;
 
-            while true; do
-                php artisan queue:work --queue="$QUEUE" --sleep="$SLEEP" --timeout=0;
-            done;
+            if ([[ "$PARALLEL_JOBS_PER_THREAD" != '' ]] && [[ $PARALLEL_JOBS_PER_THREAD -gt 0 ]]); then
+                echo '[supervisord]'                                                                                      >  /var/www/internal/supervisor/"$QUEUE".conf;
+                echo 'nodaemon=true'                                                                                      >> /var/www/internal/supervisor/"$QUEUE".conf;
+                echo ''                                                                                                   >> /var/www/internal/supervisor/"$QUEUE".conf;
+                echo '[program:app-worker]'                                                                               >> /var/www/internal/supervisor/"$QUEUE".conf;
+                echo 'process_name=%(program_name)s_%(process_num)02d'                                                    >> /var/www/internal/supervisor/"$QUEUE".conf;
+                echo 'command=php /var/www/artisan queue:work --queue='"$QUEUE"' --sleep='"$SLEEP"' --timeout=0 --rest=2' >> /var/www/internal/supervisor/"$QUEUE".conf;
+                echo 'autostart=true'                                                                                     >> /var/www/internal/supervisor/"$QUEUE".conf;
+                echo 'autorestart=true'                                                                                   >> /var/www/internal/supervisor/"$QUEUE".conf;
+                echo 'numprocs='$(( $(nproc --all) * $PARALLEL_JOBS_PER_THREAD ))                                         >> /var/www/internal/supervisor/"$QUEUE".conf;
+                echo 'redirect_stderr=true'                                                                               >> /var/www/internal/supervisor/"$QUEUE".conf;    
+                echo 'user=root'                                                                                          >> /var/www/internal/supervisor/"$QUEUE".conf;
+                echo 'stdout_logfile=/var/www/storage/logs/'"$QUEUE"'_worker.log'                                         >> /var/www/internal/supervisor/"$QUEUE".conf;
+
+                supervisord \
+                    --configuration /var/www/internal/supervisor/"$QUEUE".conf \
+                    --logfile       /tmp/supervisord.log \
+                    --pidfile       /tmp/supervisord.pid;
+            else
+                while true; do
+                    php artisan queue:work --queue="$QUEUE" --sleep="$SLEEP" --timeout=0;
+                done;
+            fi;
         elif [[ "$ROLE" == 'ws-server' ]]; then
             waitForAssetBundler;
 
