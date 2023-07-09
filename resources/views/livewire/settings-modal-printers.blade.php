@@ -2,31 +2,7 @@
     <div class="row text-start">
         @if ($printers->count())
             @foreach ($printers as $printer)
-            <div class="card col-12 col-md-6 col-lg-4 mt-2">
-                <img src="images/printer.jpg" class="card-img-top mt-3" alt="{{ $printer->machine['machineType'] ?? 'Unknown printer'  }}">
-                <div class="card-body">
-                    <h5 class="card-title"> {{ $printer->machine['machineType'] ?? 'Unknown printer' }} </h5>
-                    <p class="card-text">
-                        <ul>
-                        @foreach ($printer->machine as $key => $value)
-                            @if (!is_array($value))
-                                <li>
-                                    {{
-                                        Str::of($key)
-                                        ->snake()
-                                        ->replace('_', ' ')
-                                        ->ucfirst()
-                                        ->replace('url', 'URL')
-                                        ->replace('Uuid', 'UUID')
-                                    }}: {{ $value }}
-                                </li>
-                            @endif
-                        @endforeach
-                        </ul>
-                    </p>
-                    <button data-printer-id="{{ $printer->_id }}" class="btn btn-primary center printer-manage"> Manage </button>
-                </div>
-            </div>
+                @livewire('settings-modal-printer-card', [ 'printer' => $printer ])
             @endforeach
         @else
             <div class="d-flex align-items-center">
@@ -55,18 +31,14 @@
 @push('scripts')
 <script>
 
-const bindManageButtonClick = () => {
-    document.querySelectorAll('.printer-manage.btn').forEach(button => {
-        button.addEventListener('click', event => {
-            console.log(event);
+window.showPrinterManagerModal = printerId => {
+    console.log(event);
 
-            document.querySelectorAll('.printer-manage.btn').forEach(btn => {
-                btn.setAttribute('disabled', true)
-            });
-
-            Livewire.emit('loadPrinterManagement', event.target.dataset.printerId);
-        });
+    document.querySelectorAll('.printer-manage.btn').forEach(btn => {
+        btn.setAttribute('disabled', true)
     });
+
+    Livewire.emit('loadPrinterManagement', printerId);
 };
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -80,8 +52,6 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    bindManageButtonClick();
-
     window.addEventListener('printerLoaded', event => {
         console.debug(event);
 
@@ -93,8 +63,6 @@ window.addEventListener('DOMContentLoaded', () => {
             resetButtons();
         }
     });
-
-    window.addEventListener('printersRefreshed', bindManageButtonClick);
 
     printerManagementModal._element.addEventListener('hidden.bs.modal', resetButtons);
 });
