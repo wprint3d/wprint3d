@@ -170,6 +170,31 @@ class JobRecoveryModal extends Component
         }
 
         try {
+            if (!$this->printer->node) {
+                $this->printer->refresh();
+            }
+
+            if (!$this->printer->node) {
+                $this->dispatchBrowserEvent('recoveryFailed', 'we don\'t know about this printer\'s node, please try unplugging the USB cable and plugging it back in.');
+
+                SystemMessage::send('recoveryAborted');
+
+                return;
+            }
+        } catch (Exception $exception) {
+            $log->error(
+                __METHOD__ . ': ' . $exception->getMessage() . PHP_EOL .
+                $exception->getTraceAsString()
+            );
+
+            $this->dispatchBrowserEvent('recoveryFailed', $exception->getMessage() . '.');
+
+            SystemMessage::send('recoveryAborted');
+
+            return;
+        }
+
+        try {
             $serial = new Serial(
                 fileName:  $this->printer->node,
                 baudRate:  $this->printer->baudRate,

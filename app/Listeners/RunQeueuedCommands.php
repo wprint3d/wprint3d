@@ -47,6 +47,10 @@ class RunQeueuedCommands implements ShouldQueue
             throw new InitializationException('no such printer');
         }
 
+        if (!$printer->node) {
+            throw new InitializationException('this printer doesn\'t have a node assigned.');
+        }
+
         tryToWaitForMapper($log);
 
         $serial = new Serial(

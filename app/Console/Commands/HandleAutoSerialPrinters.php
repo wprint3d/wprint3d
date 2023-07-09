@@ -13,10 +13,7 @@ use Illuminate\Console\Command;
 
 use Illuminate\Support\Facades\Log;
 
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-
-use MongoDB\BSON\UTCDateTime;
 
 use Exception;
 
@@ -65,15 +62,28 @@ class HandleAutoSerialPrinters extends Command
             sleep( $autoSerialIntervalSecs );
 
             foreach (Printer::cursor() as $printer) {
+                // Did we actually have to wait for the mapper?
+                if (tryToWaitForMapper($log)) {
+                    /*
+                     * If so, wait for a second and refresh the printer.
+                     * 
+                     * This process ensures that we're seeing an up-to-date
+                     * version of the document, avoiding writes to a busy
+                     * serial connection.
+                     */
+
+                    sleep(1);
+
+                    $printer->refresh();
+                }
+
                 if ($printer->activeFile) { continue; }
 
-                if (!Serial::nodeExists( $printer->node )) {
+                if (!$printer->node || !Serial::nodeExists( $printer->node )) {
                     PrinterConnectionStatusUpdated::dispatch( $printer->_id );
 
                     continue;
                 }
-
-                tryToWaitForMapper($log);
 
                 $serial = new Serial(
                     fileName:  $printer->node,
