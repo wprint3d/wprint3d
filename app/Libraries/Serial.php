@@ -285,7 +285,11 @@ class Serial {
         while (true) {
             $read = dio_read($this->fd);
 
-            $spentBlankingMs = millis() - $blankTime;
+            $spentBlankingMs = round(
+                num:        millis() - $blankTime,
+                precision:  2,
+                mode:       PHP_ROUND_HALF_DOWN
+            );
 
             if ($read) {
                 if ($this->log) {
