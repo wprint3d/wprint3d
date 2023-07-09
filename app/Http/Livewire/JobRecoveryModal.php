@@ -64,6 +64,8 @@ class JobRecoveryModal extends Component
 
     const XY_AXIS_WITH_MIN_HOLDING_OFFSET = 1; // mm
 
+    const Z_PROBE_HOMING_OFFSET = 4.5; // mm
+
     public function boot() {
         $className = (new ReflectionClass($this))->getShortName();
 
@@ -240,13 +242,20 @@ class JobRecoveryModal extends Component
             sleep(1);
         }
 
+        $preWarmUpCommands  = [];
         $warmUpCommands     = [];
         $preSetUpCommands   = [];
         $setUpCommands      = [];
         $postSetUpCommands  = [];
 
         // default movement mode for Marlin is absolute
-        $lastMovementMode = 'G90';
+        $lastMovementMode   = 'G90';
+
+        // last tool change (T0, T1, etc.)
+        $lastToolChange     = null;
+
+        // (optional) M82 (absolute) or M83 (relative)
+        $lastExtruderMode   = null;
 
         $previousPosition = [
             'x' => null,
@@ -340,6 +349,8 @@ class JobRecoveryModal extends Component
                             }
                         }
                     }
+                } else if ($line->startsWith('T')) { // tool/extruder change
+                    $lastToolChange = (string) $line;
                 } else if (
                     $line->startsWith('M104')  // set hotend temperature
                     ||
@@ -357,7 +368,7 @@ class JobRecoveryModal extends Component
                     ||
                     $line->exactly('G21')   // use millimeters to measure distances
                 ) {
-                    $setUpCommands[] = (string) $line;
+                    $lastExtruderMode = (string) $line;
                 }
 
                 if ($absolutePosition['x'] !== null && $absolutePosition['y'] !== null) {
@@ -398,7 +409,6 @@ class JobRecoveryModal extends Component
         $preSetUpCommands[] = 'G90';                                        // absolute mode
         $preSetUpCommands[] = 'G92 X0 Y0 Z0 E0';                            // set all axis to 0
         $preSetUpCommands[] = 'G1 E-' . self::E_AXIS_RETRACT_OFFSET;        // retract N mm
-        $preSetUpCommands[] = 'G0 Z'  . self::Z_AXIS_HOLDING_OFFSET;        // make the nozzle go up
         $preSetUpCommands[] = "M109 R{$jobRestorationHomingTemperature}";   // wait for hotend cooldown
 
         /*
@@ -407,8 +417,7 @@ class JobRecoveryModal extends Component
          */
         $startPos = [
             'x' => $absolutePosition['x'] + self::X_AXIS_HOLDING_OFFSET,
-            'y' => $absolutePosition['y'] + self::Y_AXIS_HOLDING_OFFSET,
-            'z' => $absolutePosition['z'] + self::Z_AXIS_HOLDING_OFFSET
+            'y' => $absolutePosition['y'] + self::Y_AXIS_HOLDING_OFFSET
         ];
 
         $log->debug('$startPos: defaults prepared: ' . json_encode( $startPos ));
@@ -431,15 +440,30 @@ class JobRecoveryModal extends Component
             $log->debug('$startPos: minimum layer XY available, decreasing XY to a safer resting position: ' . json_encode( $startPos ) . ', minimum is: ' . json_encode( $minLayerPositionXY ));
         }
 
-        $setUpCommands[] = 'G28';                                    // auto-home all axis
-        $setUpCommands[] = "G0 Z{$startPos['z']}";                   // move to target Z   + offset
-        $setUpCommands[] = "G0 X{$startPos['x']} Y{$startPos['y']}"; // move to target X/Y + offset
-        $setUpCommands[] = "G0 Z{$absolutePosition['z']}";           // move to target Z
+        if ($lastToolChange) {
+            $preWarmUpCommands[] = $lastToolChange;
+        }
 
-        $postSetUpCommands[] = "G0 X{$absolutePosition['x']} Y{$absolutePosition['y']}"; // move to target X/Y
-        $postSetUpCommands[] = 'G1 E' . self::E_AXIS_RETRACT_OFFSET;                     // de-retract N mm
+        $setUpCommands[] = 'G28 X Y R0';                               // auto-home X and Y (avoid Z-raise by specifying R0)
+        $setUpCommands[] = "G0  X{$startPos['x']} Y{$startPos['y']}";  // move to target X/Y + offset (Z is still at virtual 0 here)
+
+        if ($this->printer->supports('zProbe')) {
+            $setUpCommands[] = 'G90';                                  // absolute mode
+            $setUpCommands[] = 'G92 Z'  . self::Z_PROBE_HOMING_OFFSET; // make the printer think it's still at Z_PROBE_HOMING_OFFSET
+            $setUpCommands[] = 'G0  Z-' . self::Z_PROBE_HOMING_OFFSET; // discard additional Z_PROBE_HOMING_OFFSET Z raise (for z-probe)
+            $setUpCommands[] = 'G92 Z0';                               // make the printer think it's still at Z0
+        }
+
+        $postSetUpCommands[] = "G0  X{$absolutePosition['x']} Y{$absolutePosition['y']}"; // move to target X/Y
+        $postSetUpCommands[] = "G92 Z{$absolutePosition['z']} E{$absolutePosition['e']}"; // set virtual Z height and E position to the original absolute
+        $postSetUpCommands[] = 'G1  E' . self::E_AXIS_RETRACT_OFFSET;                     // de-retract N mm
         $postSetUpCommands[] = $lastMovementMode;
 
+        if ($lastExtruderMode) {
+            $postSetUpCommands[] = $lastExtruderMode;
+        }
+
+        $log->debug('preWarmUpCommands: ' . json_encode( $preWarmUpCommands ));
         $log->debug('warmUpCommands: '    . json_encode( $warmUpCommands    ));
         $log->debug('preSetUpCommands: '  . json_encode( $preSetUpCommands  ));
         $log->debug('setUpCommands: '     . json_encode( $setUpCommands     ));
@@ -450,6 +474,7 @@ class JobRecoveryModal extends Component
             data: implode(
                 separator: PHP_EOL,
                 array: array_merge(
+                    $preWarmUpCommands,
                     $warmUpCommands,
                     $preSetUpCommands,
                     $setUpCommands,
