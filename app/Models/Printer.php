@@ -103,6 +103,23 @@ class Printer extends Model
         'activeFile',
         'lastLine',
     ];
+    
+    /**
+     * supports
+     * 
+     * Check whether a printer supports a feature (reported by the firmware).
+     *
+     * @param  mixed $capability
+     * @return bool
+     */
+    public function supports(string $capability): bool {
+        return
+            isset( $this->machine['capabilities'] )
+            &&
+            isset( $this->machine['capabilities'][ $capability ] )
+            &&
+            $this->machine['capabilities'][ $capability ];
+    }
 
     public function getCameras() {
         if (!$this->cameras) {
