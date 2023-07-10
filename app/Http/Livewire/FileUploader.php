@@ -2,8 +2,6 @@
 
 namespace App\Http\Livewire;
 
-use App\Events\SystemMessage;
-
 use Livewire\Component;
 
 use Livewire\WithFileUploads;
@@ -38,8 +36,6 @@ class FileUploader extends Component
         $this->gcode->storeAs($baseFilesDir, $fullName);
 
         Log::debug( __METHOD__ . ': ' . $fullName );
-
-        SystemMessage::send('refreshUploadedFiles');
 
         $this->emit('selectUploadedFile', $fullName);
 
