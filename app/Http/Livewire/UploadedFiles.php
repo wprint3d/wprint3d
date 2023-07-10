@@ -183,6 +183,8 @@ class UploadedFiles extends Component
     }
 
     public function selectByName($name) {
+        $this->refreshFileList();
+
         $this->selected = $name;
 
         $this->emit('prepareFile', Auth::user()->getCurrentFolder() . '/' . $name);
