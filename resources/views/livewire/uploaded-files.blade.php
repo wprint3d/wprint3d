@@ -13,14 +13,37 @@
                     readonly
                     value="{{ $subPath ? $subPath : '/' }}"
                 >
-                <button wire:click="goUp"   class="btn btn-primary" type="button" id="filesUpBtn" @if (!$subPath) disabled @endif> @svg('caret-up-fill') </button>
-                <button wire:click="goHome" class="btn btn-primary" type="button" @if (!$subPath) disabled @endif> @svg('house-door-fill') </button>
+
+                <button wire:click="goUp"   wire:loading.attr="disabled" class="btn btn-primary" type="button" id="filesUpBtn" @if (!$subPath) disabled @endif>
+                    <span wire:target="goUp" wire:loading.class="animate__animated animate__flash animate__infinite animate__slow">
+                        @svg('caret-up-fill')
+                    </span>
+                </button>
+
+                <button wire:click="goHome" wire:loading.attr="disabled" class="btn btn-primary" type="button" @if (!$subPath) disabled @endif>
+                    <span wire:target="goHome" wire:loading.class="animate__animated animate__flash animate__infinite animate__slow">
+                        @svg('house-door-fill')
+                    </span> 
+                </button>
             </div>
         </div>
 
         <div class="col-12 col-sm-6 col-md-7 dropdown">
-            <a class="btn btn-primary dropdown-toggle w-100 text-truncate" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                @svg('filter') Sort ({{ Str::lower( SortingMode::fromValue($sortingMode)->description ?? 'Unknown' ) }})
+            <a
+                class="btn btn-primary dropdown-toggle w-100 text-truncate"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                wire:loading.class="disabled"
+            >
+                <div wire:loading wire:target="sortBy">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="visually-hidden"> Loading... </span>
+                </div>
+
+                <span wire:loading.class="d-none"> @svg('filter') </span>
+                Sort ({{ Str::lower( SortingMode::fromValue($sortingMode)->description ?? 'Unknown' ) }})
             </a>
 
             <ul class="dropdown-menu">
@@ -46,7 +69,13 @@
                     class="list-group-item list-group-item-action overflow-scroll no-scrollbar {{ $selected == $file['name'] ? 'active' : '' }}"
                     aria-current="true"
                     wire:click="select('{{ $index }}')"
+                    wire:loading.class="disabled"
                 >
+                    <div wire:loading wire:target="select('{{ $index }}')">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span class="visually-hidden"> Loading... </span>
+                    </div>
+
                     <span class="{{ $file['directory'] ? 'fw-semibold' : '' }}">
                         @if (isset( $file['active'] ) && $file['active'])
                             @if ($file['directory'])
