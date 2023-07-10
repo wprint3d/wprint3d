@@ -48,10 +48,13 @@ RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) curl xml zip dom mysqli p
 # though we're actually building "input_libcamera" into MJPG Streamer, we'll be
 # using Camera Streamer instead whenever an RPi camera is found, as it's faster
 # and more reliable.
+#
+# TODO: Go back to the master branch whenever libcamera-apps brings support for
+#       the latest changes on meson build rules.
 RUN apt-get update && apt-get install -y --no-install-recommends meson python3 python3-pip python3-jinja2 python3-ply python3-yaml libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev libboost-program-options-dev libdrm-dev libexif-dev libglib2.0-dev libgstreamer-plugins-base1.0-dev &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/* &&\
-    git clone https://github.com/raspberrypi/libcamera.git &&\
+    git clone https://github.com/raspberrypi/libcamera.git -b v0.0.4 &&\
     cd libcamera &&\
     meson build --buildtype=release -Dpipelines=raspberrypi -Dipas=raspberrypi -Dv4l2=true -Dgstreamer=enabled -Dtest=false -Dlc-compliance=disabled -Dcam=disabled -Dqcam=disabled -Ddocumentation=disabled -Dpycamera=disabled &&\
     ninja -C build &&\
