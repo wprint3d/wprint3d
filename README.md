@@ -34,7 +34,7 @@ Other firmwares     | No support
 - Follow the on-screen instructions.
 
 ## Known bugs
-- SD printing may disrupt the negotiated serial connection. The connection should come back **about a minute** after finishing the print job.
+- SD printing may disrupt the negotiated serial connection. The connection should come back **about a minute** after finishing the print job. **This bug will be worked on in the near future.**
 
 <!-- 
 ## Contributing
