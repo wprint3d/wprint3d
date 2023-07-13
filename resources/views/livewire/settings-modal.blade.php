@@ -25,6 +25,7 @@
                                             role="tab"
                                             aria-controls="{{ $paneName }}-tab-pane"
                                             aria-selected="{{ $loop->first ? 'true' : 'false' }}"
+                                            onclick="initialize('{{ 'settings-modal-' . $paneName }}')"
                                         >
                                             {{ Str::ucfirst($paneName) }}
                                         </a>

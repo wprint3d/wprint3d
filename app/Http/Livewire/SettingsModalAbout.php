@@ -6,10 +6,14 @@ use Livewire\Component;
 
 class SettingsModalAbout extends Component
 {
-    public string $licenses;
+    protected $listeners = [ 'initialize' ];
 
-    public function boot() {
-        $this->licenses = file_get_contents( base_path() . '/THIRD_PARTY_LICENSES.txt' );
+    public string $licenses = '';
+
+    public function initialize() {
+        if (!$this->licenses) {
+            $this->licenses = file_get_contents( base_path() . '/THIRD_PARTY_LICENSES.txt' );
+        }
     }
 
     public function render()
