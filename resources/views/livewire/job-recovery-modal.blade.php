@@ -49,6 +49,15 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="col-12"> <hr> </div>
+
+                        <div class="col-12">
+                            <h6 class="text-center mb-3"> About the recovery process </h6>
+                            <p class="text-center">
+                                Consider that the recovery procedure will home both the <span class="fw-bold">X</span> and <span class="fw-bold">Y</span> axes, if you've manually manipulated the <span class="fw-bold">Z-axis</span> by mistake, please consider skipping this recovery session as it'll probably get your piece knocked out of the build plate or stay printing mid-air.
+                            </p>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer justify-content-between">
