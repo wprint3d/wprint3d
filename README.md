@@ -4,12 +4,13 @@
 
 WPrint 3D is a FDM printer web-based remote control software compatible with most common standard serial/TTY over USB printers.
 
-Compatibility chart | Marlin 1.x | Marlin 2.x | Other firmwares
-------------------- | ---------- | ---------- | ---------------
-Basic functionality | ✓          | ✓          | No support
-Pause states        | ✓\*        | ✓\*        | No support
+Compatibility chart | Support     
+------------------- | -----------
+Marlin 1.x          | ✓          
+Marlin 2.x          | ✓          
+Other firmwares     | No support 
 
-\* **When paused from the web or from the G-code itself, M0, M1 and M600 color swaps are supported, however, these commands could time out on some printers, if that happens, resuming from the web won't work and you'll be required to click the physical printer's button. For compatibility and reliability reasons, M600 commands are converted to a sequence of M0 instead (to allow for resuming through the web).**
+**Notice:** when paused from the web or from the G-code itself, **M0**, **M1** and **M600** color swaps are supported, however, these commands could time out on some printers, if that happens, resuming from the web won't work and you'll be required to **click the physical printer's button** *(or tap the screen if it has a touchscreen)*. For compatibility and reliability reasons, **M600** is converted to a sequence of **M0** instead (to allow for resuming through the web).
 
 ## System requirements
 - Any **dual-core CPU** running at, at least, **1 GHz**
