@@ -228,6 +228,10 @@
                 return true;
             });
     });
+
+    window.initialize = componentName => {
+        Livewire.emitTo( componentName, 'initialize' );
+    };
 </script>
 
 @stack('scripts')

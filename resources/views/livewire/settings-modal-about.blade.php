@@ -6,6 +6,16 @@
         <br>
         If you want to know more about the licensing specifications of most of our third-party dependencies, please refer to the documentation provided below.
     </div>
-
+    @if ($licenses)
     <pre>{{ $licenses }}</pre>
+    @else
+    <div class="d-flex justify-content-center">
+        <div class="d-flex flex-column align-items-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="pt-3"> Downloading third-party licenses... </p>
+        </div>
+    </div>
+    @endif
 </div>
