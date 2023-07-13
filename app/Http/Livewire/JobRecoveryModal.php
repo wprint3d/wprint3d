@@ -91,7 +91,7 @@ class JobRecoveryModal extends Component
         }
     }
 
-    public function renderGcode() {
+    public function renderGcode(int $mainMaxLine, int $altMaxLine) {
         if (!$this->printer) {
             Log::warning( __METHOD__ . ': unexpected code path reached, why are we allowed to call this function without having a selected printer first?' );
 
@@ -106,31 +106,33 @@ class JobRecoveryModal extends Component
             $this->dispatchBrowserEvent('recoveryJobPrepareError', 'The printer related to this job was unexpectedly deleted.');
 
             $this->skip();
+
+            return;
         }
 
         if (!$this->printer->activeFile) {
-            $this->dispatchBrowserEvent('recoveryJobPrepareError', 'The printer in an unexpected state. Did you modify the database manually?');
+            $this->dispatchBrowserEvent('recoveryJobPrepareError', 'The printer is in an unexpected state. Did you modify the database manually?');
 
             $this->skip();
+
+            return;
         }
 
-        foreach ([ $this->uidSideA, $this->uidSideB ] as $uid) {
-            switch ($uid) {
-                case $this->uidSideA:
-                    $targetLine = $this->recoveryMainMaxLine;
-                break;
-                case $this->uidSideB:
-                    $targetLine = $this->recoveryAltMaxLine;
-                break;
-            }
+        $this->targetRecoveryLine = $mainMaxLine;
 
-            SendLinesToClientPreview::dispatch(
-                $uid,                   // previewUID
-                $this->printer->_id,    // printerId
-                $targetLine,            // currentLine
-                false                   // mapLayers
-            );
-        }
+        SendLinesToClientPreview::dispatch(
+            $this->uidSideA,        // previewUID
+            $this->printer->_id,    // printerId
+            $mainMaxLine,           // currentLine
+            false                   // mapLayers
+        );
+
+        SendLinesToClientPreview::dispatch(
+            $this->uidSideB,        // previewUID
+            $this->printer->_id,    // printerId
+            $altMaxLine,            // currentLine
+            false                   // mapLayers
+        );
     }
 
     public function skip() {

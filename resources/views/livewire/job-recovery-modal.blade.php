@@ -27,12 +27,12 @@
                         </div>
 
                         <div class="col-12 col-sm-6">
-                            <div id="{{ $uidSideA }}" class="row recovery-preview-side-a">
+                            <div class="row recovery-preview-side-a">
                                 <canvas id="recoveryPreviewMainOption" class="preview-canvas col-12"></canvas>
 
                                 <div class="col-12 mt-2 form-check d-flex justify-content-center">
-                                    <input wire:model.defer="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" value="{{ $recoveryMainMaxLine }}" checked>
-                                    Continue from line <span class="mx-1">{{ $recoveryMainMaxLine }}</span>
+                                    <input wire:model.defer="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" checked>
+                                    Continue from line <span class="mx-1"></span>
                                 </div>
                             </div>
                         </div>
@@ -40,12 +40,12 @@
                         <hr class="d-block d-sm-none mt-2">
 
                         <div class="col-12 col-sm-6">
-                            <div id="{{ $uidSideB }}" class="row recovery-preview-side-b">
+                            <div class="row recovery-preview-side-b">
                                 <canvas id="recoveryPreviewAltOption" class="preview-canvas col-12"></canvas>
 
                                 <div class="col-12 mt-2 form-check d-flex justify-content-center">
-                                    <input wire:model.defer="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" value="{{ $recoveryAltMaxLine }}">
-                                    Continue from line <span class="mx-1">{{ $recoveryAltMaxLine }}</span>
+                                    <input wire:model.defer="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2">
+                                    Continue from line <span class="mx-1"></span>
                                 </div>
                             </div>
                         </div>
@@ -159,6 +159,20 @@
     let respawnModal       = false,
         handleBufferEvents = true;
 
+    const UID_SIDE_A = @json( $uidSideA );
+    const UID_SIDE_B = @json( $uidSideB );
+
+    document.querySelector('.recovery-preview-side-a').id = UID_SIDE_A;
+    document.querySelector('.recovery-preview-side-b').id = UID_SIDE_B;
+
+    let radios = document.querySelectorAll('input[name="targetRecoveryLine"]');
+
+    radios[0].value = mainMaxLine;
+    radios[0].parentElement.querySelector('span').innerText = mainMaxLine;
+
+    radios[1].value = altMaxLine;
+    radios[1].parentElement.querySelector('span').innerText = altMaxLine;
+
     window.addEventListener('DOMContentLoaded', () => {
         let jobRecoveryModal = new bootstrap.Modal(
             document.querySelector('#jobRecoveryModal')
@@ -236,7 +250,7 @@
 
                     preview.render();
 
-                    if (event.previewUID == @json( $uidSideB )) {
+                    if (event.previewUID == UID_SIDE_B) {
                         resetDynamicElements();
                     }
 
@@ -373,7 +387,7 @@
                 altMaxLine                                            // toIndex
             );
 
-            Livewire.emit('renderRecoveryGcode');
+            Livewire.emit('renderRecoveryGcode', mainMaxLine, altMaxLine);
         });
 
         document.querySelector('#jobRecoveryModal').addEventListener('hidden.bs.modal', () => {
