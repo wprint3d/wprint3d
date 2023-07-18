@@ -123,9 +123,9 @@
         tooltipList        = [ ...tooltipTriggerList ].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
     };
 
-    initializeTooltips();
-
     window.addEventListener('DOMContentLoaded', () => {
+        initializeTooltips();
+
         window.Echo = new Echo(window.ECHO_OPTIONS);
 
         // Set base URL
