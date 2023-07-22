@@ -67,7 +67,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libtiff5-dev li
     ldconfig;
 
 # camera-streamer
-RUN git clone https://github.com/wprint3d/camera-streamer.git --recursive --shallow-submodules &&\
+RUN git clone https://github.com/ayufan/camera-streamer.git --recursive --shallow-submodules &&\
     cd camera-streamer &&\
     make &&\
     make install;
