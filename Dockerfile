@@ -48,27 +48,22 @@ RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) curl xml zip dom mysqli p
 # though we're actually building "input_libcamera" into MJPG Streamer, we'll be
 # using Camera Streamer instead whenever an RPi camera is found, as it's faster
 # and more reliable.
-#
-# TODO: Go back to the master branch whenever libcamera-apps brings support for
-#       the latest changes on meson build rules.
 RUN apt-get update && apt-get install -y --no-install-recommends meson python3 python3-pip python3-jinja2 python3-ply python3-yaml libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev libboost-program-options-dev libdrm-dev libexif-dev libglib2.0-dev libgstreamer-plugins-base1.0-dev &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/* &&\
-    git clone https://github.com/raspberrypi/libcamera.git -b v0.0.4 &&\
+    git clone https://github.com/raspberrypi/libcamera.git -b release-v0.0.5+83-bde9b04f &&\
     cd libcamera &&\
-    meson build --buildtype=release -Dpipelines=raspberrypi -Dipas=raspberrypi -Dv4l2=true -Dgstreamer=enabled -Dtest=false -Dlc-compliance=disabled -Dcam=disabled -Dqcam=disabled -Ddocumentation=disabled -Dpycamera=disabled &&\
+    meson build --buildtype=release -Dpipelines=rpi/vc4 -Dipas=rpi/vc4 -Dv4l2=true -Dgstreamer=enabled -Dtest=false -Dlc-compliance=disabled -Dcam=disabled -Dqcam=disabled -Ddocumentation=disabled -Dpycamera=disabled &&\
     ninja -C build &&\
     ninja -C build install;
 RUN apt-get update && apt-get install -y --no-install-recommends libtiff5-dev libpng-dev &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/* &&\
-    git clone https://github.com/raspberrypi/libcamera-apps.git &&\
+    git clone https://github.com/raspberrypi/libcamera-apps.git -b v1.2.1 &&\
     cd libcamera-apps &&\
-    mkdir build &&\
-    cd build &&\
-    cmake .. -DENABLE_DRM=1 -DENABLE_X11=0 -DENABLE_QT=0 -DENABLE_OPENCV=0 -DENABLE_TFLITE=0 &&\
-    make -j"$(nproc --all)" &&\
-    make install &&\
+    meson setup build -Denable_libav=true -Denable_drm=true -Denable_egl=false -Denable_qt=false -Denable_opencv=false -Denable_tflite=false &&\
+    meson compile -C build -j"$(nproc --all)" &&\
+    meson install -C build &&\
     ldconfig;
 
 # camera-streamer
