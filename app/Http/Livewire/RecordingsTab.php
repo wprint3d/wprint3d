@@ -19,18 +19,20 @@ use Livewire\Component;
 use CodeInc\HumanReadableFileSize\HumanReadableFileSize;
 
 use Exception;
-use Illuminate\Support\Facades\Auth;
 
 class RecordingsTab extends Component
 {
-    public $recordings;
+
+    public $recordings = [];
 
     public $error;
+    public $firstLoad;
     public $selected = null;
 
     private int $renderFileBlockingSecs;
 
     protected $listeners = [
+        'initialize'        => 'initialize',
         'selectPrinter'     => '$refresh',
         'refreshActiveFile' => '$refresh',
         'recorderToggled'   => '$refresh',
@@ -38,6 +40,8 @@ class RecordingsTab extends Component
     ];
 
     private function refreshRecordings() {
+        $this->firstLoad = false;
+
         $fileSize = new HumanReadableFileSize();
         $fileSize->setSpaceBeforeUnit();
 
@@ -121,13 +125,18 @@ class RecordingsTab extends Component
     }
 
     public function boot() {
+        $this->firstLoad              = true;
         $this->renderFileBlockingSecs = Configuration::get('renderFileBlockingSecs');
+    }
+
+    public function initialize() {
+        if ($this->firstLoad) {
+            $this->refreshRecordings();
+        }
     }
 
     public function render()
     {
-        $this->refreshRecordings();
-
         return view('livewire.recordings-tab');
     }
 }

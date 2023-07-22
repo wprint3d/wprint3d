@@ -230,6 +230,8 @@
     });
 
     window.initialize = componentName => {
+        console.debug('initialize:', componentName);
+
         Livewire.emitTo( componentName, 'initialize' );
     };
 </script>
