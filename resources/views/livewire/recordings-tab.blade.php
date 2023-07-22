@@ -4,7 +4,16 @@
             <div class="progress-bar progress-bar-striped progress-bar-animated overflow-visible"></div>
         </div>
 
-        @if (filled( $recordings ))
+        @if ($firstLoad)
+            <div class="d-flex justify-content-center pt-2">
+                <div class="d-flex flex-column align-items-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="pt-3"> Loading recordings... </p>
+                </div>
+            </div>
+        @elseif (filled( $recordings ))
             @foreach ($recordings as $recording)
                 <div class="col">
                     <div class="card m-2 shadow-sm">

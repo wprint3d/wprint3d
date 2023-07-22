@@ -12,6 +12,7 @@
                         role="tab"
                         aria-controls="{{ $tab }}-tab-pane"
                         aria-selected="true"
+                        onclick="initialize('{{ $tab . '-tab' }}')"
                     > {{ Str::title( $tab ) }} </button>
                 </li>
             @endif
