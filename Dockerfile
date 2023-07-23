@@ -69,14 +69,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends libtiff5-dev li
 # camera-streamer
 RUN git clone https://github.com/ayufan/camera-streamer.git --recursive --shallow-submodules &&\
     cd camera-streamer &&\
-    make &&\
+    make -j$(( "$(nproc --all)" * 2 )) &&\
     make install;
 
 # MJPG Streamer
 RUN git clone https://github.com/ArduCAM/mjpg-streamer.git &&\
     cd mjpg-streamer/mjpg-streamer-experimental &&\
     sed -i 's/add_subdirectory(plugins\/input_raspicam)//g' CMakeLists.txt &&\
-    make -j$(( $(nproc --all) * 2 )) &&\
+    make -j$(( "$(nproc --all)" * 2 )) &&\
     make install
 
 # Install the ping tool
