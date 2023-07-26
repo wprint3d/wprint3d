@@ -481,14 +481,14 @@ else
                                     echo "PID UVC: ${LIB_CAMERA_UVC_PID}" >&2;
 
                                     if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]]; then
-                                        port=$(ps -fax | grep usb_camera.sh | grep "$NODE" | sed 's/.*--http-port=//' | cut -d ' ' -f 1);
+                                        port=$(ps -fax | grep camera-streamer | grep "$NODE" | sed 's/.*--http-port=//' | cut -d ' ' -f 1 | xargs);
                                     else
-                                        port=$(ps -fax | grep mjpg_streamer | grep "$NODE" | sed 's/.*-p //' | sed 's/ //g');
+                                        port=$(ps -fax | grep mjpg_streamer   | grep "$NODE" | sed 's/.*-p //'          | sed 's/ //g'    | xargs);
                                     fi;
                                 elif [[ "$LIB_CAMERA_CSI_PID" != '' ]]; then
                                     echo "PID CSI: ${LIB_CAMERA_CSI_PID}" >&2;
 
-                                    port=$(ps -fax | grep libcamera_camera.sh | grep "$CAMERA_STREAMER_NODE" | sed 's/.*--http-port=//' | cut -d ' ' -f 1);
+                                    port=$(ps -fax | grep camera-streamer | grep "$CAMERA_STREAMER_NODE" | sed 's/.*--http-port=//' | cut -d ' ' -f 1 | xargs);
                                 fi;
                             fi;
 
