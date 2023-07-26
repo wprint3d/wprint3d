@@ -429,10 +429,10 @@ else
                         CAMERA_STREAMER_NODE=$(echo -n "$NODE" | sed 's-/sys/firmware/devicetree--');
 
                         if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]]; then
-                            LIB_CAMERA_UVC_PID=$(ps -fax | grep usb_camera.sh       | grep -- "$NODE"                 | xargs | cut -d ' ' -f 1);
-                            LIB_CAMERA_CSI_PID=$(ps -fax | grep libcamera_camera.sh | grep -- "$CAMERA_STREAMER_NODE" | xargs | cut -d ' ' -f 1);
+                            LIB_CAMERA_UVC_PID=$(ps -fax | grep camera-streamer | grep -- "$NODE"                 | xargs | cut -d ' ' -f 1);
+                            LIB_CAMERA_CSI_PID=$(ps -fax | grep camera-streamer | grep -- "$CAMERA_STREAMER_NODE" | xargs | cut -d ' ' -f 1);
                         else
-                            LIB_CAMERA_UVC_PID=$(ps -fax | grep mjpg_streamer       | grep -- "$NODE"                 | xargs | cut -d ' ' -f 1);
+                            LIB_CAMERA_UVC_PID=$(ps -fax | grep mjpg_streamer   | grep -- "$NODE"                 | xargs | cut -d ' ' -f 1);
                         fi;
 
                         if [[ "$ENABLED" -eq 1 ]] && [[ -e "$NODE" ]]; then
@@ -446,11 +446,13 @@ else
 
                                     if [[ "$REQUIRES_LIB_CAMERA" -ne 1 ]]; then
                                         if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]]; then
-                                            /camera-streamer/tools/usb_camera.sh \
+                                            camera-streamer \
+                                                --camera-type=v4l2 \
                                                 --camera-path="$NODE" \
                                                 --camera-fps="$FRAMERATE" \
                                                 --camera-width=$( echo -n "$RESOLUTION" | cut -d 'x' -f 1) \
                                                 --camera-height=$(echo -n "$RESOLUTION" | cut -d 'x' -f 2) \
+                                                --http-listen=0.0.0.0 \
                                                 --http-port="${port}" &
                                         else
                                             mjpg_streamer \
@@ -459,11 +461,13 @@ else
                                         fi;
                                     else
                                         if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]] && [[ $(php artisan get:config enableLibCamera --default=true) == 'true' ]]; then
-                                            /camera-streamer/tools/libcamera_camera.sh \
+                                            camera-streamer \
+                                                --camera-type=libcamera \
                                                 --camera-path="$CAMERA_STREAMER_NODE" \
                                                 --camera-fps="$FRAMERATE" \
                                                 --camera-width=$( echo -n "$RESOLUTION" | cut -d 'x' -f 1) \
                                                 --camera-height=$(echo -n "$RESOLUTION" | cut -d 'x' -f 2) \
+                                                --http-listen=0.0.0.0 \
                                                 --http-port="${port}" &
                                         else
                                             echo "This camera requires Libcamera, but it's disabled. Enable it by setting the LIB_CAMERA_ENABLED environment variable to 'true'. If you've configured this setting from the browser previously, change it there instead." >&2;
