@@ -64,17 +64,6 @@ if [[ $(cat /proc/sys/fs/inotify/max_user_watches) -lt 65536 ]]; then
     echo fs.inotify.max_user_watches=65536 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
 fi;
 
-# If on a RPi, check if memory-limiting cgroups are enabled.
-if [[ ! -e /sys/fs/cgroup/memory.stat ]] && [[ -e /boot/cmdline.txt ]]; then
-    echo "Your kernel doesn't have the memory-limiting cgroups feature enabled. Try opening the /boot/cmdline.txt file and then, add the following text at the end of the line:";
-    echo '';
-    echo 'cgroup_enable=memory cgroup_memory=1 swapaccount=1';
-    echo '';
-    echo "Once you're done with that, reboot your Raspberry Pi and try again.";
-
-    exit 1;
-fi;
-
 # If on a RPi, check if we're missing the firmware modules to support the
 # camera. If they're missing, prepare them by copying everything to a local
 # path.
