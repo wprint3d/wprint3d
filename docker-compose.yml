@@ -19,10 +19,6 @@ services:
     depends_on:
       - web
       - ws-server
-    deploy:
-      resources:
-         limits:
-           memory: 64M
   web:
     image: wprint3d/wprint3d
     restart: always

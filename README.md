@@ -19,7 +19,7 @@ Other firmwares     | No support
 - A wired network card running at, at least, **10/100 Mbps mode** or a wireless network card connected to a device that can provide a **54 Mbps mode** (or better) for a stable live webcam feed
 - Optionally, a USB camera or a real hardwired sensor, such as a **Raspberry Pi camera**.
 
-\* On a Raspberry Pi 3 or any other low-memory SBC, try running a headless OS (such as **Ubuntu Server**) and strip out any unnecessary components, such as `snapd` and `multipathd`. If needed, **add a swap partition and enable swapping**. In order to enable the memory limiting features of Docker, add `cgroup_enable=memory cgroup_memory=1 swapaccount=1` at the end of the `/boot/cmdline.txt` file.
+\* On a Raspberry Pi 3 or any other low-memory SBC, try running a headless OS (such as **Ubuntu Server**) and strip out any unnecessary components, such as `snapd` and `multipathd`. If needed, **add a swap partition and enable swapping**.
 
 ## Getting started
 - [Install docker](https://docs.docker.com/desktop/install/linux-install/) as explained in the linked guide.
