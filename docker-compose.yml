@@ -93,7 +93,7 @@ services:
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-      - /sys/class/video4linux:/sys/class/video4linux
+      - /sys/class:/sys/class
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
     depends_on:
@@ -245,7 +245,7 @@ services:
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-      - /sys/class/video4linux:/sys/class/video4linux
+      - /sys/class:/sys/class
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
       - /var/run/docker.sock:/var/run/docker.sock
