@@ -12,7 +12,7 @@ return [
         'negotiationWaitSecs'       => 7,   // seconds
         'negotiationTimeoutSecs'    => 3,   // seconds
         'negotiationMaxRetries'     => 3,   // times
-        'commandTimeoutSecs'        => 15,  // seconds
+        'commandTimeoutSecs'        => 60,  // seconds
         'runningTimeoutSecs'        => 10,  // seconds
         'lastSeenThresholdSecs'     => 7,   // seconds
         'lastSeenPollIntervalSecs'  => 5,   // seconds
