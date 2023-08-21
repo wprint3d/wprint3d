@@ -1,11 +1,11 @@
 <div class="col-12 border-bottom py-2">
     <div class="row">
-        <div class="col-12 col-lg-4">
+        <div class="col-12 col-lg-4 mb-2 mb-lg-0">
             <label class="form-label"> Type </label>
             <input wire:model.lazy="name" type="text" class="form-control" placeholder="PLA/ABS/PETG/TPU" value="{{ $name }}">
         </div>
 
-        <div class="col-12 col-lg-3">
+        <div class="col-12 col-lg-3 mb-2 mb-lg-0">
             <label class="form-label"> Hotend temperature (°C) </label>
             <input wire:model.lazy="hotendTemperature" type="number" class="form-control" placeholder="0" value="{{ $hotendTemperature }}">
         </div>
