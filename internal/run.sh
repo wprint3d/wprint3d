@@ -142,7 +142,9 @@ else
 
                 cp -fv /tmp/recordings.conf /var/www/proxy/internal/recordings.conf >&2;
 
-                docker exec -t wprint3d-proxy-1 nginx -s reload;
+                for container_id in $(docker ps --filter name=proxy --format '{{ .ID }}'); do
+                    docker exec -t $container_id nginx -s reload;
+                done;
             fi;
 
             refreshDockerLog;
@@ -539,7 +541,9 @@ else
 
                     cp -fv /tmp/cameras.conf /var/www/proxy/internal/cameras.conf >&2;
 
-                    docker exec -t wprint3d-proxy-1 nginx -s reload;
+                    for container_id in $(docker ps --filter name=proxy --format '{{ .ID }}'); do
+                        docker exec -t $container_id nginx -s reload;
+                    done;
                 fi;
             }
 
