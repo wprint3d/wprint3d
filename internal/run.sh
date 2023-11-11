@@ -12,7 +12,7 @@ wait-for-it mongo:27017 -t 0;
 
 echo 'Waiting for Redis to be ready...';
 
-while ! redis-cli -h keydb get '' 2>&1 > /dev/null; do
+while ! redis-cli -h redis get '' 2>&1 > /dev/null; do
     sleep 1;
 done;
 

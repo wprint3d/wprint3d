@@ -32,7 +32,7 @@ services:
       - /dev:/dev
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      - keydb
+      - redis
       - mongo
       - bundler
       # - mariadb
@@ -48,7 +48,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - keydb
+      - redis
       - mongo
       # - mariadb
   # short-scheduler:
@@ -64,7 +64,7 @@ services:
   #     - /dev/bus/usb:/dev/bus/usb
   #     - /dev:/dev
   #   depends_on:
-  #     - keydb
+  #     - redis
   #     - mongo
   #     # - mariadb
   serial-scheduler:
@@ -79,7 +79,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - keydb
+      - redis
       - mongo
       # - mariadb
   mapper:
@@ -97,7 +97,7 @@ services:
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
     depends_on:
-      - keydb
+      - redis
       - mongo
       # - mariadb
   queue:
@@ -113,7 +113,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - keydb
+      - redis
       - mongo
       # - mariadb
   prints-queue:
@@ -131,7 +131,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - keydb
+      - redis
       - mongo
       # - mariadb
   control-queue:
@@ -149,7 +149,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - keydb
+      - redis
       - mongo
       # - mariadb
   previews-queue:
@@ -163,7 +163,7 @@ services:
       - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
     depends_on:
-      - keydb
+      - redis
       - mongo
       # - mariadb
   broadcasts-queue:
@@ -179,7 +179,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - keydb
+      - redis
       - mongo
       # - mariadb
   snapshots-queue:
@@ -195,7 +195,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - keydb
+      - redis
       - mongo
       # - mariadb
   recordings-queue:
@@ -210,7 +210,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
-      - keydb
+      - redis
       - mongo
       # - mariadb
   ws-server:
@@ -222,7 +222,7 @@ services:
       - .:/var/www
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      - keydb
+      - redis
       - mongo
       # - mariadb
   bundler:
@@ -250,16 +250,18 @@ services:
       - /run/udev:/run/udev:ro
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      - keydb
+      - redis
       - mongo
       - bundler
       - proxy
       # - mariadb
       - mapper
-  keydb:
-    image: eqalpha/keydb
+  redis:
+    image: redis
     restart: always
-    command: keydb-server --save "" --appendonly no # disable persistence
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    command: redis-server --save "" --appendonly no
   mongo:
     image: mongo:4.4.6
     restart: always

@@ -280,6 +280,5 @@ function getAppRevision() {
 
     return 'rev. ' . $version;
 }
-}
 
 ?>
