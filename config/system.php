@@ -30,7 +30,7 @@ return [
 
         // Miscelaneous
         'jobBackupInterval'              => BackupInterval::EVERY_SECOND,
-        'jobStatisticsQueryIntervalSecs' => 5,                      // seconds
+        'jobStatisticsQueryIntervalSecs' => 10,                     // seconds
         'terminalMaxLines'               => 512,                    // lines
         'enableHaptics'                  => true,                   // boolean
 
