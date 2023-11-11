@@ -10,6 +10,7 @@ use App\Models\Configuration;
 use Illuminate\Log\Logger;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 use Illuminate\Support\Str;
 
@@ -262,6 +263,23 @@ function getSnapshotsPrefix(string $fileName, string $jobUID, int $index, bool $
 
 function enabled(string $featureName) {
     return config("features.{$featureName}") ?? false;
+}
+
+function getAppRevision() {
+    $version = '';
+
+    try {
+        $version = Storage::disk('internal')->get('app_ver');
+    } catch (Exception $exception) { /* Do nothing */ }
+
+    $version = trim( $version );
+
+    if (empty( $version )) {
+        return 'unknown revision';
+    }
+
+    return 'rev. ' . $version;
+}
 }
 
 ?>
