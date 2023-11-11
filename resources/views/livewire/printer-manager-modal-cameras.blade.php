@@ -17,7 +17,7 @@
                                         <div class="m-0"> @svg('plus') </div>
                                     </button>
                                     @if ($camera->connected)
-                                        <a href="{{ $camera->url }}" target="_blank" class="btn btn-sm d-flex flex-column justify-content-center">
+                                        <a href="{{ $camera->url . '?' . http_build_query( data: [ 'action' => 'stream']) }}" target="_blank" class="btn btn-sm d-flex flex-column justify-content-center">
                                             @svg('eye-fill')
                                         </a>
                                     @else
@@ -76,7 +76,7 @@
                                     </button>
 
                                     @if ($camera->connected)
-                                        <a href="{{ $camera->url }}" target="_blank" class="btn btn-sm d-flex flex-column justify-content-center">
+                                        <a href="{{ $camera->url . '?' . http_build_query( data: [ 'action' => 'stream']) }}" target="_blank" class="btn btn-sm d-flex flex-column justify-content-center">
                                             @svg('eye-fill')
                                         </a>
                                     @else
