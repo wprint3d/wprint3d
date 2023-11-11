@@ -111,6 +111,15 @@ else
         fi;
 
         if [[ "$ROLE" == 'server' ]]; then
+            truncate --size 0 /var/www/internal/app_ver;
+
+            # If the Git repository is present, get the version from `git rev-parse`.
+            if [[ -f '/var/www/.git/HEAD' ]]; then
+                git config --global --add safe.directory /var/www;
+
+                git rev-parse --short HEAD > /var/www/internal/app_ver;
+            fi;
+
             printf '' > /var/www/internal/startup/startup.txt;
 
             refreshDockerLog;
