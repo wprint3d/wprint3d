@@ -22,4 +22,7 @@ proxy/internal
 internal/vc
 internal/.bundler-exit-status
 internal/startup/startup.txt
+internal/app_ver
+docs/public
+docs/cache
 docker-compose.override.yml

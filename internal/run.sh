@@ -593,6 +593,12 @@ else
                         updateCameras;
                     fi;
                 done;
+        elif [[ "$ROLE" == 'documentation-generator' ]]; then
+            git config --global --add safe.directory /var/www;
+
+            bin/doctum update --force docs/config.php;
+
+            php -S 0.0.0.0:30000 -t /var/www/docs/public;
         fi;
     done;
 fi;
