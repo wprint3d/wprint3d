@@ -58,6 +58,8 @@ class HandleAutoSerialPrinters extends Command
             return Command::SUCCESS;
         }
 
+        $log->info("Activating in {$autoSerialIntervalSecs} seconds...");
+
         while (true) {
             sleep( $autoSerialIntervalSecs );
 
