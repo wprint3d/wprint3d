@@ -253,7 +253,7 @@ class MapSerialPrinters extends Command
                         $this->info('  -> Invalid printer (no UUID available).');
                         $log->info( '  -> Invalid printer (no UUID available).');
 
-                        continue;
+                        break;
                     }
 
                     $machine['uuid'] =
