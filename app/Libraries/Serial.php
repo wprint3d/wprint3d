@@ -175,7 +175,7 @@ class Serial {
      * @return void
      */
     private function tickClocks() {
-        if (!filled( $this->clocks )) return;
+        if (empty( $this->clocks )) return;
 
         foreach ($this->clocks as $key => $clock) {
             if (millis() - $clock['lastRun'] > $clock['tickRate']) {
@@ -316,7 +316,7 @@ class Serial {
                  * echo:enqueueing "M105"
                  * ok T:39.54 /40.00 B:16.71 /0.00 T0:39.54 /40.00 T1:39.21 /0.00 @:21 B@:0 @0:21 @1:0
                  */
-                if (filled( $command ) && !str_starts_with($command, 'M105')) {
+                if (!empty( $command ) && !str_starts_with($command, 'M105')) {
                     $result = preg_replace(
                         pattern:     self::WORKAROUND_HELLBOT_QUEUE_PATTERN,
                         replacement: '',
@@ -396,13 +396,13 @@ class Serial {
                 }
 
                 $read = '';
-            } else if (filled( $result )) {
+            } else if (!empty( $result )) {
                 $lastLine = substr(
                     string: $result,
                     offset: strrpos( $result, PHP_EOL, 1 )
                 );
 
-                if (!filled( $lastLine )) {
+                if (!empty( $lastLine )) {
                     $lastLine = $result;
                 }
 
