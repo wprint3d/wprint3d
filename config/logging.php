@@ -135,7 +135,7 @@ return [
         'gcode-printer' => [
             'driver' => 'daily',
             'path' => storage_path('logs/gcode-printer.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL_GCODE_PRINTER', 'info'),
             'days' => 1,
         ],
 
