@@ -275,5 +275,13 @@ services:
   memcached:
     image: memcached
     restart: always
+  documentation-generator:
+    build: .
+    environment:
+      - ROLE=documentation-generator
+    volumes:
+      - .:/var/www
+    ports:
+      - 30000:30000
 volumes:
   mongo:

@@ -48,7 +48,20 @@ if [[ ! -f 'bin/wait-for-it' ]]; then
     printf 'Installing dependency: wait-for-it... ';
 
     curl -s https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -o bin/wait-for-it &&\
-         chmod +x bin/wait-for-it;
+        chmod +x bin/wait-for-it;
+
+    if [ $? -eq 0 ]; then
+        printf 'OK\n';
+    else
+        exit 1;
+    fi;
+fi;
+
+if [[ ! -f 'bin/doctum' ]]; then
+    printf 'Installing dependency: doctum... ';
+
+    curl -s https://doctum.long-term.support/releases/latest/doctum.phar -o bin/doctum &&\
+        chmod +x bin/doctum;
 
     if [ $? -eq 0 ]; then
         printf 'OK\n';
