@@ -69,7 +69,7 @@ class SaveSnapshot implements ShouldQueue
         $response = Http::withoutVerifying()->get( $this->url );
 
         if (!$response->successful()) {
-            throw new Exception("{$this->url}: couldn\'t take screenshot: " . $response->body());
+            throw new Exception("{$this->url}: couldn't take screenshot: " . $response->body());
         }
 
         $pathPrefix = getSnapshotsPrefix(
