@@ -10,14 +10,20 @@ use Livewire\Component;
 
 class Login extends Component
 {
-
-    public $mailAddress, $password, $rememberMe;
+    public $identifier, $password, $rememberMe, $logoutReason;
 
     protected $rules = [
-        'mailAddress'   => 'required|email',
+        'identifier'    => 'required|string',
         'password'      => 'required',
         'rememberMe'    => 'nullable|bool'
     ];
+
+    public function boot() {
+        $this->logoutReason =
+            request()->has('logoutReason')
+                ? request()->get('logoutReason')
+                : '';
+    }
 
     public function submit() {
         if (!$this->rememberMe) $this->rememberMe = false;
@@ -26,7 +32,7 @@ class Login extends Component
 
         if (
             Auth::attempt([
-                'email'     => $this->mailAddress,
+                'email'     => $this->identifier,
                 'password'  => $this->password
             ])
         ) {
@@ -41,7 +47,27 @@ class Login extends Component
             return;
         }
 
-        $this->addError('mailAddress', 'That combination of email address and password doesn\'t match our records.');
+        if (
+            Auth::attempt([
+                'name'      => $this->identifier,
+                'password'  => $this->password
+            ])
+        ) {
+            $printers = Printer::select('_id')->get();
+
+            $user = Auth::user();
+            $user->getSessionHash(); // get/refresh hash in the session store
+
+            if ($printers->count() > 0) {
+                $user->setActivePrinter( $printers->first()->_id );
+            }
+
+            $this->dispatchBrowserEvent('forceRedirect', '/');
+
+            return;
+        }
+
+        $this->addError('identifier', 'That combination of username or email address and password doesn\'t match our records.');
     }
 
     public function render()

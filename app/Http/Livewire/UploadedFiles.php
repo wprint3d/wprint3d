@@ -3,6 +3,8 @@
 namespace App\Http\Livewire;
 
 use App\Enums\SortingMode;
+use App\Enums\UserRole;
+
 use App\Models\Printer;
 
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +22,8 @@ class UploadedFiles extends Component
     public $basePath    = null;
     public $subPath     = null;
     public $sortingMode = SortingMode::NAME_ASCENDING;
+
+    public $writeable   = false;
 
     public ?string $activeFile = null;
 
@@ -214,6 +218,13 @@ class UploadedFiles extends Component
 
     public function boot() {
         $this->baseFilesDir = env('BASE_FILES_DIR');
+
+        $userRole = Auth::user()->role;
+
+        $this->writeable =
+            $userRole == UserRole::ADMINISTRATOR
+            ||
+            $userRole == UserRole::USER;
 
         $this->refreshFileList();
         $this->refreshActiveFile();

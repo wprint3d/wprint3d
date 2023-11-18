@@ -13,7 +13,11 @@
                                     Local camera at {{ $camera->node }} ({{ $camera->format }})
                                 </span>
                                 <div class="d-flex justify-content-center">
-                                    <button wire:click="add('{{ $camera->_id }}')" class="btn btn-sm border-success text-success mx-2 my-auto">
+                                    <button
+                                        wire:click="add('{{ $camera->_id }}')"
+                                        class="btn btn-sm border-success text-success mx-2 my-auto"
+                                        @if (!$writeable) disabled @endif
+                                    >
                                         <div class="m-0"> @svg('plus') </div>
                                     </button>
                                     @if ($camera->connected)
@@ -53,7 +57,11 @@
                                     Local camera at {{ $camera->node }} ({{ $camera->format }})
                                 </span>
                                 <div class="d-flex justify-content-center">
-                                    <button wire:click="remove('{{ $camera->_id }}')" class="btn btn-sm border-danger text-danger mx-2 my-auto">
+                                    <button
+                                        wire:click="remove('{{ $camera->_id }}')"
+                                        class="btn btn-sm border-danger text-danger mx-2 my-auto"
+                                        @if (!$writeable) disabled @endif
+                                    >
                                         <div class="m-0"> @svg('dash') </div>
                                     </button>
 
@@ -69,6 +77,7 @@
                                                 This camera isn't connected and it'll be skipped regardless of this setting.
                                             @endif
                                         "
+                                        @if (!$writeable) disabled @endif
                                     >
                                         <div class="m-0">
                                             @svg('record-circle-fill')

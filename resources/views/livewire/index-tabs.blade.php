@@ -27,7 +27,7 @@
                     role="tabpanel"
                     aria-labelledby="{{ $tab }}-tab"
                     tabindex="0"
-                > @livewire( $tab . '-tab', [], key( $tab . '-tab' ) ) </div>
+                > @livewire( $tab . '-tab', [ 'writeable' => $writeable ], key( $tab . '-tab' ) ) </div>
             @endif
         @endforeach
     </div>

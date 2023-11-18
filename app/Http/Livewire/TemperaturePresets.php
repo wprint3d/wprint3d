@@ -2,6 +2,8 @@
 
 namespace App\Http\Livewire;
 
+use App\Enums\UserRole;
+
 use App\Models\Printer;
 
 use Illuminate\Support\Facades\Auth;
@@ -43,6 +45,11 @@ class TemperaturePresets extends Component
             } else {
                 $this->show = false;
             }
+        }
+
+        // Force hide if the user is a spectator
+        if ($user->role == UserRole::SPECTATOR) {
+            $this->show = false;
         }
     }
 

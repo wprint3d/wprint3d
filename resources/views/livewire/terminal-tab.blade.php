@@ -30,9 +30,9 @@
             wire:model.lazy="command"
             wire:keydown.enter="queueCommand"
             type="text"
-            class="form-control mb-2"
+            class="form-control mb-2 @if (!$writeable) d-none @endif"
             placeholder="Enter a custom command"
-            @if (!$printer || $printer->activeFile)
+            @if (!$printer || $printer->activeFile || !$writeable)
                 disabled
             @endif
         >

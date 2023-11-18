@@ -8,8 +8,6 @@ use App\Contracts\Auth\AuthenticatableUser;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-use Illuminate\Foundation\Auth\User as Authenticatable;
-
 use Illuminate\Notifications\Notifiable;
 
 use Illuminate\Support\Facades\Cache;
@@ -23,6 +21,8 @@ class User extends AuthenticatableUser
     const CACHE_CURRENT_DIRECTORY_SUFFIX = '_cdir';
     const CACHE_ACTIVE_PRINTER_SUFFIX    = '_aprinter';
 
+    const HASH_KEY                       = '_uhash';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -32,6 +32,7 @@ class User extends AuthenticatableUser
         'name',
         'email',
         'password',
+        'role',
         'settings',
     ];
 
@@ -106,6 +107,69 @@ class User extends AuthenticatableUser
             key:     session()->getId() . self::CACHE_ACTIVE_PRINTER_SUFFIX,
             value:   $printerId
         );
+    }
+
+    /**
+     * refreshHash
+     *
+     * @return string The generated hash
+     */
+    public function refreshHash() {
+        $hash = sha1(
+            serialize(
+                $this->toArray()
+            )
+        );
+
+        Cache::put(
+            key:    (string) $this->_id . self::HASH_KEY,
+            value:  $hash
+        );
+
+        return $hash;
+    }
+
+    /**
+     * getCachedHash
+     *
+     * @return string
+     */
+    public function getCachedHash() {
+        $hash = Cache::get(
+            (string) $this->_id . self::HASH_KEY
+        );
+
+        if (!$hash) {
+            return $this->refreshHash();
+        }
+
+        return $hash;
+    }
+    
+    /**
+     * getSessionHash
+     * 
+     * Get the hash related to this user as stored in the session.
+     *
+     * @return string
+     */
+    public function getSessionHash() {
+        $hash = session()->get(
+            (string) $this->_id . self::HASH_KEY
+        );
+
+        if (!$hash) {
+            $hash = $this->getCachedHash();
+
+            session()->put(
+                key:    (string) $this->_id . self::HASH_KEY,
+                value:  $hash
+            );
+
+            return $hash;
+        }
+
+        return $hash;
     }
 
     public function materials() {

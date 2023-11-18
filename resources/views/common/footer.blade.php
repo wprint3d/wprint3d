@@ -3,6 +3,7 @@
 <footer></footer>
 
 <livewire:updating-hardware-overlay />
+<livewire:spectator-hints-overlay />
 
 @livewireScripts
 
@@ -123,8 +124,14 @@
         tooltipList        = [ ...tooltipTriggerList ].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
     };
 
+    const hideTooltips = () => {
+        tooltipList.forEach(tooltip => { tooltip.hide() });
+    };
+
     window.addEventListener('DOMContentLoaded', () => {
         initializeTooltips();
+
+        window.addEventListener('hideTooltips', hideTooltips);
 
         window.Echo = new Echo(window.ECHO_OPTIONS);
 

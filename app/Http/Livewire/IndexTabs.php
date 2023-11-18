@@ -2,10 +2,11 @@
 
 namespace App\Http\Livewire;
 
+use App\Enums\UserRole;
 use App\Models\Printer;
 
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+
 use Livewire\Component;
 
 class IndexTabs extends Component
@@ -14,12 +15,19 @@ class IndexTabs extends Component
     public $tabs             = [ 'terminal', 'preview', 'control', 'recordings' ];
     public $enableControlTab = false;
 
+    public $writeable        = false;
+
     protected $listeners = [ 'refreshActiveFile' => 'refreshControlToggle' ];
 
     public function refreshControlToggle() {
         $user = Auth::user();
 
         if (!$user) return;
+
+        $this->writeable =
+            $user->role == UserRole::ADMINISTRATOR
+            ||
+            $user->role == UserRole::USER;
 
         $activePrinter = $user->getActivePrinter();
 
@@ -29,7 +37,7 @@ class IndexTabs extends Component
 
         if (!$printer) return;
 
-        $this->enableControlTab = !$printer->activeFile;
+        $this->enableControlTab = !$printer->activeFile && $this->writeable;
 
         if (!$this->enableControlTab && $this->activeTab == 'control') {
             $this->activeTab = $this->tabs[0];

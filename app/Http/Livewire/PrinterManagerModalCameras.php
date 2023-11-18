@@ -8,7 +8,6 @@ use App\Models\Camera;
 
 use Illuminate\Support\Arr;
 
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 use Livewire\Component;
@@ -22,6 +21,8 @@ class PrinterManagerModalCameras extends Component
     public $recordableCameras = [];
 
     public $lastError;
+
+    public $writeable = false;
 
     protected $listeners = [ 'hardwareChangeDetected' => '$refresh' ];
 

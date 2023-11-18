@@ -16,6 +16,8 @@ class CameraSettings extends Component
     public $format;
     public $url;
 
+    public $writeable = false;
+
     protected $listeners = [ 'cameraSettingsChanged' => '$refresh' ];
 
     public function updated($field, $newValue) {

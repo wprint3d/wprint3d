@@ -29,6 +29,8 @@ class RecordingsTab extends Component
     public $firstLoad;
     public $selected = null;
 
+    public $writeable = false;
+
     private int $renderFileBlockingSecs;
 
     protected $listeners = [

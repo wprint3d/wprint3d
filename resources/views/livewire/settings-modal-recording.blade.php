@@ -2,7 +2,14 @@
     <form class="container-lg mx-auto row g-3 text-center">
         <div class="col-12">
             <div class="form-check form-switch d-flex justify-content-center">
-                <input wire:model="enabled" class="form-check-input mx-2" type="checkbox" role="switch" @if ($enabled) checked @endif>
+                <input
+                    wire:model="enabled"
+                    class="form-check-input mx-2"
+                    type="checkbox"
+                    role="switch"
+                    @if ($enabled)      checked  @endif
+                    @if (!$writeable)   disabled @endif
+                >
                 <label class="form-check-label"> Enable recording </label>
             </div>
         </div>
@@ -13,7 +20,7 @@
         </div>
         <div class="col-12 col-md-4">
             <label class="form-label"> Resolution </label>
-            <select wire:model="resolution" class="form-select">
+            <select wire:model="resolution" class="form-select" @if (!$writeable) disabled @endif>
                 @foreach ($resolutions as $value)
                     <option value="{{ $value }}" @if ($value == $resolution) selected @endif>
                         {{ $value }}
@@ -23,7 +30,7 @@
         </div>
         <div class="col-12 col-md-4">
             <label class="form-label"> Framerate </label>
-            <select wire:model="framerate" class="form-select">
+            <select wire:model="framerate" class="form-select" @if (!$writeable) disabled @endif>
                 @foreach ($framerates as $value)
                     <option value="{{ $value }}" @if ($value == $framerate) selected @endif>
                         {{ $value }}
@@ -33,7 +40,15 @@
         </div>
         <div class="col-12 col-md-4">
             <label class="form-label"> Capture interval </label>
-            <input wire:model.lazy="captureInterval" type="number" class="form-control" placeholder="0.25" min="0.25" step="0.25">
+            <input
+                wire:model.lazy="captureInterval"
+                type="number"
+                class="form-control"
+                placeholder="0.25"
+                min="0.25"
+                step="0.25"
+                @if (!$writeable) disabled @endif
+            >
         </div>
     </form>
 </div>

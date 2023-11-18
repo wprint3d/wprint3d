@@ -95,6 +95,15 @@ input[type="file"] { display: none; }
     max-height: 82.75vh;
 }
 
+#spectatorHint {
+    opacity: .35;
+    transition-property: opacity;
+    transition-duration: .25s;
+    transition-timing-function: linear;
+}
+
+#spectatorHint:hover { opacity: 1; }
+
 .mh-6em { min-height: 6em; }
 
 .left-pane,
