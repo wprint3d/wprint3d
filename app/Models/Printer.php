@@ -35,6 +35,7 @@ class Printer extends Model
     const CACHE_QUEUED_COMMANDS_SUFFIX   = '_queuedCommands';
     const CACHE_ACTIVE_USER_ID_SUFFIX    = '_activeUserId';
     const CACHE_CURRENT_LINE_SUFFIX      = '_currentLine';
+    const CACHE_MAX_LINE_SUFFIX          = '_maxLine';
     const CACHE_ABSOLUTE_POSITION_SUFFIX = '_absolutePosition';
     const CACHE_LAST_SEEN_SUFFIX         = '_lastSeen';
 
@@ -471,6 +472,20 @@ class Printer extends Model
     public function setCurrentLine(int $line) : bool {
         return Cache::put(
             key:     $this->_id . self::CACHE_CURRENT_LINE_SUFFIX,
+            value:   $line
+        );
+    }
+
+    public function getMaxLine() : int {
+        return Cache::get(
+            key:     $this->_id . self::CACHE_MAX_LINE_SUFFIX,
+            default: 0
+        );
+    }
+
+    public function setMaxLine(int $line) : bool {
+        return Cache::put(
+            key:     $this->_id . self::CACHE_MAX_LINE_SUFFIX,
             value:   $line
         );
     }

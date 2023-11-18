@@ -132,8 +132,7 @@ class PrintGcode implements ShouldQueue
         $log = Log::channel( self::LOG_CHANNEL );
 
         $this->printer->setCurrentLine( 0 );
-
-        Cache::put(env('CACHE_MAX_LINE_KEY'), null);
+        $this->printer->setMaxLine( 0 );
 
         if ($resetPrinter) {
             $serial = new Serial(
@@ -302,7 +301,7 @@ class PrintGcode implements ShouldQueue
 
                     unset($appendedCommands);
 
-                    Cache::put(env('CACHE_MAX_LINE_KEY'), $this->lineNumberCount);
+                    $this->printer->setMaxLine( $this->lineNumberCount );
 
                     continue;
                 }
@@ -402,7 +401,7 @@ class PrintGcode implements ShouldQueue
 
         $this->lineNumberCount++;
 
-        Cache::put(env('CACHE_MAX_LINE_KEY'), $this->lineNumberCount);
+        $this->printer->setMaxLine( $this->lineNumberCount );
 
         // default movement mode for Marlin is absolute
         $this->lastMovementMode = 'G90';
