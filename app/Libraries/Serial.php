@@ -418,7 +418,11 @@ class Serial {
                         strpos( $result, 'ok' ) !== false // finished successfully
                         ||
                         (
-                            strpos( $lastLine, 'echo' )   !== false // (in last line) contains echo
+                            (
+                                strpos( $lastLine, 'echo' )             !== false // (in last line) contains echo
+                                &&
+                                strpos( $lastLine, 'echo:enqueueing' )  === false // (in last line) doesn't contain a queueing request
+                            )
                             &&
                             strpos( $lastLine, 'paused' ) === false // (in last line) not paused for user
                             &&
