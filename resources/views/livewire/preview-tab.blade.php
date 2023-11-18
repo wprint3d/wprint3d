@@ -108,8 +108,7 @@ const parseMovement = line => {
 };
 
 const refreshPreview = () => {
-    console.log('GCRDY: ', gcode);
-    console.log('CRLN: ',  currentLine);
+    console.log('CRLN: ', currentLine);
 
     let canvas = document.querySelector('#gcodePreviewCanvas');
 
