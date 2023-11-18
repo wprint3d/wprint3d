@@ -47,6 +47,8 @@ class PrinterTerminalUpdated implements ShouldBroadcast
             $terminal = '';
         }
 
+        $dispatchStatsUpdate = false;
+
         foreach (explode(PHP_EOL, $command) as $line) {
             if ($line = trim( $line )) {
                 if (str_starts_with($line, '>')) { // input
@@ -55,9 +57,7 @@ class PrinterTerminalUpdated implements ShouldBroadcast
                     );
                 } else { // output
                     if (strpos($line, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false) { // with temperature data
-                        Printer::updateLastSeenOf( $this->printerId );
-
-                        PrinterConnectionStatusUpdated::dispatch( $this->printerId );
+                        $dispatchStatsUpdate = true;
                     }
                 }
 
@@ -65,6 +65,13 @@ class PrinterTerminalUpdated implements ShouldBroadcast
 
                 $terminal .= $line . PHP_EOL;
             }
+        }
+
+        if ($dispatchStatsUpdate) {
+            PrinterConnectionStatusUpdated::dispatch(
+                $this->printerId,                               // printerId
+                Printer::updateLastSeenOf( $this->printerId )   // lastSeen
+            );
         }
 
         if ($terminalMaxLines) {
