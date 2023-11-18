@@ -317,7 +317,7 @@ class JobRecoveryModal extends Component
              * added and thus, making sure that the line number is matched
              * properly.
              */
-            if ($line->startsWith('M600')) {
+            if (str_starts_with($line, 'M600')) {
                 $lineNumberCount += count(
                     convertColorSwapToSequence(
                         command:          $line,
@@ -334,9 +334,9 @@ class JobRecoveryModal extends Component
                 if ($line == 'G90' || $line == 'G91') {
                     $lastMovementMode = (string) $line;
                 } else if (
-                    ($line->startsWith('G0') || $line->startsWith('G1'))
+                    (str_starts_with($line, 'G0') || str_starts_with($line, 'G1'))
                     &&
-                    !$line->endsWith(';' . FormatterCommands::IGNORE_POSITION_CHANGE)
+                    !str_ends_with($line, (';' . FormatterCommands::IGNORE_POSITION_CHANGE))
                 ) {
                     if ($lastMovementMode == 'G90') { // absolute mode
                         foreach (movementToXYZE( $line ) as $key => $value) {
@@ -351,24 +351,24 @@ class JobRecoveryModal extends Component
                             }
                         }
                     }
-                } else if ($line->startsWith('T')) { // tool/extruder change
+                } else if (str_starts_with($line, 'T')) { // tool/extruder change
                     $lastToolChange = (string) $line;
                 } else if (
-                    $line->startsWith('M104')  // set hotend temperature
+                    str_starts_with($line, 'M104')  // set hotend temperature
                     ||
-                    $line->startsWith('M140')  // set bed temperature
+                    str_starts_with($line, 'M140')  // set bed temperature
                     ||
-                    $line->startsWith('M109')  // wait for hotend temperature
+                    str_starts_with($line, 'M109')  // wait for hotend temperature
                     ||
-                    $line->startsWith('M190')  // wait for bed temperature
+                    str_starts_with($line, 'M190')  // wait for bed temperature
                 ) {
                     $warmUpCommands[] = (string) $line;
                 } else if (
-                    $line->exactly('M82')   // (E) extruder absolute mode
+                    $line == 'M82'   // (E) extruder absolute mode
                     ||
-                    $line->exactly('M83')   // (E) extruder relative mode
+                    $line == 'M83'   // (E) extruder relative mode
                     ||
-                    $line->exactly('G21')   // use millimeters to measure distances
+                    $line == 'G21'   // use millimeters to measure distances
                 ) {
                     $lastExtruderMode = (string) $line;
                 }
@@ -512,7 +512,7 @@ class JobRecoveryModal extends Component
              * added and thus, making sure that the line number is matched
              * properly.
              */
-            if ($line->startsWith('M600')) {
+            if (str_starts_with($line, 'M600')) {
                 $lineNumber += count(
                     convertColorSwapToSequence(
                         command:          $line,
