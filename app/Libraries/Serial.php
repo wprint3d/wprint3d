@@ -485,7 +485,7 @@ class Serial {
             )
         );
 
-        if ($this->terminalAutoAppend) {
+        if ($this->printerId && $this->terminalAutoAppend) {
             $this->appendLog(
                 message:    $terminalMessage,
                 lineNumber: $lineNumber,
