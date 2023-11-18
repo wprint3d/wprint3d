@@ -44,11 +44,7 @@ function tryToWaitForMapper(?Logger $log = null): bool {
 }
 
 function millis() : float {
-    return round(
-        num:        hrtime(true) / 1000000,
-        precision:  2,
-        mode:       PHP_ROUND_HALF_DOWN
-    );
+    return hrtime(true) / 1000000;
 }
 
 function nowHuman() : string {
