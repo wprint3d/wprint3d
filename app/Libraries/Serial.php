@@ -10,15 +10,13 @@ use App\Models\Printer;
 use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
 
-use Illuminate\Cache\Repository;
-
 use Illuminate\Log\Logger;
 
 use Illuminate\Support\Arr;
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
+use Error;
 use Exception;
 
 class Serial {
@@ -28,9 +26,6 @@ class Serial {
     private string      $fileName;
     private int         $baudRate;
     private int         $terminalMaxLines;
-
-    private Repository  $lockCache;
-    private string      $lockKey;
 
     private ?string $printerId  = null;
     private ?int    $timeout    = null;
@@ -50,7 +45,8 @@ class Serial {
     const CACHE_LOCK_SUFFIX = '_nodeLock';
     const CACHE_LOCK_TTL    = 60; // seconds
 
-    const CACHE_REFRESH_RATE_MICROS = 500; // microseconds
+    const LIVE_BUFFER_WAIT_NANOS  = 16;              // nanoseconds (short sleep to save on CPU cycles)
+    const EMPTY_BUFFER_WAIT_NANOS = 8 * 1000 * 1000; // milliseconds to nanoseconds (short sleep to save on CPU cycles)
 
     const WORKAROUND_HELLBOT_QUEUE_PATTERN = '/echo:enqueueing.*\nok T:.*\n/';
 
@@ -71,10 +67,6 @@ class Serial {
         $this->fileName  = $fileName;
         $this->baudRate  = $baudRate;
         $this->printerId = $printerId;
-
-        $this->lockCache = Cache::store();
-
-        $this->lockKey   = $this->fileName . self::CACHE_LOCK_SUFFIX;
 
         if (Configuration::get('debugSerial')) {
             $this->log = Log::channel('serial');
@@ -100,7 +92,13 @@ class Serial {
         $this->externalProperties    = [];
         $this->onNewLineActions      = [];
     }
-    
+
+    public function __destruct() {
+        if ($this->fd) {
+            dio_close( $this->fd );
+        }
+    }
+
     /**
      * getProperty
      *
@@ -172,13 +170,19 @@ class Serial {
      * 
      * Try to run queued callables in $this->clocks.
      * 
+     * @param  int $millis optional, pass pre-rendered for better performance
+     * 
      * @return void
      */
-    private function tickClocks() {
-        if (empty( $this->clocks )) return;
-
+    private function tickClocks($millis = null) {
         foreach ($this->clocks as $key => $clock) {
-            if (millis() - $clock['lastRun'] > $clock['tickRate']) {
+            if ($millis === null) {
+                $millis = millis();
+            }
+
+            if ($millis - $clock['lastRun'] > $clock['tickRate']) {
+                $this->clocks[ $key ]['lastRun'] = $millis;
+
                 try { $clock['callable'](); }
                 catch (Exception $exception) {
                     if ($this->log) {
@@ -188,22 +192,25 @@ class Serial {
                         );
                     }
                 }
-
-                $this->clocks[ $key ]['lastRun'] = millis();
+                catch (Error $error) {
+                    if ($this->log) {
+                        $this->log->error(
+                            __METHOD__ . ': A PHP core error occurred while trying to run a queued callable: ' . $error->getMessage() . PHP_EOL .
+                            $error->getTraceAsString()
+                        );
+                    }
+                }
             }
         }
     }
 
     private function configure() {
-        while ($this->lockCache->get($this->lockKey, false)) {
-            usleep( self::CACHE_REFRESH_RATE_MICROS );
-        } // block
-
         $this->fd = dio_open(
             self::TERMINAL_PATH . '/' . self::TERMINAL_PREFIX . $this->fileName, // filename
             O_RDWR | O_NONBLOCK | O_ASYNC                                        // flags
         );
 
+        dio_fcntl($this->fd, F_SETLKW, [ 'type' => F_WRLCK ]);
         dio_fcntl($this->fd, F_SETFL, O_NONBLOCK | O_ASYNC);
 
         dio_tcsetattr($this->fd, [
@@ -285,11 +292,9 @@ class Serial {
         while (true) {
             $read = dio_read($this->fd);
 
-            $spentBlankingMs = round(
-                num:        millis() - $blankTime,
-                precision:  2,
-                mode:       PHP_ROUND_HALF_DOWN
-            );
+            $millis = millis();
+
+            $spentBlankingMs = $millis - $blankTime;
 
             if ($read) {
                 if ($this->log) {
@@ -324,8 +329,8 @@ class Serial {
                     );
                 }
 
-                $sTime     = time();
-                $blankTime = millis();
+                $sTime      = time();
+                $blankTime  = $millis;
 
                 if (
                     $this->printerId
@@ -427,14 +432,29 @@ class Serial {
                 }
             }
 
+            $this->tickClocks( $millis );
+
             if ($timeout && (time() - $sTime >= $timeout)) break;
 
-            // usleep(1);
-
-            $this->tickClocks();
+            if (!$read) {
+                /* 
+                 * Halt thread while waiting for more data, then, call continue
+                 * in order to try again.
+                 */
+                time_nanosleep(
+                    seconds:     0,
+                    nanoseconds: self::EMPTY_BUFFER_WAIT_NANOS
+                );
+            } else {
+                // Forcefully halt for LIVE_BUFFER_WAIT_NANOS
+                time_nanosleep(
+                    seconds:     0,
+                    nanoseconds: self::LIVE_BUFFER_WAIT_NANOS
+                );
+            }
         }
 
-        $this->tickClocks();
+        $this->tickClocks( $millis );
 
         $spentSecs = time() - $sTime;
 
@@ -475,12 +495,6 @@ class Serial {
     }
 
     public function query(?string $command = null, ?int $lineNumber = null, ?int $maxLine = null, ?int $timeout = null) : string {
-        $this->lockCache->put(
-            key:    $this->lockKey,
-            value:  true,
-            ttl:    self::CACHE_LOCK_TTL
-        );
-
         $throwable = null;
 
         $this->tickClocks();
@@ -499,8 +513,6 @@ class Serial {
         } catch (Exception $exception) {
             $throwable = $exception;
         }
-
-        $this->lockCache->forget( $this->lockKey );
 
         if ($throwable) throw $throwable;
 
