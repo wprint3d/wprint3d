@@ -22,6 +22,8 @@ class SystemConfiguration extends Component
 
     public $error;
 
+    public $writeable = false;
+
     public function mount() {
         $this->value = Configuration::get($this->key, $this->default);
 

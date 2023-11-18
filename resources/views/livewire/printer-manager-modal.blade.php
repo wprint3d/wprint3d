@@ -35,6 +35,14 @@
 
                         <div class="col-12 col-md-9 col-lg-10">
                             <div class="tab-content pt-3 pt-md-0 px-1 text-start">
+                                @if (!$writeable)
+                                <div class="alert alert-info text-center" role="alert">
+                                    The access level assigned to your account doesn't let you change settings. <br>
+                                    <br>
+                                    If you think this is an error, please contact the administrator of this instance.
+                                </div>
+                                @endif
+
                                 @foreach ($availablePanes as $paneName)
                                     <div
                                         class="tab-pane fade @if ($loop->first) active show @endif"
@@ -43,7 +51,11 @@
                                         aria-labelledby="printer-{{ $paneName }}-tab"
                                         tabindex="0"
                                     >
-                                        @livewire('printer-manager-modal-' . $paneName, [ 'printer' => $printer ], key( 'printer-manager-modal-' . $paneName . '-' . time() ))
+                                        @livewire(
+                                            'printer-manager-modal-' . $paneName,
+                                            [ 'printer' => $printer, 'writeable' => $writeable ],
+                                            key( 'printer-manager-modal-' . $paneName . '-' . time() )
+                                        )
                                     </div>
                                 @endforeach
                             </div>

@@ -213,13 +213,15 @@ return [
     */
 
     'aliases' => Facade::defaultAliases()->merge([
-        'Configuration'     => \App\Models\Configuration::class,
-        'DataType'          => \App\Enums\DataType::class,
         'BackupInterval'    => \App\Enums\BackupInterval::class,
-        'ToastMessageType'  => \App\Enums\ToastMessageType::class,
-        'SortingMode'       => \App\Enums\SortingMode::class,
+        'Configuration'     => \App\Models\Configuration::class,
         'CreateSampleUser'  => \App\Console\Commands\CreateSampleUser::class,
+        'DataType'          => \App\Enums\DataType::class,
         'FFMpeg'            => \ProtoneMedia\LaravelFFMpeg\Support\FFMpeg::class,
+        'LogoutReason'      => \App\Enums\LogoutReason::class,
+        'ToastMessageType'  => \App\Enums\ToastMessageType::class,
+        'UserRole'          => \App\Enums\UserRole::class,
+        'SortingMode'       => \App\Enums\SortingMode::class,
     ])->toArray(),
 
     'common_baud_rates' => [ 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000 ],

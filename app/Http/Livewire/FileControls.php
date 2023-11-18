@@ -13,12 +13,15 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 use Livewire\Component;
+
 class FileControls extends Component
 {
 
     public $selected    = null;
     public $newFilename = null;
     public $error       = null;
+
+    public $writeable   = false;
 
     protected $baseFilesDir;
 

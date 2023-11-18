@@ -16,6 +16,9 @@ class PrinterManagerModal extends Component
 
     public $printer;
 
+    public $role;
+    public $writeable = false;
+
     public function loadPrinter(string $printerId) {
         Log::info( __METHOD__ . ': ' . $printerId );
 

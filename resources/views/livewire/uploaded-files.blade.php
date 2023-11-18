@@ -1,5 +1,7 @@
 <div>
-    <livewire:file-controls />
+    @if ($writeable)
+        <livewire:file-controls />
+    @endif
 
     <div class="row mb-3 mt-3 mt-lg-2">
         <div class="col-12">
@@ -28,7 +30,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-7 dropdown">
+        <div class="col-12 dropdown @if ($writeable) col-sm-6 col-md-7 @endif">
             <a
                 class="btn btn-primary dropdown-toggle w-100 text-truncate"
                 href="#"
@@ -55,7 +57,10 @@
         </div>
 
         <div class="col-12 col-sm-6 col-md-5 mt-1 mt-sm-0">
-            <button onclick="showCreateFolderModal()" class="btn btn-primary w-100 text-truncate">
+            <button
+                onclick="showCreateFolderModal()"
+                class="btn btn-primary w-100 text-truncate @if (!$writeable) d-none disabled @endif"
+            >
                 @svg('folder-plus') Create folder
             </button>
         </div>
@@ -70,6 +75,7 @@
                     aria-current="true"
                     wire:click="select('{{ $index }}')"
                     wire:loading.class="disabled"
+                    @if (!$writeable && !$file['directory']) disabled @endif
                 >
                     <div wire:loading wire:target="select('{{ $index }}')">
                         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>

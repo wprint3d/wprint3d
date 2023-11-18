@@ -13,6 +13,8 @@ class PrinterManagerModalConnection extends Component
     public $node;
     public $baudRate;
 
+    public $writeable = false;
+
     public function mount() {
         Log::info( __METHOD__ . ': ' . json_encode($this->printer) );
 

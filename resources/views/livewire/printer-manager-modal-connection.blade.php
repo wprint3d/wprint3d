@@ -6,7 +6,7 @@
         </div>
         <div class="col-12 col-md-6">
           <label for="baudRate" class="form-label"> Baudrate </label>
-          <select wire:model="baudRate" id="baudRate" class="form-select">
+          <select wire:model="baudRate" id="baudRate" class="form-select" @if (!$writeable) disabled @endif>
             @foreach (config('app.common_baud_rates') as $baudRateOption)
                 <option @if ($baudRate == $baudRateOption) selected @endif>
                     {{ $baudRateOption }}

@@ -21,6 +21,8 @@ class TerminalTab extends Component
     public bool   $showSensors;
     public bool   $showInputCommands;
 
+    public $writeable = false;
+
     public ?Printer $printer = null;
 
     protected $listeners = [

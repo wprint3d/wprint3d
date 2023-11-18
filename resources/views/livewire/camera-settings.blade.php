@@ -21,14 +21,19 @@
                 class="form-check-input"
                 type="checkbox"
                 role="switch"
-                @if ($enabled) checked  @endif
+                @if ($enabled)      checked  @endif
+                @if (!$writeable)   disabled @endif
             >
             <label class="form-check-label"> Use this camera </label>
         </div>
 
         <div class="mt-2">
             <label class="form-label"> Format </label>
-            <select wire:model="format" class="form-select" @if (!$enabled || !$connected) disabled @endif>
+            <select
+                wire:model="format"
+                class="form-select"
+                @if (!$enabled || !$connected || !$writeable) disabled @endif
+            >
                 @foreach ($camera->availableFormats as $availableFormat)
                 <option @if ($availableFormat == $format) selected @endif>
                     {{ $availableFormat }}

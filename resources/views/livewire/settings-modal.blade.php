@@ -50,7 +50,15 @@
                                         </div>
                                         @endif
 
-                                        @livewire('settings-modal-' . $paneName)
+                                        @if (!$writeable)
+                                        <div class="alert alert-info text-center" role="alert">
+                                            The access level assigned to your account is <span class="fw-bold">{{ UserRole::getDescription( (int) $role) }}</span> which is not allowed to change settings. <br class="d-xl-none">
+                                            <br class="d-xl-none">
+                                            If you think this is an error, please contact the administrator of this instance.
+                                        </div>
+                                        @endif
+
+                                        @livewire('settings-modal-' . $paneName, [ 'writeable' => $writeable ])
                                     </div>
                                 @endforeach
                             </div>

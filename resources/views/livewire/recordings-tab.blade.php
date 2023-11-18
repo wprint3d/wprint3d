@@ -45,7 +45,11 @@
                                         <button
                                             class="btn btn-danger"
                                             wire:click="prepareDelete({{ $loop->index }})"
-                                            @if (isset( $recording['deletable'] ) && !$recording['deletable'])
+                                            @if (
+                                                (isset( $recording['deletable'] ) && !$recording['deletable'])
+                                                ||
+                                                !$writeable
+                                            )
                                                 disabled
                                             @endif
                                         >

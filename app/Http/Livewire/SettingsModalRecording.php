@@ -20,6 +20,8 @@ class SettingsModalRecording extends Component
     public $resolutions;
     public $framerates;
 
+    public $writeable = false;
+
     private $user;
 
     public function boot() {
