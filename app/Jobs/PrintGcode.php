@@ -7,7 +7,6 @@ use App\Enums\FormatterCommands;
 use App\Enums\Marlin;
 use App\Enums\PauseReason;
 
-use App\Events\PrinterConnectionStatusUpdated;
 use App\Events\PrintJobFailed;
 use App\Events\PrintJobFinished;
 
@@ -32,7 +31,6 @@ use Illuminate\Queue\SerializesModels;
 
 use Illuminate\Support\Str;
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -81,7 +79,8 @@ class PrintGcode implements ShouldQueue
 
     const LOG_CHANNEL = 'gcode-printer';
 
-    const PRINTER_REFRESH_INTERVAL_SECS = 5;
+    const PRINTER_REFRESH_INTERVAL_SECS  = 5;
+    const TERMINAL_REFRESH_INTERVAL_SECS = 2;
 
     const COLOR_SWAP_DEFAULT_X = 0; // mm
     const COLOR_SWAP_DEFAULT_Y = 0; // mm
@@ -541,7 +540,7 @@ class PrintGcode implements ShouldQueue
                 $lastSeen = $this->printer->updateLastSeen();
             }
 
-            if ($time - $lastCommandUpdate >= 1) {
+            if ($time - $lastCommandUpdate >= self::TERMINAL_REFRESH_INTERVAL_SECS) {
                 $this->printer->setLastCommand( Marlin::getLabel($line) );
 
                 $serial->tryToAppendNow(
@@ -573,15 +572,6 @@ class PrintGcode implements ShouldQueue
                         } catch (TimedOutException $exception) {
                             $this->retrySerialConnection($exception, $serial, $log);
                         }
-                    }
-
-                    try {
-                        PrinterConnectionStatusUpdated::dispatch( $this->printer->_id );
-                    } catch (Exception $exception) {
-                        $log->warning(
-                            __METHOD__ . ': PrinterConnectionStatusUpdated: event dispatch failure: ' . $exception->getMessage() . PHP_EOL .
-                            $exception->getTraceAsString()
-                        );
                     }
                 }
             }
