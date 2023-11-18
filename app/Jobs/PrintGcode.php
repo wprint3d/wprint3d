@@ -287,11 +287,11 @@ class PrintGcode implements ShouldQueue
 
                 if (!$command) continue;
 
-                if ($command->exactly('G90') || $command->exactly('G91')) {
-                    $this->lastMovementMode = $command->toString();
+                if ($command == 'G90' || $command == 'G91') {
+                    $this->lastMovementMode = $command;
                 }
 
-                if ($command->exactly('M600') || $command->startsWith('M600 ')) {
+                if ($command == 'M600' || str_starts_with($command, 'M600 ')) {
                     $appendedCommands = convertColorSwapToSequence(
                         command:          $command,
                         lastMovementMode: $this->lastMovementMode

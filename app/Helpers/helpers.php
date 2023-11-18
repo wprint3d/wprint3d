@@ -194,15 +194,26 @@ function convertColorSwapToSequence(string $command, string $lastMovementMode): 
 }
 
 function getGCode(string $line) {
-    $line = Str::of( $line );
-
     // strip comments
-    if ($line->startsWith(';') || !$line->length()) return null;
+    if (
+        str_starts_with(
+            haystack: $line,
+            needle:   ';'
+        )
+        ||
+        !strlen( $line )
+    ) { return null; };
 
-    $line = $line->replaceMatches('/;.*/', '')->trim();
+    // remove possible inline comments
+    $line = trim(
+        explode(
+            separator:  ';',
+            string:     $line
+        )[0]
+    );
 
     // avoid empty lines
-    if (!$line->length()) return null;
+    if (!strlen( $line )) return null;
 
     return $line;
 }
