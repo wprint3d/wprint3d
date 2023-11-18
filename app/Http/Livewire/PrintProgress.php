@@ -37,15 +37,22 @@ class PrintProgress extends Component
      */
     public function hydrate() {
         if ($this->printer) {
-            $currentLine = $this->printer->getCurrentLine();
+            $maxLine = $this->printer->getMaxLine();
 
-            $this->printing = !!Cache::get( env('CACHE_MAX_LINE_KEY'), null );
-            $this->progress =
-                (($currentLine > 0 ? $currentLine : 1) * 100)
-                /
-                Cache::get( env('CACHE_MAX_LINE_KEY'), 1);
+            $this->printing = !!$maxLine;
 
-            $this->lastCommand = $this->printer->getLastCommand();
+            if ($this->printing) {
+                if (!$maxLine) { $maxLine = 1; }
+
+                $currentLine = $this->printer->getCurrentLine();
+
+                $this->progress =
+                    (($currentLine > 0 ? $currentLine : 1) * 100)
+                    /
+                    $maxLine;
+
+                $this->lastCommand = $this->printer->getLastCommand();
+            }
         }
     }
 
