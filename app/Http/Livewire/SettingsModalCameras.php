@@ -10,6 +10,8 @@ class SettingsModalCameras extends Component
 {
     public $cameras;
 
+    public $writeable = false;
+
     protected $listeners = [ 'hardwareChangeDetected' => 'refreshCameras' ];
 
     public function refreshCameras() {

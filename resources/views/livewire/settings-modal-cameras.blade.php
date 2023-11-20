@@ -2,7 +2,7 @@
     <div class="row text-start">
         @if ($cameras->count())
             @foreach ($cameras as $camera)
-                @livewire('camera-settings', [ 'camera' => $camera ], key( $camera->_id ))
+                @livewire('camera-settings', [ 'camera' => $camera, 'writeable' => $writeable ], key( $camera->_id ))
             @endforeach
         @else
             <div class="d-flex align-items-center">
