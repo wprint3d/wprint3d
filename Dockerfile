@@ -31,8 +31,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends inotify-tools &
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
-# PHP extensions: MongoDB + Redis + DIO (Direct I/O) + Swoole
-RUN pecl install -f mongodb redis dio swoole
+# PHP extensions: MongoDB + Redis + DIO (Direct I/O)
+RUN pecl install -f mongodb redis dio
+
+# PHP extension: downgraded Swoole (5.0.3), workarounds issue #5198
+RUN pecl install -f swoole-5.0.3
 
 # Enable PECL-based extensions: MongoDB + Redis + DIO (Direct I/O)
 RUN docker-php-ext-enable mongodb redis dio swoole
