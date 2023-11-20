@@ -144,3 +144,13 @@ input[type="file"] { display: none; }
         height: calc( env(viewport-segment-height 0 0) - 200px );
     }
 }
+
+@media (min-width: 1200px) {
+    .border-xl-end {
+        border-right: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
+    }
+
+    .border-xl-bottom-0 {
+        border-bottom: 0 !important;
+    }
+}
