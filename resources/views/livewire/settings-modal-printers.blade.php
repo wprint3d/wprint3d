@@ -25,7 +25,7 @@
         @endif
     </div>
 
-    <livewire:printer-manager-modal />
+    @livewire('printer-manager-modal', [ 'writeable' => $writeable ])
 </div>
 
 @push('scripts')

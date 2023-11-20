@@ -10,6 +10,8 @@ class SettingsModalPrinters extends Component
 {
     public $printers;
 
+    public $writeable = false;
+
     protected $listeners = [ 'hardwareChangeDetected' => 'refreshPrinters' ];
 
     public function boot() {
