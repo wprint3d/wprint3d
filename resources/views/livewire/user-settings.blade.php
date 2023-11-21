@@ -151,7 +151,7 @@
 
     @if (!$name || !$email || !$hasPassword)
         <div class="text-danger text-center pt-2 pb-1">
-            This user is currently disabled, set a password, a user name and/or an e-mail addres in order to enable this account.
+            This user is currently disabled, set a password, a user name and/or an e-mail address in order to enable this account.
         </div>
     @endif
 
