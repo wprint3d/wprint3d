@@ -21,14 +21,19 @@ class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
     public array  $statistics;
     public mixed  $lastSeen;
 
-    public function __construct(string $printerId, ?int $lastSeen = null)
+    public function __construct(string $printerId, ?int $lastSeen = null, ?array $statistics = null)
     {
         $this->printerId  = $printerId;
-        $this->statistics = Printer::getStatisticsOf( $printerId );
+
+        $this->statistics =
+            $statistics === null
+                ? Printer::getStatisticsOf( $printerId )
+                : $statistics;
+
         $this->lastSeen   =
-            $lastSeen
-                ? $lastSeen
-                : Printer::getLastSeenOf( $printerId );
+            $lastSeen === null
+                ? Printer::getLastSeenOf( $printerId )
+                : $lastSeen;
     }
 
     /**
