@@ -178,12 +178,12 @@ class Printer extends Model
     }
 
     private static function tryStatisticsUpdate(string $printerId, string $lines, int $extruderIndex) {
-        $lines = Str::of( $lines )->explode(PHP_EOL)->toArray();
+        $lines = explode(PHP_EOL, $lines);
 
         $rawData = '';
 
         foreach ($lines as $line) {
-            if (Str::contains($line, self::MARLIN_TEMPERATURE_INDICATOR)) {
+            if (str_contains($line, self::MARLIN_TEMPERATURE_INDICATOR) ) {
                 $rawData = $line;
 
                 break;
