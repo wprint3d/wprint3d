@@ -45,7 +45,7 @@ class Serial {
     const CACHE_LOCK_SUFFIX = '_nodeLock';
     const CACHE_LOCK_TTL    = 60; // seconds
 
-    const LIVE_BUFFER_WAIT_NANOS  = 16;              // nanoseconds (short sleep to save on CPU cycles)
+    const LIVE_BUFFER_WAIT_NANOS  = 8;               // nanoseconds (short sleep to save on CPU cycles)
     const EMPTY_BUFFER_WAIT_NANOS = 8 * 1000 * 1000; // milliseconds to nanoseconds (short sleep to save on CPU cycles)
 
     const WORKAROUND_HELLBOT_QUEUE_PATTERN = '/echo:enqueueing.*\nok T:.*\n/';
