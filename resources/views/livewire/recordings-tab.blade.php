@@ -4,81 +4,83 @@
             <div class="progress-bar progress-bar-striped progress-bar-animated overflow-visible"></div>
         </div>
 
-        @if ($firstLoad)
-            <div class="d-flex justify-content-center pt-2">
-                <div class="d-flex flex-column align-items-center">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="pt-3"> Loading recordings... </p>
+        <div wire:loading.flex class="justify-content-center pt-2">
+            <div class="d-flex flex-column align-items-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
+                <p class="pt-3"> Loading recordings... </p>
             </div>
-        @elseif (filled( $recordings ))
-            @foreach ($recordings as $recording)
-                <div class="col">
-                    <div class="card m-2 shadow-sm">
-                        <div class="row g-0">
-                            <div class="col-md-4 position-relative mh-6em">
-                                <img
-                                    src="{{ $recording['thumb'] }}"
-                                    class="w-100 h-100 object-fit-cover"
-                                    aria-label="Thumbnail of {{ $recording['name'] }}"
-                                    onerror="handleMissingImage(this)"
-                                >
-                                <div wire:click="play({{ $loop->index }})" role="button" class="position-absolute bottom-0 start-0 w-100 h-100 fs-5">
-                                    @svg('play-circle', [ 'class' => 'position-absolute bg-white bottom-0 m-2 opacity-75 rounded rounded-4 border border-2' ])
+        </div>
+
+        <div wire:loading.remove>
+            @if (filled( $recordings ))
+                @foreach ($recordings as $recording)
+                    <div class="col">
+                        <div class="card m-2 shadow-sm">
+                            <div class="row g-0">
+                                <div class="col-md-4 position-relative mh-6em">
+                                    <img
+                                        src="{{ $recording['thumb'] }}"
+                                        class="w-100 h-100 object-fit-cover"
+                                        aria-label="Thumbnail of {{ $recording['name'] }}"
+                                        onerror="handleMissingImage(this)"
+                                    >
+                                    <div wire:click="play({{ $loop->index }})" role="button" class="position-absolute bottom-0 start-0 w-100 h-100 fs-5">
+                                        @svg('play-circle', [ 'class' => 'position-absolute bg-white bottom-0 m-2 opacity-75 rounded rounded-4 border border-2' ])
+                                    </div>
+                                    <title>{{ $recording['name'] }}</title>
                                 </div>
-                                <title>{{ $recording['name'] }}</title>
-                            </div>
-                            <div class="col-md-8">
-                                <div class="card-body d-flex flex-column h-100 justify-content-center">
-                                    <h5 class="card-title overflow-scroll text-nowrap no-scrollbar">
-                                        {{ $recording['name'] }}
-                                    </h5>
-                                    <p class="card-text">
-                                        {{ $recording['size'] }}
-                                    </p>
-                                    <p class="card-text d-flex justify-content-between">
-                                        <small class="text-muted align-self-center">
-                                            Saved {{ $recording['modified'] }}
-                                        </small>
-                                        <button
-                                            class="btn btn-danger"
-                                            wire:click="prepareDelete({{ $loop->index }})"
-                                            @if (
-                                                (isset( $recording['deletable'] ) && !$recording['deletable'])
-                                                ||
-                                                !$writeable
-                                            )
-                                                disabled
-                                            @endif
-                                        >
-                                            @svg('trash')
-                                        </button>
-                                    </p>
+                                <div class="col-md-8">
+                                    <div class="card-body d-flex flex-column h-100 justify-content-center">
+                                        <h5 class="card-title overflow-scroll text-nowrap no-scrollbar">
+                                            {{ $recording['name'] }}
+                                        </h5>
+                                        <p class="card-text">
+                                            {{ $recording['size'] }}
+                                        </p>
+                                        <p class="card-text d-flex justify-content-between">
+                                            <small class="text-muted align-self-center">
+                                                Saved {{ $recording['modified'] }}
+                                            </small>
+                                            <button
+                                                class="btn btn-danger"
+                                                wire:click="prepareDelete({{ $loop->index }})"
+                                                @if (
+                                                    (isset( $recording['deletable'] ) && !$recording['deletable'])
+                                                    ||
+                                                    !$writeable
+                                                )
+                                                    disabled
+                                                @endif
+                                            >
+                                                @svg('trash')
+                                            </button>
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            @endforeach
-        @else
-            <div class="d-flex align-items-center">
-                <div class="d-flex flex-column flex-fill align-items-center mt-3">
-                    @svg('camera-video-off-fill', [ 'class' => 'fs-2' ])
+                @endforeach
+            @else
+                <div class="d-flex align-items-center">
+                    <div class="d-flex flex-column flex-fill align-items-center mt-3">
+                        @svg('camera-video-off-fill', [ 'class' => 'fs-2' ])
 
-                    <p class="text-center mt-3">
-                        @if (Auth::user()->settings['recording']['enabled'])
-                            Nothing here so far, select a file and get going!
-                        @else
-                            Recording is disabled. <br>
-                            <br>
-                            To start recording, enable the feature from <b>Settings</b> > <b>Recording</b>.
-                        @endif
-                    </p>
+                        <p class="text-center mt-3">
+                            @if (Auth::user()->settings['recording']['enabled'])
+                                Nothing here so far, select a file and get going!
+                            @else
+                                Recording is disabled. <br>
+                                <br>
+                                To start recording, enable the feature from <b>Settings</b> > <b>Recording</b>.
+                            @endif
+                        </p>
+                    </div>
                 </div>
-            </div>
-        @endif
+            @endif
+        </div>
     </div>
 
     <div wire:ignore.self class="modal fade" id="recordingDeleteModal" tabindex="-1" aria-labelledby="recordingDeleteModal" aria-hidden="true">
