@@ -377,11 +377,15 @@ class Serial {
                             );
                         }
 
-                        $this->appendLog(
-                            message:    $message,
-                            lineNumber: $lineNumber,
-                            maxLine:    $maxLine
-                        );
+                        $this->terminalBuffer .= $message;
+
+                        if ($this->terminalAutoAppend || strpos($this->terminalBuffer, 'busy') !== false) {
+                            $this->appendLog(
+                                message:    $this->terminalBuffer,
+                                lineNumber: $lineNumber,
+                                maxLine:    $maxLine
+                            );
+                        }
 
                         $lastLineIndex = $newLastLineIndex;
 
