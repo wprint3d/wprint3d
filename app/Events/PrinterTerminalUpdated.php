@@ -32,14 +32,17 @@ class PrinterTerminalUpdated implements ShouldBroadcast
      *
      * @return void
      */
-    public function __construct(string $printerId, string $command, ?int $line = null, ?int $maxLine = null, ?int $terminalMaxLines = null)
+    public function __construct(string $printerId, string $command, ?int $line = null, ?int $maxLine = null, ?int $terminalMaxLines = null, ?bool $isRunning = null, ?array $statistics = null)
     {
         $this->printerId    = $printerId;
         $this->dateString   = nowHuman();
         $this->command      = $command;
         $this->line         = $line;
         $this->maxLine      = $maxLine;
-        $this->running      = Printer::getRunningStatusOf( $printerId );
+        $this->running      =
+            $isRunning === null
+                ? Printer::getRunningStatusOf( $printerId )
+                : $isRunning;
 
         $terminal = Printer::getConsoleOf( $this->printerId );
 
@@ -70,7 +73,8 @@ class PrinterTerminalUpdated implements ShouldBroadcast
         if ($dispatchStatsUpdate) {
             PrinterConnectionStatusUpdated::dispatch(
                 $this->printerId,                               // printerId
-                Printer::updateLastSeenOf( $this->printerId )   // lastSeen
+                Printer::updateLastSeenOf( $this->printerId ),  // lastSeen
+                $statistics                                     // statistics
             );
         }
 
