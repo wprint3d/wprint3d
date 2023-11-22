@@ -66,26 +66,16 @@ let autoScroll = @json( $autoScroll );
 
 let terminal = document.querySelector('.terminal');
 
-let autoScrollInterval = null;
-
 let lastRunningStatus = true;
 
 const setAutoScrollInterval = () => {
-    autoScrollInterval = setInterval(() => {
-        terminal.scrollTop = terminal.scrollHeight;
-    }, 100);
+    setInterval(() => {
+        if (autoScroll) { terminal.scrollTop = terminal.scrollHeight; }
+    }, 250);
 };
 
 window.addEventListener('toggleAutoScroll', event => {
     autoScroll = event.detail.enabled;
-
-    if (autoScroll) {
-        setAutoScrollInterval();
-    } else if (autoScrollInterval) {
-        clearInterval(autoScrollInterval);
-
-        autoScrollInterval = null;
-    }
 });
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -134,9 +124,7 @@ window.addEventListener('DOMContentLoaded', () => {
         });
 });
 
-if (autoScroll) {
-    setAutoScrollInterval();
-}
+setAutoScrollInterval();
 
 </script>
 @endpush
