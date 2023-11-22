@@ -544,7 +544,9 @@ class PrintGcode implements ShouldQueue
 
                 $serial->tryToAppendNow(
                     lineNumber: $this->lineNumber,
-                    maxLine:    $this->lineNumberCount
+                    maxLine:    $this->lineNumberCount,
+                    isRunning:  true,
+                    statistics: $this->printer->getStatistics()
                 );
 
                 $lastCommandUpdate = time();

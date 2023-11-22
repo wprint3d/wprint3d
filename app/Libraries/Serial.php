@@ -218,16 +218,18 @@ class Serial {
         ]);
     }
 
-    private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null) : void {
+    private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null) : void {
         if (!$this->printerId) return; 
 
         try {
             PrinterTerminalUpdated::dispatch(
-                $this->printerId,       // printerId
-                $message,               // command
-                $lineNumber,            // line
-                $maxLine,               // maxLine
-                $this->terminalMaxLines // terminalMaxLines
+                $this->printerId,           // printerId
+                $message,                   // command
+                $lineNumber,                // line
+                $maxLine,                   // maxLine
+                $this->terminalMaxLines,    // terminalMaxLines
+                $isRunning,                 // isRunning
+                $statistics                 // statistics
             );
         } catch (Exception $exception) {
             if ($this->log) {
@@ -520,14 +522,16 @@ class Serial {
         return $result;
     }
 
-    public function tryToAppendNow(?int $lineNumber = null, ?int $maxLine = null) {
+    public function tryToAppendNow(?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null) {
         if ($this->terminalAutoAppend) return;
 
         if ($this->terminalBuffer) {
             $this->appendLog(
                 message:    $this->terminalBuffer,
                 lineNumber: $lineNumber,
-                maxLine:    $maxLine
+                maxLine:    $maxLine,
+                isRunning:  $isRunning,
+                statistics: $statistics
             );
         }
     }
