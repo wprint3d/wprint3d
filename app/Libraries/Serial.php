@@ -379,6 +379,11 @@ class Serial {
 
                         $this->terminalBuffer .= $message;
 
+                        // Prevent missing newlines between messages
+                        if ($message[ strlen($message) - 1 ] != PHP_EOL) {
+                            $this->terminalBuffer .= PHP_EOL;
+                        }
+
                         if ($this->terminalAutoAppend || strpos($this->terminalBuffer, 'busy') !== false) {
                             $this->appendLog(
                                 message:    $this->terminalBuffer,
