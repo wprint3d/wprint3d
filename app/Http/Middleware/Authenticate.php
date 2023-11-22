@@ -16,8 +16,6 @@ class Authenticate
         $user = Auth::user();
 
         if ($user) {
-            Log::info( $user->getSessionHash() . ' != ' . $user->getCachedHash() );
-
             if ($user->getSessionHash() != $user->getCachedHash()) {
                 Auth::logout();
 
