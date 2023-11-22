@@ -79,8 +79,6 @@ class RecordingsTab extends Component
                     ];
 
                     if (time() - $lastModified <  $this->renderFileBlockingSecs) {
-                        Log::info(time() - $lastModified);
-
                         $file['deletable'] = false;
                     }
 
@@ -91,8 +89,6 @@ class RecordingsTab extends Component
     }
 
     public function play($index) {
-        Log::info( __METHOD__ . ': ' . json_encode($this->recordings) );
-
         $this->emit('showVideoPlayer', $this->recordings[ $index ]['url']);
     }
 
@@ -132,13 +128,15 @@ class RecordingsTab extends Component
     }
 
     public function initialize() {
-        if ($this->firstLoad) {
-            $this->refreshRecordings();
-        }
+        $this->refreshRecordings();
     }
 
     public function render()
     {
+        if (!$this->firstLoad) {
+            $this->refreshRecordings();
+        }
+
         return view('livewire.recordings-tab');
     }
 }
