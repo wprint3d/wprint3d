@@ -251,14 +251,14 @@ class Serial {
         if ($this->printerId) {
             $terminalMessage = ' > ' . $command . PHP_EOL;
 
+            $this->terminalBuffer .= $terminalMessage;
+
             if ($this->terminalAutoAppend) {
                 $this->appendLog(
-                    message:    $terminalMessage,
+                    message:    $this->terminalBuffer,
                     lineNumber: $lineNumber,
                     maxLine:    $maxLine
                 );
-            } else {
-                $this->terminalBuffer .= $terminalMessage;
             }
         }
 
@@ -484,14 +484,16 @@ class Serial {
             )
         );
 
-        if ($this->printerId && $this->terminalAutoAppend) {
-            $this->appendLog(
-                message:    $terminalMessage,
-                lineNumber: $lineNumber,
-                maxLine:    $maxLine
-            );
-        } else {
+        if ($this->printerId) {
             $this->terminalBuffer .= $terminalMessage . PHP_EOL;
+
+            if ($this->terminalAutoAppend) {
+                $this->appendLog(
+                    message:    $this->terminalBuffer,
+                    lineNumber: $lineNumber,
+                    maxLine:    $maxLine
+                );
+            }
         }
 
         return trim($result);
