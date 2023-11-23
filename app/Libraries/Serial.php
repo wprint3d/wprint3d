@@ -91,6 +91,10 @@ class Serial {
     }
 
     public function __destruct() {
+        if (!$this->terminalAutoAppend) {
+            $this->tryToAppendNow();
+        }
+
         if ($this->fd) {
             dio_close( $this->fd );
         }
