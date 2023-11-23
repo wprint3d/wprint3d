@@ -510,6 +510,8 @@ class PrintGcode implements ShouldQueue
                 $this->printer->refresh();
 
                 if (!$this->printer->activeFile) {
+                    $serial->tryToAppendNow();
+
                     $log->info('Job aborted.');
 
                     $this->finished( resetPrinter: true );
@@ -667,6 +669,8 @@ class PrintGcode implements ShouldQueue
                 buffer: $buffer
             );
         }
+
+        $serial->tryToAppendNow();
 
         $log->info('Job finished.');
 
