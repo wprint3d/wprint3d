@@ -184,10 +184,6 @@
                         Livewire.emit('refreshUploadedFiles');
 
                         break;
-                    case 'targetTemperatureReset':
-                        dispatchEvent( new Event('targetTemperatureReset') );
-
-                        break;
                     case 'recoveryStarted':
                         [ 'skipRecoveryBtn', 'recoverBtn' ].forEach(id => {
                             document.querySelector('#' + id).disabled = true;

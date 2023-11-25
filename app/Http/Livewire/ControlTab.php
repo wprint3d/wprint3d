@@ -12,7 +12,10 @@ use Livewire\Component;
 
 class ControlTab extends Component
 {
-    protected $listeners = [ 'selectPrinter' => 'handlePrinterSelected' ];
+    protected $listeners = [
+        'selectPrinter'             => 'handlePrinterSelected',
+        'targetTemperatureChanged'  => 'handleTargetTemperatureChange'
+    ];
 
     private ?Printer $printer = null;
 
@@ -22,18 +25,56 @@ class ControlTab extends Component
     public ?int $distance;
     public ?int $extrusionLength;
     public ?int $feedrate;
+    public ?int $extruderCount = 0;
 
-    public ?int $hotendTemperature  = 0;
-    public ?int $bedTemperature     = 0;
+    public ?int $hotendTemperature      = 0;
+    public ?int $bedTemperature         = 0;
+    public ?int $targetMovementExtruder = 0;
 
     const NO_PRINTER_ERROR = 'A printer must be selected.';
 
     public function handlePrinterSelected() {
-        $activePrinter = AUth::user()->getActivePrinter();
+        $activePrinter = Auth::user()->getActivePrinter();
 
         if ($activePrinter) {
             $this->printer = Printer::select('_id')->find( $activePrinter );
         }
+
+        if ($this->printer) {
+            $this->extruderCount = count(
+                $this->printer->getStatistics()['extruders'] ?? []
+            );
+        }
+    }
+
+    public function handleTargetTemperatureChange() {
+        if (!$this->printer) {
+            Log::warning('unable to handle temperature change: no printer selected.');
+
+            return;
+        }
+
+        $statistics = $this->printer->getStatistics();
+
+        $mainExtruder = null;
+        $heatedBed    = null;
+
+        if ($statistics) {
+            if ($statistics['extruders']) {
+                $mainExtruder = $statistics['extruders'][ array_key_first($statistics['extruders']) ];
+            }
+
+            if ($statistics['bed']) {
+                $heatedBed    = $statistics['bed'];
+            }
+
+            $this->hotendTemperature = $mainExtruder['target'];
+            $this->bedTemperature    = $heatedBed['target'];
+        }
+    }
+
+    private function waitForStatisticsRefresh() {
+        sleep( Configuration::get('autoSerialIntervalSecs') + 6 ); // base sleep + queue resting time + 1s offset
     }
 
     private function queueMovement(string $direction) : bool {
@@ -118,6 +159,7 @@ class ControlTab extends Component
             return false;
         }
 
+        $this->printer->queueCommand( "T{$this->targetMovementExtruder}" );
         $this->printer->queueCommand( 'G91' );
 
         return $this->printer->queueCommand( $command );
@@ -175,6 +217,8 @@ class ControlTab extends Component
         }
 
         $this->printer->queueCommand( "M104 S{$this->hotendTemperature}" );
+
+        $this->waitForStatisticsRefresh();
     }
 
     public function setBedTemperature() {
@@ -185,6 +229,8 @@ class ControlTab extends Component
         }
 
         $this->printer->queueCommand( "M140 S{$this->bedTemperature}" );
+
+        $this->waitForStatisticsRefresh();
     }
 
     public function updatingExtrusionLength(&$value) {
@@ -199,6 +245,10 @@ class ControlTab extends Component
         $value = (int) $value;
     }
 
+    public function updatingTargetMovementExtruder(&$value) {
+        $value = (int) $value;
+    }
+
     public function boot() {
         $this->distance = Configuration::get('controlDistanceDefault');
         $this->feedrate = Configuration::get('controlFeedrateDefault');
@@ -208,24 +258,7 @@ class ControlTab extends Component
         $this->extrusionMinTemp  = Configuration::get('controlExtrusionMinTemp');
 
         $this->handlePrinterSelected();
-
-        if ($this->printer) {
-            $statistics = $this->printer->getStatistics();
-
-            if (isset( $statistics['extruders'] )) {
-                foreach ($statistics['extruders'] as $index => $extruder) {
-                    if (isset( $extruder['target'] )) {
-                        $this->hotendTemperature = $extruder['target'];
-
-                        break;
-                    }
-                }
-            }
-
-            if (isset( $statistics['bed'] ) && isset( $statistics['bed']['target'] )) {
-                $this->bedTemperature = $statistics['bed']['target'];
-            }
-        }
+        $this->handleTargetTemperatureChange();
     }
 
     public function render()

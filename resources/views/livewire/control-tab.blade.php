@@ -129,6 +129,25 @@
                 </button>
             </div>
         </div>
+
+        @if ($extruderCount > 1)
+            <div class="row justify-content-center">
+                <div class="col-11 col-sm-8 col-lg-6">
+                    <select wire:model="targetMovementExtruder" class="form-select" aria-label="Select a target extruder">
+                        @for ($index = 0; $index < $extruderCount; $index++)
+                            <option
+                                value="{{ $index }}"
+                                @if ($index == $targetMovementExtruder)
+                                    selected
+                                @endif
+                            >
+                                Extruder #{{ $index + 1 }}
+                            </option>
+                        @endfor
+                    </select>
+                </div>
+            </div>
+        @endif
     </div>
 
     <div class="bg-body-overlay-lighter border p-3 rounded rounded-2 text-center">
@@ -151,11 +170,20 @@
                             type="number"
                             class="form-control"
                             min="0"
+                            wire:target="setHotendTemperature"
+                            wire:loading.attr="disabled"
                         >
                     </div>
                     <div class="btn-group mx-1" role="group" aria-label="Hotend temperature">
-                        <button wire:click="setHotendTemperature" type="button" class="btn btn-outline-secondary">
-                            @svg('check-lg')
+                        <button wire:click="setHotendTemperature" type="button" class="btn btn-outline-secondary" wire:loading.attr="disabled">
+                            <div wire:loading wire:target="setHotendTemperature">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="visually-hidden"> Loading... </span>
+                            </div>
+
+                            <div wire:loading.remove wire:target="setHotendTemperature">
+                                @svg('check-lg')
+                            </div>
                         </button>
                     </div>
                 </div>
@@ -170,11 +198,20 @@
                             type="number"
                             class="form-control"
                             min="0"
+                            wire:target="setBedTemperature"
+                            wire:loading.attr="disabled"
                         >
                     </div>
                     <div class="btn-group mx-1" role="group" aria-label="Hotend temperature">
-                        <button wire:click="setBedTemperature" type="button" class="btn btn-outline-secondary">
-                            @svg('check-lg')
+                        <button wire:click="setBedTemperature" type="button" class="btn btn-outline-secondary" wire:loading.attr="disabled">
+                            <div wire:loading wire:target="setBedTemperature">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="visually-hidden"> Loading... </span>
+                            </div>
+
+                            <div wire:loading.remove wire:target="setBedTemperature">
+                                @svg('check-lg')
+                            </div>
                         </button>
                     </div>
                 </div>
@@ -188,38 +225,10 @@
 
 window.addEventListener('DOMContentLoaded', () => {
 
-    const hotendTemperature = document.querySelector('#hotendTemperature');
-    const bedTemperature    = document.querySelector('#bedTemperature');
-
     window.addEventListener('configApplyError', event => {
         console.debug(event);
 
         toastify.error(event.detail);
-    });
-
-    window.addEventListener('targetTemperatureChanged', event => {
-        console.debug(event);
-
-        if (
-            typeof(event.detail.hotend) != 'undefined'
-            &&
-            event.detail.hotend != hotendTemperature.value
-        ) {
-            hotendTemperature.value  = event.detail.hotend;
-        }
-
-        if (
-            typeof(event.detail.bed) != 'undefined'
-            &&
-            event.detail.bed    != bedTemperature.value
-        ) {
-            bedTemperature.value     = event.detail.bed;
-        }
-    });
-
-    window.addEventListener('targetTemperatureReset', () => {
-        hotendTemperature.value = 0;
-        bedTemperature.value    = 0;
     });
 
     const NUMERIC_INPUTS = [ 'extrusionLength', 'hotendTemperature', 'bedTemperature' ];

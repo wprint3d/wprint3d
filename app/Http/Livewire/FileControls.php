@@ -47,13 +47,7 @@ class FileControls extends Component
         $this->refreshPrinter();
 
         if ($this->printer) {
-            $newActiveFile = $this->printer->activeFile ?? null;
-
-            if ($this->activeFile && !$newActiveFile) {
-                SystemMessage::send('targetTemperatureReset');
-            }
-
-            $this->activeFile = $newActiveFile;
+            $this->activeFile = $this->printer->activeFile ?? null;
 
             if ($this->activeFile && !$this->printer->hasActiveJob) {
                 $this->printer->hasActiveJob = true;

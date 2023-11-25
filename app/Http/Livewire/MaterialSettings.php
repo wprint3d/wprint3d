@@ -4,8 +4,6 @@ namespace App\Http\Livewire;
 
 use App\Events\SystemMessage;
 
-use Illuminate\Support\Facades\Auth;
-
 use Livewire\Component;
 
 class MaterialSettings extends Component
