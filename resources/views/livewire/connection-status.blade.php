@@ -57,7 +57,8 @@ window.addEventListener('DOMContentLoaded', () => {
             ) ? 'offline'
               : 'online';
 
-            let printerStatistics = '';
+            let printerStatistics         = '',
+                targetTemperaturesChanged = false;
 
             if (event.statistics.extruders) {
                 event.statistics.extruders.forEach((extruder, index) => {
@@ -68,6 +69,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
                         if (targetTemperatures.hotend != extruder.target) {
                             targetTemperatures.hotend =  extruder.target;
+
+                            targetTemperaturesChanged = true;
                         }
                     }
 
@@ -83,13 +86,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
                     if (targetTemperatures.bed != event.statistics.bed.target) {
                         targetTemperatures.bed =  event.statistics.bed.target;
+
+                        targetTemperaturesChanged = true;
                     }
                 }
             }
 
-            let targetTemperatureChanged = new CustomEvent('targetTemperatureChanged', { detail: targetTemperatures });
-
-            dispatchEvent( targetTemperatureChanged );
+            if (targetTemperaturesChanged) {
+                Livewire.emit('targetTemperatureChanged');
+            }
 
             printerStatisticsText.innerHTML = printerStatistics;
 
