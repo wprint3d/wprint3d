@@ -3,8 +3,12 @@
 namespace App\Http\Livewire;
 
 use App\Models\Printer;
+use App\Models\User;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+
+use MongoDB\BSON\Regex;
 
 use Livewire\Component;
 
@@ -30,44 +34,30 @@ class Login extends Component
 
         $this->validate();
 
-        if (
-            Auth::attempt([
-                'email'     => $this->identifier,
-                'password'  => $this->password
-            ])
-        ) {
-            $printers = Printer::select('_id')->get();
+        $user = User::whereRaw([
+            '$or'   => [
+                [ 'name'    => new Regex('^' . $this->identifier . '$',  'i')  ],
+                [ 'email'   => new Regex('^' . $this->identifier . '$',  'i')  ]
+            ]
+        ])->first();
 
-            if ($printers->count() > 0) {
-                Auth::user()->setActivePrinter( $printers->first()->_id );
-            }
-
-            $this->dispatchBrowserEvent('forceRedirect', '/');
+        if (!$user || !Hash::check($this->password, $user->password)) {
+            $this->addError('identifier', 'That combination of username or email address and password doesn\'t match our records.');
 
             return;
         }
 
-        if (
-            Auth::attempt([
-                'name'      => $this->identifier,
-                'password'  => $this->password
-            ])
-        ) {
-            $printers = Printer::select('_id')->get();
+        Auth::login($user);
 
-            $user = Auth::user();
-            $user->getSessionHash(); // get/refresh hash in the session store
+        $printers = Printer::select('_id')->get();
 
-            if ($printers->count() > 0) {
-                $user->setActivePrinter( $printers->first()->_id );
-            }
+        $user->getSessionHash(); // get/refresh hash in the session store
 
-            $this->dispatchBrowserEvent('forceRedirect', '/');
-
-            return;
+        if ($printers->count() > 0) {
+            $user->setActivePrinter( $printers->first()->_id );
         }
 
-        $this->addError('identifier', 'That combination of username or email address and password doesn\'t match our records.');
+        $this->dispatchBrowserEvent('forceRedirect', '/');
     }
 
     public function render()

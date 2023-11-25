@@ -5,7 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\LogoutReason;
 
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
 
 use Closure;
 
@@ -18,6 +18,8 @@ class Authenticate
         if ($user) {
             if ($user->getSessionHash() != $user->getCachedHash()) {
                 Auth::logout();
+
+                Session::invalidate(); // force invalidate session, just in case Laravel thinks it shouldn't
 
                 return redirect()->away(
                     route(

@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
 
 use MongoDB\BSON\ObjectId;
+use MongoDB\BSON\Regex;
 
 class UserSettings extends Component
 {
@@ -137,19 +138,19 @@ class UserSettings extends Component
         $matchedUser = User::select('name', 'email')->whereRaw([
             '_id'   => [ '$ne' => new ObjectId($this->user->_id) ],
             '$or'   => [
-                [ 'name'    => $this->name  ],
-                [ 'email'   => $this->email ]
+                [ 'name'    => new Regex('^' . $this->name  . '$',   'i')  ],
+                [ 'email'   => new Regex('^' . $this->email . '$',  'i')   ]
             ]
         ])->first();
 
         if ($matchedUser) {
-            if ($matchedUser->name == $this->name) {
+            if (strtolower($matchedUser->name) == strtolower($this->name)) {
                 ToastMessage::dispatch(
                     Auth::id(),                                                 // userId
                     ToastMessageType::ERROR,                                    // type
                     'The specified user name is being used by another account.' // message
                 );
-            } else if ($matchedUser->email == $this->email) {
+            } else if (strtolower($matchedUser->email) == strtolower($this->email)) {
                 ToastMessage::dispatch(
                     Auth::id(),                                                         // userId
                     ToastMessageType::ERROR,                                            // type
