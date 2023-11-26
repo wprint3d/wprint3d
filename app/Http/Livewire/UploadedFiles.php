@@ -51,6 +51,8 @@ class UploadedFiles extends Component
     private function refreshFileList() {
         Auth::user()->setCurrentFolder( $this->subPath );
 
+        $firstFileIndex = 0;
+
         $this->basePath = $this->baseFilesDir;
 
         if ($this->subPath) {
@@ -117,6 +119,8 @@ class UploadedFiles extends Component
             }
 
             $this->files[] = $directory;
+
+            $firstFileIndex++;
         }
 
         $this->files = array_merge(
@@ -138,6 +142,19 @@ class UploadedFiles extends Component
                 return $file;
             }, $files)
         );
+
+        // Force the active file to the top (after the directories)
+        foreach ($this->files as $index => $file) {
+            if (isset($file['active']) && $file['active']) {
+                unset($this->files[ $index ]);
+
+                if (isset( $this->files[$firstFileIndex] )) {
+                    $this->files[] = $this->files[$firstFileIndex];
+                }
+
+                $this->files[$firstFileIndex] = $file;
+            }
+        }
 
         $this->emit('selectedPathChanged');
     }
