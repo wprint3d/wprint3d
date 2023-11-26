@@ -21,7 +21,7 @@ class UploadedFiles extends Component
     public $files       = [];
     public $basePath    = null;
     public $subPath     = null;
-    public $sortingMode = SortingMode::NAME_ASCENDING;
+    public $sortingMode = SortingMode::DATE_DESCENDING;
 
     public $writeable   = false;
 
