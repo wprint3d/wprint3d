@@ -19,12 +19,13 @@
             <div class="col-3 col-md-5 col-lg-4">
                 <button
                     wire:click="load"
+                    wire:target="load"
                     wire:loading.attr="disabled"
                     wire:loading.class="btn-success"
                     wire:loading.class.remove="btn-danger"
                     class="btn btn-danger w-100"
                 >
-                    <span wire:loading.class="d-none">
+                    <span wire:target="load" wire:loading.class="d-none">
                         @svg('thermometer')
 
                         <span class="d-none d-md-inline">
@@ -32,7 +33,7 @@
                         </span>
                     </span>
 
-                    <span wire:loading.inline>
+                    <span wire:target="load" wire:loading.inline>
                         <span class="d-none d-md-inline">
                             @svg('thermometer-high')
                         </span>
