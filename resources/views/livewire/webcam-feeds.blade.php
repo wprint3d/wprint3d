@@ -15,6 +15,10 @@
                 'printerId' => $printer->_id,
                 'camera'    => $camera
             ], key( 'ri_' . $camera->_id ))
+
+            <div id="webcamFeedActionHint" class="text-light d-none d-md-flex align-items-end" onclick="toggleLeftPaneExpansion()">
+                {{-- To be filled by the frontend. --}}
+            </div>
         </div>
         @endforeach
     </div>
@@ -101,6 +105,28 @@ window.handleBrokenCamera = element => {
             </div>`;
     }
 };
+
+const leftPane = document.querySelector('.left-pane');
+
+const updateActionHintText = () => {
+    const webcamActionHint = document.querySelector('#webcamFeedActionHint');
+
+    if (webcamActionHint) {
+        webcamActionHint.innerHTML = (
+            leftPane.classList.contains('w-100')
+                ? 'Click or tap to revert to normal size'
+                : 'Click or tap to enlarge'
+        );
+    }
+}
+
+window.toggleLeftPaneExpansion = () => {
+    leftPane.classList.toggle('w-100');
+
+    updateActionHintText();
+};
+
+updateActionHintText();
 
 </script>
 @endpush
