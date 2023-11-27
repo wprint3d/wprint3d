@@ -10,10 +10,16 @@ use App\Models\Printer;
 use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
 
+use Illuminate\Cache\Repository;
+
+use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+
 use Illuminate\Log\Logger;
 
 use Illuminate\Support\Arr;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 use Error;
@@ -26,6 +32,9 @@ class Serial {
     private string      $fileName;
     private int         $baudRate;
     private int         $terminalMaxLines;
+
+    private Repository  $lockCache;
+    private string      $lockKey;
 
     private ?string $printerId  = null;
     private ?int    $timeout    = null;
@@ -41,6 +50,9 @@ class Serial {
 
     const TERMINAL_PATH   = '/dev';
     const TERMINAL_PREFIX = 'tty';
+
+    const CACHE_LOCK_SUFFIX = '_nodeLock';
+    const CACHE_LOCK_TTL    = 120; // seconds
 
     const LIVE_BUFFER_WAIT_NANOS  = 8;               // nanoseconds (short sleep to save on CPU cycles)
     const EMPTY_BUFFER_WAIT_NANOS = 8 * 1000 * 1000; // milliseconds to nanoseconds (short sleep to save on CPU cycles)
@@ -64,6 +76,10 @@ class Serial {
         $this->fileName  = $fileName;
         $this->baudRate  = $baudRate;
         $this->printerId = $printerId;
+
+        $this->lockCache = Cache::store();
+
+        $this->lockKey   = $this->fileName . self::CACHE_LOCK_SUFFIX;
 
         if (Configuration::get('debugSerial')) {
             $this->log = Log::channel('serial');
@@ -205,13 +221,45 @@ class Serial {
         }
     }
 
+    /**
+     * blockWhileLocking
+     * 
+     * Blocks the current thread while trying to acquire a lock, then, returns
+     * an instance of Lock that supports release().
+     *
+     * @return Lock
+     */
+    private function blockWhileLocking(): Lock {
+        $lock = $this->lockCache->lock( $this->lockKey, self::CACHE_LOCK_TTL );
+
+        if (!$lock->get()) {
+            try {
+                $lock->block( self::CACHE_LOCK_TTL );
+            } catch (LockTimeoutException $lockTimeoutException) {
+                if ($this->log) {
+                    $this->log->warning(
+                        __METHOD__ . ': timed out waiting for the serial port to free up, the lock will be released: ' . $lockTimeoutException->getMessage() . PHP_EOL .
+                        $lockTimeoutException->getTraceAsString()
+                    );
+                }
+            } finally {
+                optional($lock)->release();
+            }
+        }
+
+        $lock->get();
+
+        return $lock;
+    }
+
     private function configure() {
+        $lock = $this->blockWhileLocking();
+
         $this->fd = dio_open(
             self::TERMINAL_PATH . '/' . self::TERMINAL_PREFIX . $this->fileName, // filename
             O_RDWR | O_NONBLOCK | O_ASYNC                                        // flags
         );
 
-        dio_fcntl($this->fd, F_SETLKW, [ 'type' => F_WRLCK ]);
         dio_fcntl($this->fd, F_SETFL, O_NONBLOCK | O_ASYNC);
 
         dio_tcsetattr($this->fd, [
@@ -220,6 +268,8 @@ class Serial {
             'stop'   => 1,
             'parity' => 0
         ]);
+
+        $lock->release();
     }
 
     private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null) : void {
@@ -513,6 +563,8 @@ class Serial {
     }
 
     public function query(?string $command = null, ?int $lineNumber = null, ?int $maxLine = null, ?int $timeout = null) : string {
+        $lock = $this->blockWhileLocking();
+
         $throwable = null;
 
         $this->tickClocks();
@@ -531,6 +583,8 @@ class Serial {
         } catch (Exception $exception) {
             $throwable = $exception;
         }
+
+        $lock->release();
 
         if ($throwable) throw $throwable;
 
