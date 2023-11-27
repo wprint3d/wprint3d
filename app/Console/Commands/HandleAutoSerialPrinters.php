@@ -126,7 +126,7 @@ class HandleAutoSerialPrinters extends Command
                             }
                         }
 
-                        $log->debug('OK: ' . $response);
+                        $log->debug("OK: {$printer->node}: {$response}");
 
                         $printer->updateLastSeen();
 
