@@ -26,16 +26,29 @@
     </div>
 
     <form wire:submit.prevent>
-        <input
-            wire:model.lazy="command"
-            wire:keydown.enter="queueCommand"
-            type="text"
-            class="form-control mb-2 @if (!$writeable) d-none @endif"
-            placeholder="Enter a custom command"
-            @if (!$printer || $printer->activeFile || !$writeable)
-                disabled
-            @endif
-        >
+        <div class="input-group mb-2">
+            <input
+                wire:model.lazy="command"
+                wire:keydown.enter="queueCommand"
+                wire:target="queueCommand"
+                wire:loading.attr="disabled"
+                type="text"
+                class="form-control @if (!$writeable) d-none @endif"
+                placeholder="Enter a custom command"
+                @if (!$printer || $printer->activeFile || !$writeable)
+                    disabled
+                @endif
+            >
+
+            <button wire:click="queueCommand" wire:target="queueCommand" wire:loading.attr="disabled" class="btn btn-primary" type="button">
+                <div wire:target="queueCommand" wire:loading>
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="visually-hidden"> Loading... </span>
+                </div>
+
+                <span wire:target="queueCommand" wire:loading.remove> Send </span>
+            </button>
+        </div>
     </form>
 
     <ul class="list-group">
