@@ -172,16 +172,10 @@ window.addEventListener('resize', () => {
     }
 });
 
-window.addEventListener('show.bs.tab', event => {
-    if (event.target.id != 'preview-tab') return;
-
+window.addEventListener('initializePreviewTab', event => {
     previewNoFileLoadedAlert.classList.add('d-none');
 
     isBuffering = true;
-});
-
-window.addEventListener('shown.bs.tab', event => {
-    if (event.target.id != 'preview-tab') return;
 
     let canvas = document.querySelector('#gcodePreviewCanvas');
 
@@ -198,7 +192,7 @@ window.addEventListener('shown.bs.tab', event => {
     reloadPreviewFromServer();
 });
 
-window.addEventListener('hidden.bs.tab', event => {
+window.addEventListener('destructPreviewCanvas', event => {
     let canvas = document.querySelector('#gcodePreviewCanvas');
 
     if (canvas) {

@@ -235,7 +235,13 @@
     window.initialize = componentName => {
         console.debug('initialize:', componentName);
 
+        Livewire.emit( 'destructPreviewCanvas' );
         Livewire.emitTo( componentName, 'initialize' );
+
+        let event = new CustomEvent('tab-pane-changed');
+            event.data = componentName;
+
+        dispatchEvent(event);
     };
 </script>
 

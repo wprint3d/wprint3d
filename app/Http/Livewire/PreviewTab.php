@@ -7,11 +7,14 @@ use App\Jobs\SendLinesToClientPreview;
 use App\Models\Printer;
 
 use Illuminate\Support\Facades\Auth;
+
 use Livewire\Component;
 
 class PreviewTab extends Component
 {
     protected $listeners = [
+        'initialize'              => 'initialize',
+        'destructPreviewCanvas'   => 'destructPreviewCanvas',
         'refreshActiveFile'       => 'reportFileChange',
         'reloadPreviewFromServer' => 'refreshGcode'
     ];
@@ -89,6 +92,14 @@ class PreviewTab extends Component
 
         $this->showExtrusion    = $this->printer->settings['showExtrusion']     ?? true;
         $this->showTravel       = $this->printer->settings['showTravel']        ?? true;
+    }
+
+    public function destructPreviewCanvas() {
+        $this->dispatchBrowserEvent('destructPreviewCanvas');
+    }
+
+    public function initialize() {
+        $this->dispatchBrowserEvent('initializePreviewTab');
     }
 
     public function render()
