@@ -6,6 +6,7 @@
             <button
                 type="button"
                 wire:click="pause"
+                wire:loading.attr="disabled"
                 class="
                     btn btn-primary rounded-start
                     @if (!$activeFile || !$printer->isRunning())
@@ -13,11 +14,19 @@
                     @endif
                 "
             >
-                @svg('pause-fill')
+                <div wire:loading wire:target="pause">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="visually-hidden"> Loading... </span>
+                </div>
+
+                <span wire:loading.remove wire:target="pause">
+                    @svg('pause-fill')
+                </span>
             </button>
             <button
                 type="button"
                 wire:click="resume"
+                wire:loading.attr="disabled"
                 class="
                     btn btn-primary rounded-start
                     @if ($activeFile && !$printer->isRunning())
@@ -27,12 +36,18 @@
                     @endif
                 "
             >
-                <div class="animate__animated animate__slow animate__infinite animate__flash">
+                <div wire:loading wire:target="resume">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="visually-hidden"> Loading... </span>
+                </div>
+
+                <div wire:loading.remove wire:target="resume" class="animate__animated animate__slow animate__infinite animate__flash">
                     @svg('play-fill')
                 </div>
             </button>
             <button
                 type="button"
+                wire:loading.attr="disabled"
                 class="
                     btn btn-primary rounded-start
                     @if ($activeFile)
@@ -48,6 +63,7 @@
             </button>
             <button
                 type="button"
+                wire:loading.attr="disabled"
                 class="btn btn-primary"
                 onclick="openModal('stop')"
                 @if (!$printer || !$activeFile)
@@ -98,8 +114,22 @@
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"> No </button>
-                    <button type="button" class="btn btn-primary" wire:click="start"> Yes </button>
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                        wire:loading.attr="disabled"
+                        wire:target="start"
+                    > No </button>
+
+                    <button type="button" class="btn btn-primary" wire:click="start">
+                        <div wire:loading wire:target="start">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span class="visually-hidden"> Loading... </span>
+                        </div>
+
+                        <span wire:loading.remove wire:target="start"> Yes </span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -128,8 +158,22 @@
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"> No </button>
-                    <button type="button" class="btn btn-primary" wire:click="stop"> Yes </button>
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                        wire:loading.attr="disabled"
+                        wire:target="stop"
+                    > No </button>
+
+                    <button type="button" class="btn btn-primary" wire:click="stop">
+                        <div wire:loading wire:target="stop">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span class="visually-hidden"> Loading... </span>
+                        </div>
+
+                        <span wire:loading.remove wire:target="stop"> Yes </span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -158,8 +202,22 @@
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"> No </button>
-                    <button type="button" class="btn btn-primary" wire:click="delete"> Yes </button>
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                        wire:loading.attr="disabled"
+                        wire:target="delete"
+                    > No </button>
+
+                    <button type="button" class="btn btn-primary" wire:click="delete">
+                        <div wire:loading wire:target="delete">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span class="visually-hidden"> Loading... </span>
+                        </div>
+
+                        <span wire:loading.remove wire:target="delete"> Yes </span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -190,8 +248,22 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"> Cancel </button>
-                    <button type="button" class="btn btn-primary" wire:click="rename"> Save </button>
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                        wire:loading.attr="disabled"
+                        wire:target="rename"
+                    > Cancel </button>
+
+                    <button type="button" class="btn btn-primary" wire:click="rename">
+                        <div wire:loading wire:target="rename">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span class="visually-hidden"> Loading... </span>
+                        </div>
+
+                        <span wire:loading.remove wire:target="rename"> Save </span>
+                    </button>
                 </div>
             </div>
         </div>
