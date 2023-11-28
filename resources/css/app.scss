@@ -111,7 +111,7 @@ input[type="file"] { display: none; }
 .left-pane,
 .right-pane {
     transition: width .25s ease-in-out;
-    max-height: 90vh;
+    height: 88vh;
 }
 
 #webcamFeedActionHint {
