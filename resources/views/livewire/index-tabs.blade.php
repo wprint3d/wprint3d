@@ -48,13 +48,16 @@
         @foreach ($tabs as $tab)
             @if ($tab != 'control' || $enableControlTab)
                 <div
-                    class="tab-pane fade @if ($activeTab == $tab) show active @endif"
+                    class="tab-pane fade position-relative @if ($activeTab == $tab) show active @endif"
                     id="{{ $tab }}-tab-pane"
                     role="tabpanel"
                     aria-labelledby="{{ $tab }}-tab"
                     tabindex="0"
-                    wire:loading.class="d-none"
-                > @livewire( $tab . '-tab', [ 'writeable' => $writeable ], key( $tab . '-tab' ) ) </div>
+                >
+                    <div wire:loading class="bg-white h-100 opacity-75 position-absolute start-0 top-0 w-100 z-3"></div>
+
+                    @livewire( $tab . '-tab', [ 'writeable' => $writeable ], key( $tab . '-tab' ) )
+                </div>
             @endif
         @endforeach
     </div>
