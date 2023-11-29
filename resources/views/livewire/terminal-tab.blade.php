@@ -33,14 +33,27 @@
                 wire:target="queueCommand"
                 wire:loading.attr="disabled"
                 type="text"
-                class="form-control @if (!$writeable) d-none @endif"
+                class="
+                    form-control
+                    @if (!$writeable)       d-none      @endif
+                    @if ($sentEmptyCommand) is-invalid  @endif
+                "
                 placeholder="Enter a custom command"
                 @if (!$printer || $printer->activeFile || !$writeable)
                     disabled
                 @endif
             >
 
-            <button wire:click="queueCommand" wire:target="queueCommand" wire:loading.attr="disabled" class="btn btn-primary" type="button">
+            <button
+                wire:click="queueCommand"
+                wire:target="queueCommand"
+                wire:loading.attr="disabled"
+                class="btn btn-primary"
+                type="button"
+                @if (!$printer || $printer->activeFile || !$writeable)
+                    disabled
+                @endif
+            >
                 <div wire:target="queueCommand" wire:loading>
                     <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                     <span class="visually-hidden"> Loading... </span>
