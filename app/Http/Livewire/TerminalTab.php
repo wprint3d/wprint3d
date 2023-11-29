@@ -23,6 +23,8 @@ class TerminalTab extends Component
 
     public $writeable = false;
 
+    public bool   $sentEmptyCommand = false;
+
     public ?Printer $printer = null;
 
     protected $listeners = [
@@ -50,11 +52,18 @@ class TerminalTab extends Component
     }
 
     public function queueCommand() {
+        if (empty( trim($this->command) )) {
+            $this->sentEmptyCommand = true;
+
+            return;
+        }
+
         Log::info( __METHOD__ . ': ' . $this->command );
 
         $this->printer->queueCommand( $this->command );
 
-        $this->command = '';
+        $this->command          = '';
+        $this->sentEmptyCommand = false;
     }
 
     public function selectPrinter() {
