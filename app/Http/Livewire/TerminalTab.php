@@ -2,6 +2,10 @@
 
 namespace App\Http\Livewire;
 
+use App\Enums\ToastMessageType;
+
+use App\Events\ToastMessage;
+
 use App\Models\Printer;
 
 use Illuminate\Support\Facades\Auth;
@@ -58,12 +62,25 @@ class TerminalTab extends Component
             return;
         }
 
+        $this->sentEmptyCommand = false;
+
+        if (!$this->printer->connected) {
+            ToastMessage::dispatch(
+                Auth::id(),                                                 // userId
+                ToastMessageType::ERROR,                                    // type
+                'Couldn\'t queue command: this printer is not connected.'   // message
+            );
+
+            $this->dispatchBrowserEvent('changeSaved', [ 'action' => 'start' ]);
+
+            return;
+        }
+
         Log::info( __METHOD__ . ': ' . $this->command );
 
         $this->printer->queueCommand( $this->command );
 
-        $this->command          = '';
-        $this->sentEmptyCommand = false;
+        $this->command = '';
     }
 
     public function selectPrinter() {
