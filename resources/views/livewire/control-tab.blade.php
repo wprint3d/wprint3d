@@ -16,7 +16,16 @@
                 <div class="row mb-2">
                     <div class="col"></div>
                     <div class="col">
-                        <button wire:click="up"     class="btn border"> @svg('caret-up-fill') </button>
+                        <button wire:click="up" class="btn border" wire:loading.attr="disabled">
+                            <div wire:loading wire:target="up">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="visually-hidden"> Loading... </span>
+                            </div>
+
+                            <div wire:loading.remove wire:target="up">
+                                @svg('caret-up-fill')
+                            </div>
+                        </button>
                     </div>
                     <div class="col"></div>
                 </div>
@@ -25,19 +34,55 @@
                         <div class="control-hint-snap-left position-absolute align-items-center d-flex h-100 start-0 fs-5 fw-light mb-1">
                             X
                         </div>
-                        <button wire:click="left"   class="btn border"> @svg('caret-left-fill') </button>
+                        <button wire:click="left" class="btn border" wire:loading.attr="disabled">
+                            <div wire:loading wire:target="left">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="visually-hidden"> Loading... </span>
+                            </div>
+
+                            <div wire:loading.remove wire:target="left">
+                                @svg('caret-left-fill')
+                            </div>
+                        </button>
                     </div>
                     <div class="col">
-                        <button wire:click="home"   class="btn border"> @svg('house-door-fill') </button>
+                        <button wire:click="home" class="btn border" wire:loading.attr="disabled">
+                            <div wire:loading wire:target="home">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="visually-hidden"> Loading... </span>
+                            </div>
+
+                            <div wire:loading.remove wire:target="home">
+                                @svg('house-door-fill')
+                            </div>
+                        </button>
                     </div>
                     <div class="col p-0">
-                        <button wire:click="right"  class="btn border"> @svg('caret-right-fill') </button>
+                        <button wire:click="right" class="btn border" wire:loading.attr="disabled">
+                            <div wire:loading wire:target="right">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="visually-hidden"> Loading... </span>
+                            </div>
+
+                            <div wire:loading.remove wire:target="right">
+                                @svg('caret-right-fill')
+                            </div>
+                        </button>
                     </div>
                 </div>
                 <div class="row mb-3">
                     <div class="col"></div>
                     <div class="col">
-                        <button wire:click="down"   class="btn border"> @svg('caret-down-fill') </button>
+                        <button wire:click="down" class="btn border" wire:loading.attr="disabled">
+                            <div wire:loading wire:target="down">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="visually-hidden"> Loading... </span>
+                            </div>
+
+                            <div wire:loading.remove wire:target="down">
+                                @svg('caret-down-fill')
+                            </div>
+                        </button>
                     </div>
                     <div class="col"></div>
                 </div>
@@ -46,7 +91,16 @@
             <div class="col-12 col-lg-6 align-self-center mb-2 mb-md-0">
                 <div class="row">
                     <div class="col">
-                        <button wire:click="yForward" class="btn border"> @svg('caret-up-fill') </button>
+                        <button wire:click="yForward" class="btn border" wire:loading.attr="disabled">
+                            <div wire:loading wire:target="yForward">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="visually-hidden"> Loading... </span>
+                            </div>
+
+                            <div wire:loading.remove wire:target="yForward">
+                                @svg('caret-up-fill')
+                            </div>
+                        </button>
                     </div>
                 </div>
                 <div class="row">
@@ -56,7 +110,16 @@
                 </div>
                 <div class="row">
                     <div class="col">
-                        <button wire:click="yBackward" class="btn border"> @svg('caret-down-fill') </button>
+                        <button wire:click="yBackward" class="btn border" wire:loading.attr="disabled">
+                            <div wire:loading wire:target="yBackward">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="visually-hidden"> Loading... </span>
+                            </div>
+
+                            <div wire:loading.remove wire:target="yBackward">
+                                @svg('caret-down-fill')
+                            </div>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -67,6 +130,7 @@
                 <label class="form-label"> Feedrate </label>
                 <input
                     wire:model.lazy="feedrate"
+                    wire:loading.attr="disabled"
                     x-model="feedrate"
                     type="range"
                     class="form-range"
@@ -80,6 +144,7 @@
                 <label class="form-label"> Distance (mm) </label>
                 <input
                     wire:model.lazy="distance"
+                    wire:loading.attr="disabled"
                     x-model="distance"
                     type="range"
                     class="form-range"
@@ -105,8 +170,15 @@
             aria-label="Toolbar with button groups"
         >
             <div class="btn-group mx-1" role="group" aria-label="First group">
-                <button wire:click="extrudeBack" type="button" class="btn btn-outline-secondary">
-                    <span>-</span><span x-text="distance"></span>
+                <button wire:click="extrudeBack" type="button" class="btn btn-outline-secondary" wire:loading.attr="disabled">
+                    <div wire:loading wire:target="extrudeBack">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span class="visually-hidden"> Loading... </span>
+                    </div>
+
+                    <div wire:loading.remove wire:target="extrudeBack">
+                        <span>-</span><span x-text="distance"></span>
+                    </div>
                 </button>
             </div>
 
@@ -124,8 +196,15 @@
             </div>
 
             <div class="btn-group mx-1" role="group" aria-label="First group">
-                <button wire:click="extrudeForward" type="button" class="btn btn-outline-secondary">
-                    <span>+</span><span x-text="distance"></span>
+                <button wire:click="extrudeForward" type="button" class="btn btn-outline-secondary" wire:loading.attr="disabled">
+                    <div wire:loading wire:target="extrudeForward">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span class="visually-hidden"> Loading... </span>
+                    </div>
+
+                    <div wire:loading.remove wire:target="extrudeForward">
+                        <span>+</span><span x-text="distance"></span>
+                    </div>
                 </button>
             </div>
         </div>
@@ -133,7 +212,7 @@
         @if ($extruderCount > 1)
             <div class="row justify-content-center">
                 <div class="col-11 col-sm-8 col-lg-6">
-                    <select wire:model="targetMovementExtruder" class="form-select" aria-label="Select a target extruder">
+                    <select wire:model="targetMovementExtruder" class="form-select" aria-label="Select a target extruder" wire:loading.attr="disabled">
                         @for ($index = 0; $index < $extruderCount; $index++)
                             <option
                                 value="{{ $index }}"

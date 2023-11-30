@@ -2,6 +2,10 @@
 
 namespace App\Http\Livewire;
 
+use App\Enums\ToastMessageType;
+
+use App\Events\ToastMessage;
+
 use App\Models\Configuration;
 use App\Models\Printer;
 
@@ -86,6 +90,18 @@ class ControlTab extends Component
             return false;
         }
 
+        $this->printer->refresh();
+
+        if (!$this->printer->connected) {
+            ToastMessage::dispatch(
+                Auth::id(),                                                 // userId
+                ToastMessageType::ERROR,                                    // type
+                'Couldn\'t queue movement: this printer is not connected.'  // message
+            );
+
+            return false;
+        }
+
         $command = match ($direction) {
             'up'        => "G0  Z{$this->distance} F{$this->feedrate}",
             'left'      => "G0 X-{$this->distance} F{$this->feedrate}",
@@ -112,7 +128,31 @@ class ControlTab extends Component
         if ($this->extrusionLength <= 0) {
             $this->extrusionLength = 0;
 
+            ToastMessage::dispatch(
+                Auth::id(),             // userId
+                ToastMessageType::INFO, // type
+                'Nothing to do.'        // message
+            );
+
             return true;
+        }
+
+        if (!$this->printer) {
+            Log::warning("unable to queue movement. => direction: {$direction}, distance: {$this->distance}, feedrate: {$this->feedrate}");
+
+            return false;
+        }
+
+        $this->printer->refresh();
+
+        if (!$this->printer->connected) {
+            ToastMessage::dispatch(
+                Auth::id(),                                                 // userId
+                ToastMessageType::ERROR,                                    // type
+                'Couldn\'t queue extrusion: this printer is not connected.' // message
+            );
+
+            return false;
         }
 
         $currentTemperature = 0;
