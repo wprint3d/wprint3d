@@ -170,8 +170,6 @@ class MapSerialPrinters extends Command
             } else {
                 $log->info('No devices detected.');
             }
-
-            return Command::SUCCESS;
         }
 
         Cache::put(
@@ -182,9 +180,13 @@ class MapSerialPrinters extends Command
 
         PrintersMapInProgress::dispatch();
 
-        $this->info("Waiting {$negotiationWaitSecs} seconds for the printer to boot before trying to negotiate a connection...");
+        if (empty( $devices )) {
+            $this->info("As no devices are currently connected, the {$negotiationWaitSecs} seconds wait will be skipped.");
+        } else {
+            $this->info("Waiting {$negotiationWaitSecs} seconds for the printer to boot before trying to negotiate a connection...");
 
-        sleep( $negotiationWaitSecs );
+            sleep( $negotiationWaitSecs );
+        }
 
         $changeCount = 0;
 
