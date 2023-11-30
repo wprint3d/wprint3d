@@ -2,7 +2,10 @@
 
 namespace App\Http\Livewire;
 
+use App\Enums\ToastMessageType;
+
 use App\Events\SystemMessage;
+use App\Events\ToastMessage;
 
 use App\Jobs\PrintGcode;
 
@@ -39,7 +42,7 @@ class FileControls extends Component
         Log::debug( __METHOD__ . ': ' . ($activePrinter ?? 'none') );
 
         if ($activePrinter) {
-            $this->printer = Printer::select('activeFile')->find( $activePrinter );
+            $this->printer = Printer::select('connected', 'activeFile')->find( $activePrinter );
         }
     }
 
@@ -80,6 +83,18 @@ class FileControls extends Component
     public function start() {
         if (!$this->selected) {
             $this->error = self::NO_FILE_SELECTED_ERROR;
+
+            return;
+        }
+
+        if (!$this->printer->connected) {
+            ToastMessage::dispatch(
+                Auth::id(),                                             // userId
+                ToastMessageType::ERROR,                                // type
+                'Couldn\'t queue job: this printer is not connected.'   // message
+            );
+
+            $this->dispatchBrowserEvent('changeSaved', [ 'action' => 'start' ]);
 
             return;
         }
