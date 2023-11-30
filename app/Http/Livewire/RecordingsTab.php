@@ -3,7 +3,6 @@
 namespace App\Http\Livewire;
 
 use App\Events\SystemMessage;
-
 use App\Jobs\RenderVideo;
 
 use App\Models\Configuration;
@@ -14,9 +13,9 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
-use Livewire\Component;
-
 use CodeInc\HumanReadableFileSize\HumanReadableFileSize;
+
+use Livewire\Component;
 
 use Exception;
 
@@ -25,20 +24,19 @@ class RecordingsTab extends Component
 
     public $recordings = [];
 
-    public $error;
-    public $firstLoad;
-    public $selected = null;
+    public $firstLoad = true;
 
     public $writeable = false;
 
     private int $renderFileBlockingSecs;
 
     protected $listeners = [
-        'initialize'        => 'initialize',
-        'selectPrinter'     => '$refresh',
-        'refreshActiveFile' => '$refresh',
-        'recorderToggled'   => '$refresh',
-        'refreshRecordings' => '$refresh'
+        'selectPrinter'         => '$refresh',
+        'initialize'            => 'initialize',
+        'refreshActiveFile'     => '$refresh',
+        'recorderToggled'       => '$refresh',
+        'refreshRecordings'     => '$refresh',
+        'deleteRecordingByName' => 'deleteRecordingByName'
     ];
 
     private function refreshRecordings() {
@@ -57,6 +55,7 @@ class RecordingsTab extends Component
                 Storage::lastModified( $fileB );
         });
 
+        // FIXME: move recorded item render logic to RecordedVideo
         $this->recordings = array_values(
             Arr::map(
                 array: Arr::where(
@@ -88,25 +87,28 @@ class RecordingsTab extends Component
         );
     }
 
-    public function play($index) {
-        $this->emit('showVideoPlayer', $this->recordings[ $index ]['url']);
+    private function validateRecordingName(string $name): bool {
+        foreach ($this->recordings as $recording) {
+            if ($recording['name'] === $name) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    public function prepareDelete($index) {
-        $this->error    = null; 
-        $this->selected = $index;
-
-        $this->dispatchBrowserEvent('showRecordingDeleteModal');
-    }
-
-    public function delete() {
+    public function deleteRecordingByName($name) {
         try {
+            if (!$this->validateRecordingName( $name )) {
+                throw new Exception('No such recording.');
+            }
+
             Storage::delete(
-                RenderVideo::RECORDINGS_DIRECTORY . '/' . $this->recordings[ $this->selected ]['name'] . '.webm'
+                RenderVideo::RECORDINGS_DIRECTORY . '/' . $name . '.webm'
             );
 
             Storage::delete(
-                RenderVideo::RECORDINGS_DIRECTORY . '/' . $this->recordings[ $this->selected ]['name'] . '.jpg'
+                RenderVideo::RECORDINGS_DIRECTORY . '/' . $name . '.jpg'
             );
 
             $this->refreshRecordings();
@@ -118,7 +120,7 @@ class RecordingsTab extends Component
                 $exception->getTraceAsString()
             );
 
-            $this->error = $exception->getMessage();
+            $this->emit('recordingDeleteModalError', $exception->getMessage());
         }
     }
 
@@ -133,10 +135,6 @@ class RecordingsTab extends Component
 
     public function render()
     {
-        if (!$this->firstLoad) {
-            $this->refreshRecordings();
-        }
-
         return view('livewire.recordings-tab');
     }
 }
