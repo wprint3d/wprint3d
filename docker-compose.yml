@@ -172,6 +172,7 @@ services:
     environment:
       - ROLE=queue
       - QUEUE=broadcasts
+      - SLEEP=.5
       - UPLOAD_LIMIT=1G
     volumes:
       - .:/var/www
