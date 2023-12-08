@@ -13,16 +13,16 @@
         "davidhsianturi/blade-bootstrap-icons": "^1.4",
         "guzzlehttp/guzzle": "^7.2",
         "guzzlehttp/psr7": "^2.4",
-        "jenssegers/mongodb": "^3.9",
         "josantonius/url": "^2.0",
         "laminas/laminas-diactoros": "^2.24",
-        "laravel/framework": "^9.19",
+        "laravel/framework": "^10.0",
         "laravel/octane": "^1.4",
         "laravel/sanctum": "^3.0",
         "laravel/tinker": "^2.7",
         "league/csv": "^9.8",
         "league/flysystem-aws-s3-v3": "^3.0",
         "livewire/livewire": "^2.10",
+        "mongodb/laravel-mongodb": "^4.0",
         "php-ffmpeg/php-ffmpeg": "dev-master",
         "pusher/pusher-php-server": "^7.2",
         "silviolleite/laravelpwa": "^2.0",
@@ -34,9 +34,9 @@
         "laravel/pint": "^1.0",
         "laravel/sail": "^1.0.1",
         "mockery/mockery": "^1.4.4",
-        "nunomaduro/collision": "^6.1",
-        "phpunit/phpunit": "^9.5.10",
-        "spatie/laravel-ignition": "^1.0"
+        "nunomaduro/collision": "^7.0",
+        "phpunit/phpunit": "^10.0",
+        "spatie/laravel-ignition": "^2.0"
     },
     "autoload": {
         "psr-4": {

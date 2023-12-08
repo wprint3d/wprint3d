@@ -12,9 +12,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
 
-use Jenssegers\Mongodb\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;
 
 use MongoDB\BSON\ObjectId;
 
