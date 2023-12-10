@@ -38,7 +38,7 @@ window.showPrinterManagerModal = printerId => {
         btn.setAttribute('disabled', true)
     });
 
-    Livewire.emit('loadPrinterManagement', printerId);
+    Livewire.dispatch('loadPrinterManagement', { printerId: printerId });
 };
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -55,7 +55,7 @@ window.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('printerLoaded', event => {
         console.debug(event);
 
-        if (event.detail) {
+        if (event.detail && event.detail.id) {
             printerManagementModal.show();
         } else {
             toastify.error('Couldn\'t load printer, please, try again later.');

@@ -1,8 +1,8 @@
 <div>
     @if ($show && $materials->count())
         <div class="row p-2">
-            <div class="col-9 col-md-7 col-lg-8">
-                <select wire:model="materialIndex" class="form-select" aria-label="Material selector">
+            <div class="col-9 col-md-7">
+                <select wire:model.live="materialIndex" class="form-select" aria-label="Material selector">
                     @foreach ($materials as $index => $material)
                         <option
                             value="{{ $index }}"
@@ -16,7 +16,7 @@
                 </select>
             </div>
 
-            <div class="col-3 col-md-5 col-lg-4">
+            <div class="col-3 col-md-5">
                 <button
                     wire:click="load"
                     wire:target="load"

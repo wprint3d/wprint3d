@@ -1,5 +1,5 @@
 <div>
-    <select id="printerSelect" wire:model="printerId" wire:change="change" class="form-select" aria-label="Default select example">
+    <select id="printerSelect" wire:model.live="printerId" wire:change="change" class="form-select" aria-label="Default select example">
         @if ($printers->count())
             @if (!$printerId)
                 <option selected> Select a printer </option>

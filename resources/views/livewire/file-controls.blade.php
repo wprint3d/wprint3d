@@ -240,7 +240,7 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="newFilename" class="col-form-label">Rename <b>{{ basename($selected) }}</b> to:</label>
-                        <input type="text" class="form-control" id="newFilename" value="{{ $selected }}" wire:model.defer="newFilename">
+                        <input type="text" class="form-control" id="newFilename" value="{{ $selected }}" wire:model="newFilename">
 
                         @if ($error)
                             <p class="text-danger text-center mt-4"> {{ $error }} </p>
@@ -273,19 +273,35 @@
 @push('scripts')
 <script>
 
-    window.actionToModalKey = action => action.charAt(0).toUpperCase() + action.slice(1);
+    window.actionToModalKey = action => {
+        console.debug('actionToModalKey:', action);
+
+        if (typeof(action) == 'undefined') {
+            console.warn('actionToModalKey: called without an action.');
+
+            return null;
+        }
+
+        return action.charAt(0).toUpperCase() + action.slice(1);
+    };
 
     window.openModal = modalType => {
-        console.log('openModal', modalType);
+        console.debug('openModal: modalType:', modalType);
 
         let action = actionToModalKey(modalType);
 
-        console.log(action);
+        console.debug('openModal: action:', action);
+
+        if (!action) {
+            console.warn('openModal: action: no valid action was detected.');
+
+            return;
+        }
 
         let modalName = action + 'Modal';
 
         window[modalName] = new bootstrap.Modal(
-                document.querySelector('#fileControls' + action + 'Modal')
+            document.querySelector('#fileControls' + action + 'Modal')
         );
 
         window[modalName].show();
@@ -294,7 +310,15 @@
     window.addEventListener('changeSaved', event => {
         console.log(event.detail);
 
-        window[ actionToModalKey(event.detail.action) + 'Modal' ].hide();
+        let action = actionToModalKey(event.detail.action);
+
+        if (!action) {
+            console.warn('openModal: action: no valid action was detected.');
+
+            return;
+        }
+
+        window[ action + 'Modal' ].hide();
     });
 
 </script>

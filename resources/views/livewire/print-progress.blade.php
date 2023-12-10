@@ -55,7 +55,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 progressBar.classList.add('d-none');
                 lastCommand.classList.add('d-none');
 
-                Livewire.emit('refreshActiveFile');
+                Livewire.dispatch('refreshActiveFile');
             }
 
             return true;
@@ -65,7 +65,7 @@ window.addEventListener('DOMContentLoaded', () => {
         .listen('PrintJobFinished', event => {
             console.debug('PrintJobFinished:', event);
 
-            Livewire.emit('refreshActiveFile');
+            Livewire.dispatch('refreshActiveFile');
 
             return true;
         });

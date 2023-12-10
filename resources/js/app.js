@@ -1,3 +1,5 @@
+import { Livewire, Alpine } from '../../vendor/livewire/livewire/dist/livewire.esm';
+
 import * as bootstrap from 'bootstrap'
 
 window.bootstrap = bootstrap;
@@ -9,10 +11,7 @@ window.axios.defaults.baseURL = '/api';
 import SwipeListener from 'swipe-listener';
 window.SwipeListener = SwipeListener;
 
-import Alpine from 'alpinejs';
-window.Alpine = Alpine;
-
-Alpine.start();
+Livewire.start();
 
 import toastify from 'toastify-js';
 window.toastify = toastify;
@@ -75,19 +74,3 @@ window.GCodePreview = GCodePreview;
 
 import UAParser from 'ua-parser-js';
 window.UAParser = new UAParser( window.navigator.userAgent );
-
-window.hasTouchScreen = window.matchMedia('(pointer: coarse)').matches;
-
-window.vibrate = input => {
-    if (HAPTICS_ENABLED) {
-        if (
-            typeof(window.navigator)         !== 'undefined'
-            &&
-            typeof(window.navigator.vibrate) !== 'undefined'
-        ) {
-            return window.navigator.vibrate(input);
-        }
-    }
-
-    return false;
-}

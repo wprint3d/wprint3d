@@ -1,4 +1,4 @@
-<div>
+<div wire:ignore>
     <div id="videoPlayerModal" class="modal fade" tabindex="-1" aria-modal="true" role="dialog">
         <div class="modal-dialog modal-xl modal-fullscreen-xl-down">
             <div class="modal-content">
@@ -24,12 +24,10 @@ window.addEventListener('DOMContentLoaded', () => {
             document.querySelector('#videoPlayerModal')
         );
 
-    document.querySelector('#videoPlayerModal').addEventListener('shown.bs.modal', () => {
-
-    });
-
     window.addEventListener('openVideoURL', event => {
-        videoPlayer.src = event.detail;
+        console.debug('openVideoURL:', event.detail);
+
+        videoPlayer.src = event.detail.src;
 
         videoPlayerModal.show();
     });

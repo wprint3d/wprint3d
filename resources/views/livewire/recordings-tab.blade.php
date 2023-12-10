@@ -22,7 +22,7 @@
                                 'index'     => $loop->index,
                                 'recording' => $recording,
                                 'writeable' => $writeable
-                            ], key( $recording['name'] ))
+                            ], key( $recording['name'] . hrtime(true) ))
                         </div>
                     </div>
                 @endforeach
@@ -89,7 +89,7 @@ window.addEventListener('DOMContentLoaded', () => {
         .listen('RecordingRenderFinished', event => {
             console.debug('RecordingRenderFinished:', event);
 
-            Livewire.emit('refreshRecordings');
+            Livewire.dispatch('refreshRecordings');
 
             setRenderProgress(null);
 

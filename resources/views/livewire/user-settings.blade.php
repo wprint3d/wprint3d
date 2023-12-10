@@ -4,7 +4,7 @@
             <label for="name" class="form-label"> Username </label>
             <div class="input-group">
                 <input
-                    wire:model="name"
+                    wire:model.live="name"
                     type="text"
                     class="form-control"
                     placeholder="example"
@@ -28,7 +28,7 @@
             <label for="name" class="form-label"> E-mail address </label>
             <div class="input-group">
                 <input
-                    wire:model="email"
+                    wire:model.live="email"
                     type="text"
                     class="form-control"
                     placeholder="user@example.com"
@@ -52,7 +52,7 @@
             <label for="name" class="form-label"> Role </label>
             <div class="input-group">
                 <select
-                    wire:model="role"
+                    wire:model.live="role"
                     class="form-select"
                     @if ($user->_id == $selfUserId) disabled @endif
                 >
@@ -83,7 +83,7 @@
             <label for="name" class="form-label"> New password </label>
             <div class="input-group">
                 <input
-                    wire:model="newPassword"
+                    wire:model.live="newPassword"
                     type="password"
                     class="form-control"
                     placeholder="Password"

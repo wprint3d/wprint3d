@@ -5,7 +5,7 @@
 <livewire:updating-hardware-overlay />
 <livewire:spectator-hints-overlay />
 
-@livewireScripts
+@livewireScriptConfig
 
 <script>
     window.livewire_app_url = (new URL(window.location.href)).origin;
@@ -29,6 +29,22 @@
     window.HAPTICS_ENABLED = @json(
         Configuration::get('enableHaptics', env('HAPTICS_ENABLED', false))
     );
+
+    window.hasTouchScreen = window.matchMedia('(pointer: coarse)').matches;
+
+    window.vibrate = input => {
+        if (HAPTICS_ENABLED) {
+            if (
+                typeof(window.navigator)         !== 'undefined'
+                &&
+                typeof(window.navigator.vibrate) !== 'undefined'
+            ) {
+                return window.navigator.vibrate(input);
+            }
+        }
+
+        return false;
+    }
 
     window.addEventListener('scroll', () => {
         if (
@@ -151,7 +167,7 @@
 
                 toastify.info('Hardware change applied.');
 
-                Livewire.emit('hardwareChangeDetected');
+                Livewire.dispatch('hardwareChangeDetected');
 
                 return true;
             });
@@ -181,7 +197,7 @@
 
                 switch (event.name) {
                     case 'folderCreationCompleted':
-                        Livewire.emit('refreshUploadedFiles');
+                        Livewire.dispatch('refreshUploadedFiles');
 
                         break;
                     case 'recoveryStarted':
@@ -197,33 +213,33 @@
 
                         break;
                     case 'recoveryCompleted':
-                        Livewire.emit('recoveryCompleted', event.detail);
+                        Livewire.dispatch('recoveryCompleted', { newFileName: event.detail });
 
                         break;
                     case 'recordingDeleted':
-                        Livewire.emit('refreshRecordings');
+                        Livewire.dispatch('refreshRecordings');
 
                         dispatchEvent( new Event('recordingDeleted') );
 
                         break;
                     case 'refreshActiveFile':
-                        Livewire.emit('refreshActiveFile');
+                        Livewire.dispatch('refreshActiveFile');
 
                         break;
                     case 'refreshUploadedFiles':
-                        Livewire.emit('refreshUploadedFiles');
+                        Livewire.dispatch('refreshUploadedFiles');
 
                         break;
                     case 'materialsChanged':
-                        Livewire.emit('materialsChanged');
+                        Livewire.dispatch('materialsChanged');
 
                         break;
                     case 'linkedCamerasChanged':
-                        Livewire.emit('linkedCamerasChanged');
+                        Livewire.dispatch('linkedCamerasChanged');
 
                         break;
                     case 'recorderToggled':
-                        Livewire.emit('recorderToggled');
+                        Livewire.dispatch('recorderToggled');
 
                         break;
                 }
@@ -235,8 +251,7 @@
     window.initialize = componentName => {
         console.debug('initialize:', componentName);
 
-        Livewire.emit( 'destructPreviewCanvas' );
-        Livewire.emitTo( componentName, 'initialize' );
+        Livewire.dispatchTo( componentName, 'initialize' );
 
         let event = new CustomEvent('tab-pane-changed');
             event.data = componentName;

@@ -2,4 +2,6 @@
 
 @yield('main')
 
+<livewire:settings-modal />
+
 @include('common.footer')

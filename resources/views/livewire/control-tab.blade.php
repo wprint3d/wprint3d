@@ -129,7 +129,7 @@
             <div class="col" x-data="{ feedrate: {{ Configuration::get('controlFeedrateDefault', env('PRINTER_CONTROL_FEEDRATE_DEFAULT')); }} }">
                 <label class="form-label"> Feedrate </label>
                 <input
-                    wire:model.lazy="feedrate"
+                    wire:model="feedrate"
                     wire:loading.attr="disabled"
                     x-model="feedrate"
                     type="range"
@@ -143,7 +143,7 @@
             <div class="col" x-data="{ distance: {{ Configuration::get('controlDistanceDefault', env('PRINTER_CONTROL_DISTANCE_DEFAULT')) }} }">
                 <label class="form-label"> Distance (mm) </label>
                 <input
-                    wire:model.lazy="distance"
+                    wire:model="distance"
                     wire:loading.attr="disabled"
                     x-model="distance"
                     type="range"
@@ -185,7 +185,7 @@
             <div class="input-group">
                 <input
                     id="extrusionLength"
-                    wire:model.lazy="extrusionLength"
+                    wire:model="extrusionLength"
                     x-model="distance"
                     type="number"
                     class="form-control col"
@@ -212,7 +212,7 @@
         @if ($extruderCount > 1)
             <div class="row justify-content-center">
                 <div class="col-11 col-sm-8 col-lg-6">
-                    <select wire:model="targetMovementExtruder" class="form-select" aria-label="Select a target extruder" wire:loading.attr="disabled">
+                    <select wire:model.live="targetMovementExtruder" class="form-select" aria-label="Select a target extruder" wire:loading.attr="disabled">
                         @for ($index = 0; $index < $extruderCount; $index++)
                             <option
                                 value="{{ $index }}"
@@ -245,7 +245,7 @@
                     <div class="input-group col">
                         <input
                             id="hotendTemperature"
-                            wire:model.lazy="hotendTemperature"
+                            wire:model="hotendTemperature"
                             type="number"
                             class="form-control"
                             min="0"
@@ -273,7 +273,7 @@
                     <div class="input-group col">
                         <input
                             id="bedTemperature"
-                            wire:model.lazy="bedTemperature"
+                            wire:model="bedTemperature"
                             type="number"
                             class="form-control"
                             min="0"
@@ -305,9 +305,9 @@
 window.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('configApplyError', event => {
-        console.debug(event);
+        console.debug('configApplyError:', event.detail);
 
-        toastify.error(event.detail);
+        toastify.error(event.detail.message);
     });
 
     const NUMERIC_INPUTS = [ 'extrusionLength', 'hotendTemperature', 'bedTemperature' ];

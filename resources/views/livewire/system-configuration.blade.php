@@ -2,12 +2,12 @@
     <label for="{{ $key }}" class="form-label text-truncate"> {{ $label }} </label>
 
     @if ($type == DataType::BOOLEAN)
-        <select wire:model="value" class="form-select" @if (!$writeable) disabled @endif>
+        <select wire:model.live="value" class="form-select" @if (!$writeable) disabled @endif>
             <option value="1" @if ($value)  selected @endif> Yes </option>
             <option value="0" @if (!$value) selected @endif> No  </option>
         </select>
     @elseif ($type == DataType::ENUM)
-        <select wire:model="value" class="form-select" @if (!$writeable) disabled @endif>
+        <select wire:model.live="value" class="form-select" @if (!$writeable) disabled @endif>
             @foreach ($enum::toSelectArray() as $index => $label)
                 <option
                     value="{{ $index }}"
@@ -19,7 +19,7 @@
         </select>
     @else
         <input
-            wire:model="value"
+            wire:model.live="value"
             id="{{ $key }}"
             type="{{
                 $type == DataType::INTEGER

@@ -31,7 +31,7 @@
                                 <canvas id="recoveryPreviewMainOption" class="preview-canvas col-12"></canvas>
 
                                 <div class="col-12 mt-2 form-check d-flex justify-content-center">
-                                    <input wire:model.defer="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" checked>
+                                    <input wire:model="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" checked>
                                     Continue from line <span class="mx-1"></span>
                                 </div>
                             </div>
@@ -44,7 +44,7 @@
                                 <canvas id="recoveryPreviewAltOption" class="preview-canvas col-12"></canvas>
 
                                 <div class="col-12 mt-2 form-check d-flex justify-content-center">
-                                    <input wire:model.defer="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2">
+                                    <input wire:model="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2">
                                     Continue from line <span class="mx-1"></span>
                                 </div>
                             </div>
@@ -356,7 +356,7 @@
 
             jobRecoveryModal.hide();
 
-            toastify.error(`Unable to prepare job: ${event.detail.toLowerCase()}`);
+            toastify.error(`Unable to prepare job: ${event.detail.message.toLowerCase()}`);
         });
 
         window.addEventListener('recoveryFailed', event => {
@@ -366,7 +366,7 @@
 
             jobRecoveryModal.hide();
 
-            toastify.error(`Unable to recover print job: ${event.detail.toLowerCase()}`);
+            toastify.error(`Unable to recover print job: ${event.detail.message.toLowerCase()}`);
         });
 
         window.addEventListener('recoveryTimedOut',  () => {
@@ -396,7 +396,10 @@
                 altMaxLine                                            // toIndex
             );
 
-            Livewire.emit('renderRecoveryGcode', mainMaxLine, altMaxLine);
+            Livewire.dispatch('renderRecoveryGcode', {
+                mainMaxLine: mainMaxLine,
+                altMaxLine:  altMaxLine
+            });
         });
 
         document.querySelector('#jobRecoveryModal').addEventListener('hidden.bs.modal', () => {

@@ -1,7 +1,7 @@
 <div>
     {{-- NOTE: $availablePanes is defined within the component's blueprint (SettingsModal.php). --}}
 
-    <div id="settingsModal" class="modal fade" tabindex="-1">
+    <div wire:ignore.self id="settingsModal" class="modal fade" tabindex="-1">
         <div class="modal-dialog modal-fullscreen">
             <div class="modal-content">
                 <div class="modal-header">
@@ -58,7 +58,7 @@
                                         </div>
                                         @endif
 
-                                        @livewire('settings-modal-' . $paneName, [ 'writeable' => $writeable ])
+                                        @livewire('settings-modal-' . $paneName, [ 'writeable' => $writeable ], key('settings-modal-' . $paneName))
                                     </div>
                                 @endforeach
                             </div>
