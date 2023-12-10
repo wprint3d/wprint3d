@@ -59,7 +59,7 @@ RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) curl xml zip dom mysqli p
 RUN apt-get update && apt-get install -y --no-install-recommends meson python3 python3-pip python3-jinja2 python3-ply python3-yaml libjpeg62-turbo-dev libavformat-dev libavutil-dev libavcodec-dev v4l-utils pkg-config xxd build-essential cmake libssl-dev libboost-program-options-dev libdrm-dev libexif-dev libglib2.0-dev libgstreamer-plugins-base1.0-dev &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/* &&\
-    git clone https://github.com/raspberrypi/libcamera.git -b release-v0.0.5+83-bde9b04f &&\
+    git clone https://github.com/raspberrypi/libcamera.git --depth 1 -b release-v0.0.5+83-bde9b04f &&\
     cd libcamera &&\
     meson build --buildtype=release -Dpipelines=rpi/vc4 -Dipas=rpi/vc4 -Dv4l2=true -Dgstreamer=enabled -Dtest=false -Dlc-compliance=disabled -Dcam=disabled -Dqcam=disabled -Ddocumentation=disabled -Dpycamera=disabled &&\
     ninja -C build &&\
@@ -67,7 +67,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends meson python3 p
 RUN apt-get update && apt-get install -y --no-install-recommends libtiff5-dev libpng-dev &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/* &&\
-    git clone https://github.com/raspberrypi/libcamera-apps.git -b v1.2.1 &&\
+    git clone https://github.com/raspberrypi/libcamera-apps.git --depth 1 -b v1.2.1 &&\
     cd libcamera-apps &&\
     meson setup build -Denable_libav=true -Denable_drm=true -Denable_egl=false -Denable_qt=false -Denable_opencv=false -Denable_tflite=false &&\
     meson compile -C build -j"$(nproc --all)" &&\
@@ -75,13 +75,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends libtiff5-dev li
     ldconfig;
 
 # camera-streamer
-RUN git clone https://github.com/ayufan/camera-streamer.git -b v0.2.6 --recursive --shallow-submodules &&\
+RUN git clone https://github.com/ayufan/camera-streamer.git -b v0.2.6 --depth 1 --recursive --shallow-submodules &&\
     cd camera-streamer &&\
     make -j$(( "$(nproc --all)" * 2 )) &&\
     make install;
 
 # MJPG Streamer
-RUN git clone https://github.com/ArduCAM/mjpg-streamer.git &&\
+RUN git clone https://github.com/ArduCAM/mjpg-streamer.git --depth 1 &&\
     cd mjpg-streamer/mjpg-streamer-experimental &&\
     sed -i 's/add_subdirectory(plugins\/input_raspicam)//g' CMakeLists.txt &&\
     make -j$(( "$(nproc --all)" * 2 )) &&\
