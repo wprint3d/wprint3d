@@ -17,7 +17,7 @@
 
         <div class="form-check form-switch">
             <input
-                wire:model="enabled"
+                wire:model.live="enabled"
                 class="form-check-input"
                 type="checkbox"
                 role="switch"
@@ -30,7 +30,7 @@
         <div class="mt-2">
             <label class="form-label"> Format </label>
             <select
-                wire:model="format"
+                wire:model.live="format"
                 class="form-select"
                 @if (!$enabled || !$connected || !$writeable) disabled @endif
             >

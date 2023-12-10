@@ -12,7 +12,7 @@
 
                     <input
                         id="folderNameInput"
-                        wire:model.lazy="name"
+                        wire:model="name"
                         type="text"
                         class="form-control"
                         placeholder="Folder name"
@@ -79,7 +79,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('folderCreationError', event => {
-        toastify.error('Folder creation failed: ' + event.detail);
+        toastify.error('Folder creation failed: ' + event.detail.message);
 
         respawnModal = true;
 
@@ -87,7 +87,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('folderCreationCompleted', event => {
-        toastify.success('<b>' + event.detail + '</b> was successfully created!');
+        toastify.success('<b>' + event.detail.name + '</b> was successfully created!');
 
         respawnModal = false;
 

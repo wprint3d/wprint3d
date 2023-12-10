@@ -26,7 +26,7 @@ window.addEventListener('DOMContentLoaded', () => {
         .listen('PrintersMapInProgress', event => {
             console.debug('PrintersMapInProgress', event);
 
-            Livewire.emit('refreshMapperStatus');
+            Livewire.dispatch('refreshMapperStatus');
 
             return true;
         });

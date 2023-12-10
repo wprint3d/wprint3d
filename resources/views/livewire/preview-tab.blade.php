@@ -1,24 +1,26 @@
 <div>
-    <canvas id="gcodePreviewCanvas" class="preview-canvas"></canvas>
+    <div wire:ignore>
+        <canvas id="gcodePreviewCanvas" class="preview-canvas"></canvas>
 
-    <div id="previewNoFileLoadedAlert" class="alert alert-info text-center mt-2 d-none" role="alert">
-        No file has been loaded, start a print in order to preview it.
-    </div>
-
-    <div wire:ignore id="previewLoader" class="pt-2 px-3">
-        <div class="progress">
-            <div
-                class="progress-bar progress-bar-striped progress-bar-animated"
-                role="progressbar"
-                aria-label="Preview load progress"
-                aria-valuenow="0"
-                aria-valuemin="0"
-                aria-valuemax="100"
-                style="width: 0%"
-            ></div>
+        <div id="previewNoFileLoadedAlert" class="alert alert-info text-center mt-2 d-none" role="alert">
+            No file has been loaded, start a print in order to preview it.
         </div>
 
-        <p class="w-100 text-center mt-2"></p>
+        <div wire:ignore id="previewLoader" class="pt-2 px-3">
+            <div class="progress">
+                <div
+                    class="progress-bar progress-bar-striped progress-bar-animated"
+                    role="progressbar"
+                    aria-label="Preview load progress"
+                    aria-valuenow="0"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    style="width: 0%"
+                ></div>
+            </div>
+
+            <p class="w-100 text-center mt-2"></p>
+        </div>
     </div>
 
     <div id="selectedLayerContainer" class="d-none border p-3 mt-1 mb-2 rounded rounded-2 text-center bg-white">
@@ -56,11 +58,11 @@
 
     <ul class="list-group">
         <li class="list-group-item">
-            <input id="showExtrusionCheck" wire:model="showExtrusion" class="form-check-input me-1" type="checkbox">
+            <input id="showExtrusionCheck" wire:model.live="showExtrusion" class="form-check-input me-1" type="checkbox">
             <label class="form-check-label"> Show extrusion  </label>
         </li>
         <li class="list-group-item">
-            <input id="showTravelCheck" wire:model="showTravel" class="form-check-input me-1" type="checkbox">
+            <input id="showTravelCheck" wire:model.live="showTravel" class="form-check-input me-1" type="checkbox">
             <label class="form-check-label"> Show travel </label>
         </li>
     </ul>
@@ -173,6 +175,8 @@ window.addEventListener('resize', () => {
 });
 
 window.addEventListener('initializePreviewTab', event => {
+    console.debug('initializePreviewTab');
+
     previewNoFileLoadedAlert.classList.add('d-none');
 
     isBuffering = true;
@@ -190,20 +194,6 @@ window.addEventListener('initializePreviewTab', event => {
     refreshPreview(canvas);
 
     reloadPreviewFromServer();
-});
-
-window.addEventListener('destructPreviewCanvas', event => {
-    let canvas = document.querySelector('#gcodePreviewCanvas');
-
-    if (canvas) {
-        let newCanvas    = document.createElement('canvas');
-            newCanvas.id = 'gcodePreviewCanvas';
-            newCanvas.classList = [ 'preview-canvas' ];
-
-        canvas.replaceWith( newCanvas );
-    }
-
-    preview = null;
 });
 
 const resetRender = () => {
@@ -239,7 +229,11 @@ const reloadPreviewFromServer = (mapLayers = true) => {
             : 'Buffering G-code...'
     );
 
-    Livewire.emit('reloadPreviewFromServer', selectedLine, mapLayers);
+    Livewire.dispatch('reloadPreviewFromServer', {
+        uid:          uid,
+        selectedLine: selectedLine,
+        mapLayers:    mapLayers
+    });
 }
 
 window.addEventListener('DOMContentLoaded', () => {

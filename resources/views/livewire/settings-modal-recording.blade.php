@@ -3,7 +3,7 @@
         <div class="col-12">
             <div class="form-check form-switch d-flex justify-content-center">
                 <input
-                    wire:model="enabled"
+                    wire:model.live="enabled"
                     class="form-check-input mx-2"
                     type="checkbox"
                     role="switch"
@@ -20,7 +20,7 @@
         </div>
         <div class="col-12 col-md-4">
             <label class="form-label"> Resolution </label>
-            <select wire:model="resolution" class="form-select" @if (!$writeable) disabled @endif>
+            <select wire:model.live="resolution" class="form-select" @if (!$writeable) disabled @endif>
                 @foreach ($resolutions as $value)
                     <option value="{{ $value }}" @if ($value == $resolution) selected @endif>
                         {{ $value }}
@@ -30,7 +30,7 @@
         </div>
         <div class="col-12 col-md-4">
             <label class="form-label"> Framerate </label>
-            <select wire:model="framerate" class="form-select" @if (!$writeable) disabled @endif>
+            <select wire:model.live="framerate" class="form-select" @if (!$writeable) disabled @endif>
                 @foreach ($framerates as $value)
                     <option value="{{ $value }}" @if ($value == $framerate) selected @endif>
                         {{ $value }}
@@ -41,7 +41,7 @@
         <div class="col-12 col-md-4">
             <label class="form-label"> Capture interval </label>
             <input
-                wire:model.lazy="captureInterval"
+                wire:model="captureInterval"
                 type="number"
                 class="form-control"
                 placeholder="0.25"

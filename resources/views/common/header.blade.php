@@ -64,7 +64,7 @@ window.handleMissingImage = element => {
 };
 
 window.addEventListener('forceRedirect', event => {
-    window.location.href = event.detail;
+    window.location.href = event.detail.route;
 });
 
 </script>

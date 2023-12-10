@@ -93,7 +93,7 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             if (targetTemperaturesChanged) {
-                Livewire.emit('targetTemperatureChanged');
+                Livewire.dispatch('targetTemperatureChanged');
             }
 
             printerStatisticsText.innerHTML = printerStatistics;

@@ -25,10 +25,10 @@
         @endforeach
     </div>
 
-    <form wire:submit.prevent>
+    <form wire:submit>
         <div class="input-group mb-2">
             <input
-                wire:model.lazy="command"
+                wire:model="command"
                 wire:keydown.enter="queueCommand"
                 wire:target="queueCommand"
                 wire:loading.attr="disabled"
@@ -66,15 +66,15 @@
 
     <ul class="list-group">
         <li class="list-group-item">
-          <input wire:model="autoScroll" class="form-check-input me-1" type="checkbox">
+          <input wire:model.live="autoScroll" class="form-check-input me-1" type="checkbox">
           <label class="form-check-label"> Auto-scroll to bottom </label>
         </li>
         <li class="list-group-item">
-          <input wire:model="showSensors" class="form-check-input me-1" type="checkbox">
+          <input wire:model.live="showSensors" class="form-check-input me-1" type="checkbox">
           <label class="form-check-label"> Show sensors updates </label>
         </li>
         <li class="list-group-item">
-          <input wire:model="showInputCommands" class="form-check-input me-1" type="checkbox">
+          <input wire:model.live="showInputCommands" class="form-check-input me-1" type="checkbox">
           <label class="form-check-label"> Show input commands </label>
         </li>
     </ul>
@@ -112,7 +112,7 @@ window.addEventListener('DOMContentLoaded', () => {
             console.debug('Terminal:', event);
 
             if (lastRunningStatus != event.running) {
-                Livewire.emit('refreshActiveFile');
+                Livewire.dispatch('refreshActiveFile');
 
                 if (!event.running) {
                     toastify.info('The printer is waiting for your interaction.', 30000);

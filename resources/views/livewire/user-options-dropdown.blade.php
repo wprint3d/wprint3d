@@ -14,8 +14,6 @@
     </ul>
 </div>
 
-<livewire:settings-modal />
-
 @push('scripts')
 <script>
 
