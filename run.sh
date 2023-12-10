@@ -87,10 +87,10 @@ if [[ -e /opt/vc ]]; then
 fi;
 
 if [[ "$ENV" == 'dev' ]]; then
-    docker compose -f docker-compose-development.yml pull;
-    docker compose -f docker-compose-development.yml build --progress plain;
+    docker compose -f docker-compose-development.yml pull || exit 1;
+    docker compose -f docker-compose-development.yml build --progress plain || exit 1;
 elif [[ "$ENV" == 'production' ]]; then
-    docker compose pull;
+    docker compose pull || exit 1;
 fi;
 
 for container_name in $(docker ps --format '{{ .Names }}'  | grep buildx_buildkit_builder); do
