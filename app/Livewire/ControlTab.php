@@ -245,7 +245,21 @@ class ControlTab extends Component
         if (!$this->printer) {
             $this->dispatch('configApplyError', message: self::NO_PRINTER_ERROR);
 
+            Log::warning("unable to queue operation. => hotendTemperature: {$this->hotendTemperature}");
+
             return;
+        }
+
+        $this->printer->refresh();
+
+        if (!$this->printer->connected) {
+            ToastMessage::dispatch(
+                Auth::id(),                                                         // userId
+                ToastMessageType::ERROR,                                            // type
+                'Couldn\'t set hotend temperature: this printer is not connected.'  // message
+            );
+
+            return false;
         }
 
         $statistics = $this->printer->getStatistics();
@@ -265,7 +279,21 @@ class ControlTab extends Component
         if (!$this->printer) {
             $this->dispatch('configApplyError', message: self::NO_PRINTER_ERROR);
 
+            Log::warning("unable to queue operation. => bedTemperature: {$this->bedTemperature}");
+
             return;
+        }
+
+        $this->printer->refresh();
+
+        if (!$this->printer->connected) {
+            ToastMessage::dispatch(
+                Auth::id(),                                                      // userId
+                ToastMessageType::ERROR,                                         // type
+                'Couldn\'t set bed temperature: this printer is not connected.'  // message
+            );
+
+            return false;
         }
 
         $this->printer->queueCommand( "M140 S{$this->bedTemperature}" );
