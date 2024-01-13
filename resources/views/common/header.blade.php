@@ -19,7 +19,7 @@
         <header class="p-3 mb-3 border-bottom bg-primary">
             <div class="mx-0 mx-lg-2">
                 <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
-                    <a href="/" class="d-flex align-items-center text-dark text-decoration-none">
+                    <a href="/" class="d-flex align-items-center text-light text-decoration-none">
                         {{ env('APP_NAME') }}
                     </a>
 
