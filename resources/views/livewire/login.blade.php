@@ -4,7 +4,7 @@
 
 <div>
     <div class="d-flex flex-column min-vh-100 justify-content-center align-items-center">
-        <div class="animate__animated animate__slow animate__fadeIn px-4 py-1 my-1 text-center">
+        <div wire:ignore class="animate__animated animate__slow animate__fadeIn px-4 py-1 my-1 text-center">
             <h1 class="d-none d-md-block display-4 fw-bold text-body-emphasis">
                 {{ env('APP_NAME') }}
             </h1>
@@ -26,7 +26,7 @@
             </div>
         </div>
 
-        <form wire:submit="submit" class="rollable col-11 col-sm-8 col-md-6 col-lg-4 col-xxl-3 bg-body rounded rounded-3 overflow-hidden" style="max-height: 0;">
+        <form wire:ignore.self wire:submit="submit" class="rollable col-11 col-sm-8 col-md-6 col-lg-4 col-xxl-3 bg-body rounded rounded-3 overflow-hidden" style="max-height: 0;">
             <div class="d-flex flex-column p-4">
                 <div class="mb-3">
                     <label class="form-label">Username or email address</label>
