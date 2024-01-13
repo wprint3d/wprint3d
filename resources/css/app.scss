@@ -23,7 +23,7 @@ $body: #f3f3f3;
     width:  .35em;
 }
 
-*::-webkit-scrollbar-track { background: lighten($secondary, 10%); }
+*::-webkit-scrollbar-track { background: lighten($secondary, 20%); }
 
 *::-webkit-scrollbar-thumb {
     background-color: $primary;
