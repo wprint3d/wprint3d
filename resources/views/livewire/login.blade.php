@@ -17,10 +17,16 @@
                 <div id="spinner" class="spinner-border" role="status">
                     <span class="visually-hidden"> Loading assets... </span>
                 </div>
+
+                <div class="col-auto mx-auto overflow-hidden mt-1">
+                    <p class="lead mb-4">
+                        Please wait for a while, we're still loading some assets...
+                    </p>
+                </div>
             </div>
 
             <div class="rollable col-auto mx-auto overflow-hidden" style="max-height: 0;">
-                <p class="lead mb-4">
+                <p id="realLead" class="lead mb-4">
                     Welcome back! You can now log in to your account.
                 </p>
             </div>
@@ -89,7 +95,7 @@ const getTransitionDurationMillis = element => (
 
 document.addEventListener('DOMContentLoaded', () => {
     let spinner = document.querySelector('#spinner'),
-        lead    = document.querySelector('.lead'),
+        lead    = document.querySelector('#realLead'),
         form    = document.querySelector('form');
 
     if (spinner) {
