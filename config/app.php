@@ -217,7 +217,6 @@ return [
         'Configuration'     => \App\Models\Configuration::class,
         'CreateSampleUser'  => \App\Console\Commands\CreateSampleUser::class,
         'DataType'          => \App\Enums\DataType::class,
-        'FFMpeg'            => \ProtoneMedia\LaravelFFMpeg\Support\FFMpeg::class,
         'LogoutReason'      => \App\Enums\LogoutReason::class,
         'ToastMessageType'  => \App\Enums\ToastMessageType::class,
         'UserRole'          => \App\Enums\UserRole::class,
