@@ -32,7 +32,7 @@
                     type="text"
                     class="form-control"
                     placeholder="user@example.com"
-                    aria-label="Username"
+                    aria-label="E-mail address"
                     value="{{ $email }}"
                 >
 
