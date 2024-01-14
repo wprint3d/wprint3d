@@ -5,7 +5,12 @@ import path from 'path'
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.scss', 'resources/js/app.js'],
+            input: [
+                'resources/css/app.scss',
+                'resources/css/app.dark.scss',
+                'resources/css/app.dark.auto.scss',
+                'resources/js/app.js'
+            ],
             refresh: true,
             hotFile: '/dev/null' // disable hot reload file
         })

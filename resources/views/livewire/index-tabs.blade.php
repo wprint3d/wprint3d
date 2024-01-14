@@ -54,7 +54,7 @@
                     aria-labelledby="{{ $tab }}-tab"
                     tabindex="0"
                 >
-                    <div wire:loading class="bg-white h-100 opacity-75 position-absolute start-0 top-0 w-100 z-3"></div>
+                    <div wire:loading class="bg-light h-100 opacity-75 position-absolute start-0 top-0 w-100 z-3"></div>
 
                     @livewire( $tab . '-tab', [ 'writeable' => $writeable ], key( $tab . '-tab' ) )
                 </div>

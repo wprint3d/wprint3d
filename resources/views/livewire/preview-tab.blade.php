@@ -23,7 +23,7 @@
         </div>
     </div>
 
-    <div id="selectedLayerContainer" class="d-none border p-3 mt-1 mb-2 rounded rounded-2 text-center bg-white">
+    <div id="selectedLayerContainer" class="d-none border p-3 mt-1 mb-2 rounded rounded-2 text-center bg-light">
         <div wire:ignore class="row">
             <div class="col" x-data="{ layer: 0 }">
                 <label class="form-label"> Shown layer </label>

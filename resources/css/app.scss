@@ -3,6 +3,8 @@ $secondary: #5f7886;
 
 $body: #f3f3f3;
 
+.text-navbar { color: darken(white, 1%); }
+
 // Import all of Bootstrap's CSS
 @import '~bootstrap/scss/bootstrap';
 
@@ -15,6 +17,8 @@ $body: #f3f3f3;
 * {
     scrollbar-width: auto;
     scrollbar-color: $primary lighten($secondary, 10%);
+
+    transition: background-color .25s ease-in-out;
 }
 
 /* Chrome, Edge, and Safari */

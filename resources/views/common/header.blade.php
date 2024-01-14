@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     @vite([ 'resources/js/app.js', 'resources/css/app.scss' ])
 
+    @livewire('theme-manager')
+
     @stack('head')
 
     @livewireStyles
@@ -19,7 +21,7 @@
         <header class="p-3 mb-3 border-bottom bg-primary">
             <div class="mx-0 mx-lg-2">
                 <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
-                    <a href="/" class="d-flex align-items-center text-light text-decoration-none">
+                    <a href="/" class="d-flex align-items-center text-navbar text-decoration-none">
                         {{ env('APP_NAME') }}
                     </a>
 
@@ -40,6 +42,8 @@
                     </form>
                     --}}
 
+                    @stack('header.navbar')
+
                     <div class="dropdown text-end">
                         <a href="#" class="d-block link-dark text-decoration-none dropdown-toggle"
                             data-bs-toggle="dropdown" aria-expanded="false">
@@ -49,6 +53,8 @@
                     </div>
                 </div>
             </div>
+
+            @stack('header')
         </header>
     @endif
     <main>
