@@ -5,5 +5,5 @@
         @vite([ "resources/css/app.dark.auto.scss" ])
     @endif
 
-    <div id="currentTheme"> {{ $theme }} </div>
+    <div id="currentTheme" class="d-none"> {{ $theme }} </div>
 </div>
