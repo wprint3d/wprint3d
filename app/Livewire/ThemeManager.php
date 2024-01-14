@@ -18,6 +18,8 @@ class ThemeManager extends Component
 
         if ($user) {
             $this->theme = $user->theme;
+
+            $this->dispatch('themeReloaded');
         }
     }
 
