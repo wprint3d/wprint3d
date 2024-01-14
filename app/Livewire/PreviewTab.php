@@ -7,7 +7,7 @@ use App\Jobs\SendLinesToClientPreview;
 use App\Models\Printer;
 
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+
 use Livewire\Attributes\On;
 use Livewire\Component;
 

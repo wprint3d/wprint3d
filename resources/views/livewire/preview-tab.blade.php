@@ -272,6 +272,12 @@ window.addEventListener('DOMContentLoaded', () => {
         Livewire.dispatch('initializePreviewTab');
     });
 
+    window.addEventListener('themeReloaded', () => {
+        if (!isTabActive()) { return; }
+
+        Livewire.dispatch('initializePreviewTab');
+    });
+
     window.addEventListener('refreshSettings', event => {
         if (
             event.detail.showExtrusion  != showExtrusion
