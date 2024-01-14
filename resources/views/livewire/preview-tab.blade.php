@@ -163,6 +163,7 @@ const refreshPreview = () => {
         buildVolume: { x: 150, y: 150, z: 150 },
         initialCameraPosition: [ 0, 400, 450 ],
         lineWidth: 3,
+        renderTubes: true,
         debug: true
     };
 
