@@ -59,7 +59,7 @@
                     @foreach (UserRole::asArray() as $key => $value)
                         <option
                             value="{{ $value }}"
-                            @if ($role == $value) checked @endif
+                            @if ($role == $value) selected @endif
                         >
                             {{ Str::title( $key ) }}
                         </option>
