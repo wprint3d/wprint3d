@@ -13,6 +13,7 @@
     const USER_ID             = @json( Auth::id() );
     const PHP_EOL             = @json( PHP_EOL );
     const TOAST_MESSAGE_TYPES = @json( ToastMessageType::asArray() );
+    const THEME_OPTIONS       = @json( ThemeOption::asArray() );
 
     window.ECHO_OPTIONS = {
         broadcaster: 'pusher',
@@ -31,6 +32,10 @@
     );
 
     window.hasTouchScreen = window.matchMedia('(pointer: coarse)').matches;
+
+    window.prefersDarkTheme = () => (
+        window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+    );
 
     window.vibrate = input => {
         if (HAPTICS_ENABLED) {

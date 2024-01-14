@@ -2,6 +2,9 @@
 
 @yield('main')
 
-<livewire:settings-modal />
+@if (Auth::user())
+    <livewire:profile-modal />
+    <livewire:settings-modal />
+@endif
 
 @include('common.footer')

@@ -218,9 +218,10 @@ return [
         'CreateSampleUser'  => \App\Console\Commands\CreateSampleUser::class,
         'DataType'          => \App\Enums\DataType::class,
         'LogoutReason'      => \App\Enums\LogoutReason::class,
-        'ToastMessageType'  => \App\Enums\ToastMessageType::class,
-        'UserRole'          => \App\Enums\UserRole::class,
         'SortingMode'       => \App\Enums\SortingMode::class,
+        'ToastMessageType'  => \App\Enums\ToastMessageType::class,
+        'ThemeOption'       => \App\Enums\ThemeOption::class,
+        'UserRole'          => \App\Enums\UserRole::class,
     ])->toArray(),
 
     'common_baud_rates' => [ 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000 ],

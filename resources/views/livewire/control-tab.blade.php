@@ -1,6 +1,6 @@
 <div class="text-center">
     <div class="bg-body-overlay-lighter border p-3 mb-2 rounded rounded-2 text-center">
-        <h6 class="border-bottom fw-normal pb-1 mb-3 text-dark border-dark">
+        <h6 class="border-bottom fw-normal pb-1 mb-3 text-body border-dark-subtle">
             Movement
         </h6>
 
@@ -31,7 +31,7 @@
                 </div>
                 <div class="row mb-2">
                     <div class="col position-relative p-0">
-                        <div class="control-hint-snap-left position-absolute align-items-center d-flex h-100 start-0 fs-5 fw-light mb-1">
+                        <div class="control-hint-snap-left position-absolute align-items-center d-flex h-100 fs-5 fw-light mb-1">
                             X
                         </div>
                         <button wire:click="left" class="btn border" wire:loading.attr="disabled">
@@ -157,7 +157,7 @@
     </div>
 
     <div class="bg-body-overlay-lighter border p-3 mb-2 rounded rounded-2 text-center">
-        <h6 class="border-bottom fw-normal pb-1 mb-3 text-dark border-dark">
+        <h6 class="border-bottom fw-normal pb-1 mb-3 text-body border-dark-subtle">
             Extrusion
         </h6>
 
@@ -230,7 +230,7 @@
     </div>
 
     <div class="bg-body-overlay-lighter border p-3 rounded rounded-2 text-center">
-        <h6 class="border-bottom fw-normal pb-1 mb-3 text-dark border-dark">
+        <h6 class="border-bottom fw-normal pb-1 mb-3 text-body border-dark-subtle">
             Temperature
         </h6>
 

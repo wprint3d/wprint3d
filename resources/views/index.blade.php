@@ -70,7 +70,7 @@ window.addEventListener('DOMContentLoaded', () => {
         header.style.top = OUTSIDE_SCREEN_TOP;
     });
 
-    const handleScreenChange = () => {
+    const handleFoldableDisplayChange = () => {
         if (window.matchMedia( FOLDABLE_MATCH_MEDIA_QUERY ).matches) {
             header.style.top = OUTSIDE_SCREEN_TOP;
 
@@ -78,6 +78,21 @@ window.addEventListener('DOMContentLoaded', () => {
         } else {
             isFoldableAndIsFolded = false;
         }
+    }
+
+    const handleCollapsiblesOnResize = () => {
+        document.querySelectorAll('.collapse').forEach(element => {
+            let instance = bootstrap.Collapse.getInstance(element);
+
+            if (instance) {
+                instance.hide();
+            }
+        });
+    }
+
+    const handleScreenChange = () => {
+        handleFoldableDisplayChange();
+        handleCollapsiblesOnResize();
     }
 
     window.addEventListener('resize',            handleScreenChange);
