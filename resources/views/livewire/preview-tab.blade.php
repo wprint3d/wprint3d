@@ -397,7 +397,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
             event.command.split(PHP_EOL).forEach(line => {
                 if (preview) {
-                    console.log('pgc:', preview.parser.parseGCode(line));
+                    console.debug('pgc:', preview.parser.parseGCode(line));
                 }
             });
 
