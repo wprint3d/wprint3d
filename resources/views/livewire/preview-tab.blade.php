@@ -101,6 +101,10 @@ let isBuffering = true;
 
 const WHEEL_RESET_TIME_MS = 2500;
 
+const isTabActive = () => (
+    !!document.querySelector('#preview-tab.active')
+);
+
 const parseMovement = line => {
     let parsed = line.trim().replace('> ', '');
 
@@ -152,7 +156,7 @@ const refreshPreview = () => {
         });
     });
 
-    preview = GCodePreview.init({
+    let previewOptions = {
         canvas: canvas,
         topLayerColor:    '#000000',
         lastSegmentColor: '#898989',
@@ -160,7 +164,19 @@ const refreshPreview = () => {
         initialCameraPosition: [ 0, 400, 450 ],
         lineWidth: 3,
         debug: true
-    });
+    };
+
+    let currentTheme = document.querySelector('#currentTheme').innerText.trim();
+
+    if (
+        currentTheme == THEME_OPTIONS.DARK
+        ||
+        (currentTheme.length == 0 && prefersDarkTheme())
+    ) {
+        previewOptions['backgroundColor'] = 'black';
+    }
+
+    preview = GCodePreview.init(previewOptions);
 
     preview.renderExtrusion = showExtrusion;
     preview.renderTravel    = showTravel;
@@ -242,6 +258,18 @@ window.addEventListener('DOMContentLoaded', () => {
 
     showExtrusion = @this.showExtrusion;
     showTravel    = @this.showTravel;
+
+    window.matchMedia('(prefers-color-scheme: light)').addListener(() => {
+        if (!isTabActive()) { return; }
+
+        Livewire.dispatch('initializePreviewTab');
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addListener(() => {
+        if (!isTabActive()) { return; }
+
+        Livewire.dispatch('initializePreviewTab');
+    });
 
     window.addEventListener('refreshSettings', event => {
         if (
