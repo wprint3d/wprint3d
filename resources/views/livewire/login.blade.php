@@ -33,7 +33,7 @@
         </div>
 
         <form wire:ignore.self wire:submit="submit" class="rollable col-11 col-sm-8 col-md-6 col-lg-4 col-xxl-3 bg-body rounded rounded-3 overflow-hidden" style="max-height: 0;">
-            <div class="d-flex flex-column p-4">
+            <div class="d-flex flex-column p-4 border rounded rounded-3">
                 <div class="mb-3">
                     <label class="form-label">Username or email address</label>
                     <input wire:model="identifier" type="text" class="form-control" aria-describedby="emailHelp">
