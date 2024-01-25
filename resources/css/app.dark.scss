@@ -1,10 +1,9 @@
 $primary:   darken(#4F5863, 7%);
 $secondary: #5f7886;
 
-$body:  black;
-$light: lighten(black, 7%);
+$body: black;
 
-$body-bg: lighten($body, 10%);
+$body-bg: $body;
 $body-secondary-bg: lighten(#262626, 10%);
 $body-tertiary-bg: #262626;
 
@@ -23,12 +22,21 @@ $link-hover-color: lighten($body-color, 10%);
 
 $btn-close-color: $body-color;
 
-$danger: darken(red, 15%);
+$danger:    #a52834;
+$success:   #12633c;
+$info:      #035e8c;
+$warning:   #7a4e00;
+
+$light:     black;
+$dark:      #f8f9fa;
 
 .text-navbar { color: darken(white, 13%); }
 
 // Import all of Bootstrap's CSS
 @import '~bootstrap/scss/bootstrap';
+
+.text-danger    { color: #ff5f6e !important; }
+.text-success   { color: #20ab6a !important; }
 
 * {
     scrollbar-color: $primary lighten($secondary, 10%);
