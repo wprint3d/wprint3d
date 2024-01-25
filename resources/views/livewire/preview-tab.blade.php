@@ -1,6 +1,6 @@
 <div>
     <div wire:ignore>
-        <canvas id="gcodePreviewCanvas" class="preview-canvas"></canvas>
+        <canvas id="gcodePreviewCanvas" class="preview-canvas border"></canvas>
 
         <div id="previewNoFileLoadedAlert" class="alert alert-info text-center mt-2 d-none" role="alert">
             No file has been loaded, start a print in order to preview it.
@@ -203,7 +203,8 @@ window.addEventListener('initializePreviewTab', event => {
     if (canvas) {
         let newCanvas    = document.createElement('canvas');
             newCanvas.id = 'gcodePreviewCanvas';
-            newCanvas.classList = [ 'preview-canvas' ];
+            newCanvas.classList.add('preview-canvas');
+            newCanvas.classList.add('border');
 
         canvas.replaceWith( newCanvas );
     }
