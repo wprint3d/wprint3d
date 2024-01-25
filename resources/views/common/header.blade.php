@@ -47,7 +47,7 @@
                     <div class="dropdown text-end">
                         <a href="#" class="d-block link-dark text-decoration-none dropdown-toggle"
                             data-bs-toggle="dropdown" aria-expanded="false">
-                            @svg('person-circle', [ 'class' => 'bg-white border fs-3 rounded-circle' ])
+                            @svg('person-circle', [ 'class' => 'bg-white text-black border fs-3 rounded-circle' ])
                         </a>
                         <livewire:user-options-dropdown />
                     </div>
