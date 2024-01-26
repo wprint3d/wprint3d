@@ -43,9 +43,9 @@
         scrollbar-color: $primary lighten($secondary, 10%);
     }
 
-    *::-webkit-scrollbar-track { background: lighten($secondary, 10%); }
+    *::-webkit-scrollbar-track { background: lighten($body, 15%); }
 
-    *::-webkit-scrollbar-thumb { background-color: $primary; }
+    *::-webkit-scrollbar-thumb { background-color: lighten($primary, 5%); }
 
     body {
         background-color: $body;
