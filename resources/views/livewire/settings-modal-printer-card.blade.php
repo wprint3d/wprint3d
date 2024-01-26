@@ -1,4 +1,4 @@
-<div class="card col-12 col-md-6 col-lg-4 mt-2">
+<div class="card col-12 col-sm-6 col-lg-4 mt-2">
     <img src="images/printer.jpg" class="card-img-top mt-3" alt="{{ $printer->machine['machineType'] ?? 'Unknown printer'  }}">
     <div class="card-body">
         <div class="d-flex justify-content-center mb-2">
@@ -11,10 +11,10 @@
             </span>
         </div>
 
-        <h5 class="card-title"> {{ $printer->machine['machineType'] ?? 'Unknown printer' }} </h5>
+        <h5 class="card-title pt-2"> {{ $printer->machine['machineType'] ?? 'Unknown printer' }} </h5>
 
         <p class="card-text">
-            <ul>
+            <ul class="px-1 px-md-3">
             @foreach ($printer->machine as $key => $value)
                 @if (!is_array($value))
                     <li>

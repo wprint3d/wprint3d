@@ -1,7 +1,7 @@
 <div>
     <livewire:print-progress />
 
-    <div class="d-flex flex-column flex-sm-row justify-content-between p-0 p-lg-2 mt-3 mt-lg-1">
+    <div class="d-flex flex-column flex-md-row justify-content-between p-0 p-lg-2 mt-3 mt-lg-1">
         <div class="btn-group" role="group" aria-label="Button group with nested dropdown">
             <button
                 type="button"

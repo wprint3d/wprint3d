@@ -114,8 +114,10 @@ input[type="file"] { display: none; }
 
 .left-pane,
 .right-pane {
-    transition: width .25s ease-in-out;
     height: 88vh;
+    transition:
+        width  .25s ease-in-out,
+        height .25s ease-in-out;
 }
 
 #webcamFeedActionHint {
@@ -155,22 +157,28 @@ input[type="file"] { display: none; }
         transition: top 0.5s ease 0s;
     }
 
+    .left-pane,
+    .right-pane {
+        padding-right: 3rem !important;
+        padding-left:  3rem !important;
+    }
+
     .left-pane {
-        width: 100%;
-        height: calc( env(viewport-segment-height 0 0) - 2vh );
-        overflow-y: scroll;
-        margin-top: 2vh;
+        width: 100% !important;
+        height: calc( env(viewport-segment-height 0 0) - 2vh ) !important;
+        overflow-y: scroll !important;
+        margin-top: 2vh !important;
     }
 
     .right-pane {
-        width: 100%;
-        position: relative;
-        margin-top: 1vh;
-        height: calc( env(viewport-segment-height 0 0) );
+        width: 100% !important;
+        position: relative !important;
+        margin-top: 1vh !important;
+        height: calc( env(viewport-segment-height 0 0) ) !important;
     }
 
     .terminal {
-        height: calc( env(viewport-segment-height 0 0) - 200px );
+        height: calc( env(viewport-segment-height 0 0) - 200px ) !important;
     }
 }
 
