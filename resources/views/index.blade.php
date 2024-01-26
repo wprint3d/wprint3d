@@ -3,7 +3,7 @@
 @section('main')
 <div class="container-lg pb-3 px-4 px-lg-0">
     <div class="row gap-2">
-        <div class="left-pane overflow-x-auto col-sm-12 col-md-6 col-lg-5 bg-light border rounded-3 p-3">
+        <div class="left-pane overflow-x-auto col-12 col-sm-6 col-lg-5 bg-light border rounded-3 p-3">
             <livewire:select-printer />
             <livewire:connection-status />
             <livewire:temperature-presets />

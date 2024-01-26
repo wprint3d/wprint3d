@@ -1,4 +1,4 @@
-<div class="col-12 col-xl-4 border-bottom border-xl-bottom-0 py-2 border-xl-end">
+<div class="col-12 col-sm-6 col-xl-4 border-bottom border-xl-bottom-0 py-2 border-xl-end">
     <div class="row">
         <div class="col-12 col-lg-4 col-xl-12 mt-xl-2 mb-2 mb-lg-0">
             <label class="form-label"> Type </label>

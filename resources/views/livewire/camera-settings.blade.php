@@ -1,4 +1,4 @@
-<div class="card col-12 col-md-6 col-lg-3 mt-2 @if (!$enabled) opacity-50 @endif">
+<div class="card col-12 col-sm-6 col-lg-3 mt-2 @if (!$enabled) opacity-50 @endif">
     <img src="images/camera.jpg" class="card-img-top mt-3" alt="{{ $camera->label  }}">
     <div class="card-body">
         <div class="d-flex justify-content-center mb-2">
