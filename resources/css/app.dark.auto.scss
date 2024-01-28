@@ -56,4 +56,12 @@
     .bg-body-overlay-lighter { background-color: shade-color($body, 1%); }
 
     #webcamFeedActionHint { text-shadow: 1px 1px black; }
+
+    @media (vertical-viewport-segments: 2) and (device-posture: folded) {
+        .left-pane,
+        .right-pane {
+            padding-right: 3rem !important;
+            padding-left:  3rem !important;
+        }
+    }
 }
