@@ -29,7 +29,8 @@ window.addEventListener('DOMContentLoaded', () => {
     let swipeCount        = 0;
     let swipeResetTimeout = null;
 
-    let isFoldableAndIsFolded = false;
+    let isFoldableAndIsFolded = false,
+        foldedModeHintToast   = null;
 
     const ON_SCREEN_TOP              = 0;
     const OUTSIDE_SCREEN_TOP         = '-100vh';
@@ -75,8 +76,22 @@ window.addEventListener('DOMContentLoaded', () => {
             header.style.top = OUTSIDE_SCREEN_TOP;
 
             isFoldableAndIsFolded = true;
+
+            if (window.localStorage && window.localStorage.getItem('firstTimeFolded') === null) {
+                localStorage.setItem('firstTimeFolded', false.toString());
+
+                foldedModeHintToast = toastify.info(
+                    `While in flex mode, the navbar is hidden.<br>Reveal it by swiping twice from the bottom to the top.`,
+                    FLEX_MODE_HINT_TIMEOUT,
+                    `Flex mode enabled`
+                );
+            }
         } else {
             isFoldableAndIsFolded = false;
+
+            if (foldedModeHintToast) {
+                foldedModeHintToast.hideToast();
+            }
         }
     }
 
