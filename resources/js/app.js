@@ -43,19 +43,21 @@ window.toastify.toast = (bgClass, text, duration = null, title = null, onClick =
 
         onClick();
     };
+
+    return toast;
 };
 
-window.toastify.error = (text, duration = null, title = null, onClick = () => {}) => {
-    window.toastify.toast('bg-danger', text, duration, title, onClick);
-};
+window.toastify.error = (text, duration = null, title = null, onClick = () => {}) => (
+    window.toastify.toast('bg-danger', text, duration, title, onClick)
+);
 
-window.toastify.info = (text, duration = null, title = null, onClick = () => {}) => {
-    window.toastify.toast('bg-info', text, duration, title, onClick);
-};
+window.toastify.info = (text, duration = null, title = null, onClick = () => {}) => (
+    window.toastify.toast('bg-info', text, duration, title, onClick)
+);
 
-window.toastify.success = (text, duration = null, title = null, onClick = () => {}) => {
-    window.toastify.toast('bg-success', text, duration, title, onClick);
-};
+window.toastify.success = (text, duration = null, title = null, onClick = () => {}) => (
+    window.toastify.toast('bg-success', text, duration, title, onClick)
+);
 
 /**
  * Echo exposes an expressive API for subscribing to channels and listening
