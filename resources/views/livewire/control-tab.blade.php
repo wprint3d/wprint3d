@@ -210,7 +210,7 @@
                 <button
                     wire:click="extrudeBack"
                     type="button"
-                    class="btn btn-outline-secondary"
+                    class="btn border"
                     wire:loading.attr="disabled"
                     wire:offline.attr="disabled"
                 >
@@ -243,7 +243,7 @@
                 <button
                     wire:click="extrudeForward"
                     type="button"
-                    class="btn btn-outline-secondary"
+                    class="btn border"
                     wire:loading.attr="disabled"
                     wire:offline.attr="disabled"
                 >
@@ -314,7 +314,7 @@
                         <button
                             wire:click="setHotendTemperature"
                             type="button"
-                            class="btn btn-outline-secondary"
+                            class="btn border"
                             wire:loading.attr="disabled"
                             wire:offline.attr="disabled"
                         >
@@ -349,7 +349,7 @@
                         <button
                             wire:click="setBedTemperature"
                             type="button"
-                            class="btn btn-outline-secondary"
+                            class="btn border"
                             wire:loading.attr="disabled"
                             wire:offline.attr="disabled"
                         >
