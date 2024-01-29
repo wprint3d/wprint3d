@@ -16,13 +16,19 @@
                     value="{{ $subPath ? $subPath : '/' }}"
                 >
 
-                <button wire:click="goUp"   wire:loading.attr="disabled" class="btn btn-primary" type="button" id="filesUpBtn" @if (!$subPath) disabled @endif>
+                <button
+                    wire:click="goUp"   wire:loading.attr="disabled" class="btn btn-primary" type="button" id="filesUpBtn" @if (!$subPath) disabled @endif
+                    wire:offline.attr="disabled"
+                >
                     <span wire:target="goUp" wire:loading.class="animate__animated animate__flash animate__infinite animate__slow">
                         @svg('caret-up-fill')
                     </span>
                 </button>
 
-                <button wire:click="goHome" wire:loading.attr="disabled" class="btn btn-primary" type="button" @if (!$subPath) disabled @endif>
+                <button
+                    wire:click="goHome" wire:loading.attr="disabled" class="btn btn-primary" type="button" @if (!$subPath) disabled @endif
+                    wire:offline.attr="disabled"
+                >
                     <span wire:target="goHome" wire:loading.class="animate__animated animate__flash animate__infinite animate__slow">
                         @svg('house-door-fill')
                     </span> 
@@ -38,6 +44,7 @@
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
                 wire:loading.class="disabled"
+                wire:offline.class="disabled"
             >
                 <div wire:loading wire:target="sortBy">
                     <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -49,10 +56,10 @@
             </a>
 
             <ul class="dropdown-menu">
-                <li><a wire:click="sortBy('NAME_ASCENDING')"  class="dropdown-item" href="#"> By name (ascending)  </a></li>
-                <li><a wire:click="sortBy('NAME_DESCENDING')" class="dropdown-item" href="#"> By name (descending) </a></li>
-                <li><a wire:click="sortBy('DATE_ASCENDING')"  class="dropdown-item" href="#"> By date (ascending)  </a></li>
-                <li><a wire:click="sortBy('DATE_DESCENDING')" class="dropdown-item" href="#"> By date (descending) </a></li>
+                <li><a wire:click="sortBy('NAME_ASCENDING')"  class="dropdown-item" href="#" wire:offline.class="disabled"> By name (ascending)  </a></li>
+                <li><a wire:click="sortBy('NAME_DESCENDING')" class="dropdown-item" href="#" wire:offline.class="disabled"> By name (descending) </a></li>
+                <li><a wire:click="sortBy('DATE_ASCENDING')"  class="dropdown-item" href="#" wire:offline.class="disabled"> By date (ascending)  </a></li>
+                <li><a wire:click="sortBy('DATE_DESCENDING')" class="dropdown-item" href="#" wire:offline.class="disabled"> By date (descending) </a></li>
             </ul>
         </div>
 
@@ -60,6 +67,7 @@
             <button
                 onclick="showCreateFolderModal()"
                 class="btn btn-primary w-100 text-truncate @if (!$writeable) d-none disabled @endif"
+                wire:offline.attr="disabled"
             >
                 @svg('folder-plus') Create folder
             </button>
@@ -75,6 +83,7 @@
                     aria-current="true"
                     wire:click="select('{{ $index }}')"
                     wire:loading.class="disabled"
+                    wire:offline.attr="disabled"
                     @if (!$writeable && !$file['directory']) disabled @endif
                 >
                     <div wire:loading wire:target="select('{{ $index }}')">

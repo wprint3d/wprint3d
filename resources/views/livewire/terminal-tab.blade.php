@@ -39,6 +39,7 @@
                     @if ($sentEmptyCommand) is-invalid  @endif
                 "
                 placeholder="Enter a custom command"
+                wire:offline.attr="disabled"
                 @if (!$printer || $printer->activeFile || !$writeable)
                     disabled
                 @endif
@@ -48,6 +49,7 @@
                 wire:click="queueCommand"
                 wire:target="queueCommand"
                 wire:loading.attr="disabled"
+                wire:offline.attr="disabled"
                 class="btn btn-primary"
                 type="button"
                 @if (!$printer || $printer->activeFile || !$writeable)
@@ -66,15 +68,15 @@
 
     <ul class="list-group">
         <li class="list-group-item">
-          <input wire:model.live="autoScroll" class="form-check-input me-1" type="checkbox">
+          <input wire:model.live="autoScroll" class="form-check-input me-1" type="checkbox" wire:offline.attr="disabled">
           <label class="form-check-label"> Auto-scroll to bottom </label>
         </li>
         <li class="list-group-item">
-          <input wire:model.live="showSensors" class="form-check-input me-1" type="checkbox">
+          <input wire:model.live="showSensors" class="form-check-input me-1" type="checkbox" wire:offline.attr="disabled">
           <label class="form-check-label"> Show sensors updates </label>
         </li>
         <li class="list-group-item">
-          <input wire:model.live="showInputCommands" class="form-check-input me-1" type="checkbox">
+          <input wire:model.live="showInputCommands" class="form-check-input me-1" type="checkbox" wire:offline.attr="disabled">
           <label class="form-check-label"> Show input commands </label>
         </li>
     </ul>

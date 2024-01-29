@@ -42,7 +42,12 @@
 
                         <div class="col-12">
                             <label class="form-label"> Theme </label>
-                            <select wire:model.live="theme" class="form-select" aria-label="Theme selector">
+                            <select
+                                wire:model.live="theme"
+                                class="form-select"
+                                aria-label="Theme selector"
+                                wire:offline.attr="disabled"
+                            >
                                 @foreach (ThemeOption::asSelectArray() as $key => $value)
                                     <option
                                         value="{{ $key }}"

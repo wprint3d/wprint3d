@@ -38,6 +38,7 @@
                     wire:click="delete"
                     wire:loading.attr="disabled"
                     wire:target="delete"
+                    wire:offline.attr="disabled"
                 >
                     <div wire:loading>
                         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>

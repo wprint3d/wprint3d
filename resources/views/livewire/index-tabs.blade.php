@@ -13,6 +13,7 @@
                         onclick="initialize('{{ $tab . '-tab' }}')"
                         wire:loading.attr="disabled"
                         wire:loading.class.remove="active"
+                        wire:offline.attr="disabled"
                     >
                         <span class="mx-2">
                             {{ Str::title( $tab ) }}
@@ -54,6 +55,12 @@
                     aria-labelledby="{{ $tab }}-tab"
                     tabindex="0"
                 >
+                    <div wire:offline class="alert alert-danger w-100" role="alert">
+                        Connection lost, please check your network status and try again. <br>
+                        <br>
+                        All server-side features will be disabled until you're back online.
+                    </div>
+
                     <div wire:loading class="bg-light h-100 opacity-75 position-absolute start-0 top-0 w-100 z-3"></div>
 
                     @livewire( $tab . '-tab', [ 'writeable' => $writeable ], key( $tab . '-tab' ) )

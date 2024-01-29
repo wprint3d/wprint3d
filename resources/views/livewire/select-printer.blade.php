@@ -1,5 +1,12 @@
 <div>
-    <select id="printerSelect" wire:model.live="printerId" wire:change="change" class="form-select" aria-label="Default select example">
+    <select
+        id="printerSelect"
+        wire:model.live="printerId"
+        wire:change="change"
+        class="form-select"
+        aria-label="Printer picker"
+        wire:offline.attr="disabled"
+    >
         @if ($printers->count())
             @if (!$printerId)
                 <option selected> Select a printer </option>

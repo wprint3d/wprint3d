@@ -7,6 +7,7 @@
                     class="form-check-input mx-2"
                     type="checkbox"
                     role="switch"
+                    wire:offline.attr="disabled"
                     @if ($enabled)      checked  @endif
                     @if (!$writeable)   disabled @endif
                 >
@@ -20,7 +21,12 @@
         </div>
         <div class="col-12 col-md-4">
             <label class="form-label"> Resolution </label>
-            <select wire:model.live="resolution" class="form-select" @if (!$writeable) disabled @endif>
+            <select
+                wire:model.live="resolution"
+                class="form-select"
+                wire:offline.attr="disabled"
+                @if (!$writeable) disabled @endif
+            >
                 @foreach ($resolutions as $value)
                     <option value="{{ $value }}" @if ($value == $resolution) selected @endif>
                         {{ $value }}
@@ -30,7 +36,12 @@
         </div>
         <div class="col-12 col-md-4">
             <label class="form-label"> Framerate </label>
-            <select wire:model.live="framerate" class="form-select" @if (!$writeable) disabled @endif>
+            <select
+                wire:model.live="framerate"
+                class="form-select"
+                wire:offline.attr="disabled"
+                @if (!$writeable) disabled @endif
+            >
                 @foreach ($framerates as $value)
                     <option value="{{ $value }}" @if ($value == $framerate) selected @endif>
                         {{ $value }}
@@ -47,6 +58,7 @@
                 placeholder="0.25"
                 min="0.25"
                 step="0.25"
+                wire:offline.attr="disabled"
                 @if (!$writeable) disabled @endif
             >
         </div>

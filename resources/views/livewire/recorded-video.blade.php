@@ -43,6 +43,7 @@
                     wire:click="prepareDeleteRecording"
                     wire:loading.attr="disabled"
                     wire:target="prepareDeleteRecording"
+                    wire:offline.attr="disabled"
                     @if (
                         (isset( $recording['deletable'] ) && !$recording['deletable'])
                         ||

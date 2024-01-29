@@ -10,6 +10,7 @@
                     placeholder="example"
                     aria-label="Username"
                     value="{{ $name }}"
+                    wire:offline.attr="disabled"
                 >
 
                 <button
@@ -17,6 +18,7 @@
                     class="btn btn-primary"
                     type="button"
                     data-bs-toggle="tooltip" data-bs-title="Revert changes."
+                    wire:offline.attr="disabled"
                     @if ($name == $user->name) disabled @endif
                 >
                     @svg('bootstrap-reboot')
@@ -34,6 +36,7 @@
                     placeholder="user@example.com"
                     aria-label="E-mail address"
                     value="{{ $email }}"
+                    wire:offline.attr="disabled"
                 >
 
                 <button
@@ -41,6 +44,7 @@
                     class="btn btn-primary"
                     type="button"
                     data-bs-toggle="tooltip" data-bs-title="Revert changes."
+                    wire:offline.attr="disabled"
                     @if ($email == $user->email) disabled @endif
                 >
                     @svg('bootstrap-reboot')
@@ -54,6 +58,7 @@
                 <select
                     wire:model.live="role"
                     class="form-select"
+                    wire:offline.attr="disabled"
                     @if ($user->_id == $selfUserId) disabled @endif
                 >
                     @foreach (UserRole::asArray() as $key => $value)
@@ -71,6 +76,7 @@
                     class="btn btn-primary"
                     type="button"
                     data-bs-toggle="tooltip" data-bs-title="Revert changes."
+                    wire:offline.attr="disabled"
                     @if ($role == $user->role) disabled @endif
                 >
                     @svg('bootstrap-reboot')
@@ -89,16 +95,23 @@
                     placeholder="Password"
                     aria-label="New password"
                     value="{{ $newPassword }}"
+                    wire:offline.attr="disabled"
                 >
 
-                <button wire:click="changePassword" class="btn btn-primary" type="button">
+                <button
+                    wire:click="changePassword" class="btn btn-primary" type="button"
+                    wire:offline.attr="disabled"
+                >
                     @svg('check')
                 </button>
             </div>
         </div>
         @else
         <div class="col-12 col-xxl-2 mb-1 mb-xxl-0 align-self-end">
-            <button wire:click="enablePasswordChange" class="btn btn-primary w-100">
+            <button
+                wire:click="enablePasswordChange" class="btn btn-primary w-100"
+                wire:offline.attr="disabled"
+            >
                 @if ($hasPassword)
                     @svg('key')
                     Change password
@@ -112,7 +125,10 @@
 
         @if ($isDeleting)
         <div class="col-12 col-xxl-1 mb-1 mb-xxl-0 align-self-end">
-            <button wire:click="delete" class="btn btn-danger w-100">
+            <button
+                wire:click="delete" class="btn btn-danger w-100"
+                wire:offline.attr="disabled"
+            >
                 <div class="d-inline animate__animated animate__flash animate__infinite animate__slower">
                     @svg('trash-fill')
                 </div>
@@ -124,6 +140,7 @@
             <button
                 wire:click="enableDelete"
                 class="btn btn-primary w-100"
+                wire:offline.attr="disabled"
                 @if ($role == UserRole::ADMINISTRATOR || $hasChanges || $user->_id == $selfUserId) disabled @endif
             >
                 @svg('trash-fill') Delete
@@ -136,6 +153,7 @@
                 wire:click="save"
                 wire:loading.attr="disabled"
                 class="btn btn-primary w-100"
+                wire:offline.attr="disabled"
                 @if (!$hasChanges) disabled @endif
             >
                 <div wire:loading>

@@ -16,7 +16,12 @@
                 <div class="row mb-2">
                     <div class="col"></div>
                     <div class="col">
-                        <button wire:click="up" class="btn border" wire:loading.attr="disabled">
+                        <button
+                            wire:click="up"
+                            class="btn border"
+                            wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
+                        >
                             <div wire:loading wire:target="up">
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                 <span class="visually-hidden"> Loading... </span>
@@ -34,7 +39,12 @@
                         <div class="control-hint-snap-left position-absolute align-items-center d-flex h-100 fs-5 fw-light mb-1">
                             X
                         </div>
-                        <button wire:click="left" class="btn border" wire:loading.attr="disabled">
+                        <button
+                            wire:click="left"
+                            class="btn border"
+                            wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
+                        >
                             <div wire:loading wire:target="left">
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                 <span class="visually-hidden"> Loading... </span>
@@ -46,7 +56,12 @@
                         </button>
                     </div>
                     <div class="col">
-                        <button wire:click="home" class="btn border" wire:loading.attr="disabled">
+                        <button
+                            wire:click="home"
+                            class="btn border"
+                            wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
+                        >
                             <div wire:loading wire:target="home">
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                 <span class="visually-hidden"> Loading... </span>
@@ -58,7 +73,12 @@
                         </button>
                     </div>
                     <div class="col p-0">
-                        <button wire:click="right" class="btn border" wire:loading.attr="disabled">
+                        <button
+                            wire:click="right"
+                            class="btn border"
+                            wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
+                        >
                             <div wire:loading wire:target="right">
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                 <span class="visually-hidden"> Loading... </span>
@@ -73,7 +93,12 @@
                 <div class="row mb-3">
                     <div class="col"></div>
                     <div class="col">
-                        <button wire:click="down" class="btn border" wire:loading.attr="disabled">
+                        <button
+                            wire:click="down"
+                            class="btn border"
+                            wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
+                        >
                             <div wire:loading wire:target="down">
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                 <span class="visually-hidden"> Loading... </span>
@@ -91,7 +116,12 @@
             <div class="col-12 col-lg-6 align-self-center mb-2 mb-md-0">
                 <div class="row">
                     <div class="col">
-                        <button wire:click="yForward" class="btn border" wire:loading.attr="disabled">
+                        <button
+                            wire:click="yForward"
+                            class="btn border"
+                            wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
+                        >
                             <div wire:loading wire:target="yForward">
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                 <span class="visually-hidden"> Loading... </span>
@@ -110,7 +140,12 @@
                 </div>
                 <div class="row">
                     <div class="col">
-                        <button wire:click="yBackward" class="btn border" wire:loading.attr="disabled">
+                        <button
+                            wire:click="yBackward"
+                            class="btn border"
+                            wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
+                        >
                             <div wire:loading wire:target="yBackward">
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                 <span class="visually-hidden"> Loading... </span>
@@ -136,6 +171,7 @@
                     class="form-range"
                     min="{{ Configuration::get('controlFeedrateMin', env('PRINTER_CONTROL_FEEDRATE_MIN')) }}"
                     max="{{ Configuration::get('controlFeedrateMax', env('PRINTER_CONTROL_FEEDRATE_MAX')) }}"
+                    wire:offline.attr="disabled"
                 >
                 <span x-text="feedrate"></span>
             </div>
@@ -150,6 +186,7 @@
                     class="form-range"
                     min="{{ Configuration::get('controlDistanceMin', env('PRINTER_CONTROL_DISTANCE_MIN')) }}"
                     max="{{ Configuration::get('controlDistanceMax', env('PRINTER_CONTROL_DISTANCE_MAX')) }}"
+                    wire:offline.attr="disabled"
                 >
                 <span x-text="distance"></span>
             </div>
@@ -170,7 +207,13 @@
             aria-label="Toolbar with button groups"
         >
             <div class="btn-group mx-1" role="group" aria-label="First group">
-                <button wire:click="extrudeBack" type="button" class="btn btn-outline-secondary" wire:loading.attr="disabled">
+                <button
+                    wire:click="extrudeBack"
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    wire:loading.attr="disabled"
+                    wire:offline.attr="disabled"
+                >
                     <div wire:loading wire:target="extrudeBack">
                         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         <span class="visually-hidden"> Loading... </span>
@@ -192,11 +235,18 @@
                     placeholder="Type a number"
                     aria-label="Manual extrusion settings"
                     min="0"
+                    wire:offline.attr="disabled"
                 >
             </div>
 
             <div class="btn-group mx-1" role="group" aria-label="First group">
-                <button wire:click="extrudeForward" type="button" class="btn btn-outline-secondary" wire:loading.attr="disabled">
+                <button
+                    wire:click="extrudeForward"
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    wire:loading.attr="disabled"
+                    wire:offline.attr="disabled"
+                >
                     <div wire:loading wire:target="extrudeForward">
                         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         <span class="visually-hidden"> Loading... </span>
@@ -212,7 +262,13 @@
         @if ($extruderCount > 1)
             <div class="row justify-content-center">
                 <div class="col-11 col-sm-8 col-lg-6">
-                    <select wire:model.live="targetMovementExtruder" class="form-select" aria-label="Select a target extruder" wire:loading.attr="disabled">
+                    <select
+                        wire:model.live="targetMovementExtruder"
+                        class="form-select"
+                        aria-label="Select a target extruder"
+                        wire:loading.attr="disabled"
+                        wire:offline.attr="disabled"
+                    >
                         @for ($index = 0; $index < $extruderCount; $index++)
                             <option
                                 value="{{ $index }}"
@@ -251,10 +307,17 @@
                             min="0"
                             wire:target="setHotendTemperature"
                             wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
                         >
                     </div>
                     <div class="btn-group mx-1" role="group" aria-label="Hotend temperature">
-                        <button wire:click="setHotendTemperature" type="button" class="btn btn-outline-secondary" wire:loading.attr="disabled">
+                        <button
+                            wire:click="setHotendTemperature"
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
+                        >
                             <div wire:loading wire:target="setHotendTemperature">
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                 <span class="visually-hidden"> Loading... </span>
@@ -279,10 +342,17 @@
                             min="0"
                             wire:target="setBedTemperature"
                             wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
                         >
                     </div>
                     <div class="btn-group mx-1" role="group" aria-label="Hotend temperature">
-                        <button wire:click="setBedTemperature" type="button" class="btn btn-outline-secondary" wire:loading.attr="disabled">
+                        <button
+                            wire:click="setBedTemperature"
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
+                        >
                             <div wire:loading wire:target="setBedTemperature">
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                 <span class="visually-hidden"> Loading... </span>
