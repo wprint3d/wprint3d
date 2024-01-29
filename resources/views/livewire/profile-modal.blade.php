@@ -17,7 +17,7 @@
                         </div>
 
                         <div class="col-12 text-center">
-                            <h1 class="display-6"> About me </h1>
+                            <h2 class="fw-light"> About me </h2>
                         </div>
 
                         <div class="col-md-6">
@@ -37,7 +37,7 @@
                         <hr class="my-0">
 
                         <div class="col-12 text-center">
-                            <h1 class="display-6"> Appearance </h1>
+                            <h2 class="fw-light"> Appearance </h2>
                         </div>
 
                         <div class="col-12">
