@@ -21,6 +21,7 @@
                 class="form-check-input"
                 type="checkbox"
                 role="switch"
+                wire:offline.attr="disabled"
                 @if ($enabled)      checked  @endif
                 @if (!$writeable)   disabled @endif
             >
@@ -32,6 +33,7 @@
             <select
                 wire:model.live="format"
                 class="form-select"
+                wire:offline.attr="disabled"
                 @if (!$enabled || !$connected || !$writeable) disabled @endif
             >
                 @foreach ($camera->availableFormats as $availableFormat)

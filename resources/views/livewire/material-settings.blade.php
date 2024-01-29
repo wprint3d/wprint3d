@@ -16,7 +16,7 @@
         </div>
 
         <div class="col-12 col-lg-2 col-xl-12 mt-xl-2 align-self-center text-center">
-            <button wire:click="delete" class="btn btn-danger mt-2 mt-lg-0">
+            <button wire:click="delete" class="btn btn-danger mt-2 mt-lg-0" wire:offline.attr="disabled">
                 @svg('trash') Delete
             </button>
         </div>

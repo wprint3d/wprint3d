@@ -1,16 +1,16 @@
 <div>
     <ul class="dropdown-menu text-small">
         @if (enabled( 'settings.profile' ))
-            <li><a class="dropdown-item" href="#" id="showProfileModalBtn">Profile</a></li>
+            <li><a class="dropdown-item" href="#" id="showProfileModalBtn" wire:offline.class="disabled">Profile</a></li>
         @endif
 
-        <li><a class="dropdown-item" href="#" id="showSettingsModalBtn">Settings</a></li>
+        <li><a class="dropdown-item" href="#" id="showSettingsModalBtn" wire:offline.class="disabled">Settings</a></li>
 
         <li>
             <hr class="dropdown-divider">
         </li>
 
-        <li><a wire:click="logout" class="dropdown-item" href="#">Sign out</a></li>
+        <li><a wire:click="logout" class="dropdown-item" href="#" wire:offline.class="disabled">Sign out</a></li>
     </ul>
 </div>
 

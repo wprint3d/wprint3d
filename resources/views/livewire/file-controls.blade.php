@@ -7,6 +7,7 @@
                 type="button"
                 wire:click="pause"
                 wire:loading.attr="disabled"
+                wire:offline.attr="disabled"
                 class="
                     btn btn-primary rounded-start
                     @if (!$activeFile || !$printer->isRunning())
@@ -27,6 +28,7 @@
                 type="button"
                 wire:click="resume"
                 wire:loading.attr="disabled"
+                wire:offline.attr="disabled"
                 class="
                     btn btn-primary rounded-start
                     @if ($activeFile && !$printer->isRunning())
@@ -48,6 +50,7 @@
             <button
                 type="button"
                 wire:loading.attr="disabled"
+                wire:offline.attr="disabled"
                 class="
                     btn btn-primary rounded-start
                     @if ($activeFile)
@@ -64,6 +67,7 @@
             <button
                 type="button"
                 wire:loading.attr="disabled"
+                wire:offline.attr="disabled"
                 class="btn btn-primary"
                 onclick="openModal('stop')"
                 @if (!$printer || !$activeFile)
@@ -122,7 +126,7 @@
                         wire:target="start"
                     > No </button>
 
-                    <button type="button" class="btn btn-primary" wire:click="start">
+                    <button type="button" class="btn btn-primary" wire:click="start" wire:offline.attr="disabled">
                         <div wire:loading wire:target="start">
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                             <span class="visually-hidden"> Loading... </span>
@@ -166,7 +170,7 @@
                         wire:target="stop"
                     > No </button>
 
-                    <button type="button" class="btn btn-primary" wire:click="stop">
+                    <button type="button" class="btn btn-primary" wire:click="stop" wire:offline.attr="disabled">
                         <div wire:loading wire:target="stop">
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                             <span class="visually-hidden"> Loading... </span>
@@ -210,7 +214,7 @@
                         wire:target="delete"
                     > No </button>
 
-                    <button type="button" class="btn btn-primary" wire:click="delete">
+                    <button type="button" class="btn btn-primary" wire:click="delete" wire:offline.attr="disabled">
                         <div wire:loading wire:target="delete">
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                             <span class="visually-hidden"> Loading... </span>
@@ -240,7 +244,14 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="newFilename" class="col-form-label">Rename <b>{{ basename($selected) }}</b> to:</label>
-                        <input type="text" class="form-control" id="newFilename" value="{{ $selected }}" wire:model="newFilename">
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="newFilename"
+                            value="{{ $selected }}"
+                            wire:model="newFilename"
+                            wire:offline.attr="disabled"
+                        >
 
                         @if ($error)
                             <p class="text-danger text-center mt-4"> {{ $error }} </p>
@@ -256,7 +267,7 @@
                         wire:target="rename"
                     > Cancel </button>
 
-                    <button type="button" class="btn btn-primary" wire:click="rename">
+                    <button type="button" class="btn btn-primary" wire:click="rename" wire:offline.attr="disabled">
                         <div wire:loading wire:target="rename">
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                             <span class="visually-hidden"> Loading... </span>

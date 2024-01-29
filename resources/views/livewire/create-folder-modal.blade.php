@@ -18,6 +18,7 @@
                         placeholder="Folder name"
                         wire:loading.attr="disabled"
                         wire:target="createFolder"
+                        wire:offline.attr="disabled"
                     >
                 </div>
                 <div class="modal-footer">
@@ -28,6 +29,7 @@
                             data-bs-dismiss="modal"
                             wire:loading.attr="disabled"
                             wire:target="createFolder"
+                            wire:offline.attr="disabled"
                         >
                             <div wire:loading>
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -42,6 +44,7 @@
                             type="button"
                             class="btn btn-primary"
                             wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
                         >
                             <div wire:loading>
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>

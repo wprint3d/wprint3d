@@ -2,7 +2,12 @@
     @if ($show && $materials->count())
         <div class="row p-2">
             <div class="col-9 col-md-7">
-                <select wire:model.live="materialIndex" class="form-select" aria-label="Material selector">
+                <select
+                    wire:model.live="materialIndex"
+                    class="form-select"
+                    aria-label="Material selector"
+                    wire:offline.attr="disabled"
+                >
                     @foreach ($materials as $index => $material)
                         <option
                             value="{{ $index }}"
@@ -23,6 +28,7 @@
                     wire:loading.attr="disabled"
                     wire:loading.class="btn-success"
                     wire:loading.class.remove="btn-danger"
+                    wire:offline.attr="disabled"
                     class="btn btn-danger w-100"
                 >
                     <span wire:target="load" wire:loading.class="d-none">

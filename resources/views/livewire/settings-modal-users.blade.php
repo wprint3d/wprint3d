@@ -5,7 +5,7 @@
         @endforeach
 
         <div class="col-12 mt-2 d-flex justify-content-center">
-            <button wire:click="add" class="btn btn-primary"> @svg('plus') Add more </button>
+            <button wire:click="add" class="btn btn-primary" wire:offline.attr="disabled"> @svg('plus') Add more </button>
         </div>
     </div>
 </div>

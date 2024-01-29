@@ -16,6 +16,7 @@
                                     <button
                                         wire:click="add('{{ $camera->_id }}')"
                                         class="btn btn-sm border-success text-success mx-2 my-auto"
+                                        wire:offline.attr="disabled"
                                         @if (!$writeable) disabled @endif
                                     >
                                         <div class="m-0"> @svg('plus') </div>
@@ -60,6 +61,7 @@
                                     <button
                                         wire:click="remove('{{ $camera->_id }}')"
                                         class="btn btn-sm border-danger text-danger mx-2 my-auto"
+                                        wire:offline.attr="disabled"
                                         @if (!$writeable) disabled @endif
                                     >
                                         <div class="m-0"> @svg('dash') </div>
@@ -67,6 +69,7 @@
 
                                     <button
                                         wire:click="toggleRecordable('{{ $camera->_id }}')"
+                                        wire:offline.attr="disabled"
                                         class="
                                             btn btn-sm mx-2 my-auto
                                             {{ $camera->recordable ? 'border-danger text-danger' : 'border-secondary text-secondary' }}

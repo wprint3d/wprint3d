@@ -6,7 +6,7 @@
             @endforeach
 
             <div class="col-12 mt-2 d-flex justify-content-center">
-                <button wire:click="add" class="btn btn-primary"> @svg('plus') Add more </button>
+                <button wire:click="add" class="btn btn-primary" wire:offline.attr="disabled"> @svg('plus') Add more </button>
             </div>
         @else
             <div class="d-flex align-items-center">
@@ -15,7 +15,7 @@
 
                     <p class="text-center mt-3"> No materials are configured, add one or more materials in order to enable temperature presets. </p>
 
-                    <button wire:click="add" class="btn btn-primary"> Add your first material </button>
+                    <button wire:click="add" class="btn btn-primary" wire:offline.attr="disabled"> Add your first material </button>
                 </div>
             </div>
         @endif

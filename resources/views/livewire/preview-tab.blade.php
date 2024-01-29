@@ -36,6 +36,7 @@
                     min="1"
                     step="1"
                     wire:loading.attr="disabled"
+                    wire:offline.attr="disabled"
                 >
                 <span x-text="layer"></span>
             </div>
@@ -58,11 +59,11 @@
 
     <ul class="list-group">
         <li class="list-group-item">
-            <input id="showExtrusionCheck" wire:model.live="showExtrusion" class="form-check-input me-1" type="checkbox">
+            <input id="showExtrusionCheck" wire:model.live="showExtrusion" class="form-check-input me-1" type="checkbox" wire:offline.attr="disabled">
             <label class="form-check-label"> Show extrusion  </label>
         </li>
         <li class="list-group-item">
-            <input id="showTravelCheck" wire:model.live="showTravel" class="form-check-input me-1" type="checkbox">
+            <input id="showTravelCheck" wire:model.live="showTravel" class="form-check-input me-1" type="checkbox" wire:offline.attr="disabled">
             <label class="form-check-label"> Show travel </label>
         </li>
     </ul>

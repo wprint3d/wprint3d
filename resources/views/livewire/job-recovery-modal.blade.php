@@ -31,7 +31,7 @@
                                 <canvas id="recoveryPreviewMainOption" class="preview-canvas col-12"></canvas>
 
                                 <div class="col-12 mt-2 form-check d-flex justify-content-center">
-                                    <input wire:model="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" checked>
+                                    <input wire:model="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" checked wire:offline.attr="disabled">
                                     Continue from line <span class="mx-1"></span>
                                 </div>
                             </div>
@@ -44,7 +44,7 @@
                                 <canvas id="recoveryPreviewAltOption" class="preview-canvas col-12"></canvas>
 
                                 <div class="col-12 mt-2 form-check d-flex justify-content-center">
-                                    <input wire:model="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2">
+                                    <input wire:model="targetRecoveryLine" name="targetRecoveryLine" type="radio" class="form-check-input mx-2" wire:offline.attr="disabled">
                                     Continue from line <span class="mx-1"></span>
                                 </div>
                             </div>
@@ -84,6 +84,7 @@
                             data-bs-dismiss="modal"
                             wire:loading.attr="disabled"
                             wire:target="recover"
+                            wire:offline.attr="disabled"
                         >
                             <div wire:loading>
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -98,6 +99,7 @@
                             type="button"
                             class="btn btn-primary"
                             wire:loading.attr="disabled"
+                            wire:offline.attr="disabled"
                         >
                             <div wire:loading>
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -136,6 +138,7 @@
                         class="btn btn-primary"
                         data-bs-dismiss="modal"
                         wire:loading.class="disabled"
+                        wire:offline.attr="disabled"
                     >
                         <div wire:loading>
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
