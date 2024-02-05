@@ -14,12 +14,7 @@ $body: #f3f3f3;
 // Import Toastify's CSS
 @import 'toastify-js/src/toastify.css';
 
-* {
-    scrollbar-width: auto;
-    scrollbar-color: $primary lighten($secondary, 10%);
-
-    transition: background-color .25s ease-in-out;
-}
+* { transition: background-color .25s ease-in-out; }
 
 /* Chrome, Edge, and Safari */
 *::-webkit-scrollbar {
