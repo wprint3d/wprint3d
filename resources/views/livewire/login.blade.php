@@ -36,7 +36,7 @@
             <div class="d-flex flex-column p-4 border rounded rounded-3">
                 <div class="mb-3">
                     <label class="form-label">Username or email address</label>
-                    <input wire:model="identifier" type="text" class="form-control" aria-describedby="emailHelp">
+                    <input wire:model="identifier" type="text" class="form-control" aria-describedby="emailHelp" @if ($loggingIn) readonly @endif>
                     <div id="emailHelp" class="form-text">
                         The default username is <b>{{ CreateSampleUser::SAMPLE_USER_NAME }}</b>.
                     </div>
@@ -44,7 +44,7 @@
 
                 <div class="mb-3">
                     <label class="form-label">Password</label>
-                    <input wire:model="password" type="password" class="form-control" aria-describedby="passwordHelp">
+                    <input wire:model="password" type="password" class="form-control" aria-describedby="passwordHelp" @if ($loggingIn) readonly @endif>
                     <div id="passwordHelp" class="form-text">
                         The default passsword is <b>{{ CreateSampleUser::SAMPLE_USER_PASSWORD }}</b>.
                     </div>
@@ -78,7 +78,24 @@
                     @endif
                 </span>
 
-                <button type="submit" class="btn btn-primary"> Submit </button>
+                <button type="submit" class="btn btn-primary" @if ($loggingIn) disabled @endif>
+                    <div wire:loading>
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span class="visually-hidden"> Loading... </span>
+
+                        Logging in...
+                    </div>
+
+                    @if ($loggingIn)
+                        <span class="animate__animated animate__flash animate__infinite animate__slower">
+                            Redirecting... 
+                        </span>
+                    @else
+                        <span wire:loading.class="d-none">
+                            Submit
+                        </span>                    
+                    @endif
+                </button>
             </div>
         </form>
     </div>
