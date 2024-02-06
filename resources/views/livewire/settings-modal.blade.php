@@ -10,8 +10,8 @@
                 </div>
                 <div class="modal-body">
                     <div class="row">
-                        <div class="col-12 col-md-3 col-lg-2">
-                            <ul class="nav nav-pills nav-fill flex-row flex-md-column">
+                        <div class="col-12 col-lg-2">
+                            <ul class="nav nav-pills nav-fill flex-row flex-lg-column">
                                 @foreach ($availablePanes as $paneName)
                                     <li class="nav-item">
                                         <a
@@ -34,8 +34,8 @@
                             </ul>
                         </div>
 
-                        <div class="col-12 col-md-9 col-lg-10">
-                            <div class="tab-content pt-3 pt-md-0 px-1">
+                        <div class="col-12 col-lg-10">
+                            <div class="tab-content pt-3 pt-lg-0 px-1">
                                 @foreach ($availablePanes as $paneName)
                                     <div
                                         class="tab-pane fade @if ($loop->first) active show @endif"
