@@ -15,6 +15,7 @@ use Livewire\Component;
 class Login extends Component
 {
     public $identifier, $password, $rememberMe, $logoutReason;
+    public $loggingIn = false;
 
     protected $rules = [
         'identifier'    => 'required|string',
@@ -30,6 +31,8 @@ class Login extends Component
     }
 
     public function submit() {
+        $this->loggingIn = true;
+
         if (!$this->rememberMe) $this->rememberMe = false;
 
         $this->validate();
@@ -43,6 +46,8 @@ class Login extends Component
 
         if (!$user || !Hash::check($this->password, $user->password)) {
             $this->addError('identifier', 'That combination of username or email address and password doesn\'t match our records.');
+
+            $this->loggingIn = false;
 
             return;
         }
