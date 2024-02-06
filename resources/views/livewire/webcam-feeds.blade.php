@@ -16,7 +16,7 @@
                 'camera'    => $camera
             ], key( 'ri_' . $camera->_id ))
 
-            <div id="webcamFeedActionHint" class="text-light d-none d-md-flex align-items-end" onclick="toggleLeftPaneExpansion()">
+            <div id="webcamFeedActionHint" class="text-white d-none d-md-flex align-items-end" onclick="toggleLeftPaneExpansion()">
                 {{-- To be filled by the frontend. --}}
             </div>
         </div>
