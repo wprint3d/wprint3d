@@ -10,8 +10,8 @@
                 </div>
                 <div class="modal-body">
                     <div class="row">
-                        <div class="col-12 col-md-3 col-lg-2">
-                            <ul class="nav nav-pills nav-fill flex-row flex-md-column">
+                        <div class="col-12 col-lg-2">
+                            <ul class="nav nav-pills nav-fill flex-row flex-lg-column">
                                 @foreach ($availablePanes as $paneName)
                                     <li class="nav-item">
                                         <a
@@ -33,8 +33,8 @@
                             </ul>
                         </div>
 
-                        <div class="col-12 col-md-9 col-lg-10">
-                            <div class="tab-content pt-3 pt-md-0 px-1 text-start">
+                        <div class="col-12 col-lg-10">
+                            <div class="tab-content pt-3 pt-lg-0 px-1 text-start">
                                 @if (!$writeable)
                                 <div class="alert alert-info text-center" role="alert">
                                     The access level assigned to your account doesn't let you change settings. <br>
