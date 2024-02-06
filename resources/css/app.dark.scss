@@ -38,12 +38,7 @@ $dark:      #f8f9fa;
 .text-danger    { color: #ff5f6e !important; }
 .text-success   { color: #20ab6a !important; }
 
-* {
-    scrollbar-color: $primary lighten($secondary, 10%);
-}
-
-*::-webkit-scrollbar-track { background: lighten($body, 15%); }
-
+*::-webkit-scrollbar-track { background-color: lighten($body,   15%); }
 *::-webkit-scrollbar-thumb { background-color: lighten($primary, 5%); }
 
 body {
