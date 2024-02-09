@@ -82,9 +82,9 @@ window.addEventListener('DOMContentLoaded', () => {
                                 }
                             }
                         }
-
-                        remainingTime.innerText = result;
                     }
+
+                    remainingTime.innerText = result;
                 }
 
                 if (progressBar.classList.contains('d-none')) {
