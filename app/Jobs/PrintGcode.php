@@ -12,6 +12,7 @@ use App\Events\PrintJobFinished;
 
 use App\Exceptions\TimedOutException;
 
+use App\Libraries\GcodeStat;
 use App\Libraries\Serial;
 
 use App\Models\Configuration;
@@ -322,14 +323,32 @@ class PrintGcode implements ShouldQueue
      */
     public function handle()
     {
+        $log = Log::channel( self::LOG_CHANNEL );
+        $log->info( "Job started: printing \"{$this->filePath}\"" );
+
+        $gcodeStat = new GcodeStat($this->filePath);
+
+        $stopTimestampSecs = null;
+
+        try {
+            $log->debug( __METHOD__ . ': trying to estimate print time...' );
+
+            $expectedPrintTimeSecs = $gcodeStat->getPrintTimeSeconds();
+
+            $log->info( __METHOD__ . ": this print should take about {$expectedPrintTimeSecs} seconds." );
+
+            $stopTimestampSecs = time() + $expectedPrintTimeSecs;
+        } catch (Exception $exception) {
+            $log->warning(
+                __METHOD__ . ': couldn\'t query estimated print time: ' . $exception->getMessage() . PHP_EOL .
+                $exception->getTraceAsString()
+            );
+        }
+
         $this->gcode = Storage::getDriver()->readStream( $this->filePath );
 
         $this->printer->activeFile = $this->filePath;
         $this->printer->save();
-
-        $log = Log::channel( self::LOG_CHANNEL );
-
-        $log->info( 'Job started: printing "' . $this->filePath . '"' );
 
         if (!$this->printer->node) {
             throw new Exception('This printer doesn\'t have a node assigned.');
@@ -548,7 +567,8 @@ class PrintGcode implements ShouldQueue
                     lineNumber: $this->lineNumber,
                     maxLine:    $this->lineNumberCount,
                     isRunning:  true,
-                    statistics: $this->printer->getStatistics()
+                    statistics: $this->printer->getStatistics(),
+                    stopTimestampSecs: $stopTimestampSecs
                 );
 
                 $lastCommandUpdate = time();

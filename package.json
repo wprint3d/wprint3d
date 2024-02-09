@@ -24,6 +24,7 @@
         "alpinejs": "^3.11.1",
         "animate.css": "^4.1.1",
         "bs5-utils": "^1.0.3",
+        "datetime-difference": "^1.0.2",
         "dotenv": "^16.0.3",
         "gcode-preview": "^2.12.0",
         "swipe-listener": "^1.3.0",
