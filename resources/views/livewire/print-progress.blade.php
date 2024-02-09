@@ -5,15 +5,21 @@
             style="width: {{ $progress }}%"
         ></div>
     </div>
-    <div id="printProgressLastCommand" class="text-center @if (!$lastCommand) d-none @endif"> {{ $lastCommand }} </div>
+    <div id="printProgressLastCommand" class="text-center @if (!$lastCommand) d-none @endif">
+        <span class="command">{{ $lastCommand }}</span> <br>
+        <span class="fw-light">
+            <span class="remaining-time">0 seconds</span> remaining
+        </span>
+    </div>
 </div>
 
 @push('scripts')
 <script>
 
 window.addEventListener('DOMContentLoaded', () => {
-    const progressBar = document.querySelector('#printProgressBar');
-    const lastCommand = document.querySelector('#printProgressLastCommand');
+    const progressBar   = document.querySelector('#printProgressBar');
+    const lastCommand   = document.querySelector('#printProgressLastCommand').querySelector('.command');
+    const remainingTime = document.querySelector('#printProgressLastCommand').querySelector('.remaining-time');
 
     let noMaxLineHits = 0;
 
@@ -24,11 +30,62 @@ window.addEventListener('DOMContentLoaded', () => {
             console.debug('PrintProgress:', event);
 
             if (event.maxLine) {
+                if (lastCommand.parentElement.classList.contains('d-none')) {
+                    lastCommand.parentElement.classList.remove('d-none');
+                }
+
                 let progress = (
                     ((event.line > 0 ? event.line : 1) * 100)
                     /
                     event.maxLine
                 );
+
+                if (event.stopTimestampSecs !== null) {
+                    let difference = datetimeDifference(
+                        new Date(),
+                        new Date(event.stopTimestampSecs * 1000)
+                    );
+
+                    if (difference.seconds <= 0) {
+                        result = 'a few seconds';
+                    } else {
+                        let keys            = Object.keys(difference),
+                            firstValidIndex = 0,
+                            result          = '';
+
+                        for (let index = 0; index < keys.length; index++) {
+                            if (difference[ keys[index] ] > 0) {
+                                firstValidIndex = index;
+
+                                break;
+                            }
+                        }
+
+                        for (let index = firstValidIndex; index < keys.length; index++) {
+                            if (keys[index] == 'milliseconds') {
+                                continue;
+                            }
+
+                            let keyLabel = keys[index];
+
+                            if (difference[ keys[index] ] == 1) {
+                                keyLabel = keys[index].substr(0, keys[index].length - 1);
+                            }
+
+                            result += `${difference[ keys[index] ]} ${keyLabel}`;
+
+                            if (keys.length > 1) {
+                                if (keys[index].indexOf('minute') > -1) {
+                                    result += ' and ';
+                                } else if (index < keys.length - 2) {
+                                    result += ', ';
+                                }
+                            }
+                        }
+
+                        remainingTime.innerText = result;
+                    }
+                }
 
                 if (progressBar.classList.contains('d-none')) {
                     progressBar.classList.remove('d-none');
@@ -56,6 +113,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 lastCommand.classList.add('d-none');
 
                 Livewire.dispatch('refreshActiveFile');
+
+                lastCommand.parentElement.classList.add('d-none');
             }
 
             return true;

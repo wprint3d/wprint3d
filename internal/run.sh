@@ -1,12 +1,7 @@
 #!/bin/bash
 
-# if [[ -z $ROLE ]]; then
-#     echo 'A role was expected. Pass ROLE as an environment variable and try again.';
-
-#     exit 1;
-# fi;
-
 export PATH="$PATH":$(pwd)/bin;
+export PATH="$PATH":/root/gcodestat;
 
 wait-for-it mongo:27017 -t 0;
 

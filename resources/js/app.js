@@ -11,6 +11,9 @@ window.axios.defaults.baseURL = '/api';
 import SwipeListener from 'swipe-listener';
 window.SwipeListener = SwipeListener;
 
+import datetimeDifference from 'datetime-difference';
+window.datetimeDifference = datetimeDifference;
+
 Livewire.start();
 
 import toastify from 'toastify-js';

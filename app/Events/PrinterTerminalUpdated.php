@@ -26,13 +26,14 @@ class PrinterTerminalUpdated implements ShouldBroadcast
     public ?int     $line;
     public ?int     $maxLine;
     public bool     $running;
+    public ?int     $stopTimestampSecs = null;
 
     /**
      * Create a new event instance.
      *
      * @return void
      */
-    public function __construct(string $printerId, string $command, ?int $line = null, ?int $maxLine = null, ?int $terminalMaxLines = null, ?bool $isRunning = null, ?array $statistics = null)
+    public function __construct(string $printerId, string $command, ?int $line = null, ?int $maxLine = null, ?int $terminalMaxLines = null, ?bool $isRunning = null, ?array $statistics = null, ?int $stopTimestampSecs = null)
     {
         $this->printerId    = $printerId;
         $this->dateString   = nowHuman();
@@ -43,6 +44,7 @@ class PrinterTerminalUpdated implements ShouldBroadcast
             $isRunning === null
                 ? Printer::getRunningStatusOf( $printerId )
                 : $isRunning;
+        $this->stopTimestampSecs = $stopTimestampSecs;
 
         $terminal = Printer::getConsoleOf( $this->printerId );
 

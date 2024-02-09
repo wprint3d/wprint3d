@@ -115,11 +115,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg &&\
 # PHP extension: intl
 RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) intl
 
+# Install unzip
+RUN apt-get update && apt-get install -y --no-install-recommends unzip &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/*
+
 # Install supervisor(d)
-RUN apt-get update && apt-get install -y --no-install-recommends supervisor
+RUN apt-get update && apt-get install -y --no-install-recommends supervisor &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/*
 
 # Install pstree (psmisc)
-RUN apt-get update && apt-get install psmisc
+RUN apt-get update && apt-get install -y --no-install-recommends psmisc &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/*
+
+# Install gcodestat
+RUN git clone https://github.com/wprint3d/gcodestat /root/gcodestat --depth 1 &&\
+    cd /root/gcodestat &&\
+    sed -i'' 's/CFLAGS := -Wall -Werror/CFLAGS := -Wall/' Makefile &&\
+    make STATIC=0 NOCURL=1 -j$( nproc --all ) &&\
+    mv gcodestat.exe gcodestat;
 
 WORKDIR /var/www
 
