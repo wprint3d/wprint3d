@@ -201,7 +201,7 @@
             'key'       => 'jobRestorationHomingTemperature',
             'type'      => DataType::INTEGER,
             'label'     => 'Job restore homing temperature',
-            'hint'      => 'The absolute time (<b>in celcius</b>) that is required to cool back down to before moving back home after tapping <b>Recover</b> on a failed job. This avoids leaving hot plastic pieces all over the print and the bed.',
+            'hint'      => 'The absolute temperature (<b>in celsius</b>) that is required to cool back down to before moving back home after tapping <b>Recover</b> on a failed job. This avoids leaving hot plastic pieces all over the print and the bed.',
             'writeable' => $writeable
         ])
     </form>
