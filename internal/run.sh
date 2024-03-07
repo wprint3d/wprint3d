@@ -106,6 +106,9 @@ else
         fi;
 
         if [[ "$ROLE" == 'server' ]]; then
+            # Flush cached files
+            php artisan optimize:clear;
+
             truncate --size 0 /var/www/internal/app_ver;
 
             # If the Git repository is present, get the version from `git rev-parse`.
