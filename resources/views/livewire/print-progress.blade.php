@@ -25,6 +25,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const NO_MAX_LINE_HITS_LIMIT = 3;
 
+    const hasNonZeroKey = obj => {
+        let result = false;
+
+        Object.keys(obj).forEach(key => {
+            if (obj[key] >= 0) {
+                result = true;
+
+                return;
+            }
+        });
+
+        return result;
+    };
+
     Echo.private(`console.${getSelectedPrinterId()}`)
         .listen('PrinterTerminalUpdated', event => {
             console.debug('PrintProgress:', event);
@@ -41,17 +55,19 @@ window.addEventListener('DOMContentLoaded', () => {
                 );
 
                 if (event.stopTimestampSecs !== null) {
-                    let difference = datetimeDifference(
+                    let result     = '',
+                        difference = datetimeDifference(
                         new Date(),
                         new Date(event.stopTimestampSecs * 1000)
                     );
 
-                    if (difference.seconds <= 0) {
+                    console.debug('PrintProgress: difference:', difference);
+
+                    if (!hasNonZeroKey(difference)) {
                         result = 'a few seconds';
                     } else {
                         let keys            = Object.keys(difference),
-                            firstValidIndex = 0,
-                            result          = '';
+                            firstValidIndex = 0;
 
                         for (let index = 0; index < keys.length; index++) {
                             if (difference[ keys[index] ] > 0) {
