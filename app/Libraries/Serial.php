@@ -272,7 +272,7 @@ class Serial {
         $lock->release();
     }
 
-    private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null) : void {
+    private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, ?int $stopTimestampSecs = null) : void {
         if (!$this->printerId) return; 
 
         try {
@@ -283,7 +283,8 @@ class Serial {
                 $maxLine,                   // maxLine
                 $this->terminalMaxLines,    // terminalMaxLines
                 $isRunning,                 // isRunning
-                $statistics                 // statistics
+                $statistics,                // statistics
+                $stopTimestampSecs          // stopTimestampSecs
             );
         } catch (Exception $exception) {
             if ($this->log) {
@@ -591,7 +592,7 @@ class Serial {
         return $result;
     }
 
-    public function tryToAppendNow(?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null) {
+    public function tryToAppendNow(?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, ?int $stopTimestampSecs = null) {
         if ($this->terminalAutoAppend) return;
 
         if ($this->terminalBuffer) {
@@ -600,7 +601,8 @@ class Serial {
                 lineNumber: $lineNumber,
                 maxLine:    $maxLine,
                 isRunning:  $isRunning,
-                statistics: $statistics
+                statistics: $statistics,
+                stopTimestampSecs: $stopTimestampSecs
             );
         }
     }
