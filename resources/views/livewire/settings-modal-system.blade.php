@@ -204,5 +204,13 @@
             'hint'      => 'The absolute temperature (<b>in celsius</b>) that is required to cool back down to before moving back home after tapping <b>Recover</b> on a failed job. This avoids leaving hot plastic pieces all over the print and the bed.',
             'writeable' => $writeable
         ])
+
+        @livewire('system-configuration', [
+            'key'       => 'developerMode',
+            'type'      => DataType::BOOLEAN,
+            'label'     => 'Enable developer mode',
+            'hint'      => 'Whether to enable the developer mode which shows a <b>Development</b> tab with tools for core and plugin developers. <b>A page reload is required to apply changes to this setting.</b>',
+            'writeable' => $writeable
+        ])
     </form>
 </div>

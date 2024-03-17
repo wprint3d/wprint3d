@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Enums\UserRole;
 
+use App\Models\Configuration;
 use App\Models\Printer;
 
 use Illuminate\Support\Facades\Auth;
@@ -29,10 +30,16 @@ class SettingsModal extends Component
         $this->role      = $user->role;
         $this->writeable = $user->role == UserRole::ADMINISTRATOR;
 
-        $this->availablePanes = [ 'printers', 'materials', 'cameras', 'recording', 'system', 'users', 'about' ];
+        $this->availablePanes = [ 'printers', 'cameras', 'recording', 'system', 'about' ];
 
-        if (!$this->writeable) {
-            $this->availablePanes = [ 'printers', 'cameras', 'recording', 'system', 'about' ];
+        if ($this->writeable) {
+            $this->availablePanes = [ 'printers', 'materials', 'cameras', 'recording', 'system', 'users' ];
+
+            if (Configuration::get('developerMode')) {
+                $this->availablePanes[] = 'development';
+            }
+
+            $this->availablePanes[] = 'about';
         }
     }
 
