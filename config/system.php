@@ -4,6 +4,7 @@ use App\Enums\BackupInterval;
 
 return [
     'defaults' => [
+
         'machineUUID'               => null, // string
         'renderFileBlockingSecs'    => 60,   // seconds
 
@@ -38,7 +39,8 @@ return [
         'debugSerial'                     => false,   // boolean
         'enableLibCamera'                 => true,    // boolean
         'jobRestorationTimeoutSecs'       => 30,      // seconds
-        'jobRestorationHomingTemperature' => 180      // celsius degrees
+        'jobRestorationHomingTemperature' => 180,     // celsius degrees
+        'developerMode'                   => false    // boolean (toggles the Development tab in the Settings pane sidebar)
 
     ]
 ];
