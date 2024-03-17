@@ -81,7 +81,7 @@ class PrintGcode implements ShouldQueue
     const LOG_CHANNEL = 'gcode-printer';
 
     const PRINTER_REFRESH_INTERVAL_SECS  = 5;
-    const TERMINAL_REFRESH_INTERVAL_SECS = 2;
+    const TERMINAL_REFRESH_INTERVAL_SECS = 1;
 
     const COLOR_SWAP_DEFAULT_X = 0; // mm
     const COLOR_SWAP_DEFAULT_Y = 0; // mm
