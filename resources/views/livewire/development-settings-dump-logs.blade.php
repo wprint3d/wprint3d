@@ -14,6 +14,11 @@
             <div class="row mx-0 pt-1 justify-content-end">
                 <button wire:click="dump" class="btn btn-primary btn-block col-auto" type="button" wire:loading.attr="disabled">
                     <span wire:loading>
+                        <div wire:loading>
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span class="visually-hidden"> Loading... </span>
+                        </div>
+
                         Preparing…
                     </span>
 
