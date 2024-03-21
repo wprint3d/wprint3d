@@ -6,6 +6,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.0.2",
+        "bayfrontmedia/php-mime-types": "^2.0",
         "bensampo/laravel-enum": "^6.2",
         "beyondcode/laravel-websockets": "^1.13",
         "blade-ui-kit/blade-icons": "^1.4",
