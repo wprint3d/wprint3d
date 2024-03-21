@@ -2,6 +2,10 @@
 
 namespace App\Livewire;
 
+use App\Enums\ToastMessageType;
+
+use App\Events\ToastMessage;
+
 use Livewire\Component;
 
 use Livewire\WithFileUploads;
@@ -9,6 +13,8 @@ use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+
+use Bayfront\MimeTypes\MimeType;
 
 class FileUploader extends Component
 {
@@ -22,6 +28,18 @@ class FileUploader extends Component
         $this->validate([
             'gcode' => 'min:0' // max:1048576', // 1GB Max TODO: Implement this!
         ]);
+
+        $fileMimeType = $this->gcode->getMimeType();
+
+        if ($fileMimeType !== MimeType::fromExtension('txt')) {
+            ToastMessage::dispatch(
+                Auth::id(),                                                                     // userId
+                ToastMessageType::ERROR,                                                        // type
+                "Couldn't upload file: the type \"<b>{$fileMimeType}</b>\" is not compatible."  // message
+            );
+
+            return false;
+        }
 
         $uid = ''; $storedFileName = (
             pathinfo($this->gcode->getClientOriginalName(), PATHINFO_FILENAME)

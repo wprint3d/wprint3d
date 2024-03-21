@@ -6,9 +6,11 @@ use App\Enums\BackupInterval;
 use App\Enums\FormatterCommands;
 use App\Enums\Marlin;
 use App\Enums\PauseReason;
+use App\Enums\ToastMessageType;
 
 use App\Events\PrintJobFailed;
 use App\Events\PrintJobFinished;
+use App\Events\ToastMessage;
 
 use App\Exceptions\TimedOutException;
 
@@ -34,6 +36,8 @@ use Illuminate\Support\Str;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+
+use Bayfront\MimeTypes\MimeType;
 
 use Throwable;
 
@@ -325,6 +329,26 @@ class PrintGcode implements ShouldQueue
     {
         $log = Log::channel( self::LOG_CHANNEL );
         $log->info( "Job started: printing \"{$this->filePath}\"" );
+
+        $fileMimeType = Storage::mimeType($this->filePath);
+
+        if (
+            $fileMimeType !== false
+            &&
+            $fileMimeType !== MimeType::fromExtension('txt')
+        ) {
+            ToastMessage::dispatch(
+                $this->owner->_id,                                                                                  // userId
+                ToastMessageType::ERROR,                                                                            // type
+                "Couldn't start print: the selected file with type \"<b>{$fileMimeType}</b>\" is not compatible."   // message
+            );
+
+            $log->info("Aborted: incompatible file type \"{$fileMimeType}\".");
+
+            $this->finished( resetPrinter: true );
+
+            return;
+        }
 
         $gcodeStat = new GcodeStat($this->filePath);
 
