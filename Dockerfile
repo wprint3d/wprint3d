@@ -31,11 +31,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends inotify-tools &
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
-# PHP extensions: MongoDB + Redis + DIO (Direct I/O)
-RUN pecl install -f mongodb redis dio
+# PHP extensions: MongoDB
+RUN pecl install -f --onlyreqdeps --nobuild mongodb      &&\
+    cd "$(pecl config-get temp_dir)/mongodb"             &&\
+    phpize                                               &&\
+    ./configure                                          &&\
+    make -j$(nproc --all) && make install
 
-# PHP extension: downgraded Swoole (5.0.3), workarounds issue #5198
-RUN pecl install -f swoole-5.0.3
+# PHP extensions: Redis
+RUN pecl install -f --onlyreqdeps --nobuild redis        &&\
+    cd "$(pecl config-get temp_dir)/redis"               &&\
+    phpize                                               &&\
+    ./configure                                          &&\
+    make -j$(nproc --all) && make install
+
+# PHP extensions: DIO
+RUN pecl install -f --onlyreqdeps --nobuild dio          &&\
+    cd "$(pecl config-get temp_dir)/dio"                 &&\
+    phpize                                               &&\
+    ./configure                                          &&\
+    make -j$(nproc --all) && make install
+
+# PHP extensions: Swoole 5.0.3
+RUN pecl install -f --onlyreqdeps --nobuild swoole-5.0.3 &&\
+    cd "$(pecl config-get temp_dir)/swoole"              &&\
+    phpize                                               &&\
+    ./configure                                          &&\
+    make -j$(nproc --all) && make install
 
 # Enable PECL-based extensions: MongoDB + Redis + DIO (Direct I/O)
 RUN docker-php-ext-enable mongodb redis dio swoole
@@ -104,7 +126,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends udev &&\
 RUN apt-get update && apt-get install -y --no-install-recommends libmemcached-dev &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/* &&\
-    pecl install -f memcached &&\
+    pecl install -f --onlyreqdeps --nobuild memcached    &&\
+    cd "$(pecl config-get temp_dir)/memcached"           &&\
+    phpize                                               &&\
+    ./configure                                          &&\
+    make -j$(nproc --all) && make install                &&\
     docker-php-ext-enable memcached
 
 # Install ffmpeg
