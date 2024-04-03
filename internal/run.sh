@@ -3,15 +3,55 @@
 export PATH="$PATH":$(pwd)/bin;
 export PATH="$PATH":/root/gcodestat;
 
-wait-for-it mongo:27017 -t 0;
+waitForThirdPartyDependency() {
+    echo 'Waiting for "'"$1"'" to become available...';
 
-echo 'Waiting for Redis to be ready...';
+    START_TIME=$(date '+%s');
+    TIMEOUT_SECS=3;
 
-while ! redis-cli -h redis get '' 2>&1 > /dev/null; do
-    sleep 1;
+    while [[ ! -f 'bin/'"$1" ]]; do
+        if [[ $(( $(date '+%s') - "$START_TIME" )) -gt $TIMEOUT_SECS ]]; then
+            echo 'Timed out waiting for "'"$1"'" to be available. Shutting down...';
+
+            exit 1;
+        fi;
+
+        sleep .1;
 done;
+}
 
-rm -fv '/var/www/internal/.bundler-exit-status';
+waitForThirdPartyDependencies() {
+    waitForThirdPartyDependency 'wait-for-it';
+    waitForThirdPartyDependency 'doctum';
+}
+
+installThirdPartyDependencies() {
+    if [[ ! -f 'bin/wait-for-it' ]]; then
+        printf 'Installing dependency: wait-for-it... ';
+
+        curl -s https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -o bin/wait-for-it &&\
+            chmod +x bin/wait-for-it;
+
+        if [ $? -eq 0 ]; then
+            printf 'OK\n';
+        else
+            exit 1;
+        fi;
+    fi;
+
+    if [[ ! -f 'bin/doctum' ]]; then
+        printf 'Installing dependency: doctum... ';
+
+        curl -s https://doctum.long-term.support/releases/latest/doctum.phar -o bin/doctum &&\
+            chmod +x bin/doctum;
+
+        if [ $? -eq 0 ]; then
+            printf 'OK\n';
+        else
+            exit 1;
+        fi;
+    fi;
+}
 
 waitForAssetBundler() {
     if [[ $(php artisan get:env ASSETS_WATCHER_ENABLED --default=true) == 'true' ]]; then
@@ -75,6 +115,22 @@ refreshThirdPartyLicenses() {
         echo ''                                                                                 >> $TPL_PATH;
     done;
 }
+
+if [[ "$ROLE" == 'server' ]]; then
+    installThirdPartyDependencies;
+else
+    waitForThirdPartyDependencies;
+fi;
+
+wait-for-it mongo:27017 -t 0;
+
+echo 'Waiting for Redis to be ready...';
+
+while ! redis-cli -h redis get '' 2>&1 > /dev/null; do
+    sleep 1;
+done;
+
+rm -fv '/var/www/internal/.bundler-exit-status';
 
 if [[ -z $ROLE ]]; then
     echo "End of script reached, this container will run as a dummy and, as such, it won't actually do anything.";
