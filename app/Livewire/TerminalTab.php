@@ -88,7 +88,7 @@ class TerminalTab extends Component
 
         Log::debug( __METHOD__ . ': ' . ($activePrinter ?? 'none') );
 
-        $this->printer = Printer::select('activeFile', 'node', 'baudRate', 'settings')->find( $activePrinter );
+        $this->printer = Printer::select('activeFile', 'connected', 'node', 'baudRate', 'settings')->find( $activePrinter );
     }
 
     public function updateTerminalLog() {
@@ -145,7 +145,7 @@ class TerminalTab extends Component
         $activePrinter = Auth::user()->getActivePrinter();
 
         if ($activePrinter) {
-            $this->printer = Printer::select('activeFile', 'node', 'baudRate', 'settings')->find( $activePrinter );
+            $this->printer = Printer::select('activeFile', 'connected', 'node', 'baudRate', 'settings')->find( $activePrinter );
         }
     }
 
