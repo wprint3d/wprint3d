@@ -566,7 +566,7 @@ class JobRecoveryModal extends Component
         $this->baseFilesDir = env('BASE_FILES_DIR');
 
         $this->printer =
-            Printer::select('available', 'activeFile', 'hasActiveJob', 'lastJobHasFailed', 'lastLine')
+            Printer::select('available', 'activeFile', 'connected', 'hasActiveJob', 'lastJobHasFailed', 'lastLine')
                    ->find( $this->user->getActivePrinter() );
 
         if ($this->printer && $this->printer->lastLine !== null) {
