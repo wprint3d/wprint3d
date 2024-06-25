@@ -122,6 +122,12 @@ class MapSerialPrinters extends Command
             }
         }
 
+        if (!isset($machine['extruderCount'])) {
+            $machine['extruderCount'] = 1;
+
+            $log->warning("machine.extruderCount is not set!");
+        }
+
         return $machine;
     }
 
@@ -309,16 +315,12 @@ class MapSerialPrinters extends Command
                         $changeCount++;
                     }
 
-                    $extruderIndex = 0;
-
-                    while (true) {
+                    for ($extruderIndex = 0; $extruderIndex < $machine['extruderCount']; $extruderIndex++) {
                         $response = $serial->query('M105 T' . $extruderIndex);
 
                         if (!Str::contains( $response, 'ok' )) break;
 
                         $printer->setStatistics( $response, $extruderIndex );
-
-                        $extruderIndex++;
                     }
 
                     $found = true;
