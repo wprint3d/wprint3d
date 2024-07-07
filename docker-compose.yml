@@ -258,11 +258,9 @@ services:
       # - mariadb
       - mapper
   redis:
-    image: redis
+    image: ghcr.io/microsoft/garnet
     restart: always
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-    command: redis-server --save "" --appendonly no
+    command: --recover false --incsnap false --aof false --aof-null-device true
   mongo:
     image: mongo:4.4.6
     restart: always
