@@ -258,9 +258,9 @@ services:
       # - mariadb
       - mapper
   redis:
-    image: ghcr.io/microsoft/garnet
+    image: eqalpha/keydb
     restart: always
-    command: --recover false --incsnap false --aof false --aof-null-device true
+    command: keydb-server --save "" --appendonly no --protected-mode no
   mongo:
     image: mongo:4.4.6
     restart: always
