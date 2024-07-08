@@ -261,9 +261,11 @@ services:
       # - mariadb
       - mapper
   redis:
-    image: eqalpha/keydb
+    image: redis:7.2.5
     restart: always
-    command: keydb-server --save "" --appendonly no --protected-mode no
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    command: redis-server --save "" --appendonly no
   mongo:
     image: mongo:4.4.6
     restart: always
