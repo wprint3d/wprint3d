@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Log;
 
 use Error;
 use Exception;
+use Throwable;
 
 class Serial {
 
@@ -259,6 +260,7 @@ class Serial {
     private function configure() {
         $lock = $this->blockWhileLocking();
 
+        try {
         $this->fd = dio_open(
             self::TERMINAL_PATH . '/' . self::TERMINAL_PREFIX . $this->fileName, // filename
             O_RDWR | O_NONBLOCK | O_ASYNC                                        // flags
@@ -272,8 +274,11 @@ class Serial {
             'stop'   => 1,
             'parity' => 0
         ]);
-
+        } catch (Throwable $throwable) {
         $lock->release();
+
+            throw $throwable;
+        }
     }
 
     private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, ?int $stopTimestampSecs = null) : void {
