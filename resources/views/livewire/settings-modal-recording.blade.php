@@ -52,7 +52,7 @@
         <div class="col-12 col-md-4">
             <label class="form-label"> Capture interval </label>
             <input
-                wire:model="captureInterval"
+                wire:model.live="captureInterval"
                 type="number"
                 class="form-control"
                 placeholder="0.25"
