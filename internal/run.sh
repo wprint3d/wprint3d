@@ -54,20 +54,15 @@ installThirdPartyDependencies() {
 }
 
 waitForAssetBundler() {
-    if [[ $(php artisan get:env ASSETS_WATCHER_ENABLED --default=true) == 'true' ]]; then
-        # Wait for Vite to become available (no timeout)
-        wait-for-it bundler:5173 -t 0;
-    else
-        echo 'Waiting for the asset bundler to exit...';
+    echo 'Waiting for the asset bundler to exit...';
 
-        while [[ ! -e '/var/www/internal/.bundler-exit-status' ]]; do
-            if [[ "$ROLE" == 'server' ]]; then
-                refreshDockerLog;
-            fi;
+    while [[ ! -e '/var/www/internal/.bundler-exit-status' ]]; do
+        if [[ "$ROLE" == 'server' ]]; then
+            refreshDockerLog;
+        fi;
 
-            sleep 1;
-        done;
-    fi;
+        sleep 1;
+    done;
 }
 
 export LAST_UPDATE=$(date +%s);
@@ -432,15 +427,11 @@ else
 
             php artisan up;
 
-            if [[ $(php artisan get:env ASSETS_WATCHER_ENABLED --default=true) == 'true' ]]; then
-                npm run dev;
-            else
-                printf $BUILD_EXIT_STATUS > /var/www/internal/.bundler-exit-status;
+            printf $BUILD_EXIT_STATUS > /var/www/internal/.bundler-exit-status;
 
-                while [[ -e /var/www/internal/.bundler-exit-status ]]; do
-                    sleep 5;
-                done;
-            fi;
+            while [[ -e /var/www/internal/.bundler-exit-status ]]; do
+                sleep 5;
+            done;
         elif [[ "$ROLE" == 'streamer' ]]; then
             getFreePort() {
                 port=$PORT_SCAN_START;
