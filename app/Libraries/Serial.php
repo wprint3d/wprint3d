@@ -198,6 +198,10 @@ class Serial {
             }
 
             if ($millis - $clock['lastRun'] > $clock['tickRate']) {
+                if ($this->log) {
+                    $this->log->debug( __METHOD__ . ": {$key}: the clock has ticked! - millis = {$millis}, lastRun = {$clock['lastRun']}, tickRate = {$clock['tickRate']}" );
+                }
+
                 $this->clocks[ $key ]['lastRun'] = $millis;
 
                 try { $clock['callable'](); }
