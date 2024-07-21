@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+
 use Exception;
 
 class SaveSnapshot implements ShouldQueue
@@ -42,6 +44,17 @@ class SaveSnapshot implements ShouldQueue
     private string $jobUID;
 
     const SNAPSHOTS_DIRECTORY = 'snapshots';
+
+    /**
+     * Get the middleware the job should pass through.
+     *
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        // Prevents overlappings jobs from being retried for, at least, 60s.
+        return [(new WithoutOverlapping($this->url))->dontRelease()->expireAfter(60)];
+    }
 
     /**
      * Create a new job instance.
