@@ -175,6 +175,10 @@ else
 
             composer install;
 
+            if [[ $? -ne 0 ]]; then
+                exit 1; # crash and wait for self-restart
+            fi;
+
             MACHINE_UUID=$(php artisan get:machine-uuid);
 
             if [[ "$MACHINE_UUID" == '' ]]; then
