@@ -68,12 +68,12 @@ class ControlTab extends Component
                 $mainExtruder = $statistics['extruders'][ array_key_first($statistics['extruders']) ];
             }
 
-            if ($statistics['bed']) {
+            if (isset($statistics['bed']) && $statistics['bed']) {
                 $heatedBed    = $statistics['bed'];
             }
 
-            $this->hotendTemperature = $mainExtruder['target'];
-            $this->bedTemperature    = $heatedBed['target'];
+            $this->hotendTemperature = $mainExtruder['target'] ?? 0;
+            $this->bedTemperature    = $heatedBed['target']    ?? 0;
         }
     }
 
