@@ -15,7 +15,9 @@ Marlin 2.x          | ✓
 Other firmwares     | No support 
 
 > [!NOTE]  
-> When paused from the web or from the G-code itself, **M0**, **M1** and **M600** color swaps are supported, however, these commands could time out on some printers, if that happens, resuming from the web won't work and you'll be required to **click the physical printer's button** *(or tap the screen if it has a touchscreen)*. For compatibility and reliability reasons, **M600** is converted to a sequence of **M0** instead (to allow for resuming through the web).
+> When paused from the web or from the G-code itself, **M0**, **M1** and **M600** color swaps are supported, however, these commands could time out on some printers, if that happens, resuming from the web won't work and you'll be required to **click the physical printer's button** *(or tap the screen if it has a touchscreen)*.
+>
+> For compatibility and reliability reasons, **M600** is converted to a sequence of **M0** instead (to allow for resuming through the web).
 
 ### Host architecture
 
