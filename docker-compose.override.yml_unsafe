@@ -8,7 +8,6 @@
 # the "_unsafe" suffix from its name, put all the services down and then bring
 # them back up.
 
-version: "3.9"
 services:
   redis:
     ports:
