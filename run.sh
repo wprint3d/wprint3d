@@ -58,11 +58,15 @@ if [[ -e /opt/vc ]]; then
     cp -rfv /opt/vc ./internal/vc;
 fi;
 
+if [[ "$(uname -m)" == *"armv7"*  ]]; then
+    ARMV7_PATCHED_OVERRIDE="-fdocker-compose-armv7.override.yml";
+fi;
+
 if [[ "$ENV" == 'dev' ]]; then
-    docker compose -f docker-compose-development.yml pull || exit 1;
-    docker compose -f docker-compose-development.yml build --progress plain || exit 1;
+    docker compose -f docker-compose-development.yml "$ARMV7_PATCHED_OVERRIDE" pull || exit 1;
+    docker compose -f docker-compose-development.yml "$ARMV7_PATCHED_OVERRIDE" build --progress plain || exit 1;
 elif [[ "$ENV" == 'production' ]]; then
-    docker compose pull || exit 1;
+    docker compose -f docker-compose.yml "$ARMV7_PATCHED_OVERRIDE" pull || exit 1;
 fi;
 
 for container_name in $(docker ps --format '{{ .Names }}'  | grep buildx_buildkit_builder); do
@@ -71,10 +75,10 @@ done;
 
 if [[ "$ENV" == 'dev' ]]; then
     if [[ -f 'docker-compose.override.yml' ]]; then
-        docker compose -f docker-compose-development.yml -f docker-compose.override.yml up -d --remove-orphans;
+        docker compose -f docker-compose-development.yml "$ARMV7_PATCHED_OVERRIDE" -f docker-compose.override.yml up -d --remove-orphans;
     else
-        docker compose -f docker-compose-development.yml up -d --remove-orphans;
+        docker compose -f docker-compose-development.yml "$ARMV7_PATCHED_OVERRIDE" up -d --remove-orphans;
     fi;
 elif [[ "$ENV" == 'production' ]]; then
-    docker compose up -d --remove-orphans;
+    docker compose -f docker-compose.yml "$ARMV7_PATCHED_OVERRIDE" up -d --remove-orphans;
 fi;
