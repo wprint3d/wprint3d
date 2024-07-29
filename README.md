@@ -32,7 +32,7 @@ Other architectures | :x: No support
 > [!CAUTION]
 > **armhf/armv7l** builds are not currently runnable, since the latest version of **MongoDB** is not compatible with the architecture.
 >
-> We'll migrate to **FerretDB** instead once the missing agregation features set is implemented.
+> We'll migrate to **FerretDB** instead once the missing aggregation feature set is implemented.
 
 > [!WARNING]
 > Further testing is pending on small and low-powered SBCs as they may freeze sometimes.
