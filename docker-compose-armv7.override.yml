@@ -1,7 +1,0 @@
-services:
-  mongo:
-    image: webhippie/mongodb:latest-arm32v7
-    restart: always
-    command: mongod --quiet
-    volumes:
-      - mongo:/var/lib/mongodb
