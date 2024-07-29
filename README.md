@@ -10,9 +10,9 @@ WPrint 3D is a FDM printer web-based remote control software compatible with mos
 
 Firmware            | Support     
 ------------------- | -----------
-Marlin 1.x          | ✓          
-Marlin 2.x          | ✓          
-Other firmwares     | No support 
+Marlin 1.x          | :white_check_mark:
+Marlin 2.x          | :white_check_mark:
+Other firmwares     | :x: No support
 
 > [!NOTE]  
 > When paused from the web or from the G-code itself, **M0**, **M1** and **M600** color swaps are supported, however, these commands could time out on some printers, if that happens, resuming from the web won't work and you'll be required to **click the physical printer's button** *(or tap the screen if it has a touchscreen)*.
@@ -23,14 +23,19 @@ Other firmwares     | No support
 
 Architecture        | Support
 ------------------- | -----------
-arm                 | ✓\*
-arm64               | ✓
-amd64               | ✓
-x86                 | ✓
-Other architectures | No support 
+arm                 | :exclamation: Broken (*read more below*)
+arm64               | :white_check_mark:
+amd64               | :white_check_mark:
+x86                 | :white_check_mark:
+Other architectures | :x: No support
+
+> [!CAUTION]
+> **armhf/armv7l** builds are not currently runnable, since the latest version of **MongoDB** is not compatible with the architecture.
+>
+> We'll migrate to **FerretDB** instead once the missing agregation features set is implemented.
 
 > [!WARNING]
-> Further testing is pending on **arm**. Memory management may not be stable on small and low-powered SBCs as they may freeze sometimes.
+> Further testing is pending on small and low-powered SBCs as they may freeze sometimes.
 >
 > On a **Raspberry Pi 3** or any other low-memory SBC, try running a headless OS (such as **Ubuntu Server**) and strip out any unnecessary components, such as `snapd` and `multipathd`. If needed, **add a swap partition and enable swapping**.
 
@@ -38,10 +43,10 @@ Other architectures | No support
 
 Operating system    | Support
 ------------------- | -----------
-GNU/Linux           | ✓
-Windows             | ✓\* (experimental)
-MacOS               | Untested
-Other OSes          | Untested (may work if they can run Docker)
+GNU/Linux           | :white_check_mark:
+Windows             | :white_check_mark:\* (experimental)
+MacOS               | :grey_question: Untested
+Other OSes          | :grey_question: Untested (may work if they can run Docker)
 
 > [!NOTE]
 > Windows support is experimental and relies on **WSL2** which requires **Windows 10 or greater**. If this is of your interest, read more below.
