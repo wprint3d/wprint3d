@@ -1,5 +1,15 @@
 #!/bin/bash
 
+MEMORY_TOTAL_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo);
+
+export LOW_MEMORY_MODE=0;
+
+if [[ "$MEMORY_TOTAL_KB" -lt $(( 1024 * 1024 )) ]]; then # less than 1 GiB
+    export LOW_MEMORY_MODE=1;
+
+    echo 'WARNING! Low-memory system detected, the LOW_MEMORY_MODE flag has been enabled.';
+fi;
+
 export PATH="$PATH":$(pwd)/bin;
 export PATH="$PATH":/root/gcodestat;
 
@@ -157,6 +167,9 @@ else
         fi;
 
         if [[ "$ROLE" == 'server' ]]; then
+            if [[ $LOW_MEMORY_MODE -eq 1 ]]; then
+                waitForAssetBundler;
+            fi;
             # Flush cached files
             php artisan optimize:clear;
 
@@ -211,7 +224,9 @@ else
 
             refreshDockerLog;
 
+            if [[ "$LOW_MEMORY_MODE" -ne 1 ]]; then
             waitForAssetBundler;
+            fi;
 
             refreshThirdPartyLicenses;
 
@@ -237,6 +252,10 @@ else
                 php artisan serve        --host 0.0.0.0 --port 80;
             fi;
         elif [[ "$ROLE" == 'queue' ]]; then
+            if [[ $LOW_MEMORY_MODE -eq 1 ]]; then
+                waitForAssetBundler;
+            fi;
+
             php artisan cache:clear;
             php artisan queue:flush;
             php artisan queue:restart;
@@ -399,6 +418,10 @@ else
                     done;
             done;
         elif [[ "$ROLE" == 'scheduler' ]]; then
+            if [[ $LOW_MEMORY_MODE -eq 1 ]]; then
+                waitForAssetBundler;
+            fi;
+
             if [[ "$KIND" == 'short' ]]; then
                 while true; do
                     php artisan short-schedule:run;
