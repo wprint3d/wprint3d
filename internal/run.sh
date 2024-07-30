@@ -27,7 +27,7 @@ waitForThirdPartyDependency() {
         fi;
 
         sleep .1;
-done;
+    done;
 }
 
 waitForThirdPartyDependencies() {
@@ -166,13 +166,18 @@ else
             fi;
         fi;
 
-        if [[ "$ROLE" == 'server' ]]; then
+        if [[ "$ROLE" == 'server' ]]; then        
             if [[ $LOW_MEMORY_MODE -eq 1 ]]; then
                 waitForAssetBundler;
             fi;
+
+            # Reset proxy configuration
+            truncate --size 0 /var/www/proxy/internal/*.conf;
+
             # Flush cached files
             php artisan optimize:clear;
 
+            # Reset app version information
             truncate --size 0 /var/www/internal/app_ver;
 
             # If the Git repository is present, get the version from `git rev-parse`.
@@ -225,7 +230,7 @@ else
             refreshDockerLog;
 
             if [[ "$LOW_MEMORY_MODE" -ne 1 ]]; then
-            waitForAssetBundler;
+                waitForAssetBundler;
             fi;
 
             refreshThirdPartyLicenses;
