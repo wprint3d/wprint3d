@@ -4,6 +4,9 @@
 
 WPrint 3D is a FDM printer web-based remote control software compatible with most common standard serial/TTY over USB printers.
 
+> [!TIP]
+> A renewed, faster and more reliable frontend is coming!
+
 ## Compatibility information
 
 ### Printer/CNC firmware
