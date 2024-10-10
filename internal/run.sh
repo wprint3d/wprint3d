@@ -174,10 +174,6 @@ else
             if [[ $? -ne 0 ]]; then
                 exit 1; # crash and wait for self-restart
             fi;
- 
-            if [[ $LOW_MEMORY_MODE -eq 1 ]]; then
-                waitForAssetBundler;
-            fi;
 
             # Reset proxy configuration
             truncate --size 0 /var/www/proxy/internal/*.conf;
