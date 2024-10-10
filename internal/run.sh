@@ -166,7 +166,15 @@ else
             fi;
         fi;
 
-        if [[ "$ROLE" == 'server' ]]; then        
+        if [[ "$ROLE" == 'server' ]]; then
+            refreshDockerLog;
+
+            composer install;
+
+            if [[ $? -ne 0 ]]; then
+                exit 1; # crash and wait for self-restart
+            fi;
+ 
             if [[ $LOW_MEMORY_MODE -eq 1 ]]; then
                 waitForAssetBundler;
             fi;
@@ -190,12 +198,6 @@ else
             printf '' > /var/www/internal/startup/startup.txt;
 
             refreshDockerLog;
-
-            composer install;
-
-            if [[ $? -ne 0 ]]; then
-                exit 1; # crash and wait for self-restart
-            fi;
 
             MACHINE_UUID=$(php artisan get:machine-uuid);
 
