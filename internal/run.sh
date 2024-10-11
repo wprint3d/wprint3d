@@ -71,7 +71,7 @@ waitForAssetBundler() {
             refreshDockerLog;
         fi;
 
-        sleep 1;
+        sleep 5;
     done;
 }
 
@@ -193,8 +193,6 @@ else
 
             printf '' > /var/www/internal/startup/startup.txt;
 
-            refreshDockerLog;
-
             MACHINE_UUID=$(php artisan get:machine-uuid);
 
             if [[ "$MACHINE_UUID" == '' ]]; then
@@ -225,8 +223,6 @@ else
                 done;
             fi;
 
-            refreshDockerLog;
-
             if [[ "$LOW_MEMORY_MODE" -ne 1 ]]; then
                 waitForAssetBundler;
             fi;
@@ -242,8 +238,6 @@ else
             php artisan make:marlin-labels;
 
             php artisan reset:active-jobs;
-
-            refreshDockerLog;
 
             if [ $(php artisan get:env OCTANE_ENABLED) == 'true' ]; then
                 echo 'Starting Octane web server...';
