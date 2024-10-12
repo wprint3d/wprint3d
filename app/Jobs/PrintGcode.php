@@ -12,6 +12,7 @@ use App\Events\PrintJobFailed;
 use App\Events\PrintJobFinished;
 use App\Events\ToastMessage;
 
+use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
 
 use App\Libraries\GcodeStat;
@@ -106,14 +107,23 @@ class PrintGcode implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(string $filePath, User $owner, string $printerId)
+    public function __construct(User $owner, string $printerId)
     {
         $this->queue = 'prints';
 
         $this->uid      = uniqid( more_entropy: true );
-        $this->filePath = $filePath;
         $this->owner    = $owner;
         $this->printer  = Printer::find( $printerId );
+
+        if (!$this->printer) {
+            throw new InitializationException('The selected printer doesn\'t exist.');
+        }
+
+        if (!$this->printer->activeFile) {
+            throw new InitializationException('This printer doesn\'t have an active file.');
+        }
+
+        $this->filePath = $this->printer->activeFile;
 
         $this->runningTimeoutSecs   = Configuration::get('runningTimeoutSecs');
         $this->commandTimeoutSecs   = Configuration::get('commandTimeoutSecs');
@@ -350,7 +360,7 @@ class PrintGcode implements ShouldQueue
             return;
         }
 
-        $gcodeStat = new GcodeStat($this->filePath);
+        $gcodeStat = new GcodeStat( Storage::disk('gcode')->path($this->filePath) );
 
         $stopTimestampSecs = null;
 
@@ -369,10 +379,7 @@ class PrintGcode implements ShouldQueue
             );
         }
 
-        $this->gcode = Storage::getDriver()->readStream( $this->filePath );
-
-        $this->printer->activeFile = $this->filePath;
-        $this->printer->save();
+        $this->gcode = Storage::disk('gcode')->getDriver()->readStream( $this->filePath );
 
         if (!$this->printer->node) {
             throw new Exception('This printer doesn\'t have a node assigned.');
