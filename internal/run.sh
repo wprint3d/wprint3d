@@ -290,7 +290,13 @@ else
                     fi;
 
                     if [[ "$ENFORCED_MIN_WORKERS" == 0 ]]; then
-                        rm -fv /tmp/supervisor/"$QUEUE_NAME".conf;
+                        if [[ -e /tmp/supervisor/"$QUEUE_NAME".conf ]]; then
+                            echo 'Removing queue: '"$QUEUE_NAME"'...';
+
+                            rm -fv /tmp/supervisor/"$QUEUE_NAME".conf;
+
+                            DID_CHANGE=1;
+                        fi;
 
                         continue;
                     fi;
@@ -328,7 +334,7 @@ else
                 if [[ "$DID_CHANGE" -eq 1 ]]; then
                     echo 'Reloading supervisor...';
 
-                supervisorctl update;
+                    supervisorctl update;
                 fi;
 
                 sleep 5;
