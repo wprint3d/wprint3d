@@ -14,6 +14,9 @@ use App\Models\Printer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+
+use Illuminate\Support\Str;
+
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -63,7 +66,8 @@ class FileControls extends Component
     public function prepareFile($name) {
         Log::info('prepare: ' . $name);
 
-        $this->selected     = $name;
+        // NOTE: This is just a quick workaround while I figure out the new frontend. :)
+        $this->selected     = Str::replace("{$this->baseFilesDir}/", '', $name);
         $this->newFilename  = basename($name);
     }
 
@@ -103,15 +107,14 @@ class FileControls extends Component
         // Reset the printer's paused state in case it was left paused.
         $this->printer->resume();
 
-        PrintGcode::dispatch(
-            $this->selected,    // filePath
-            Auth::user(),       // owner
-            $this->printer->_id // printerId
-        );
-
         $this->printer->hasActiveJob = true;
         $this->printer->activeFile   = $this->selected;
         $this->printer->save();
+
+        PrintGcode::dispatch(
+            Auth::user(),       // owner
+            $this->printer->_id // printerId
+        );
 
         SystemMessage::send('refreshActiveFile');
 

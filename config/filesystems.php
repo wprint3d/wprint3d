@@ -48,6 +48,12 @@ return [
             'throw' => false,
         ],
 
+        'gcode' => [
+            'driver' => 'local',
+            'root' => storage_path('app/gcode'),
+            'throw' => false,
+        ],
+
     ],
 
     /*

@@ -257,37 +257,82 @@ else
             php artisan queue:flush;
             php artisan queue:restart;
 
-            if [[ -z $QUEUE ]]; then
-                QUEUE=default;
+            if [[ -z $QUEUES ]]; then
+                echo 'No queues were specified. Shutting down...';
+
+                exit 1;
             fi;
 
             if [[ -z $SLEEP ]]; then
-                SLEEP=3;
+                SLEEP=5;
             fi;
 
-            if ([[ "$PARALLEL_JOBS_PER_THREAD" != '' ]] && [[ $PARALLEL_JOBS_PER_THREAD -gt 0 ]]); then
-                echo '[supervisord]'                                                                                      >  /var/www/internal/supervisor/"$QUEUE".conf;
-                echo 'nodaemon=true'                                                                                      >> /var/www/internal/supervisor/"$QUEUE".conf;
-                echo ''                                                                                                   >> /var/www/internal/supervisor/"$QUEUE".conf;
-                echo '[program:app-worker]'                                                                               >> /var/www/internal/supervisor/"$QUEUE".conf;
-                echo 'process_name=%(program_name)s_%(process_num)02d'                                                    >> /var/www/internal/supervisor/"$QUEUE".conf;
-                echo 'command=php /var/www/artisan queue:work --queue='"$QUEUE"' --sleep='"$SLEEP"' --timeout=0 --rest=2' >> /var/www/internal/supervisor/"$QUEUE".conf;
-                echo 'autostart=true'                                                                                     >> /var/www/internal/supervisor/"$QUEUE".conf;
-                echo 'autorestart=true'                                                                                   >> /var/www/internal/supervisor/"$QUEUE".conf;
-                echo 'numprocs='$(( $(nproc --all) * $PARALLEL_JOBS_PER_THREAD ))                                         >> /var/www/internal/supervisor/"$QUEUE".conf;
-                echo 'redirect_stderr=true'                                                                               >> /var/www/internal/supervisor/"$QUEUE".conf;    
-                echo 'user=root'                                                                                          >> /var/www/internal/supervisor/"$QUEUE".conf;
-                echo 'stdout_logfile=/var/www/storage/logs/'"$QUEUE"'_worker.log'                                         >> /var/www/internal/supervisor/"$QUEUE".conf;
+            echo 'Starting the supervisor...';
+            mkdir -p /tmp/supervisor;
+            supervisord -c /var/www/internal/supervisor/supervisord.conf;
+            echo 'Supervisor started!';
 
-                supervisord \
-                    --configuration /var/www/internal/supervisor/"$QUEUE".conf \
-                    --logfile       /tmp/supervisord.log \
-                    --pidfile       /tmp/supervisord.pid;
-            else
                 while true; do
-                    php artisan queue:work --queue="$QUEUE" --sleep="$SLEEP" --timeout=0;
+                MIN_WORKERS=$(php artisan get:min-workers);
+
+                echo 'Regenerating queue configurations...';
+
+                DID_CHANGE=0;
+
+                IFS=',';
+
+                for queue in $QUEUES; do
+                    QUEUE_NAME=$(echo "$queue" | awk -F '[:]' '{print $1'});
+                    ENFORCED_MIN_WORKERS=$(echo "$queue" | awk -F '[:]' '{print $2}');
+
+                    if [[ "$ENFORCED_MIN_WORKERS" == '' ]]; then
+                        ENFORCED_MIN_WORKERS="$MIN_WORKERS";
+                    fi;
+
+                    if [[ "$ENFORCED_MIN_WORKERS" == 0 ]]; then
+                        rm -fv /tmp/supervisor/"$QUEUE_NAME".conf;
+
+                        continue;
+                    fi;
+
+                    echo 'Checking queue: '"$QUEUE_NAME"'...';
+
+                    CONFIG_FILE=''
+                    CONFIG_FILE="$CONFIG_FILE"$'\n''[program:app-'"$QUEUE_NAME"'-worker]'
+                    CONFIG_FILE="$CONFIG_FILE"$'\n''process_name=%(program_name)s_%(process_num)02d';
+                    CONFIG_FILE="$CONFIG_FILE"$'\n''command=php /var/www/artisan queue:work --queue='"$QUEUE_NAME"' --sleep='"$SLEEP"' --timeout=0 --rest=2'
+                    CONFIG_FILE="$CONFIG_FILE"$'\n''autostart=true'
+                    CONFIG_FILE="$CONFIG_FILE"$'\n''autorestart=true'
+                    CONFIG_FILE="$CONFIG_FILE"$'\n''numprocs='"$ENFORCED_MIN_WORKERS"
+                    CONFIG_FILE="$CONFIG_FILE"$'\n''redirect_stderr=true'
+                    CONFIG_FILE="$CONFIG_FILE"$'\n''user=root'
+                    CONFIG_FILE="$CONFIG_FILE"$'\n''stdout_logfile=/var/www/storage/logs/'"$QUEUE_NAME"'_worker.log'
+
+                    PREVIOUS_SUM='';
+
+                    if [[ -e /tmp/supervisor/"$QUEUE_NAME".conf ]]; then
+                        PREVIOUS_SUM=$(md5sum /tmp/supervisor/"$QUEUE_NAME".conf | cut -d ' ' -f 1);
+                    fi;
+
+                    NEXT_SUM=$(echo "$CONFIG_FILE" | md5sum | cut -d ' ' -f 1);
+
+                    if [[ "$PREVIOUS_SUM" != "$NEXT_SUM" ]]; then
+                        DID_CHANGE=1;
+
+                        echo "Changes detected for queue $QUEUE_NAME: PREVIOUS_SUM = '$PREVIOUS_SUM', NEXT_SUM = '$NEXT_SUM'";
+
+                        echo "$CONFIG_FILE" > /tmp/supervisor/"$QUEUE_NAME".conf;
+                    fi;
                 done;
-            fi;
+
+                if [[ "$DID_CHANGE" -eq 1 ]]; then
+                    echo 'Reloading supervisor...';
+
+                supervisorctl update;
+                fi;
+
+                sleep 5;
+            done;
         elif [[ "$ROLE" == 'ws-server' ]]; then
             waitForAssetBundler;
 

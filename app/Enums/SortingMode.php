@@ -5,9 +5,10 @@ namespace App\Enums;
 use BenSampo\Enum\Enum;
 
 /**
- * @method static static OptionOne()
- * @method static static OptionTwo()
- * @method static static OptionThree()
+ * @method static static NAME_ASCENDING()
+ * @method static static NAME_DESCENDING()
+ * @method static static DATE_ASCENDING()
+ * @method static static DATE_DESCENDING()
  */
 final class SortingMode extends Enum
 {
