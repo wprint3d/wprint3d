@@ -38,7 +38,7 @@ class Printer extends Model
     const CACHE_ABSOLUTE_POSITION_SUFFIX = '_absolutePosition';
     const CACHE_LAST_SEEN_SUFFIX         = '_lastSeen';
 
-    const MARLIN_TEMPERATURE_INDICATOR      = 'T:';
+    const MARLIN_TEMPERATURE_INDICATOR      = 'ok T:';
     const MARLIN_MULTI_TEMPERATURE_TEMPLATE = 'T%s:';
 
     protected $fillable = [
@@ -238,7 +238,10 @@ class Printer extends Model
                 ttl:    self::CACHE_TTL
             );
         } catch (Exception $exception) {
-            Log::warning( __METHOD__ . ': failed to set statistics: ' . $exception->getMessage() . '. Input was: ' . $rawData );
+            Log::warning(
+                __METHOD__ . ': failed to set statistics: ' . $exception->getMessage() . '. Input was: ' . $rawData . PHP_EOL .
+                $exception->getTraceAsString()
+            );
 
             return false;
         }
