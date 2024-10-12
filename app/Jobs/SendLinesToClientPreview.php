@@ -41,7 +41,7 @@ class SendLinesToClientPreview implements ShouldQueue
      * @var bool
      */
     public $failOnTimeout = false;
-    
+
     private Printer $printer;
 
     private string $previewUID;
@@ -175,7 +175,7 @@ class SendLinesToClientPreview implements ShouldQueue
     {
         $filePath = $this->printer->activeFile;
 
-        $gcode = Storage::getDriver()->readStream( $filePath );
+        $gcode = Storage::disk('gcode')->getDriver()->readStream( $filePath );
 
         if (!$gcode) {
             throw new InitializationException("failed to open {$filePath}.");
