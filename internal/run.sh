@@ -239,7 +239,7 @@ else
 
             php artisan reset:active-jobs;
 
-            if [ $(php artisan get:env OCTANE_ENABLED) == 'true' ]; then
+            if [ "$(php artisan get:env OCTANE_ENABLED)" == 'true' ]; then
                 echo 'Starting Octane web server...';
 
                 php artisan octane:start --host 0.0.0.0 --port 80 --watch;
