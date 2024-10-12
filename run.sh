@@ -32,6 +32,10 @@ elif ([[ "$1" == '-e' ]] || [[ "$1" == '--environment' ]]); then
     esac;
 fi;
 
+if ([[ "$ENV" == 'dev' ]] && ([[ "$3" == '-n' ]] || [[ "$3" == '--no-build' ]])); then
+    NO_BUILD=1;
+fi;
+
 if [[ ! -d 'bin' ]]; then
     printf 'Creating prebuilts storage... ';
 
@@ -60,7 +64,10 @@ fi;
 
 if [[ "$ENV" == 'dev' ]]; then
     docker compose -f docker-compose-development.yml pull || exit 1;
-    docker compose -f docker-compose-development.yml build --progress plain || exit 1;
+
+    if [[ "$NO_BUILD" != 1 ]]; then
+        docker compose -f docker-compose-development.yml build --progress plain || exit 1;
+    fi;
 elif [[ "$ENV" == 'production' ]]; then
     docker compose pull || exit 1;
 fi;
