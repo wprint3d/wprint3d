@@ -257,88 +257,12 @@ else
             php artisan queue:flush;
             php artisan queue:restart;
 
-            if [[ -z $QUEUES ]]; then
-                echo 'No queues were specified. Shutting down...';
-
-                exit 1;
-            fi;
-
-            if [[ -z $SLEEP ]]; then
-                SLEEP=5;
-            fi;
-
             echo 'Starting the supervisor...';
             mkdir -p /tmp/supervisor;
             supervisord -c /var/www/internal/supervisor/supervisord.conf;
             echo 'Supervisor started!';
 
-                while true; do
-                MIN_WORKERS=$(php artisan get:min-workers);
-
-                echo 'Regenerating queue configurations...';
-
-                DID_CHANGE=0;
-
-                IFS=',';
-
-                for queue in $QUEUES; do
-                    QUEUE_NAME=$(echo "$queue" | awk -F '[:]' '{print $1'});
-                    ENFORCED_MIN_WORKERS=$(echo "$queue" | awk -F '[:]' '{print $2}');
-
-                    if [[ "$ENFORCED_MIN_WORKERS" == '' ]]; then
-                        ENFORCED_MIN_WORKERS="$MIN_WORKERS";
-                    fi;
-
-                    if [[ "$ENFORCED_MIN_WORKERS" == 0 ]]; then
-                        if [[ -e /tmp/supervisor/"$QUEUE_NAME".conf ]]; then
-                            echo 'Removing queue: '"$QUEUE_NAME"'...';
-
-                            rm -fv /tmp/supervisor/"$QUEUE_NAME".conf;
-
-                            DID_CHANGE=1;
-                        fi;
-
-                        continue;
-                    fi;
-
-                    echo 'Checking queue: '"$QUEUE_NAME"'...';
-
-                    CONFIG_FILE=''
-                    CONFIG_FILE="$CONFIG_FILE"$'\n''[program:app-'"$QUEUE_NAME"'-worker]'
-                    CONFIG_FILE="$CONFIG_FILE"$'\n''process_name=%(program_name)s_%(process_num)02d';
-                    CONFIG_FILE="$CONFIG_FILE"$'\n''command=php /var/www/artisan queue:work --queue='"$QUEUE_NAME"' --sleep='"$SLEEP"' --timeout=0 --rest=2'
-                    CONFIG_FILE="$CONFIG_FILE"$'\n''autostart=true'
-                    CONFIG_FILE="$CONFIG_FILE"$'\n''autorestart=true'
-                    CONFIG_FILE="$CONFIG_FILE"$'\n''numprocs='"$ENFORCED_MIN_WORKERS"
-                    CONFIG_FILE="$CONFIG_FILE"$'\n''redirect_stderr=true'
-                    CONFIG_FILE="$CONFIG_FILE"$'\n''user=root'
-                    CONFIG_FILE="$CONFIG_FILE"$'\n''stdout_logfile=/var/www/storage/logs/'"$QUEUE_NAME"'_worker.log'
-
-                    PREVIOUS_SUM='';
-
-                    if [[ -e /tmp/supervisor/"$QUEUE_NAME".conf ]]; then
-                        PREVIOUS_SUM=$(md5sum /tmp/supervisor/"$QUEUE_NAME".conf | cut -d ' ' -f 1);
-                    fi;
-
-                    NEXT_SUM=$(echo "$CONFIG_FILE" | md5sum | cut -d ' ' -f 1);
-
-                    if [[ "$PREVIOUS_SUM" != "$NEXT_SUM" ]]; then
-                        DID_CHANGE=1;
-
-                        echo "Changes detected for queue $QUEUE_NAME: PREVIOUS_SUM = '$PREVIOUS_SUM', NEXT_SUM = '$NEXT_SUM'";
-
-                        echo "$CONFIG_FILE" > /tmp/supervisor/"$QUEUE_NAME".conf;
-                    fi;
-                done;
-
-                if [[ "$DID_CHANGE" -eq 1 ]]; then
-                    echo 'Reloading supervisor...';
-
-                    supervisorctl update;
-                fi;
-
-                sleep 5;
-            done;
+            php artisan printers:refresh-workers;
         elif [[ "$ROLE" == 'ws-server' ]]; then
             waitForAssetBundler;
 
