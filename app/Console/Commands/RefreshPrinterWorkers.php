@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\Printer;
 
+use Illuminate\Support\Arr;
+
 use Illuminate\Console\Command;
 
 class RefreshPrinterWorkers extends Command
@@ -22,28 +24,39 @@ class RefreshPrinterWorkers extends Command
      */
     protected $description = 'Refresh the amount of active printer workers.';
 
-    private function refreshWorkers(array $queues, int $sleepSecs): bool {
+    // This function creates the queue workers for the jobs that are scalable,
+    // these jobs are cancelable and can be restarted without any issues.
+    private function createScalableWorkers(array $queues, int $sleepSecs): bool {
         $didChange = false;
+
+        $queues = Arr::where(
+            Arr::map($queues, function ($queue) {
+                $fields = explode(':', $queue);
+
+                return [
+                    'name'        => $fields[0],
+                    'min_workers' => $fields[1] ?? null,
+                ];
+            }, $queues),
+            function ($queue) {
+                return $queue['min_workers'] !== null;
+            }
+        );
 
         $minWorkers = Printer::where('activeFile', '!=', null)->count();
 
         foreach ($queues as $queue) {
-            $fields = explode(':', $queue);
+            $this->comment(__METHOD__ . ": checking queue: {$queue['name']}...");
 
-            $queueName          = $fields[0];
-            $enforcedMinWorkers = $fields[1] ?? null;
-
-            $this->comment("Checking queue: {$queueName}...");
-
-            if ($enforcedMinWorkers === null) {
-                $enforcedMinWorkers = $minWorkers;
+            if ($minWorkers < $queue['min_workers']) {
+                $minWorkers = $queue['min_workers'];
             }
 
-            if ($enforcedMinWorkers == 0) {
-                if (file_exists("/tmp/supervisor/{$queueName}.conf")) {
-                    $this->info("Removing queue: {$queueName}...");
+            if ($minWorkers == 0) {
+                if (file_exists("/tmp/supervisor/{$queue['name']}.conf")) {
+                    $this->info("Removing queue: {$queue['name']}...");
 
-                    unlink("/tmp/supervisor/{$queueName}.conf");
+                    unlink("/tmp/supervisor/{$queue['name']}.conf");
 
                     $didChange = true;
                 }
@@ -52,20 +65,20 @@ class RefreshPrinterWorkers extends Command
             }
 
             $configFile  = '';
-            $configFile .= "[program:app-{$queueName}-worker]";
+            $configFile .= "[program:app-{$queue['name']}-worker]";
             $configFile .= PHP_EOL . 'process_name=%(program_name)s_%(process_num)02d';;
-            $configFile .= PHP_EOL . "command=php /var/www/artisan queue:work --queue={$queueName} --sleep={$sleepSecs} --timeout=0 --rest=2";
+            $configFile .= PHP_EOL . "command=php /var/www/artisan queue:work --queue={$queue['name']} --sleep={$sleepSecs} --timeout=0 --rest=2";
             $configFile .= PHP_EOL . 'autostart=true';
             $configFile .= PHP_EOL . 'autorestart=true';
-            $configFile .= PHP_EOL . "numprocs={$enforcedMinWorkers}";
+            $configFile .= PHP_EOL . "numprocs={$minWorkers}";
             $configFile .= PHP_EOL . 'redirect_stderr=true';
             $configFile .= PHP_EOL . 'user=root';
-            $configFile .= PHP_EOL . "stdout_logfile=/var/www/storage/logs/{$queueName}_worker.log";
+            $configFile .= PHP_EOL . "stdout_logfile=/var/www/storage/logs/{$queue['name']}_worker.log";
 
             $previousSum = null;
 
-            if (file_exists("/tmp/supervisor/{$queueName}.conf")) {
-                $previousSum = md5_file("/tmp/supervisor/{$queueName}.conf");
+            if (file_exists("/tmp/supervisor/{$queue['name']}.conf")) {
+                $previousSum = md5_file("/tmp/supervisor/{$queue['name']}.conf");
             }
 
             $nextSum = md5($configFile);
@@ -73,13 +86,94 @@ class RefreshPrinterWorkers extends Command
             if ($previousSum != $nextSum) {
                 $didChange = true;
 
-                $this->info("Changes detected for queue $queueName: PREVIOUS_SUM = '$previousSum', NEXT_SUM = '$nextSum'");
+                $this->info(__METHOD__ . ": changes detected for queue {$queue['name']}: PREVIOUS_SUM = '$previousSum', NEXT_SUM = '$nextSum'");
 
-                file_put_contents("/tmp/supervisor/{$queueName}.conf", $configFile);
+                file_put_contents("/tmp/supervisor/{$queue['name']}.conf", $configFile);
             }
         }
 
         return $didChange;
+    }
+
+    // This function creates the queue workers for the jobs that are not
+    // scalable, these jobs are not cancelable and can't be restarted safely.
+    //
+    // Each non-scalable job will have a worker per printer.
+    private function createPerPrinterWorkers(array $queues, int $sleepSecs): bool {
+        $didChange = false;
+
+        $queues = Arr::where(
+            Arr::map($queues, function ($queue) {
+                $fields = explode(':', $queue);
+
+                return [
+                    'name'        => $fields[0],
+                    'min_workers' => $fields[1] ?? null,
+                ];
+            }, $queues),
+            function ($queue) {
+                return $queue['min_workers'] === null;
+            }
+        );
+
+        $printers = Printer::select('activeFile')->cursor();
+
+        foreach ($printers as $printer) {
+            foreach ($queues as $queue) {
+                $this->comment(__METHOD__ . ": checking queue: {$queue['name']} for printer {$printer->id}...");
+
+                if ($printer->activeFile == null) {
+                    if (file_exists("/tmp/supervisor/{$queue['name']}_{$printer->id}.conf")) {
+                        $this->info("Removing worker for queue {$queue['name']} for printer {$printer->id}...");
+
+                        unlink("/tmp/supervisor/{$queue['name']}_{$printer->id}.conf");
+
+                        $didChange = true;
+                    }
+
+                    continue;
+                }
+
+                $configFile  = '';
+                $configFile .= "[program:app-{$queue['name']}-worker-{$printer->id}]";
+                $configFile .= PHP_EOL . 'process_name=%(program_name)s_%(process_num)02d';;
+                $configFile .= PHP_EOL . "command=php /var/www/artisan queue:work --queue={$queue['name']} --sleep={$sleepSecs} --timeout=0 --rest=2";
+                $configFile .= PHP_EOL . 'autostart=true';
+                $configFile .= PHP_EOL . 'autorestart=true';
+                $configFile .= PHP_EOL . 'numprocs=1';
+                $configFile .= PHP_EOL . 'redirect_stderr=true';
+                $configFile .= PHP_EOL . 'user=root';
+                $configFile .= PHP_EOL . "stdout_logfile=/var/www/storage/logs/{$queue['name']}_worker_{$printer->id}.log";
+
+                $previousSum = null;
+
+                if (file_exists("/tmp/supervisor/{$queue['name']}_{$printer->id}.conf")) {
+                    $previousSum = md5_file("/tmp/supervisor/{$queue['name']}_{$printer->id}.conf");
+                } else {
+                    $this->info(__METHOD__ . ": creating worker for queue {$queue['name']} for printer {$printer->id}...");
+                }
+
+                $nextSum = md5($configFile);
+
+                if ($previousSum != $nextSum) {
+                    $didChange = true;
+
+                    $this->info(__METHOD__ . ": changes detected for queue {$queue['name']} for printer {$printer->id}: PREVIOUS_SUM = '$previousSum', NEXT_SUM = '$nextSum'");
+
+                    file_put_contents("/tmp/supervisor/{$queue['name']}_{$printer->id}.conf", $configFile);
+                }
+            }
+        }
+
+        return $didChange;
+    }
+
+    private function refreshWorkers(array $queues, int $sleepSecs): bool {
+        return (
+            $this->createScalableWorkers($queues, $sleepSecs)
+            ||
+            $this->createPerPrinterWorkers($queues, $sleepSecs)
+        );
     }
 
     /**
