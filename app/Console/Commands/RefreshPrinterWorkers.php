@@ -103,21 +103,15 @@ class RefreshPrinterWorkers extends Command
 
         $printers = Printer::select('activeFile')->cursor();
 
+        $allPrintersInactive = true;
+
         foreach ($printers as $printer) {
             foreach ($queues as $queue) {
                 $this->comment(__METHOD__ . ": checking queue: {$queue['name']} for printer {$printer->id}...");
 
-                if ($printer->activeFile == null) {
-                    if (file_exists("/tmp/supervisor/{$queue['name']}_{$printer->id}.conf")) {
-                        $this->info("Removing worker for queue {$queue['name']} for printer {$printer->id}...");
+                if ($printer->activeFile === null) { continue; }
 
-                        unlink("/tmp/supervisor/{$queue['name']}_{$printer->id}.conf");
-
-                        $didChange = true;
-                    }
-
-                    continue;
-                }
+                $allPrintersInactive = false;
 
                 $configFile  = '';
                 $configFile .= "[program:app-{$queue['name']}-worker-{$printer->id}]";
@@ -146,6 +140,26 @@ class RefreshPrinterWorkers extends Command
                     $this->info(__METHOD__ . ": changes detected for queue {$queue['name']} for printer {$printer->id}: PREVIOUS_SUM = '$previousSum', NEXT_SUM = '$nextSum'");
 
                     file_put_contents("/tmp/supervisor/{$queue['name']}_{$printer->id}.conf", $configFile);
+                }
+            }
+        }
+
+        // This block removes all non-scalable queue workers if all printers are
+        // inactive, this is done to avoid running out of memory. This is a
+        // workaround for the fact that the queue workers are not cancelable
+        // and, currently, we can't tell who's the owner of a worker.
+        if ($allPrintersInactive) {
+            $this->info('All printers are inactive. Removing all non-scalable queue workers...');
+
+            foreach ($queues as $queue) {
+                $files = glob("/tmp/supervisor/{$queue['name']}_*.conf");
+
+                foreach ($files as $file) {
+                    $this->info("Removing queue: {$file}...");
+
+                    unlink($file);
+
+                    $didChange = true;
                 }
             }
         }
