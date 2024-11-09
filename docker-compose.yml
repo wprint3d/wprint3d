@@ -2,6 +2,11 @@ services:
   proxy:
     image: nginx:stable
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
     volumes:
       - ./proxy/nginxconfig.io:/etc/nginx/nginxconfig.io
       - ./proxy/internal:/etc/nginx/internal
@@ -21,6 +26,11 @@ services:
   web:
     image: wprint3d/wprint3d
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
     privileged: true
     environment:
       - ROLE=server
@@ -38,6 +48,11 @@ services:
   scheduler:
     image: wprint3d/wprint3d
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
     privileged: true
     environment:
       - ROLE=scheduler
@@ -50,25 +65,14 @@ services:
       - redis
       - mongo
       # - mariadb
-  # short-scheduler:
-  #   image: wprint3d/wprint3d
-  #   restart: always
-  #   privileged: true
-  #   environment:
-  #     - ROLE=scheduler
-  #     - KIND=short
-  #   volumes:
-  #     - .:/var/www
-  #     - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
-  #     - /dev/bus/usb:/dev/bus/usb
-  #     - /dev:/dev
-  #   depends_on:
-  #     - redis
-  #     - mongo
-  #     # - mariadb
   serial-scheduler:
     image: wprint3d/wprint3d
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
     privileged: true
     environment:
       - ROLE=serial-scheduler
@@ -84,6 +88,11 @@ services:
   mapper:
     image: wprint3d/wprint3d
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
     privileged: true
     environment:
       - ROLE=mapper
@@ -102,6 +111,11 @@ services:
   queue:
     image: wprint3d/wprint3d
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
     privileged: true
     environment:
       - ROLE=queue
@@ -119,6 +133,11 @@ services:
   ws-server:
     image: wprint3d/wprint3d
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
     environment:
       - ROLE=ws-server
     volumes:
@@ -131,6 +150,11 @@ services:
   bundler:
     image: wprint3d/wprint3d
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
     environment:
       - ROLE=bundler
     volumes:
@@ -138,6 +162,11 @@ services:
   streamer:
     image: wprint3d/wprint3d
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
     environment:
       - ROLE=streamer
       - PORT_SCAN_START=60000
@@ -162,17 +191,32 @@ services:
   redis:
     image: redis:7.2.5
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
     command: redis-server --save "" --appendonly no
   mongo:
     image: mongo:4.4.6
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
     command: mongod --quiet
     volumes:
       - mongo:/data/db
   memcached:
     image: memcached
     restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "16m"
+        mode: non-blocking
 volumes:
   mongo:
