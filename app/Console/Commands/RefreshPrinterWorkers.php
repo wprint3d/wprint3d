@@ -30,14 +30,7 @@ class RefreshPrinterWorkers extends Command
         $didChange = false;
 
         $queues = Arr::where(
-            Arr::map($queues, function ($queue) {
-                $fields = explode(':', $queue);
-
-                return [
-                    'name'        => $fields[0],
-                    'min_workers' => $fields[1] ?? null,
-                ];
-            }, $queues),
+            $queues,
             function ($queue) {
                 return $queue['min_workers'] !== null;
             }
@@ -102,15 +95,7 @@ class RefreshPrinterWorkers extends Command
     private function createPerPrinterWorkers(array $queues, int $sleepSecs): bool {
         $didChange = false;
 
-        $queues = Arr::where(
-            Arr::map($queues, function ($queue) {
-                $fields = explode(':', $queue);
-
-                return [
-                    'name'        => $fields[0],
-                    'min_workers' => $fields[1] ?? null,
-                ];
-            }, $queues),
+        $queues = Arr::where($queues,
             function ($queue) {
                 return $queue['min_workers'] === null;
             }
@@ -169,6 +154,15 @@ class RefreshPrinterWorkers extends Command
     }
 
     private function refreshWorkers(array $queues, int $sleepSecs): bool {
+        $queues = Arr::map($queues, function ($queue) {
+            $fields = explode(':', $queue);
+
+            return [
+                'name'        => $fields[0],
+                'min_workers' => $fields[1] ?? null,
+            ];
+        }, $queues);
+
         return (
             $this->createScalableWorkers($queues, $sleepSecs)
             ||
