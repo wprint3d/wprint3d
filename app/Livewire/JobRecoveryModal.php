@@ -5,12 +5,12 @@ namespace App\Livewire;
 use App\Enums\BackupInterval;
 use App\Enums\FormatterCommands;
 use App\Enums\RecoveryStage;
-use App\Enums\ToastMessageType;
+
 use App\Events\RecoveryCompleted;
 use App\Events\RecoveryProgress;
 use App\Events\RecoveryStageChanged;
 use App\Events\SystemMessage;
-use App\Events\ToastMessage;
+
 use App\Jobs\PrintGcode;
 use App\Jobs\SendLinesToClientPreview;
 
@@ -50,8 +50,6 @@ class JobRecoveryModal extends Component
 
     public string $uidSideA;
     public string $uidSideB;
-
-    protected $baseFilesDir;
 
     const RECOVERED_FILE_PREFIX = 'rec';
 
@@ -252,7 +250,9 @@ class JobRecoveryModal extends Component
 
         $minLayerPositionXY = [ 'x' => null, 'y' => null ];
 
-        $gcode = Storage::getDriver()->readStream( $this->printer->activeFile );
+        $gcodeStorage = Storage::disk('gcode');
+
+        $gcode = $gcodeStorage->getDriver()->readStream( $this->printer->activeFile );
 
         /*
          * This block ensures that the RECOVERED_FILE_PREFIX + time() string
@@ -266,9 +266,7 @@ class JobRecoveryModal extends Component
             '_' .
             Str::of( basename($this->printer->activeFile) )->replaceMatches('/' . self::RECOVERED_FILE_PREFIX . '_[0-9]*_/', ''); // 'rec_##########_cube' => 'cube'
 
-        $targetFilePath = env('BASE_FILES_DIR') . '/' . $newFileName;
-
-        $absolutePath = Storage::path( $targetFilePath );
+        $absolutePath = $gcodeStorage->path( $newFileName );
 
         $targetFile = fopen(
             filename: $absolutePath,
@@ -537,15 +535,14 @@ class JobRecoveryModal extends Component
         SystemMessage::send('refreshUploadedFiles');
         SystemMessage::send('recoveryCompleted', $newFileName);
 
-        $this->printer->activeFile       = $targetFilePath;
+        $this->printer->activeFile       = $newFileName;
         $this->printer->hasActiveJob     = true;
         $this->printer->lastJobHasFailed = false;
         $this->printer->save();
 
         PrintGcode::dispatch(
-            $this->printer->activeFile, // filePath
-            Auth::user(),               // owner
-            $this->printer->_id         // printerId
+            Auth::user(),       // owner
+            $this->printer->_id // printerId
         );
 
         RecoveryCompleted::dispatch( $this->printer->_id );
@@ -562,8 +559,6 @@ class JobRecoveryModal extends Component
         $this->uidSideB = uniqid( $className . '_' );
 
         $this->user = Auth::user();
-
-        $this->baseFilesDir = env('BASE_FILES_DIR');
 
         $this->printer =
             Printer::select('available', 'activeFile', 'connected', 'hasActiveJob', 'lastJobHasFailed', 'lastLine')
