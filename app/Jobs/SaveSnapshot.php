@@ -43,6 +43,7 @@ class SaveSnapshot implements ShouldQueue
     private string $url;
     private string $fileName;
     private string $jobUID;
+    private ?int   $expiresAt = null;
 
     const SNAPSHOTS_DIRECTORY = 'snapshots';
 
@@ -71,6 +72,7 @@ class SaveSnapshot implements ShouldQueue
         $this->url               = 'https://proxy' . $url;
         $this->fileName          = $fileName;
         $this->jobUID            = $jobUID;
+        $this->expiresAt         = now()->addSeconds(5)->getTimestamp(); // frameskips if it takes too long
     }
 
     /**
@@ -80,6 +82,18 @@ class SaveSnapshot implements ShouldQueue
      */
     public function handle()
     {
+        if (!$this->expiresAt) {
+            Log::warning('No expiration date set, this is a legacy job.');
+
+            return;
+        }
+
+        if (time() > $this->expiresAt) {
+            Log::warning(__METHOD__ . ": frameskip: this job took too long to process. - {$this->url}");
+
+            return;
+        }
+
         $response = Http::withoutVerifying()->get( $this->url );
 
         if (!$response->successful()) {
