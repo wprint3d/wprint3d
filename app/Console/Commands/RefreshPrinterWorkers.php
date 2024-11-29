@@ -60,7 +60,7 @@ class RefreshPrinterWorkers extends Command
             $configFile  = '';
             $configFile .= "[program:app-{$queue['name']}-worker]";
             $configFile .= PHP_EOL . 'process_name=%(program_name)s_%(process_num)02d';;
-            $configFile .= PHP_EOL . "command=php /var/www/artisan queue:work --queue={$queue['name']} --sleep={$sleepSecs} --timeout=0 --rest=2";
+            $configFile .= PHP_EOL . "command=php /var/www/artisan queue:work --queue={$queue['name']} --sleep={$sleepSecs} --timeout=0";
             $configFile .= PHP_EOL . 'autostart=true';
             $configFile .= PHP_EOL . 'autorestart=true';
             $configFile .= PHP_EOL . "numprocs={$minWorkers}";
