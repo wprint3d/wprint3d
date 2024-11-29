@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
+use Illuminate\Support\Str;
+
 use Bayfront\MimeTypes\MimeType;
 
 class FileUploader extends Component
@@ -31,7 +33,11 @@ class FileUploader extends Component
 
         $fileMimeType = $this->gcode->getMimeType();
 
-        if ($fileMimeType !== MimeType::fromExtension('txt')) {
+        if (
+            $fileMimeType !== MimeType::fromExtension('txt')
+            &&
+            Str::endsWith($fileMimeType, 'ini') === false // workaround for the application/x-wine-extension-ini mime type
+        ) {
             ToastMessage::dispatch(
                 Auth::id(),                                                                     // userId
                 ToastMessageType::ERROR,                                                        // type
