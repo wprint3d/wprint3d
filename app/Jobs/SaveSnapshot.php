@@ -83,13 +83,13 @@ class SaveSnapshot implements ShouldQueue
     public function handle()
     {
         if (!$this->expiresAt) {
-            Log::warning(__METHOD__ . ": no expiration date set, this is a legacy job. - {$this->url}");
+            Log::warning(__METHOD__ . ": no expiration date set, this is a legacy job. - URL = {$this->url}, FILENAME = {$this->fileName}");
 
             return;
         }
 
         if (time() > $this->expiresAt) {
-            Log::warning(__METHOD__ . ": frameskip: this job took too long to process. - {$this->url}");
+            Log::warning(__METHOD__ . ": frameskip: this job took too long to process. - URL = {$this->url}, FILENAME = {$this->fileName}");
 
             return;
         }
