@@ -83,7 +83,7 @@ class SaveSnapshot implements ShouldQueue
     public function handle()
     {
         if (!$this->expiresAt) {
-            Log::warning('No expiration date set, this is a legacy job.');
+            Log::warning(__METHOD__ . ": no expiration date set, this is a legacy job. - {$this->url}");
 
             return;
         }
