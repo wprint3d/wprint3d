@@ -63,7 +63,7 @@ class SaveSnapshot implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(int $index, bool $requiresLibCamera, string $url, string $fileName, string $jobUID)
+    public function __construct(int $index, bool $requiresLibCamera, string $url, string $fileName, string $jobUID, int $expectedIntervalSecs)
     {
         $this->queue = 'snapshots';
 
@@ -72,7 +72,7 @@ class SaveSnapshot implements ShouldQueue
         $this->url               = 'https://proxy' . $url;
         $this->fileName          = $fileName;
         $this->jobUID            = $jobUID;
-        $this->expiresAt         = now()->addSeconds(5)->getTimestamp(); // frameskips if it takes too long
+        $this->expiresAt         = now()->addSeconds($expectedIntervalSecs * 2)->getTimestamp(); // frameskips if it takes too long
     }
 
     /**
