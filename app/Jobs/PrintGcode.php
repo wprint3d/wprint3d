@@ -71,6 +71,7 @@ class PrintGcode implements ShouldQueue
     private int     $commandTimeoutSecs;
     private int     $minPollIntervalSecs;
     private int     $jobBackupInterval;
+    private int     $captureIntervalSecs;
     private int     $streamMaxLengthBytes;
 
     private int $lineNumber = 0;
@@ -129,6 +130,7 @@ class PrintGcode implements ShouldQueue
         $this->commandTimeoutSecs   = Configuration::get('commandTimeoutSecs');
         $this->minPollIntervalSecs  = Configuration::get('lastSeenPollIntervalSecs');
         $this->jobBackupInterval    = Configuration::get('jobBackupInterval');
+        $this->captureIntervalSecs  = $this->owner->settings['recording']['captureInterval'];
         $this->streamMaxLengthBytes = Configuration::get('streamMaxLengthBytes');
 
         $this->printer->setCurrentLine( 0 );
@@ -426,7 +428,7 @@ class PrintGcode implements ShouldQueue
             $serial->setProperty('lastSnapshot', millis());
             $serial->everyBusyMillis(
                 clockName:  'lastSnapshot',
-                interval:   $this->owner->settings['recording']['captureInterval'] * 1000,
+                interval:   $this->captureIntervalSecs * 1000,
                 function:   function () {
                     foreach ($this->recordableCameras as $camera) {
                         $snapshotURL = $camera->getSnapshotURL();
@@ -437,7 +439,8 @@ class PrintGcode implements ShouldQueue
                                 $camera->requiresLibCamera, // requiresLibCamera
                                 $snapshotURL,               // url
                                 $this->filePath,            // fileName
-                                $this->uid                  // jobUID
+                                $this->uid,                 // jobUID
+                                $this->captureIntervalSecs  // expectedIntervalSecs
                             );
                         }
                     }
