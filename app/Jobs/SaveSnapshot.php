@@ -14,6 +14,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 
@@ -104,9 +105,13 @@ class SaveSnapshot implements ShouldQueue
             ttl:    (7 * 24 * 60 * 60) // 1 week
         );
 
+        $path = $pathPrefix . '_' . (Cache::increment( $incrementCacheKey )) . '.jpg';
+
         Storage::put(
-            path:       $pathPrefix . '_' . (Cache::increment( $incrementCacheKey )) . '.jpg',
+            path:       $path,
             contents:   $response->body()
         );
+
+        Log::debug(__METHOD__ . ': ' . $path);
     }
 }
