@@ -66,7 +66,7 @@ class RefreshPrinterWorkers extends Command
             $configFile .= PHP_EOL . "numprocs={$minWorkers}";
             $configFile .= PHP_EOL . 'redirect_stderr=true';
             $configFile .= PHP_EOL . 'user=root';
-            $configFile .= PHP_EOL . "stdout_logfile=/var/www/storage/logs/{$queue['name']}_worker.log";
+            $configFile .= PHP_EOL . "stdout_logfile=/tmp/supervisor/logs/{$queue['name']}_worker.log";
 
             $previousSum = null;
 
