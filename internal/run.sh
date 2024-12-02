@@ -258,14 +258,20 @@ else
             php artisan queue:restart;
 
             echo 'Starting the supervisor...';
-            mkdir -p /tmp/supervisor;
+            mkdir -p /tmp/supervisor/logs;
             supervisord -c /var/www/internal/supervisor/supervisord.conf;
             echo 'Supervisor started!';
 
-            php artisan printers:refresh-workers;
-        elif [[ "$ROLE" == 'ws-server' ]]; then
-            waitForAssetBundler;
+            php artisan printers:refresh-workers &
 
+            while true; do
+                for log in /tmp/supervisor/logs/*.log; do
+                    truncate --size 512K $log
+                done;
+
+                sleep 60;
+            done;
+        elif [[ "$ROLE" == 'ws-server' ]]; then
             while true; do
                 php artisan websockets:serve --host 0.0.0.0 --port 6001;
             done;
