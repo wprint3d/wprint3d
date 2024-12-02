@@ -266,7 +266,7 @@ else
 
             while true; do
                 for log in /tmp/supervisor/logs/*.log; do
-                    truncate --size 512K $log
+                    truncate --size 512K "$log"
                 done;
 
                 sleep 60;
