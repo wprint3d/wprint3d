@@ -57,44 +57,48 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (event.stopTimestampSecs !== null) {
                     let result     = '',
                         difference = datetimeDifference(
-                        new Date(),
-                        new Date(event.stopTimestampSecs * 1000)
-                    );
+                            new Date(),
+                            new Date(event.stopTimestampSecs * 1000)
+                        );
 
                     console.debug('PrintProgress: difference:', difference);
 
-                    if (!hasNonZeroKey(difference)) {
-                        result = 'a few seconds';
+                    if (isNaN(difference.milliseconds)) {
+                        result = 'unkown time';
                     } else {
-                        let keys            = Object.keys(difference),
-                            firstValidIndex = 0;
+                        if (!hasNonZeroKey(difference)) {
+                            result = 'a few seconds';
+                        } else {
+                            let keys            = Object.keys(difference),
+                                firstValidIndex = 0;
 
-                        for (let index = 0; index < keys.length; index++) {
-                            if (difference[ keys[index] ] > 0) {
-                                firstValidIndex = index;
+                            for (let index = 0; index < keys.length; index++) {
+                                if (difference[ keys[index] ] > 0) {
+                                    firstValidIndex = index;
 
-                                break;
-                            }
-                        }
-
-                        for (let index = firstValidIndex; index < keys.length; index++) {
-                            if (keys[index] == 'milliseconds') {
-                                continue;
+                                    break;
+                                }
                             }
 
-                            let keyLabel = keys[index];
+                            for (let index = firstValidIndex; index < keys.length; index++) {
+                                if (keys[index] == 'milliseconds') {
+                                    continue;
+                                }
 
-                            if (difference[ keys[index] ] == 1) {
-                                keyLabel = keys[index].substr(0, keys[index].length - 1);
-                            }
+                                let keyLabel = keys[index];
 
-                            result += `${difference[ keys[index] ]} ${keyLabel}`;
+                                if (difference[ keys[index] ] == 1) {
+                                    keyLabel = keys[index].substr(0, keys[index].length - 1);
+                                }
 
-                            if (keys.length > 1) {
-                                if (keys[index].indexOf('minute') > -1) {
-                                    result += ' and ';
-                                } else if (index < keys.length - 2) {
-                                    result += ', ';
+                                result += `${difference[ keys[index] ]} ${keyLabel}`;
+
+                                if (keys.length > 1) {
+                                    if (keys[index].indexOf('minute') > -1) {
+                                        result += ' and ';
+                                    } else if (index < keys.length - 2) {
+                                        result += ', ';
+                                    }
                                 }
                             }
                         }

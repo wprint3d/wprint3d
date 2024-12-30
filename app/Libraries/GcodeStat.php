@@ -3,6 +3,7 @@
 namespace App\Libraries;
 
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 use Illuminate\Support\Str;
 
@@ -23,7 +24,9 @@ class GcodeStat {
         }
     }
 
-    public function getPrintTimeSeconds(): int|null {
+    public function getPrintTimeSeconds(): int|null {        
+        Log::debug(__METHOD__ . ": {$this->filePath}");
+
         $process = new Process([ 'gcodestat', '-Q', '-g', $this->filePath ]);
         $process->run();
 
@@ -34,7 +37,11 @@ class GcodeStat {
             throw new Exception($errorMessage);
         }
 
-        return $process->getOutput();
+        $output = $process->getOutput();
+
+        Log::debug(__METHOD__ . ": {$output}");
+
+        return intval($output);
     }
 
 }

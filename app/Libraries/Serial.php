@@ -276,8 +276,14 @@ class Serial {
         $lock->release();
     }
 
-    private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, ?int $stopTimestampSecs = null) : void {
+    private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, mixed $stopTimestampSecs = null) : void {
         if (!$this->printerId) return; 
+
+        if (!$stopTimestampSecs) {
+            Log::warning(__METHOD__ . ': stopTimestampSecs is not numeric: ' . json_encode($stopTimestampSecs));
+
+            $stopTimestampSecs = null;
+        }
 
         try {
             PrinterTerminalUpdated::dispatch(
@@ -596,7 +602,13 @@ class Serial {
         return $result;
     }
 
-    public function tryToAppendNow(?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, ?int $stopTimestampSecs = null) {
+    public function tryToAppendNow(?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, mixed $stopTimestampSecs = null) {
+        if (!is_numeric($stopTimestampSecs)) {
+            Log::warning(__METHOD__ . ': stopTimestampSecs is not numeric: ' . json_encode($stopTimestampSecs));
+
+            $stopTimestampSecs = null;
+        }
+
         if ($this->terminalAutoAppend) return;
 
         if ($this->terminalBuffer) {
