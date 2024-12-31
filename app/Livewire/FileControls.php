@@ -11,6 +11,8 @@ use App\Jobs\PrintGcode;
 
 use App\Models\Printer;
 
+use Illuminate\Filesystem\FilesystemAdapter;
+
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -30,6 +32,8 @@ class FileControls extends Component
     public $writeable   = false;
 
     protected $baseFilesDir;
+
+    protected FilesystemAdapter $disk;
 
     public ?Printer $printer    = null;
     public ?string  $printerId  = null;
@@ -77,6 +81,7 @@ class FileControls extends Component
 
     public function boot() {
         $this->baseFilesDir = env('BASE_FILES_DIR');
+        $this->disk = Storage::disk('gcode');
 
         $this->refreshActiveFile();
     }
@@ -148,7 +153,7 @@ class FileControls extends Component
 
         $selectedFullPath = $this->selected;
 
-        Storage::delete($selectedFullPath);
+        $this->disk->delete($selectedFullPath);
 
         Log::debug( __METHOD__ . ': ' . $selectedFullPath);
 
@@ -187,19 +192,19 @@ class FileControls extends Component
         $selectedFullPath   = $this->selected;
         $targetFullPath     = dirname($this->selected) . '/' . $this->newFilename;
 
-        if (!Storage::exists( $selectedFullPath )) {
+        if (!$this->disk->exists( $selectedFullPath )) {
             $this->error = 'No such file or directory.';
 
             return;
         }
 
-        if (Storage::exists( $targetFullPath ) && $selectedFullPath != $targetFullPath) {
+        if ($this->disk->exists( $targetFullPath ) && $selectedFullPath != $targetFullPath) {
             $this->error = 'There\'s another file with that name.';
 
             return;
         }
 
-        Storage::move($selectedFullPath, $targetFullPath);
+        $this->disk->move($selectedFullPath, $targetFullPath);
 
         Log::debug( __METHOD__ . ': ' . $selectedFullPath . ' => ' . $targetFullPath);
 
