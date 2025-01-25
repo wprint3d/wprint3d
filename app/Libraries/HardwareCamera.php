@@ -82,7 +82,7 @@ class HardwareCamera {
 
                         $resolution = $line->replace('Size: Discrete ', '');
                     } else if ($line->startsWith('Interval') && $resolution) {
-                        $this->formats[ $index ] = $resolution . '@' . $line->replaceMatches('/Interval: Discrete .*\(/', '')->replaceMatches('/ fps.*/', '');
+                        $this->formats[] = $resolution . '@' . $line->replaceMatches('/Interval: Discrete .*\(/', '')->replaceMatches('/ fps.*/', '');
 
                         $index++;
                     }
