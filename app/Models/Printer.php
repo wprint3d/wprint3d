@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Arr;
 
 use MongoDB\Laravel\Eloquent\Model;
+use MongoDB\Laravel\Relations\HasMany;
 
 use MongoDB\BSON\ObjectId;
 
@@ -105,7 +106,11 @@ class Printer extends Model
         'activeFile',
         'lastLine',
     ];
-    
+
+    public function videos(): HasMany {
+        return $this->hasMany(Video::class);
+    }
+
     /**
      * supports
      * 
