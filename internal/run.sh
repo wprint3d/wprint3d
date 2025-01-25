@@ -223,21 +223,25 @@ else
                 done;
             fi;
 
-            if [[ "$LOW_MEMORY_MODE" -ne 1 ]]; then
-                waitForAssetBundler;
-            fi;
-
+            echo "Refreshing third-party licenses...";
             refreshThirdPartyLicenses;
 
             # TODO: This is just for development and testing purposes and
             #       should be removed for production.
+            echo "Creating the sample user (if it doesn't exist)...";
             php artisan create:sample-user;
 
+            echo "Running migrations...";
             php artisan migrate;
 
+            echo "Generating Marlin labels...";
             php artisan make:marlin-labels;
 
+            echo "Resetting stalled jobs...";
             php artisan reset:active-jobs;
+
+            echo 'Declare default configurations...';
+            php artisan make:default-configuration;
 
             if [ "$(php artisan get:env OCTANE_ENABLED)" == 'true' ]; then
                 echo 'Starting Octane web server...';
