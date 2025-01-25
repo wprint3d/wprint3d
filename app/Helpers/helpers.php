@@ -92,6 +92,7 @@ function movementToXYZE(string $command) : array {
     $command =
         Str::of( $command )
             ->replaceMatches('/ Count.*/', '') // we don't care about the allocated count (M114)
+            ->replaceMatches('/;.*$/', '')     // remove comments
             ->replace(':', '')                 // M114 returns data split by ":", remove them so that they match what G0 or G1 would look like
             ->replace('ok', '')                // M114 contains the "ok" word, remove it
             ->trim()                           // trim spaces at beginning and end
