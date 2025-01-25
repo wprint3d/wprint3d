@@ -461,6 +461,8 @@ class Printer extends Model
 
         if ($queued) {
             CommandQueued::dispatch( $this->_id );
+
+            Log::debug( __METHOD__ . ": queued @ {$this->_id}: \"{$command}\"" );
         }
 
         return $queued;
