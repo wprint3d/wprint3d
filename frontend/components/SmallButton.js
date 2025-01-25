@@ -1,26 +1,33 @@
-import { ActivityIndicator, Text, TouchableRipple, useTheme } from "react-native-paper";
+import { ActivityIndicator, Text, Tooltip, TouchableRipple, useTheme } from "react-native-paper";
 
 export default function SmallButton({
     children,
     onPress,
-    left       = null,
-    right      = null,
-    style      = {},
-    textStyle  = {},
-    loading    = false,
-    disabled   = false,
-    loaderSize = null
+    left        = null,
+    right       = null,
+    style       = {},
+    textStyle   = {},
+    loading     = false,
+    disabled    = false,
+    tooltipText = null,
+    loaderSize  = null
 }) {
     const { colors } = useTheme();
 
-    const dynamicLoaderSize = (
-        loaderSize ??
-            (left ? left.props.size :
-                (right ? right.props.size : null)
-            )
-    );
+    const MARGIN_HORIZONTAL = 4;
 
-    return (
+    const acitivtyIndicator = <ActivityIndicator
+        size={ loaderSize ?? 14 }
+        style={
+            (left || (!left && !right))
+                ? { marginRight: MARGIN_HORIZONTAL }
+                : { marginLeft:  MARGIN_HORIZONTAL }
+        }
+        animating={true}
+        color={colors.onPrimary}
+    />;
+
+    const button = (
         <TouchableRipple
             disabled={loading || disabled}
             onPress={() => {
@@ -43,22 +50,31 @@ export default function SmallButton({
                 ...textStyle
             }}>
                 {
-                    loading
-                        ? <ActivityIndicator
-                            size={
-                                left
-                                    ? left.props.size
-                                    : dynamicLoaderSize ?? 10
-                            }
-                            style={{ marginRight: 8 }}
-                            animating={true}
-                            color={colors.onPrimary}
-                        />
+                    loading && (left || (!left && !right))
+                        ? acitivtyIndicator
                         : left
                 }
                 {children}
-                {right}
+                {
+                    loading && right
+                        ? acitivtyIndicator
+                        : right
+                }
             </Text>
         </TouchableRipple>
     );
+
+    if (tooltipText && (!loading && !disabled)) {
+        return (
+            <Tooltip
+                title={tooltipText}
+                enterTouchDelay={0}
+                leaveTouchDelay={0}
+            >
+                {button}
+            </Tooltip>
+        );
+    }
+
+    return button;
 }

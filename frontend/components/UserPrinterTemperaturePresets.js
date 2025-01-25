@@ -14,19 +14,18 @@ import { useSnackbar } from "react-native-paper-snackbar-stack";
 export default function UserPrinterTemperaturePresets() {
     const { enqueueSnackbar } = useSnackbar();
 
-    const [ showDropDown,     setShowDropDown     ] = useState(false);
-    const [ selectedMaterial, setSelectedMaterial ] = useState(null);
+    const [ showDropDown,     setShowDropDown     ] = useState(false),
+          [ selectedMaterial, setSelectedMaterial ] = useState(null),
+          [ materials,        setMaterials        ] = useState([{ label: 'Loading...', value: null }]);
 
     const windowWidth = useWindowDimensions().width;
 
     const { colors } = useTheme();
 
-    const materialsList = useQuery({
+    const materialsQuery = useQuery({
         queryKey:   ['materialsList'],
         queryFn:    () => API.get('/user/materials')
     });
-
-    console.debug('materialsList:', materialsList);
 
     const preheatMutation = useMutation({
         mutationKey: ['preheatMutation'],
@@ -42,19 +41,59 @@ export default function UserPrinterTemperaturePresets() {
         )
     });
 
-    console.debug('preheatMutation:', preheatMutation);
+    useEffect(() => {
+        console.debug('preheatMutation:', preheatMutation);
+    }, [ preheatMutation.isPending ]);
 
     useEffect(() => {
-        if (
-            !materialsList.isSuccess
-            ||
-            !materialsList.data.data
-        ) { return; }
+        console.debug('UserPrinterTemperaturePresets: materialsQuery:', materialsQuery);
 
-        setSelectedMaterial(materialsList.data.data[0]._id);
-    }, [ materialsList.data ]);
+        if (!materialsQuery.isFetched) { return; }
 
-    console.debug('selectedMaterial:', selectedMaterial);
+        if (materialsQuery.isError) {
+            setMaterials([{
+                label: 'Couldn\'t load materials',
+                value: null
+            }]);
+
+            return;
+        }
+
+        const nextMaterials = materialsQuery?.data?.data;
+
+        if (!nextMaterials) {
+            setMaterials([{
+                label: 'Couldn\'t load materials',
+                value: null
+            }]);
+
+            return;
+        }
+
+        if (!nextMaterials.length) {
+            setMaterials([{
+                label: 'No materials were defined',
+                value: null
+            }]);
+
+            return;
+        }
+
+        setMaterials(nextMaterials.map(material => ({
+            label: `${material.name ?? 'Unknown'} (H: ${material.temperatures.hotend} °C, B: ${material.temperatures.bed} °C)`,
+            value: material._id
+        })));
+    }, [ materialsQuery.data ]);
+
+    useEffect(() => {
+        if (!materials.length) { return; }
+
+        setSelectedMaterial(materials[0].value);
+    }, [ materials ]);
+
+    useEffect(() => {
+        console.debug('selectedMaterial:', selectedMaterial);
+    }, [ selectedMaterial ]);
 
     return (
         <View style={{ flexDirection: 'row', gap: 8, paddingTop: 10 }}>
@@ -66,17 +105,7 @@ export default function UserPrinterTemperaturePresets() {
                     showDropDown={() => setShowDropDown(true)}
                     onDismiss={()    => setShowDropDown(false)}
                     value={selectedMaterial}
-                    list={
-                        materialsList.isSuccess
-                            ? materialsList.data.data.map(material => ({
-                                label: `${material.name ?? 'Unknown'} (H: ${material.temperatures.hotend} °C, B: ${material.temperatures.bed} °C)`,
-                                value: material._id
-                            }))
-                            : [{
-                                label:  'Loading...',
-                                value:  null
-                            }]
-                    }
+                    list={materials}
                     setValue={newMaterialId => setSelectedMaterial(newMaterialId)}
                     inputProps={{
                         right: (
@@ -108,6 +137,8 @@ export default function UserPrinterTemperaturePresets() {
                         )
                     }}
                     loading={preheatMutation.isPending}
+                    loaderSize={26}
+                    disabled={selectedMaterial === null}
                     onPress={() => preheatMutation.mutate(selectedMaterial)}
                 >
                     {windowWidth > 768 && // small tablets and large mobile phones

@@ -1,15 +1,11 @@
 import UserPrinterStatusExtruder from "./UserPrinterStatusExtruder";
 
 export default function UserPrinterStatusExtruders({ connectionStatus }) {
-    if (
-        !connectionStatus.isFetched || !connectionStatus.isSuccess
-        ||
-        typeof connectionStatus.data.data.statistics === 'undefined'
-    ) { return <></>; }
+    if (!connectionStatus?.statistics) { return <></>; }
 
-    const { extruders } = connectionStatus.data.data.statistics;
+    const { extruders } = connectionStatus?.statistics;
 
-    if (typeof extruders === 'undefined') { return <></>; }
+    if (!extruders) { return <></>; }
 
     return extruders.map((extruder, index) => (
         <UserPrinterStatusExtruder key={index} index={index} extruder={extruder} />

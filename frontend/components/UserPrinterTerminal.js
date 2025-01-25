@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { ActivityIndicator, Appbar, Checkbox, Divider, FAB, Icon, Text, TextInput, Tooltip, useTheme } from "react-native-paper";
 
-import { useEcho } from "../hooks/useEcho";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Linking, ScrollView, StyleSheet, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,15 +17,14 @@ import { useCache } from "../hooks/useCache";
 import uuid from 'react-native-uuid';
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 
-export default function UserPrinterTerminal({ selectedPrinter }) {
+export default function UserPrinterTerminal({ selectedPrinter, lastMessage }) {
     const { enqueueSnackbar } = useSnackbar();
     const { bottom }          = useSafeAreaInsets();
 
-    const BOTTOM_APPBAR_HEIGHT = 48;
+    const BOTTOM_APPBAR_HEIGHT = 52;
 
     const terminalView = useRef();
 
-    const echo  = useEcho();
     const cache = useCache();
 
     const { colors } = useTheme();
@@ -34,13 +32,26 @@ export default function UserPrinterTerminal({ selectedPrinter }) {
     const [ log,            setLog           ] = useState([]);
     const [ customCommand,  setCustomCommand ] = useState('');
 
-    const [ autoScrollToBottom, _setAutoScrollToBottom ] = useState(null);
-    const [ showSensorsUpdates, _setShowSensorsUpdates ] = useState(null);
-    const [ showInputCommands,  _setShowInputCommands  ] = useState(null);
+    const [ autoScrollToBottom,     _setAutoScrollToBottom   ] = useState(null);
+    const [ showSensorsUpdates,     _setShowSensorsUpdates   ] = useState(null);
+    const [ showInputCommands,      _setShowInputCommands    ] = useState(null);
+    const [ inputLines,             setInputLines            ] = useState(0);
+    const [ isSerialDriverFailing,  setIsSerialDriverFailing ] = useState(false);
 
-    console.log('autoScrollToBottom:', autoScrollToBottom);
-    console.log('showSensorsUpdates:', showSensorsUpdates);
-    console.log('showInputCommands:',  showInputCommands);
+    // This is the maximum number of input lines matched before raising a serial error.
+    const SERIAL_ERROR_INPUT_THRESHOLD = 10;
+
+    useEffect(() => {
+        console.debug('autoScrollToBottom:', autoScrollToBottom);
+    }, [ autoScrollToBottom ]);
+
+    useEffect(() => {
+        console.debug('showSensorsUpdates:', showSensorsUpdates);
+    }, [ showSensorsUpdates ]);
+
+    useEffect(() => {
+        console.debug('showInputCommands:',  showInputCommands);
+    }, [ showInputCommands ]);
 
     const setAutoScrollToBottom = async newValue => {
         await cache.set('autoScrollToBottom', newValue);
@@ -60,22 +71,18 @@ export default function UserPrinterTerminal({ selectedPrinter }) {
         return _setShowInputCommands(newValue);
     };
 
-    console.debug('log:', log);
+    // console.debug('log:', log);
 
     const terminalLastLog = useQuery({
         queryKey: ['terminalLastLog'],
         queryFn:  () => API.get('/user/printer/selected/console')
     });
 
-    console.debug('terminalLastLog:', terminalLastLog);
-
     const terminalMaxLinesConfig = useQuery({
         enabled:  terminalLastLog.isFetched,
         queryKey: ['terminalMaxLinesConfig'],
         queryFn:  () => API.get('/config/terminalMaxLines')
     });
-
-    console.debug('terminalMaxLines:', terminalMaxLinesConfig);
 
     const queueCommandMutation = useMutation({
         mutationKey: ['queueCommandMutation'],
@@ -91,8 +98,6 @@ export default function UserPrinterTerminal({ selectedPrinter }) {
             }
         )
     });
-
-    console.debug('queueCommandMutation:', queueCommandMutation);
 
     const handleCommandQueueing = () => queueCommandMutation.mutate(customCommand);
 
@@ -152,6 +157,38 @@ export default function UserPrinterTerminal({ selectedPrinter }) {
         });
     }, []);
 
+    useEffect(() => {
+        console.debug('queueCommandMutation:', queueCommandMutation);
+    }, [ queueCommandMutation.isPending ]);
+
+    useEffect(() => {
+        if (inputLines < SERIAL_ERROR_INPUT_THRESHOLD) { return; }
+
+        setIsSerialDriverFailing(true);
+    }, [ inputLines ]);
+
+    useEffect(() => {
+        if (!isSerialDriverFailing) { return; }
+
+        enqueueSnackbar({
+            message: (
+                <Text>
+                    The serial driver stopped responding. Please try to restart the host and try again.
+                    {'\n\n'}
+                    Check for EMI sources and make sure that all USB cables are properly connected and secured to the host.
+                    {'\n\n'}
+                    If the issue persists, please <Text
+                        onPress={() => Linking.openURL('https://github.com/wprint3d/wprint3d/issues/new?template=Blank+issue')}
+                        style={{ textDecorationLine: 'underline' }}
+                    >
+                        create an issue
+                    </Text>.
+                </Text>
+            ),
+            variant: 'error'
+        });
+    }, [ isSerialDriverFailing ]);
+
     const buildLogLine = ({ key, date, line }) => {
         let tagColor = colors.secondary;
 
@@ -164,11 +201,7 @@ export default function UserPrinterTerminal({ selectedPrinter }) {
         }
 
         return (
-            <Text
-                key={key}
-                style={{ display: 'flex', marginTop: 4 }}
-                testID={key}
-            >
+            <Text key={key} style={{ display: 'flex', marginTop: 4 }}>
                 <View style={[ styles.terminalCommandKind, {backgroundColor: tagColor } ]} />
 
                 {date ? `${date}: ` : ''}{line.trim()}
@@ -177,6 +210,8 @@ export default function UserPrinterTerminal({ selectedPrinter }) {
     };
 
     useEffect(() => {
+        console.debug('terminalLastLog:', terminalLastLog);
+
         if (
             !terminalLastLog.isFetched
             ||
@@ -191,6 +226,12 @@ export default function UserPrinterTerminal({ selectedPrinter }) {
             if (!splitLine.length) { return; }
 
             const [ date, line ] = splitLine.split(': ');
+
+            if (line.indexOf('> ') > -1) {
+                setInputLines(prevInputLines => prevInputLines + 1);
+            } else {
+                setInputLines(0);
+            }
 
             if (isMessageBlocked(line)) { return; }
 
@@ -209,12 +250,10 @@ export default function UserPrinterTerminal({ selectedPrinter }) {
     }, [ terminalLastLog.isFetching, terminalLastLog.isFetched ]);
 
     useEffect(() => {
-        if (echo === null) {
-            console.debug('UserPrinterTerminal: the echo client isn\'t available yet.');
+        console.debug('terminalMaxLines:', terminalMaxLinesConfig);
+    }, [ terminalMaxLinesConfig.data ]);
 
-            return;
-        }
-
+    useEffect(() => {
         if (!terminalLastLog.isFetched) {
             console.debug('UserPrinterTerminal: terminalLastLog isn\'t fetched yet.', terminalLastLog);
 
@@ -232,73 +271,61 @@ export default function UserPrinterTerminal({ selectedPrinter }) {
 
             return;
         }
+        
+        terminalMaxLines = terminalMaxLinesConfig.data.data;
 
-        const channelName       = `console.${selectedPrinter.data.data}`,
-              eventName         = 'PrinterTerminalUpdated',
-              terminalMaxLines  = terminalMaxLinesConfig.data.data;
+        console.debug('UserPrinterTerminal: lastMessage:', lastMessage);
 
-        console.debug('UserPrinterTerminal: private: listen: ', channelName);
+        let nextLog = [];
 
-        const channel = echo.private(channelName);
+        const command = lastMessage?.command;
 
-        channel.listen(eventName, event => {
-            console.debug('Terminal:', event);
+        if (!command || !command.length) { return; }
 
-            let nextLog = [];
+        console.debug('UserPrinterTerminal: command:', command);
 
-            event.command.split('\n').forEach(line => {
-                if (
-                    !line.trim().length
-                    ||
-                    isMessageBlocked(line)
-                ) { return; }
+        command.split('\n').forEach(line => {
+            if (
+                !line.trim().length
+                ||
+                isMessageBlocked(line)
+            ) { return; }
 
-                nextLog.push(
-                    buildLogLine({
-                        key:  uuid.v4(),
-                        date: event.dateString,
-                        line: line
-                    })
-                );
-            });
-
-            console.debug('setLog:', nextLog);
-
-            setLog(prevLog => {
-                let newLog = [...prevLog, ...nextLog];
-
-                while (newLog.length > terminalMaxLines) { newLog.shift(); }
-
-                return newLog;
-            });
-
-            if (!autoScrollToBottom) { return true; }
-
-            if (typeof terminalView.current === 'undefined') {
-                console.warn('terminalView is undefined.');
-
-                return true;
-            }
-
-            terminalView.current.scrollToEnd({ animated: true });
+            nextLog.push(
+                buildLogLine({
+                    key:  uuid.v4(),
+                    date: lastMessage.dateString,
+                    line: line
+                })
+            );
         });
 
-        return (() => {
-            console.debug('channel:', channel);
+        console.debug('setLog:', nextLog);
 
-            if (channel === null) { return; }
+        setLog(prevLog => {
+            let newLog = [...prevLog, ...nextLog];
 
-            channel.stopListening(eventName);
+            while (newLog.length > terminalMaxLines) { newLog.shift(); }
+
+            return newLog;
         });
-    }, [ echo, terminalMaxLinesConfig ]);
+
+        if (!autoScrollToBottom) { return; }
+
+        if (typeof terminalView.current === 'undefined' || !terminalView.current) {
+            console.warn('terminalView is undefined.');
+
+            return;
+        }
+
+        terminalView.current.scrollToEnd({ animated: true });
+    }, [ lastMessage ]);
 
     let loaderMessage = null;
 
-    if (echo === null) {
-        loaderMessage = 'Creating websocket client';
-    } else if (!selectedPrinter.isFetched) {
+    if (!selectedPrinter.isFetched) {
         loaderMessage = 'Getting selected printer';
-    } else if (!terminalLastLog.isFetched) {
+    } else if (terminalLastLog.isFetching) {
         loaderMessage = 'Downloading last console log';
     } else if (!terminalMaxLinesConfig.isFetched) {
         loaderMessage = 'Getting terminal configuration';
@@ -330,7 +357,7 @@ export default function UserPrinterTerminal({ selectedPrinter }) {
                     {
                         loaderMessage !== null
                             ? <UserPaneLoadingIndicator
-                                message={loaderMessage + '...'}
+                                message={loaderMessage}
                                 style={{
                                     height:         '100%',
                                     alignSelf:      'center',
@@ -389,7 +416,8 @@ export default function UserPrinterTerminal({ selectedPrinter }) {
             <Appbar
                 style={[ styles.bottom, {
                     height: BOTTOM_APPBAR_HEIGHT,
-                    backgroundColor: colors.elevation.level1
+                    backgroundColor: colors.elevation.level1,
+                    marginVertical: 4
                 }]}
                 safeAreaInsets={{ bottom }}
             >

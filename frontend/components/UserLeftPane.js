@@ -3,18 +3,16 @@ import { useWindowDimensions } from "react-native";
 import UserPane                      from "./UserPane";
 import UserPaneLoadingIndicator      from "./UserPaneLoadingIndicator";
 import UserPrinterPicker             from "./UserPrinterPicker";
-import UserPrinterStatusWrapper      from "./UserPrinterStatusWrapper";
 import UserPrinterCameras            from "./UserPrinterCameras";
 import UserPrinterTemperaturePresets from "./UserPrinterTemperaturePresets";
 import UserPrinterFileControls       from "./UserPrinterFileControls";
-import { Banner } from "react-native-paper";
+import UserPrinterFileProgress       from "./UserPrinterFileProgress";
+import UserPrinterStatus             from "./UserPrinterStatus";
 
-export default function UserLeftPane({ selectedPrinter, maxHeight }) {
-    console.debug('UserLeftPane: selectedPrinter:', selectedPrinter);
+import { useEffect } from "react";
 
+export default function UserLeftPane({ selectedPrinter, maxHeight, connectionStatus, lastTerminalMessage, isRunningMapper, printStatus }) {
     const windowWidth = useWindowDimensions().width;
-
-    console.debug('windowWidth:', windowWidth);
 
     let width = '30%';
 
@@ -33,11 +31,18 @@ export default function UserLeftPane({ selectedPrinter, maxHeight }) {
     let paneComponents = [];
 
     if (selectedPrinter.isSuccess && selectedPrinter.data.data.length > 0) {
-        paneComponents.push(<UserPrinterStatusWrapper       key={paneComponents.length} />);
+        const printerId = selectedPrinter.data.data;
+
+        paneComponents.push(<UserPrinterStatus              key={paneComponents.length} connectionStatus={connectionStatus} isRunningMapper={isRunningMapper} />);
         paneComponents.push(<UserPrinterTemperaturePresets  key={paneComponents.length} />);
         paneComponents.push(<UserPrinterCameras             key={paneComponents.length} />);
-        paneComponents.push(<UserPrinterFileControls        key={paneComponents.length} />);
+        paneComponents.push(<UserPrinterFileProgress        key={paneComponents.length} lastTerminalMessage={lastTerminalMessage} />);
+        paneComponents.push(<UserPrinterFileControls        key={paneComponents.length} selectedPrinter={printerId} connectionStatus={connectionStatus} printStatus={printStatus} />);
     }
+
+    useEffect(() => {
+        console.debug('windowWidth:', windowWidth);
+    }, [ windowWidth ]);
 
     return (
         <UserPane style={{
@@ -49,10 +54,10 @@ export default function UserLeftPane({ selectedPrinter, maxHeight }) {
             {
                 selectedPrinter.isFetching
                     ? <UserPaneLoadingIndicator message={"Getting printer information"} />
-                    : <>
-                        <UserPrinterPicker selectedPrinter={selectedPrinter} />
-                        {paneComponents}
-                      </>
+                    : [
+                        <UserPrinterPicker key="-1" selectedPrinter={selectedPrinter} />,
+                        ...paneComponents
+                    ]
             }
         </UserPane>
     );

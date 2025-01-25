@@ -9,9 +9,14 @@ import {
     MD3LightTheme,
     MD3DarkTheme
 } from 'react-native-paper';
+import { useCache } from '../hooks/useCache';
 
-export default (() => {
-    const colorScheme = useColorScheme();
+export default (({ colorScheme }) => {
+    const preferredScheme = useColorScheme();
+
+    const targetColorScheme = colorScheme || preferredScheme;
+
+    console.debug('themes: colorScheme:', targetColorScheme);
 
     if (!isDynamicThemeSupported) {
         const availableThemes = {
@@ -22,7 +27,7 @@ export default (() => {
         console.debug('themes: static:', availableThemes);
 
         return (
-            colorScheme === 'dark'
+            targetColorScheme === 'dark'
                 ? availableThemes.dark
                 : availableThemes.light
         );
@@ -33,7 +38,7 @@ export default (() => {
     console.debug('themes: dynamic:', theme);
 
     return (
-        colorScheme === 'dark'
+        targetColorScheme === 'dark'
             ? { ...MD3DarkTheme,  colors: theme.dark  }
             : { ...MD3LightTheme, colors: theme.light }
     );

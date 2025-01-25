@@ -5,7 +5,6 @@ import { View, Text, StyleSheet }       from 'react-native';
 import { TextInput, Button, ActivityIndicator, HelperText, useTheme } from 'react-native-paper';
 
 import Backend from '../includes/Backend';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 const Login = ({ appName, style }) => {
     const { colors } = useTheme();
@@ -26,7 +25,9 @@ const Login = ({ appName, style }) => {
                             styles.message,
                             { color: colors.onBackground }
                         ]}>
-                            Welcome back! You can now log in to your account.
+                            Welcome back!{'\n'}
+                            {'\n'}
+                            You can now log in to your account.
                         </Text>
                     </View>
 
@@ -175,6 +176,7 @@ const Form = ({ colors }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        maxWidth: '100%',
         justifyContent: 'center',
         alignItems: 'center'
     },

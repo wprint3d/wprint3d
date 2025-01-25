@@ -2,8 +2,10 @@ import { View } from "react-native";
 
 import { useTheme } from "react-native-paper";
 
-export default function UserPrinterCameraInformation({ children, onLayout, style }) {
+export default function UserPrinterCameraInformation({ children, onLayout, style, height }) {
     const { colors } = useTheme();
+
+    console.debug('UserPrinterCameraInformation', { height });
 
     return (
         <View
@@ -15,6 +17,7 @@ export default function UserPrinterCameraInformation({ children, onLayout, style
                 borderColor: colors.secondaryContainer,
                 width:       '100%',
                 minHeight:   '28vh',
+                height:      height,
                 ...style
             }}
             onLayout={onLayout}

@@ -8,13 +8,13 @@ export default function UserPaneLoadingIndicator({ message, style }) {
         <View
             style={{
                 width: '100%',
-                paddingVertical: 8,
+                paddingVertical: 16,
                 ...style
             }}
         >
             <ActivityIndicator animating={true} style={{ paddingBottom: 8 }} />
-            <Text style={{ textAlign: 'center', color: colors.onBackground }}>
-                {message}...
+            <Text style={{ textAlign: 'center', color: colors.onBackground, paddingVertical: 8 }}>
+                {message}…
             </Text>
         </View>
     );

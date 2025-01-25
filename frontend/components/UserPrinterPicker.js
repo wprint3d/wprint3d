@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import { StyleSheet, View } from "react-native";
 
-import { Text, TextInput, useTheme } from "react-native-paper";
+import { Icon, Text, TextInput, useTheme } from "react-native-paper";
 
 import DropDown from "react-native-paper-dropdown";
 
@@ -22,13 +22,13 @@ export default function UserPrinterPicker({ selectedPrinter }) {
     });
 
     const selectPrinterMutation = useMutation({
-        mutationFn: newPrinterId => {
-            API.post('/user/printer/selected', { id: newPrinterId })
-        },
+        mutationFn: newPrinterId => API.post('/user/printer/selected', { id: newPrinterId }),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['selectedPrinter'] })
     });
 
-    console.log('parsedPrintersList:', parsedPrintersList);
+    useEffect(() => {
+        console.debug('parsedPrintersList:', parsedPrintersList);
+    }, [ parsedPrintersList ]);
 
     useEffect(() => {
         if (printersList.isFetching) {
@@ -61,12 +61,23 @@ export default function UserPrinterPicker({ selectedPrinter }) {
         setParsedPrintersList(
             printersList.data.data.map(printer => {
                 return {
-                    label: `${printer.machine.machineType ?? 'Unknown printer'} (${printer.machine.uuid})`,
+                    label: `${printer?.machine?.machineType ?? 'Unknown printer'} (${printer?.machine?.uuid})`,
                     value: printer._id
                 };
             })
         );
     }, [ printersList.data ]);
+
+    useEffect(() => {
+        console.debug('UserPrinterPicker: parsedPrintersList:', parsedPrintersList);
+        console.debug('UserPrinterPicker: selectedPrinter:', selectedPrinter);
+
+        if (!parsedPrintersList.length || selectedPrinter.data) { return; }
+
+        console.debug('UserPrinterPicker: selecting first printer:', parsedPrintersList[0].value);
+
+        selectPrinterMutation.mutate(parsedPrintersList[0].value);
+    }, [ parsedPrintersList ]);
 
     return (
         <>
@@ -85,7 +96,7 @@ export default function UserPrinterPicker({ selectedPrinter }) {
                 setValue={newPrinterId => {
                     if (newPrinterId == selectedPrinter.data.data) { return; }
 
-                    selectPrinterMutation.mutate(newPrinterId)
+                    selectPrinterMutation.mutate(newPrinterId);
                 }}
                 inputProps={{
                     right: (
@@ -98,12 +109,15 @@ export default function UserPrinterPicker({ selectedPrinter }) {
             />
             {
                 (printersList.isSuccess && printersList.data.data.length == 0) &&
-                    <Text style={{ paddingTop: 10, textAlign: 'center' }}>
-                        To get started, plug a compatible printer and wait for a few seconds.
-                        {'\n'}
-                        {'\n'}
-                        Once the printer is ready to go, it'll be selected automatically.
-                    </Text>
+                    <View style={{ alignItems: 'center', flexGrow: 1, justifyContent: 'center', top: -20 }}>
+                        <Icon source="connection" size={48} />
+                        <Text style={{ paddingTop: 20, textAlign: 'center' }}>
+                            To get started, plug a compatible printer and wait for a few seconds.
+                            {'\n'}
+                            {'\n'}
+                            Once the printer is ready to go, it'll be selected automatically.
+                        </Text>
+                    </View>
             }
         </>
     );

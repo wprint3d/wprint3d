@@ -80,7 +80,7 @@ const UserPrinterCamera = ({ url, isConnected }) => {
                     justifyContent: 'center',
                     height:         '100%'
                 }}>
-                    <UserPaneLoadingIndicator message="Buffering stream..." />
+                    <UserPaneLoadingIndicator message="Buffering stream" />
                 </View>
             </UserPrinterCameraInformation>
 

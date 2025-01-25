@@ -1,10 +1,10 @@
 import { useState } from 'react';
 
-import { View } from 'react-native';
-import { Button, Menu, Divider, PaperProvider, Appbar, Icon, useTheme } from 'react-native-paper';
+import { Menu, Icon, useTheme } from 'react-native-paper';
+
 import SmallButton from './SmallButton';
 
-export default function UserPrinterFileControlsOptions({ disabled }) {
+export default function UserPrinterFileControlsOptions({ disabled, setIsRequestingDelete, setIsRequestingRename }) {
   const { colors } = useTheme();
 
   const [ isVisible, setIsVisible ] = useState(false);
@@ -37,8 +37,8 @@ export default function UserPrinterFileControlsOptions({ disabled }) {
         }
         anchorPosition='bottom'
       >
-        <Menu.Item leadingIcon="trash-can"  onPress={() => {}} title="Delete" />
-        <Menu.Item leadingIcon="rename-box" onPress={() => {}} title="Rename" />
+        <Menu.Item leadingIcon="trash-can"  onPress={() => { closeMenu(); setIsRequestingDelete(true) }} title="Delete" />
+        <Menu.Item leadingIcon="rename-box" onPress={() => { closeMenu(); setIsRequestingRename(true) }} title="Rename" />
       </Menu>
     </>
   );

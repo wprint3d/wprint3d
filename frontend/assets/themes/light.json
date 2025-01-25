@@ -1,5 +1,6 @@
 {
     "colors": {
+        "white": "rgb(255, 255, 255)",
         "primary": "rgb(79, 88, 99)",
         "onPrimary": "rgb(255, 255, 255)",
         "primaryContainer": "rgb(211, 222, 249)",

@@ -3,15 +3,11 @@ import TextBold from "./TextBold";
 import { View } from "react-native";
 
 export default function UserPrinterStatusBed({ connectionStatus }) {
-    if (
-        !connectionStatus.isFetched || !connectionStatus.isSuccess
-        ||
-        typeof connectionStatus.data.data.statistics === 'undefined'
-    ) { return <></>; }
+    if (!connectionStatus?.statistics) { return <></>; }
 
-    const { bed } = connectionStatus.data.data.statistics;
+    const { bed } = connectionStatus?.statistics;
 
-    if (typeof bed === 'undefined') { return <></>; }
+    if (!bed) { return <></>; }
 
     return (
         <View style={{ paddingTop: 10, width: '100%' }}>

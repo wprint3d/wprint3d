@@ -15,9 +15,9 @@ export function useEcho() {
         queryFn:  () => API.get('/ws/config')
     });
 
-    console.debug('websocketConfig:', websocketConfig);
-
     useEffect(() => {
+        console.debug('websocketConfig:', websocketConfig);
+
         if (!websocketConfig.isSuccess) { return; }
 
         setEcho(

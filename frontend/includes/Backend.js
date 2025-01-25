@@ -18,5 +18,18 @@ export default ({
             `${BACKEND_BASE_URL}${url}`, // url
             data                         // data
         )
+    ),
+    delete: (url, data) => (
+        axios.delete(`${BACKEND_BASE_URL}${url}${
+            typeof data != 'undefined'
+                ? '?' + (new URLSearchParams(data).toString())
+                : ''
+        }`)
+    ),
+    put: (url, data) => (
+        axios.put(
+            `${BACKEND_BASE_URL}${url}`, // url
+            data                         // data
+        )
     )
 });

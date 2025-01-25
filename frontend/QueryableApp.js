@@ -1,16 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
-import { StatusBar } from 'expo-status-bar';
-import { AppState, StyleSheet, Text, View } from 'react-native';
-import { ActivityIndicator, Icon } from 'react-native-paper';
+
+import { Animated, AppState, Linking, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Icon, useTheme } from 'react-native-paper';
 
 import Login  from './components/Login';
 import Main   from './components/Main';
 
 import API from './includes/API';
-import { useEffect, useRef, useState } from 'react';
 
-export default function QueryableApp() {
-  const [ lastAppState, setLastAppState ] = useState(null);
+import { useEffect, useState } from 'react';
+import UserChangePasswordModal from './components/UserChangePasswordModal';
+
+export default function QueryableApp({ colorScheme, setColorScheme }) {
+  const { colors } = useTheme();
+
+  const messageStyle = { color: colors.onBackground, textAlign: 'center' };
+
+  const [ lastAppState, setLastAppState ] = useState('active');
 
   const getAppName = useQuery({
     queryKey: ['getAppName'],
@@ -22,7 +28,8 @@ export default function QueryableApp() {
   const checkLogin = useQuery({
     queryKey: ['checkLogin'],
     queryFn:  () => API.get('/checkLogin'),
-    refetchOnWindowFocus: 'always'
+    refetchOnWindowFocus: 'always',
+    enabled: getAppName.isSuccess && lastAppState === 'active'
   });
 
   console.debug('checkLogin:', checkLogin);
@@ -39,24 +46,50 @@ export default function QueryableApp() {
     };
   }, [ lastAppState ]);
 
-  if (lastAppState !== null && lastAppState !== 'active') {
-    return (
-      <View style={styles.preloader}>
-        <View style={styles.container}>
-          <Icon source="sleep" size={48} />
+  useEffect(() => {
+    if (getAppName.isFetching || getAppName.isSuccess) { return; }
 
-          <View style={styles.messageContainer}>
-              <Text style={styles.message}>
-                The application sleeps while you're away in order to save on system resources.
-                {'\n'}
-                {'\n'}
-                Please wait for a few seconds while we get back on track...
-              </Text>
-          </View>
-        </View>
-      </View>
-    );
-  }
+    setTimeout(() => getAppName.refetch(), 5000);
+  }, [ getAppName.isFetching, getAppName.isSuccess ]);
+
+  const sharedRetryingScale = new Animated.Value(1);
+
+  // Write a useEffect() hook to make the heart bounce while the app name is being fetched
+  useEffect(() => {
+    if (!getAppName.isFetching) { return; }
+
+    const interval = setInterval(() => {
+      Animated.spring(sharedRetryingScale, {
+        toValue: 1.1,
+        friction: 1,
+        duration: 500,
+        useNativeDriver: true
+      }).start(() => {
+        sharedRetryingScale.setValue(1);
+      });
+    }, 750);
+
+    return () => clearInterval(interval);
+  }, [ getAppName.isFetching ]);
+
+  // if (lastAppState !== null && lastAppState !== 'active') {
+  //   return (
+  //     <View style={styles.preloader}>
+  //       <View style={styles.container}>
+  //         <Icon source="sleep" size={48} />
+
+  //         <View style={styles.messageContainer}>
+  //             <Text style={messageStyle}>
+  //               The application sleeps while you're away in order to save on system resources.
+  //               {'\n'}
+  //               {'\n'}
+  //               Please wait for a few seconds while we get back on track...
+  //             </Text>
+  //         </View>
+  //       </View>
+  //     </View>
+  //   );
+  // }
 
   if (!getAppName.isFetched || !checkLogin.isFetched) {
     return (
@@ -65,7 +98,7 @@ export default function QueryableApp() {
           <ActivityIndicator animating={true} />
 
           <View style={styles.messageContainer}>
-              <Text style={styles.message}>
+              <Text style={messageStyle}>
                 Please wait for a while, we're still loading some assets...
               </Text>
           </View>
@@ -79,9 +112,20 @@ export default function QueryableApp() {
       <View style={styles.preloader}>
         <View style={styles.container}>
           <View style={styles.messageContainer}>
-              <Text style={styles.message}>
-                Something went wrong, please wait for a few minutes and try again.
-              </Text>
+            <View>
+              <Animated.View style={{ transform: [{ scale: sharedRetryingScale }], textAlignLast: 'center' }}>
+                <Icon source="heart-broken" size={48} color={getAppName.isFetching ? 'orange': colors.onBackground} />
+              </Animated.View>
+              <Text style={[ messageStyle, { visibility: getAppName.isFetching ? 'visible' : 'hidden' } ]}> Retrying... </Text>
+            </View>
+            <View style={styles.messageContainer}>
+                <Text style={messageStyle}>
+                  Something went wrong, please wait for a few seconds as the server becomes available.
+                  {'\n'}
+                  {'\n'}
+                  If the problem persists, please <Text style={{ textDecorationLine: 'underline' }} onPress={() => Linking.openURL('https://github.com/wprint3d/wprint3d')}>create an issue on our GitHub repository</Text>.
+                </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -91,10 +135,20 @@ export default function QueryableApp() {
   const appName = getAppName.data.data;
 
   if (!checkLogin.isSuccess) {
-    return <Login appName={appName} style={styles.container} />;
+    return (
+      <>
+        {checkLogin?.error?.status === 423 && (
+          <UserChangePasswordModal
+            visible={true} fromFirstLogin={true}
+            extraHint={checkLogin?.error?.response?.data}
+          />
+        )}
+        <Login appName={appName} style={styles.container} />
+      </>
+    );
   }
 
-  return <Main appName={appName} />;
+  return <Main appName={appName} colorScheme={colorScheme} setColorScheme={setColorScheme} />;
 }
 
 const styles = StyleSheet.create({
@@ -115,7 +169,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  message: { textAlign: 'center' },
   messageContainer: {
     paddingHorizontal: 20,
     paddingVertical: 10,

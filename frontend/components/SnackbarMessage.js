@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 
 import { useWindowDimensions } from "react-native";
 
-import { Portal, Snackbar } from "react-native-paper";
+import { Portal, Snackbar, useTheme } from "react-native-paper";
 
-export default function SnackbarMessage({ message, initialVisibility, duration = Snackbar.DURATION_LONG }) {
-    const dimensions = useWindowDimensions();
+export default function SnackbarMessage({ message, initialVisibility, duration = Snackbar.DURATION_LONG, action = null }) {
+    const { colors } = useTheme();
 
     const [ visible, setVisible ] = useState(initialVisibility);
 
@@ -15,19 +15,12 @@ export default function SnackbarMessage({ message, initialVisibility, duration =
         <Portal>
             <Snackbar
                 visible={visible}
-                action={{
-                    label:   'Got it',
-                    onPress: () => setVisible(false)
-                }}
+                action={action}
                 style={{
                     maxWidth:   '100%',
                     minWidth:   100,
-                    width:      (
-                        dimensions.width > 1280
-                            ? 'auto'
-                            : 512
-                    ),
-                    alignSelf:  'center'
+                    alignSelf:  'center',
+                    backgroundColor: colors.surface,
                 }}
                 duration={duration}
                 onDismiss={() => setVisible(false)}

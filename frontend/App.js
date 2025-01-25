@@ -10,8 +10,6 @@ import {
   QueryClientProvider
 } from "@tanstack/react-query";
 
-import Animated, { FadingTransition } from 'react-native-reanimated';
-
 import { PaperProvider } from "react-native-paper";
 
 import Background   from "./components/Background";
@@ -19,25 +17,49 @@ import Background   from "./components/Background";
 import Theme        from "./includes/Theme";
 
 import QueryableApp from "./QueryableApp";
-import { SafeAreaView, StyleSheet } from "react-native";
+import { SafeAreaView, StyleSheet, useColorScheme, View } from "react-native";
+
 import { SnackbarProvider } from "react-native-paper-snackbar-stack";
+import { useCache } from "./hooks/useCache";
+import { useEffect, useState } from "react";
 
 export default function App() {
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { retry: 0 }
+      queries: {
+        retry: 0,
+        refetchOnWindowFocus: false
+      }
     }
   });
 
+  const cache = useCache();
+
+  const [ colorScheme, _setColorScheme ] = useState(null);
+
+  const setColorScheme = (value) => {
+    _setColorScheme(value);
+
+    cache.set('colorScheme', value);
+  }
+
+  useEffect(() => {
+    cache.get('colorScheme').then((value) => {
+      if (!value) { return; }
+
+      setColorScheme(value);
+    });
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <PaperProvider theme={Theme()}>
+      <PaperProvider theme={Theme({ colorScheme })}>
         <Background>
-            <Animated.View layout={FadingTransition} style={styles.animatedViewRoot}>
-              <SnackbarProvider maxSnack={4}>
-                <QueryableApp />
-              </SnackbarProvider>
-            </Animated.View>
+          <View style={styles.root}>
+            <SnackbarProvider maxSnack={4}>
+              <QueryableApp colorScheme={colorScheme} setColorScheme={setColorScheme} />
+            </SnackbarProvider>
+          </View>
         </Background>
       </PaperProvider>
     </QueryClientProvider>
@@ -45,7 +67,7 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  animatedViewRoot: {
+  root: {
     width:  '100%',
     height: '100%',
     overflow: 'auto'

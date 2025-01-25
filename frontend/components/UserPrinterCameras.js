@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { View } from "react-native";
 
@@ -16,14 +16,19 @@ export default function UserPrinterCameras() {
 
     const [ selectedCamera, setSelectedCamera ] = useState(0);
 
-    console.debug('selectedCamera:', selectedCamera);
-
     const cameraList = useQuery({
         queryKey: ['cameraList'],
         queryFn:  () => API.get('/user/printer/selected/cameras')
     });
 
-    console.debug('cameraList:', cameraList);
+    useEffect(() => {
+        console.debug('UserPrinterCameras: cameraList:', cameraList);
+        console.debug('UserPrinterCameras: camera:', camera);
+    }, [ cameraList.isFetching ]);
+
+    useEffect(() => {
+        console.debug('selectedCamera:', selectedCamera);
+    }, [ selectedCamera ]);
 
     if (!cameraList.isFetched || !cameraList.isSuccess) { return; }
 
@@ -32,8 +37,6 @@ export default function UserPrinterCameras() {
     if (cameras.length === 0) { return; }
 
     const camera = cameras[selectedCamera];
-    
-    console.debug('camera:', camera);
 
     return (
         <View style={{ paddingTop: 10 }}>

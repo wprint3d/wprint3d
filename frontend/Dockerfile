@@ -34,6 +34,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_21.x | bash - &&\
 # Install Yarn
 RUN npm install --global yarn
 
+# Install PNPM
+RUN npm install --global pnpm
+
 # Install JQ
 RUN apt-get update && apt-get install -y --no-install-recommends jq &&\
     apt-get clean &&\

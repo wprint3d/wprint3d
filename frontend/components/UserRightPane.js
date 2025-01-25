@@ -2,10 +2,14 @@ import { TabScreen, Tabs, TabsProvider } from "react-native-paper-tabs";
 import UserPane                 from "./UserPane";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 
-import { Text, useTheme } from "react-native-paper";
-import UserPrinterTerminal from "./UserPrinterTerminal";
+import { useTheme } from "react-native-paper";
 
-export default function UserRightPane({ selectedPrinter, maxHeight }) {
+import UserPrinterTerminal from "./UserPrinterTerminal";
+import UserPrinterPreview from "./UserPrinterPreview";
+import UserPrinterControl from "./UserPrinterControl";
+import UserPrinterRecordings from "./UserPrinterRecordings";
+
+export default function UserRightPane({ selectedPrinter, maxHeight, connectionStatus, lastTerminalMessage, isSmallLaptop, isSmallTablet }) {
     const { colors } = useTheme();
 
     return (
@@ -34,16 +38,26 @@ export default function UserRightPane({ selectedPrinter, maxHeight }) {
                         // disableSwipe={false} // (default=false) disable swipe to left/right gestures
                         >
                             <TabScreen label="Terminal" icon="console">
-                                <UserPrinterTerminal selectedPrinter={selectedPrinter} />
+                                <UserPrinterTerminal selectedPrinter={selectedPrinter} lastMessage={lastTerminalMessage} />
                             </TabScreen>
                             <TabScreen label="Preview" icon="eye">
-                                <Text>test</Text>
+                                <UserPrinterPreview selectedPrinter={selectedPrinter} connectionStatus={connectionStatus} lastUpdate={lastTerminalMessage} />
                             </TabScreen>
                             <TabScreen label="Control" icon="camera-control">
-                                <Text>test</Text>
+                                <UserPrinterControl
+                                    isSmallLaptop={isSmallLaptop}
+                                    isSmallTablet={isSmallTablet}
+                                    selectedPrinter={selectedPrinter}
+                                    connectionStatus={connectionStatus}
+                                />
                             </TabScreen>
                             <TabScreen label="Recordings" icon="record-circle-outline">
-                                <Text>test</Text>
+                                <UserPrinterRecordings
+                                    isSmallLaptop={isSmallLaptop}
+                                    isSmallTablet={isSmallTablet}
+                                    selectedPrinter={selectedPrinter}
+                                    connectionStatus={connectionStatus}
+                                />
                             </TabScreen>
                         </Tabs>
                       </TabsProvider>

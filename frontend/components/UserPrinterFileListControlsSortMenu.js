@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { View } from "react-native";
 
@@ -9,12 +9,14 @@ import { ActivityIndicator, Divider, Icon, List, Menu, TextInput, useTheme } fro
 import API from "../includes/API";
 import SmallButton from "./SmallButton";
 
-export default function UserPrinterFileListControlsSortMenu({ isLoading, sortingModes, sortingMode, setSortingMode, icons, titles }) {
-    console.debug('sortingMode:', sortingMode);
-
+export default function UserPrinterFileListControlsSortMenu({ isLoading, loaderSize, sortingModes, sortingMode, setSortingMode, icons, titles }) {
     const { colors } = useTheme();
 
     const [ isVisible, setIsVisible ] = useState(false);
+
+    useEffect(() => {
+        console.debug('sortingMode:', sortingMode);
+    }, [ sortingMode ]);
 
     return (
         <Menu
@@ -23,12 +25,11 @@ export default function UserPrinterFileListControlsSortMenu({ isLoading, sorting
             anchor={
                 <SmallButton
                     style={{
-                        borderWidth:             0,
-                        borderLeftWidth:         1,
-                        borderTopLeftRadius:     0,
-                        borderBottomLeftRadius:  0,
-                        borderColor:             'transparent',
-                        backgroundColor:         colors.primary
+                        borderWidth:      0,
+                        borderRightWidth: 1,
+                        borderRadius:     0,
+                        borderColor:      'transparent',
+                        backgroundColor:  colors.primary
                     }}
                     left={
                         <Icon
@@ -39,8 +40,10 @@ export default function UserPrinterFileListControlsSortMenu({ isLoading, sorting
                     }
                     textStyle={{ display: 'flex', alignItems: 'center' }}
                     loading={isLoading}
+                    loaderSize={loaderSize}
                     onPress={() => setIsVisible(true)}
                     disabled={isLoading || sortingModes.isFetching}
+                    tooltipText={'Sort by'}
                 />
             }
             anchorPosition='bottom'

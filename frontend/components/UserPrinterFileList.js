@@ -4,13 +4,22 @@ import { useEffect, useState } from "react";
 
 import { View } from "react-native";
 
-import { ActivityIndicator, Divider, List, useTheme } from "react-native-paper";
+import { ActivityIndicator, Badge, Divider, Icon, List, Text, useTheme } from "react-native-paper";
 
 import UserPrinterFileListControls from "./UserPrinterFileListControls";
 
 import API from "../includes/API";
 
-export default function UserPrinterFileList({ selectedFileName, setSelectedFileName }) {
+export default function UserPrinterFileList({
+    selectedFileName,
+    setSelectedFileName,
+    subDirectory,
+    setSubDirectory,
+    isCreatingFolder,
+    setIsCreatingFolder,
+    deleteDirectoryMutation,
+    isParentBusy = false
+}) {
     const { colors } = useTheme();
 
     const sortingModesIcons = {
@@ -27,12 +36,9 @@ export default function UserPrinterFileList({ selectedFileName, setSelectedFileN
         DATE_DESCENDING:    'Date descending'
     };
 
-    const [ subDirectory, setSubDirectory ] = useState('');
     const [ sortingMode,  setSortingMode  ] = useState(null);
     const [ directories,  setDirectories  ] = useState([]);
     const [ files,        setFiles        ] = useState([]);
-
-    console.debug('subDirectory:', subDirectory);
 
     const appendSubDirectory = directory => setSubDirectory(`${subDirectory}/${directory}`);
 
@@ -40,8 +46,6 @@ export default function UserPrinterFileList({ selectedFileName, setSelectedFileN
         queryKey:   ['sortingModes'],
         queryFn:    () => API.get('/files/sortingModes')
     });
-
-    console.debug('sortingModes:', sortingModes);
 
     const fileList = useQuery({
         enabled:    sortingModes.isSuccess,
@@ -52,11 +56,11 @@ export default function UserPrinterFileList({ selectedFileName, setSelectedFileN
         })
     });
 
-    console.debug('fileList:', fileList);
-
     useEffect(() => setSelectedFileName(null), [ subDirectory ]);
 
     useEffect(() => {
+        console.debug('sortingModes:', sortingModes);
+
         if (
             !sortingModes.isSuccess
             ||
@@ -66,21 +70,26 @@ export default function UserPrinterFileList({ selectedFileName, setSelectedFileN
         setSortingMode(
             Object.keys(sortingModes.data.data)[0]
         );
-    }, [ sortingModes ]);
+    }, [ sortingModes.data ]);
 
     useEffect(() => {
+        console.debug('fileList:',      fileList);
+        console.debug('directories:',   directories);
+        console.debug('files:',         files);
+
         if (!fileList.isSuccess) return;
 
         setDirectories(fileList.data.data.directories);
         setFiles(fileList.data.data.files);
-    }, [ fileList ]);
+    }, [ fileList.data ]);
 
-    console.debug('directories:', directories);
-    console.debug('files:', files);
+    useEffect(() => {
+        console.debug('selectedFileName:', selectedFileName);
+    }, [ selectedFileName ]);
 
     let components = [];
 
-    const isBusy = fileList.isFetching || sortingModes.isFetching;
+    const isBusy = fileList.isFetching || sortingModes.isFetching || isParentBusy;
 
     if (
         isBusy
@@ -102,11 +111,13 @@ export default function UserPrinterFileList({ selectedFileName, setSelectedFileN
         );
     } else {
         directories.forEach(directory => {
+            const baseName = directory.replace(subDirectory.substr(1) + '/', '');
+
             components.push(
                 <List.Item
                     key={components.length}
-                    onPress={() => appendSubDirectory(directory)}
-                    title={directory}
+                    onPress={() => appendSubDirectory(baseName)}
+                    title={baseName}
                     titleStyle={{ fontWeight: 'bold' }}
                     style={{ paddingVertical: 4 }}
                     left={props => <List.Icon {...props} icon="folder" />}
@@ -118,13 +129,55 @@ export default function UserPrinterFileList({ selectedFileName, setSelectedFileN
         });
 
         files.forEach(file => {
+            const name      = file?.name,
+                  baseName  = name.replace(subDirectory.substr(1) + '/', '');
+
             components.push(
                 <List.Item
                     key={components.length}
-                    onPress={() => setSelectedFileName(file)}
-                    title={file}
-                    style={file == selectedFileName && { backgroundColor: colors.primary }}
-                    titleStyle={file == selectedFileName && { color: colors.onPrimary }}
+                    onPress={() => setSelectedFileName(baseName)}
+                    title={baseName}
+                    style={baseName == selectedFileName && { backgroundColor: colors.primary }}
+                    titleStyle={baseName == selectedFileName && { color: colors.onPrimary }}
+                    right={() => {
+                        if (!file?.prints) {
+                            return (
+                                <Badge theme={{ colors: { onError: '#FFFFFF' } }} style={{ paddingHorizontal: 8 }}>
+                                    NEW
+                                </Badge>
+                            );
+                        }
+
+                        if (baseName == selectedFileName) {
+                            return (
+                                <Badge
+                                    theme={{
+                                        colors: {
+                                            error:   colors.onPrimary,
+                                            onError: colors.primary
+                                        }
+                                    }}
+                                    style={{ paddingHorizontal: 8 }}
+                                >
+                                    {file.prints} print{file.prints > 1 ? 's' : ''}
+                                </Badge>
+                            );
+                        }
+
+                        return (
+                            <Badge
+                                theme={{
+                                    colors: {
+                                        error:   colors.elevation.level1,
+                                        onError: colors.primary
+                                    }
+                                }}
+                                style={{ paddingHorizontal: 8 }}
+                            >
+                                {file.prints} print{file.prints > 1 ? 's' : ''}
+                            </Badge>
+                        );
+                    }}
                     disabled={isBusy}
                 />
             );
@@ -139,7 +192,11 @@ export default function UserPrinterFileList({ selectedFileName, setSelectedFileN
         components.push(
             <List.Item
                 key={components.length}
-                title="No files uploaded, try uploading something!"
+                title={
+                    subDirectory.length == 0
+                        ? <Text> No files uploaded, try uploading something.</Text>
+                        : <Text> No files uploaded, <Text onPress={() => deleteDirectoryMutation.mutate(subDirectory)} style={{ textDecoration: 'underline' }}>delete this folder</Text> or try uploading something.</Text>
+                }
                 disabled={true}
             />
         );
@@ -156,6 +213,8 @@ export default function UserPrinterFileList({ selectedFileName, setSelectedFileN
                 sortingModes={sortingModes}
                 sortingModesIcons={sortingModesIcons}
                 sortingModesTitles={sortingModesTitles}
+                isCreatingFolder={isCreatingFolder}
+                setIsCreatingFolder={setIsCreatingFolder}
             />
 
             <List.Section style={{
