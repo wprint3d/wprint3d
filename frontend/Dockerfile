@@ -47,6 +47,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends file &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
+# Copy the base code
+ADD . /app
+
 WORKDIR /app
 
 ENTRYPOINT [ "./entrypoint.sh" ]
