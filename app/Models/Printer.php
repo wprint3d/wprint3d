@@ -37,6 +37,8 @@ class Printer extends Model
     const CACHE_MAX_LINE_SUFFIX          = '_maxLine';
     const CACHE_ABSOLUTE_POSITION_SUFFIX = '_absolutePosition';
     const CACHE_LAST_SEEN_SUFFIX         = '_lastSeen';
+    const CACHE_CURRENT_LAYER_SUFFIX     = '_currentLayer';
+    const CACHE_MAX_LAYER_SUFFIX         = '_maxLayer';
 
     const MARLIN_TEMPERATURE_INDICATOR      = 'ok T:';
     const MARLIN_MULTI_TEMPERATURE_TEMPLATE = 'T%s:';
@@ -494,6 +496,70 @@ class Printer extends Model
 
     public function incrementCurrentLine() : int {
         return Cache::increment( $this->_id . self::CACHE_CURRENT_LINE_SUFFIX );
+    }
+
+    public function getCurrentLayer() : int {
+        return Cache::get(
+            key:     $this->_id . self::CACHE_CURRENT_LAYER_SUFFIX,
+            default: 0
+        );
+    }
+
+    public function setCurrentLayer(int $layer) : bool {
+        return Cache::put(
+            key:     $this->_id . self::CACHE_CURRENT_LAYER_SUFFIX,
+            value:   $layer
+        );
+    }
+
+    public function incrementCurrentLayer() : int {
+        return Cache::increment( $this->_id . self::CACHE_CURRENT_LAYER_SUFFIX );
+    }
+
+    public static function getCurrentLayerOf(string $printerId) : int {
+        return Cache::get(
+            key:     $printerId . self::CACHE_CURRENT_LAYER_SUFFIX,
+            default: 0
+        );
+    }
+
+    public static function setCurrentLayerOf(string $printerId, int $layer) : bool {
+        return Cache::put(
+            key:     $printerId . self::CACHE_CURRENT_LAYER_SUFFIX,
+            value:   $layer
+        );
+    }
+
+    public static function incrementCurrentLayerOf(string $printerId) : int {
+        return Cache::increment( $printerId . self::CACHE_CURRENT_LAYER_SUFFIX );
+    }
+
+    public function getMaxLayer() : int {
+        return Cache::get(
+            key:     $this->_id . self::CACHE_MAX_LAYER_SUFFIX,
+            default: 0
+        );
+    }
+
+    public function setMaxLayer(int $layer) : bool {
+        return Cache::put(
+            key:     $this->_id . self::CACHE_MAX_LAYER_SUFFIX,
+            value:   $layer
+        );
+    }
+
+    public static function getMaxLayerOf(string $printerId) : int {
+        return Cache::get(
+            key:     $printerId . self::CACHE_MAX_LAYER_SUFFIX,
+            default: 0
+        );
+    }
+
+    public static function setMaxLayerOf(string $printerId, int $layer) : bool {
+        return Cache::put(
+            key:     $printerId . self::CACHE_MAX_LAYER_SUFFIX,
+            value:   $layer
+        );
     }
 
     public function getAbsolutePosition() : array {

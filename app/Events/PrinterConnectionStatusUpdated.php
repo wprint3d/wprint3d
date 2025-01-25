@@ -18,22 +18,45 @@ class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
     public $queue = 'broadcasts';
 
     public string $printerId;
-    public array  $statistics;
-    public mixed  $lastSeen;
+    public  array $statistics;
+    public  mixed $lastSeen;
+    public   bool $isPrinting    = false;
+    public   bool $isPaused      = false;
+    public   ?int $layer         = null;
+    public   ?int $maxLayer      = null;
+    public   ?int $thresholdSecs = null;
 
-    public function __construct(string $printerId, ?int $lastSeen = null, ?array $statistics = null)
-    {
-        $this->printerId  = $printerId;
+    public function __construct(
+        string $printerId,
+          ?int $lastSeen      = null,
+        ?array $statistics    = null,
+          bool $hasActiveFile = false,
+          bool $isPaused      = false,
+          ?int $thresholdSecs = null
+    ) {
+        $this->printerId = $printerId;
+        $this->isPaused  = $isPaused;
 
         $this->statistics =
             $statistics === null
-                ? Printer::getStatisticsOf( $printerId )
+                ? Printer::getStatisticsOf($printerId)
                 : $statistics;
 
         $this->lastSeen   =
             $lastSeen === null
-                ? Printer::getLastSeenOf( $printerId )
+                ? Printer::getLastSeenOf($printerId)
                 : $lastSeen;
+
+        if ($hasActiveFile) {
+            $this->isPrinting = true;
+        }
+
+        if ($this->isPrinting) {
+            $this->layer    = Printer::getCurrentLayerOf($printerId);
+            $this->maxLayer = Printer::getMaxLayerOf($printerId);
+        }
+
+        $this->thresholdSecs = $thresholdSecs;
     }
 
     /**
