@@ -52,20 +52,26 @@ const NavBarMenuSettingsModalPrinters = ({ isSmallTablet, isSmallLaptop, enqueue
     return [
         printersList.isFetching && !printers.length
             ? <UserPaneLoadingIndicator key={-1} message={`Loading printers list...`} />
-            : printers?.map(printer => {
-                console.debug('NavBarMenuSettingsModalPrinters: printer:', printer);
+            : (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                    {
+                        printers?.map(printer => {
+                            console.debug('NavBarMenuSettingsModalPrinters: printer:', printer);
 
-                return (
-                    <NavbarMenuSettingsModalPrintersItem
-                        key={printer._id}
-                        printer={printer}
-                        isSmallTablet={isSmallTablet}
-                        isSmallLaptop={isSmallLaptop}
-                        enqueueSnackbar={enqueueSnackbar}
-                        handleSettingsModal={handleSettingsModal}
-                    />
-                );
-            }),
+                            return (
+                                <NavbarMenuSettingsModalPrintersItem
+                                    key={printer._id}
+                                    printer={printer}
+                                    isSmallTablet={isSmallTablet}
+                                    isSmallLaptop={isSmallLaptop}
+                                    enqueueSnackbar={enqueueSnackbar}
+                                    handleSettingsModal={handleSettingsModal}
+                                />
+                            );
+                        })
+                    }
+                </View>
+            ),
 
         printer && (
             <PrinterSettingsModal

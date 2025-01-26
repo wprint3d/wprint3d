@@ -72,9 +72,8 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
                 }
             />
 
-            <Card style={{
-                backgroundColor: colors.surface,
-                padding: 4,
+            <View style={{
+                padding: 8,
                 width: (
                     isSmallTablet
                         ? '100%'
@@ -85,89 +84,91 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
                         )
                 )
             }}>
-                <View>
-                    {
-                        thumbLoadError === null && printer?.mainCamera?.url
-                            ? (
-                                <Card.Cover
-                                    source={{ uri: `${printer.mainCamera.url}/?action=snapshot` }}
-                                    onError={(error) => {
-                                        console.error('NavbarMenuSettingsModalPrintersItem: error:', error);
+                <Card style={{ backgroundColor: colors.surface, padding: 4 }}>
+                    <View>
+                        {
+                            thumbLoadError === null && printer?.mainCamera?.url
+                                ? (
+                                    <Card.Cover
+                                        source={{ uri: `${printer.mainCamera.url}/?action=snapshot` }}
+                                        onError={(error) => {
+                                            console.error('NavbarMenuSettingsModalPrintersItem: error:', error);
 
-                                        setThumbLoadError(error);
-                                    }}
-                                />
-                            )
-                            : (
-                                <View style={{ height: 195, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' }}>
-                                    <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                                        <Icon source={'eye-off'} color={colors.onPrimary} size={48} />
-                                        <Text style={{ color: colors.onPrimary, fontSize: 16, textAlign: 'center', paddingVertical: 8 }}>
-                                            No preview available
-                                        </Text>
+                                            setThumbLoadError(error);
+                                        }}
+                                    />
+                                )
+                                : (
+                                    <View style={{ height: 195, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' }}>
+                                        <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                                            <Icon source={'eye-off'} color={colors.onPrimary} size={48} />
+                                            <Text style={{ color: colors.onPrimary, fontSize: 16, textAlign: 'center', paddingVertical: 8 }}>
+                                                No preview available
+                                            </Text>
+                                        </View>
                                     </View>
-                                </View>
-                            )
-                    }
+                                )
+                        }
 
-                    <Badge
-                        style={{ position: 'absolute', top: 8, right: 8, paddingHorizontal: 8 }}
-                        theme={{
-                            colors: {
-                                error:   printer?.connected ? colors.success : colors.error,
-                                onError: colors.white
-                            }
-                        }}
-                    >
-                        {printer?.connected ? 'Online' : 'Offline'}
-                    </Badge>
-                </View>
-                <Card.Title
-                    title={printer?.machine?.machineType ?? 'Unknown printer'}
-                    subtitle={printer?.machine?.uuid}
-                    titleVariant="headlineSmall"
-                />
-                <Card.Actions>
-                    <Button
-                        icon="pencil"
-                        loading={deletePrinterMutation.isLoading}
-                        onPress={() => {
-                            console.debug('Edit printer:', printer);
+                        <Badge
+                            style={{ position: 'absolute', top: 8, right: 8, paddingHorizontal: 8 }}
+                            theme={{
+                                colors: {
+                                    error:   printer?.connected ? colors.success : colors.error,
+                                    onError: colors.white
+                                }
+                            }}
+                        >
+                            {printer?.connected ? 'Online' : 'Offline'}
+                        </Badge>
+                    </View>
+                    <Card.Title
+                        title={printer?.machine?.machineType ?? 'Unknown printer'}
+                        subtitle={printer?.machine?.uuid}
+                        titleVariant="headlineSmall"
+                    />
+                    <Card.Actions>
+                        <Button
+                            icon="pencil"
+                            loading={deletePrinterMutation.isLoading}
+                            onPress={() => {
+                                console.debug('Edit printer:', printer);
 
-                            handleSettingsModal(printer);
-                        }}
-                    >Edit</Button>
-                    <Button
-                        icon="delete"
-                        loading={deletePrinterMutation.isLoading}
-                        onPress={() => {
-                            console.debug('Delete printer:', printer);
+                                handleSettingsModal(printer);
+                            }}
+                        >Edit</Button>
+                        <Button
+                            icon="delete"
+                            loading={deletePrinterMutation.isLoading}
+                            onPress={() => {
+                                console.debug('Delete printer:', printer);
 
-                            if (!printer.connected) {
-                                console.debug('Printer is offline, can delete');
+                                if (!printer.connected) {
+                                    console.debug('Printer is offline, can delete');
 
-                                setShowDeleteDialog(true);
+                                    setShowDeleteDialog(true);
 
-                                return;
-                            }
+                                    return;
+                                }
 
-                            console.debug('Printer is online, cannot delete');
+                                console.debug('Printer is online, cannot delete');
 
-                            enqueueSnackbar({
-                                message: 'Cannot delete a printer while it\'s online',
-                                variant: 'error',
-                                action:  { label: 'Got it' }
-                            });
-                        }}
-                        theme={{
-                            colors: {
-                                primary:    colors.error,
-                                onPrimary:  colors.white
-                            }
-                        }}
-                    >Delete</Button>
-                </Card.Actions>
-            </Card>
+                                enqueueSnackbar({
+                                    message: 'Cannot delete a printer while it\'s online',
+                                    variant: 'error',
+                                    action:  { label: 'Got it' }
+                                });
+                            }}
+                            theme={{
+                                colors: {
+                                    primary:    colors.error,
+                                    onPrimary:  colors.white
+                                }
+                            }}
+                        >Delete</Button>
+                    </Card.Actions>
+                </Card>
+            </View>
         </>
     );
 }
