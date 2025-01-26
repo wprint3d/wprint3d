@@ -119,6 +119,13 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'jobs-reset' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/jobs-reset.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 1,
+        ],
+
         'serial-mapper' => [
             'driver' => 'daily',
             'path' => storage_path('logs/serial-mapper.log'),
@@ -136,7 +143,7 @@ return [
         'gcode-printer' => [
             'driver' => 'daily',
             'path' => storage_path('logs/gcode-printer.log'),
-            'level' => env('LOG_LEVEL_GCODE_PRINTER', 'info'),
+            'level' => env('LOG_LEVEL', 'debug'),
             'days' => 1,
         ],
 
@@ -161,13 +168,6 @@ return [
             'days' => 1,
         ],
 
-        'job-recovery' => [
-            'driver' => 'daily',
-            'path' => storage_path('logs/job-recovery.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
-            'days' => 1,
-        ],
-
         'video-renderer' => [
             'driver' => 'daily',
             'path' => storage_path('logs/video-renderer.log'),
@@ -178,6 +178,13 @@ return [
         'queued-commands-listener' => [
             'driver' => 'daily',
             'path' => storage_path('logs/queued-commands-listener.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 1,
+        ],
+
+        'package-manager' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/package-manager.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 1,
         ],
