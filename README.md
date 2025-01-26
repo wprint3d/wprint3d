@@ -39,16 +39,10 @@ Other firmwares     | :x: No support
 
 Architecture        | Support
 ------------------- | -----------
-arm                 | :exclamation: Broken (*read more below*)
 arm64               | :white_check_mark:
 amd64               | :white_check_mark:
 x86                 | :white_check_mark:
 Other architectures | :x: No support
-
-> [!CAUTION]
-> **armhf/armv7l** builds are not currently runnable, since the latest version of **MongoDB** is not compatible with the architecture.
->
-> We'll migrate to **FerretDB** instead once the missing aggregation feature set is implemented.
 
 > [!WARNING]
 > Further testing is pending on small and low-powered SBCs as they may freeze sometimes.
