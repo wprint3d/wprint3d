@@ -109,6 +109,15 @@ RUN git clone https://github.com/ArduCAM/mjpg-streamer.git -b v1.0.2 --depth 1 &
     make -j$(( "$(nproc --all)" * 2 )) &&\
     make install
 
+# ustreamer
+RUN apt-get update && apt install -y --no-install-recommends build-essential libevent-dev libjpeg-dev libbsd-dev &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/* &&\
+    git clone --depth=1 https://github.com/pikvm/ustreamer &&\
+    cd ustreamer &&\
+    make -j$(( "$(nproc --all)" * 2 )) &&\
+    make install
+
 # Install the ping tool
 RUN apt-get update && apt-get install -y --no-install-recommends inetutils-ping &&\
     apt-get clean &&\
@@ -156,6 +165,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends psmisc &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
+# Install jq (lightweight JSON processor)
+RUN apt-get update && apt-get install -y --no-install-recommends jq &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/*
+
 # Install gcodestat
 RUN git clone https://github.com/wprint3d/gcodestat /root/gcodestat --depth 1 &&\
     cd /root/gcodestat &&\
@@ -163,9 +177,16 @@ RUN git clone https://github.com/wprint3d/gcodestat /root/gcodestat --depth 1 &&
     make STATIC=0 NOCURL=1 -j$( nproc --all ) &&\
     mv gcodestat.exe gcodestat;
 
-WORKDIR /var/www
+# Install cron(tab)
+RUN apt-get update && apt-get install -y --no-install-recommends cron &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/*
 
-# TODO: I'm not entirely sure as to whether this is still necessary.
-COPY internal /internal
+# Install uuidgen
+RUN apt-get update && apt-get install -y --no-install-recommends uuid-runtime &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /var/www
 
 ENTRYPOINT [ "./internal/run.sh" ]
