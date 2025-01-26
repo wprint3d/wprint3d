@@ -9,14 +9,10 @@ start() {
     return $?;
 }
 
-if [[ -e '.upgrade-pending' ]] || [[ ! -e 'node_modules' ]]; then
-    echo '=> Updating dependencies...';
+echo '=> Updating dependencies...';
 
-    echo '=> Installing packages with NPM...';
-    pnpm i --force --loglevel verbose;
-
-    rm -f .upgrade-pending;
-fi;
+echo '=> Installing packages with NPM...';
+pnpm i --force --loglevel verbose;
 
 start;
 
