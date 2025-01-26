@@ -52,8 +52,8 @@ RUN pecl install -f --onlyreqdeps --nobuild dio          &&\
     ./configure                                          &&\
     make -j$(nproc --all) && make install
 
-# PHP extensions: Swoole 5.0.3
-RUN pecl install -f --onlyreqdeps --nobuild swoole-5.0.3 &&\
+# PHP extensions: Swoole
+RUN pecl install -f --onlyreqdeps --nobuild swoole       &&\
     cd "$(pecl config-get temp_dir)/swoole"              &&\
     phpize                                               &&\
     ./configure                                          &&\
