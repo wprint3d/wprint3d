@@ -47,7 +47,7 @@ services:
       - redis
       - mongo
   web:
-    build: wprint3d-frontend
+    image: wprint3d/wprint3d-frontend
     restart: always
     tty: true
     stdin_open: true
