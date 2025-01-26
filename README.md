@@ -5,8 +5,10 @@
     </p>
 </div>
 
-> [!TIP]
-> A renewed, faster and more reliable frontend is coming!
+> [!CAUTION]
+> #### The new frontend is here!
+> 
+> In order to complete the migration, please delete your `.env` file as it's not necessary anymore and may break some of the new services.
 
 ## Compatibility information
 
