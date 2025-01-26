@@ -2,8 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Events\PrinterConnectionStatusUpdated;
-
 use App\Models\Configuration;
 use App\Models\Printer;
 
@@ -42,9 +40,10 @@ class HandleAutoSerialPrinters extends Command
     {
         $log = Log::channel('printers-poller');
 
-        $minPollIntervalSecs    = Configuration::get('lastSeenPollIntervalSecs');
-        $commandTimeoutSecs     = Configuration::get('commandTimeoutSecs');
-        $autoSerialIntervalSecs = Configuration::get('autoSerialIntervalSecs');
+        $minPollIntervalSecs          = Configuration::get('lastSeenPollIntervalSecs');
+        $commandTimeoutSecs           = Configuration::get('commandTimeoutSecs');
+        $autoSerialIntervalSecs       = Configuration::get('autoSerialIntervalSecs');
+        $maxTimeBetweenHeartbeatsSecs = Configuration::get('lastSeenThresholdSecs');
 
         $enabled = enabled('terminal.auto_temperature_query');
 
@@ -64,25 +63,39 @@ class HandleAutoSerialPrinters extends Command
             sleep( $autoSerialIntervalSecs );
 
             foreach (Printer::cursor() as $printer) {
-                // Did we actually have to wait for the mapper?
-                if (tryToWaitForMapper($log)) {
-                    /*
-                     * If so, wait for a second and refresh the printer.
-                     * 
-                     * This process ensures that we're seeing an up-to-date
-                     * version of the document, avoiding writes to a busy
-                     * serial connection.
-                     */
+                if (mapperIsRunning()) {
+                    event(new \App\Events\PrinterMapperIsRunning($printer->_id));
 
                     sleep(1);
 
-                    $printer->refresh();
+                    $log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: the mapper is running, skipping..." );
+
+                    continue;
                 }
 
-                if ($printer->activeFile) { continue; }
+                if ($printer->activeFile) {
+                    $log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: active file detected ({$printer->activeFile}), skipping..." );
+
+                    event(
+                        new \App\Events\PrinterConnectionStatusUpdated(
+                            printerId:      $printer->_id,
+                            thresholdSecs:  $maxTimeBetweenHeartbeatsSecs,
+                            hasActiveFile:  true
+                        )
+                    );
+
+                    continue;
+                }
 
                 if (!$printer->node || !Serial::nodeExists( $printer->node )) {
-                    PrinterConnectionStatusUpdated::dispatch( $printer->_id );
+                    $log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: missing serial node ({$printer->node}), skipping..." );
+
+                    event(
+                        new \App\Events\PrinterConnectionStatusUpdated(
+                            printerId:      $printer->_id,
+                            thresholdSecs:  $maxTimeBetweenHeartbeatsSecs
+                        )
+                    );
 
                     continue;
                 }
@@ -118,9 +131,13 @@ class HandleAutoSerialPrinters extends Command
 
                         if (isset( $statistics['extruders'] )) {
                             foreach (array_keys($statistics['extruders']) as $extruderIndex) {
-                                if ($extruderIndex == 0) continue;
+                                if (mapperIsRunning()) {
+                                    $log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: the mapper is running, skipping statistics update..." );
 
-                                tryToWaitForMapper($log);
+                                    continue;
+                                }
+
+                                if ($extruderIndex == 0) { continue; }
 
                                 $printer->setStatistics( $serial->query('M105 T' . $extruderIndex), $extruderIndex );
                             }
@@ -130,7 +147,12 @@ class HandleAutoSerialPrinters extends Command
 
                         $printer->updateLastSeen();
 
-                        PrinterConnectionStatusUpdated::dispatch( $printer->_id );
+                        event(
+                            new \App\Events\PrinterConnectionStatusUpdated(
+                                printerId:      $printer->_id,
+                                thresholdSecs:  $maxTimeBetweenHeartbeatsSecs
+                            )
+                        );
                     }
                 } catch (Exception $exception) {
                     $printer->setLastError( $exception->getMessage() );
@@ -141,7 +163,12 @@ class HandleAutoSerialPrinters extends Command
                         $exception->getTraceAsString()
                     );
 
-                    PrinterConnectionStatusUpdated::dispatch( $printer->_id );
+                    event(
+                        new \App\Events\PrinterConnectionStatusUpdated(
+                            printerId:      $printer->_id,
+                            thresholdSecs:  $maxTimeBetweenHeartbeatsSecs
+                        )
+                    );
 
                     continue;
                 }

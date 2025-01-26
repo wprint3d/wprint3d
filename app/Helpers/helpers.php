@@ -14,27 +14,35 @@ use Illuminate\Support\Facades\Storage;
 
 use Illuminate\Support\Str;
 
+function mapperIsRunning() : bool {
+    return Cache::get(
+        key:     config('cache.mapper_busy_key'),
+        default: false
+    );
+}
+
 /**
  * tryToWaitForMapper
  * 
  * Try to wait for the device mapper to shut down.
  *
- * @param  mixed $log
+ * @param   mixed    $log
+ * @param  ?callable $onLoopTick
+ * 
  * @return bool Whether we had to wait for the mapper 
  */
-function tryToWaitForMapper(?Logger $log = null): bool {
+function tryToWaitForMapper(?Logger $log = null, ?callable $onLoopTick = null): bool {
     $didWait = false;
 
-    while (
-        Cache::get(
-            key:     config('cache.mapper_busy_key'),
-            default: false
-        )
-    ) {
+    while (mapperIsRunning()) {
         $didWait = true;
 
         if ($log) {
             $log->debug('Waiting for the mapper to shutdown...');
+        }
+
+        if ($onLoopTick) {
+            $onLoopTick();
         }
 
         sleep(1);
