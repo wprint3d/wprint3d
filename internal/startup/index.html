@@ -73,6 +73,12 @@
             left: 0;
         }
 
+        #startupLogContainer {
+            display: flex;
+            flex: 1;
+            justify-content: center;
+        }
+
         #startupLog {
             background-color: #f8f9fa;
             border: 1px solid #d4d4d4;
@@ -151,9 +157,11 @@
         <p>
             <details>
                 <summary> Last 10 lines of the startup log for each service. </summary>
-                <p id="startupLog">
-                    <!-- This will be replaced with the startup log -->
-                </p>
+                <div id="startupLogContainer">
+                    <p id="startupLog">
+                        <!-- This will be replaced with the startup log -->
+                    </p>
+                </div>
             </details>
         </p>
     </div>
