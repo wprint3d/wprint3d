@@ -21,7 +21,7 @@ return [
         &&
         isset($_SERVER['LARAVEL_OCTANE']) && ((int)$_SERVER['LARAVEL_OCTANE'] === 1)
             ? 'octane'
-            : env('CACHE_DRIVER', 'file'),
+            : env('CACHE_DRIVER', 'memcached'),
 
     /*
     |--------------------------------------------------------------------------
@@ -111,7 +111,7 @@ return [
     |
     */
 
-    'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_cache_'),
+    'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'wprint3d'), '_').'_cache_'),
 
     'mapper_busy_key' => 'mapperBsy'
 
