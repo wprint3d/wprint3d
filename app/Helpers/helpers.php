@@ -297,8 +297,4 @@ function getAppRevision() {
     return 'rev. ' . $version;
 }
 
-function isLowMemoryDevice(): bool {
-    return !!(env('LOW_MEMORY_MODE', false) ?? false);
-}
-
 ?>

@@ -1,17 +1,9 @@
 #!/bin/bash
 
-MEMORY_TOTAL_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo);
-
-export LOW_MEMORY_MODE=0;
-
-if [[ "$MEMORY_TOTAL_KB" -lt $(( 1024 * 1024 )) ]]; then # less than 1 GiB
-    export LOW_MEMORY_MODE=1;
-
-    echo 'WARNING! Low-memory system detected, the LOW_MEMORY_MODE flag has been enabled.';
-fi;
-
 export PATH="$PATH":$(pwd)/bin;
 export PATH="$PATH":/root/gcodestat;
+
+rm -fv /tmp/*.txt /var/www/internal/startup/*.txt;
 
 waitForThirdPartyDependency() {
     echo 'Waiting for "'"$1"'" to become available...';
@@ -33,6 +25,36 @@ waitForThirdPartyDependency() {
 waitForThirdPartyDependencies() {
     waitForThirdPartyDependency 'wait-for-it';
     waitForThirdPartyDependency 'doctum';
+}
+
+waitForSecrets() {
+    echo 'Waiting for environment variables to become available...';
+
+    while [[ ! -f '/var/www/.env' ]]; do
+        sleep .1;
+    done;
+}
+
+generateSecrets() {
+    if [[ -f '/var/www/.env' ]]; then
+        echo 'Secrets already exist, skipping generation...';
+
+        return;
+    fi;
+
+    echo 'Generating secrets...';
+
+    PUSHER_APP_KEY=$(uuidgen    | md5sum    | cut -d ' ' -f 1);
+    PUSHER_APP_SECRET=$(uuidgen | sha512sum | cut -d ' ' -f 1);
+
+    echo "PUSHER_APP_KEY=${PUSHER_APP_KEY}"     >> /tmp/.secrets;
+    echo "PUSHER_APP_SECRET=${PUSHER_APP_KEY}"  >> /tmp/.secrets;
+
+    # Generate the application key
+    echo 'APP_KEY='$(PUSHER_APP_KEY="${PUSHER_APP_KEY}" PUSHER_APP_SECRET="${PUSHER_APP_KEY}" php artisan key:generate --show) >> /tmp/.secrets;
+
+    # Store the secrets in the target location
+    cat /tmp/.secrets > /var/www/.env;
 }
 
 installThirdPartyDependencies() {
@@ -63,43 +85,114 @@ installThirdPartyDependencies() {
     fi;
 }
 
-waitForAssetBundler() {
-    echo 'Waiting for the asset bundler to exit...';
-
-    while [[ ! -e '/var/www/internal/.bundler-exit-status' ]]; do
-        if [[ "$ROLE" == 'server' ]]; then
-            refreshDockerLog;
-        fi;
-
-        sleep 5;
-    done;
-}
-
-export LAST_UPDATE=$(date +%s);
-
 refreshDockerLog() {
     IFS=$'\n';
 
-    TIMESTAMP=$(date +%s);
+    ALL_SERVICES_READY=0;
 
-    if [[ $(( "$TIMESTAMP" - "$LAST_UPDATE" )) -gt 1 ]]; then # updates every 2 seconds
-        export LAST_UPDATE="$TIMESTAMP";
+    while [[ $ALL_SERVICES_READY -eq 0 ]]; do
+        truncate --size 0 /tmp/services.txt /tmp/startup.txt;
 
-        for identifier in $(docker ps -a --format '{{ .ID }},{{ .Names }}'); do
+        ALL_SERVICES_READY=1;
+
+        for identifier in $(docker ps -a --format '{{ .ID }},{{ .Names }}' | grep wprint3d); do
             CID=$(printf  "$identifier" | cut -d ',' -f 1);
             NAME=$(printf "$identifier" | cut -d ',' -f 2);
 
-            LINES=$(docker logs "$CID" --tail 5 2>&1);
+            LINES=$(docker logs "$CID" --tail 3 2>&1);
 
             for line in $LINES; do
                 echo "$NAME"'     | '"$line" >> /tmp/startup.txt;
             done;
+
+            echo "$NAME" >> /tmp/services.txt;
+
+            STATUS=0;
+
+            if [[ "$NAME" == *"proxy"* ]]; then
+                if docker exec "$CID" grep -e nginx         /proc/*/stat 2> /dev/null | grep -v grep > /dev/null; then
+                    STATUS=1;
+                fi;
+            elif [[ "$NAME" == *"mongo"* ]]; then
+                if docker exec "$CID" grep -e mongod        /proc/*/stat 2> /dev/null | grep -v grep > /dev/null; then
+                    STATUS=1;
+                fi;
+            elif [[ "$NAME" == *"redis"* ]]; then
+                if docker exec "$CID" grep -e redis-server  /proc/*/stat 2> /dev/null | grep -v grep > /dev/null; then
+                    STATUS=1;
+                fi;
+            elif [[ "$NAME" == *"memcached"* ]]; then
+                if docker exec "$CID" grep -e memcached     /proc/*/stat 2> /dev/null | grep -v grep > /dev/null; then
+                    STATUS=1;
+                fi;
+            elif [[ "$NAME" == *"backend"* ]]; then
+                if docker exec "$CID" grep -e php           /proc/*/stat 2> /dev/null | grep -v grep > /dev/null; then
+                    STATUS=1;
+                fi;
+            elif [[ "$NAME" == *"scheduler"* ]] && [[ "$NAME" != *"serial"* ]]; then
+                if docker exec "$CID" ps -fax | grep -e cron | grep -v grep > /dev/null; then
+                    STATUS=1;
+                fi;
+            elif [[ "$NAME" == *"mapper"* ]]; then
+                if docker exec "$CID" ps -fax | grep -e udev | grep -v grep > /dev/null; then
+                    STATUS=1;
+                fi;
+            elif [[ "$NAME" == *"streamer"* ]]; then
+                if docker exec "$CID" ps -fax | grep -e inotifywait | grep -v grep > /dev/null; then
+                    STATUS=1;
+                fi;
+            elif [[ "$NAME" == *"web"* ]]; then
+                if docker exec "$CID" ps -fax | grep -e 'expo start' | grep -v grep > /dev/null; then
+                    STATUS=1;
+                fi;
+            else # all other services
+                # echo "$NAME";
+                # echo "$CID";
+                # echo $(docker exec "$CID" ps -fax | grep -e php | grep -v grep);
+                # echo '';
+                # echo '';
+
+                if docker exec "$CID" ps -fax | grep -e php | grep -v grep > /dev/null; then
+                    STATUS=1;
+                fi;
+            fi;
+
+            echo "$STATUS" > /tmp/"$NAME"_status.txt;
+
+            if [[ "$STATUS" -eq 0 ]]; then
+                ALL_SERVICES_READY=0;
+            fi;
+
+            CUR_SUM=$(md5sum /tmp/"$NAME"_status.txt 2> /dev/null | cut -d ' ' -f 1);
+            OLD_SUM=$(md5sum /var/www/internal/startup/"$NAME"_status.txt 2> /dev/null | cut -d ' ' -f 1);
+
+            if [[ "$CUR_SUM" != "$OLD_SUM" ]]; then
+                cp -f /tmp/"$NAME"_status.txt /var/www/internal/startup/"$NAME"_status.txt;
+            fi;
         done;
 
         if [[ -e '/tmp/startup.txt' ]]; then
-            mv -f /tmp/startup.txt /var/www/internal/startup/startup.txt;
+            CUR_SUM=$(md5sum /tmp/startup.txt | cut -d ' ' -f 1);
+            OLD_SUM=$(md5sum /var/www/internal/startup/startup.txt | cut -d ' ' -f 1);
+
+            if [[ "$CUR_SUM" != "$OLD_SUM" ]]; then
+                cp -f /tmp/startup.txt /var/www/internal/startup/startup.txt;
+            fi;
         fi;
-    fi;
+
+        if [[ -e '/tmp/services.txt' ]]; then
+            CUR_SUM=$(md5sum /tmp/services.txt | cut -d ' ' -f 1);
+            OLD_SUM=$(md5sum /var/www/internal/startup/services.txt | cut -d ' ' -f 1);
+
+            if [[ "$CUR_SUM" != "$OLD_SUM" ]]; then
+                cp -f /tmp/services.txt /var/www/internal/startup/services.txt;
+            fi;
+        fi;
+
+        echo "All services ready: $ALL_SERVICES_READY";
+
+        sleep 1;
+    done;
 }
 
 refreshThirdPartyLicenses() {
@@ -123,9 +216,12 @@ refreshThirdPartyLicenses() {
 
 if [[ "$ROLE" == 'server' ]]; then
     installThirdPartyDependencies;
-else
-    waitForThirdPartyDependencies;
+
+    generateSecrets;
 fi;
+
+waitForThirdPartyDependencies;
+waitForSecrets;
 
 wait-for-it mongo:27017 -t 0;
 
@@ -134,8 +230,6 @@ echo 'Waiting for Redis to be ready...';
 while ! redis-cli -h redis get '' 2>&1 > /dev/null; do
     sleep 1;
 done;
-
-rm -fv '/var/www/internal/.bundler-exit-status';
 
 if [[ -z $ROLE ]]; then
     echo "End of script reached, this container will run as a dummy and, as such, it won't actually do anything.";
@@ -167,7 +261,7 @@ else
         fi;
 
         if [[ "$ROLE" == 'server' ]]; then
-            refreshDockerLog;
+            refreshDockerLog &
 
             composer install;
 
@@ -181,13 +275,36 @@ else
             # Flush cached files
             php artisan optimize:clear;
 
-            # Reset app version information
+            # Detect and install in-development packages
+            for vendor in $(ls /var/www/dev); do
+                for package in $(ls /var/www/dev/"$vendor"); do
+                    touch '/var/www/dev/'"$vendor"'/'"$package"'/.wp3d_plugin_dev';
+
+                    composer config repositories."$vendor"'/'"$package" '{ "type": "path", "url": "/var/www/dev/'"$vendor"'/'"$package"'", "options": { "symlink": true } }';
+                    composer require "$vendor"'/'"$package @dev";
+                done;
+            done;
+
+            # Detect removed in-development plugins (broken symlinks)
+            for package in $(find vendor -mindepth 1 -maxdepth 2 -type l -xtype l | sed 's/vendor\///'); do
+                echo '================================================================================';
+                echo '=> '"$package"' will be removed: the symlink is broken.';
+                echo '================================================================================';
+
+                composer remove "$package";
+                composer config --unset repositories."$package";
+            done;
+
+            # Discover and load plugins
+            php artisan discover:plugins;
+
             truncate --size 0 /var/www/internal/app_ver;
+
+            # Disable permissions checks for the Git repository
+            git config --global --add safe.directory /var/www;
 
             # If the Git repository is present, get the version from `git rev-parse`.
             if [[ -f '/var/www/.git/HEAD' ]]; then
-                git config --global --add safe.directory /var/www;
-
                 git rev-parse --short HEAD > /var/www/internal/app_ver;
             fi;
 
@@ -245,18 +362,12 @@ else
 
             if [ "$(php artisan get:env OCTANE_ENABLED)" == 'true' ]; then
                 echo 'Starting Octane web server...';
-
                 php artisan octane:start --host 0.0.0.0 --port 80 --watch;
             else
                 echo 'Starting Artisan web server...';
-
                 php artisan serve        --host 0.0.0.0 --port 80;
             fi;
         elif [[ "$ROLE" == 'queue' ]]; then
-            if [[ $LOW_MEMORY_MODE -eq 1 ]]; then
-                waitForAssetBundler;
-            fi;
-
             php artisan cache:clear;
             php artisan queue:flush;
             php artisan queue:restart;
@@ -277,7 +388,7 @@ else
             done;
         elif [[ "$ROLE" == 'ws-server' ]]; then
             while true; do
-                php artisan websockets:serve --host 0.0.0.0 --port 6001;
+                php artisan reverb:start --host 0.0.0.0 --port 6001;
             done;
         elif [[ "$ROLE" == 'mapper' ]]; then
             wait-for-it ws-server:6001 -t 0;
@@ -400,46 +511,24 @@ else
                     done;
             done;
         elif [[ "$ROLE" == 'scheduler' ]]; then
-            if [[ $LOW_MEMORY_MODE -eq 1 ]]; then
-                waitForAssetBundler;
-            fi;
-
             if [[ "$KIND" == 'short' ]]; then
                 while true; do
                     php artisan short-schedule:run;
                 done;
             else
-                while true; do
-                    php artisan schedule:run;
+                crontab /var/www/internal/cron/crontab;
 
-                    sleep 60;
-                done;
+                cron -f;
             fi;
         elif [[ "$ROLE" == 'serial-scheduler' ]]; then
-            # we need "web" up in order to have the Marlin class available
-            wait-for-it web:80         -t 0;
-            wait-for-it ws-server:6001 -t 0;
+            # we need "backend" up in order to have the Marlin class available
+            wait-for-it backend:80      -t 0;
+            wait-for-it ws-server:6001  -t 0;
 
             while true; do
                 php artisan printers:handle-auto-serial;
 
                 sleep 1;
-            done;
-        elif [[ "$ROLE" == 'bundler' ]]; then
-            php artisan down;
-
-            npm i;
-
-            npm run build;
-
-            BUILD_EXIT_STATUS=$?;
-
-            php artisan up;
-
-            printf $BUILD_EXIT_STATUS > /var/www/internal/.bundler-exit-status;
-
-            while [[ -e /var/www/internal/.bundler-exit-status ]]; do
-                sleep 5;
             done;
         elif [[ "$ROLE" == 'streamer' ]]; then
             getFreePort() {
@@ -447,7 +536,7 @@ else
 
                 maxPort=$PORT_SCAN_END;
 
-                while ps -fax | grep -e mjpg_streamer -e camera-streamer | grep "$port" 2>&1 > /dev/null; do
+                while ps -fax | grep -e ustreamer -e camera-streamer | grep "$port" 2>&1 > /dev/null; do
                     port=$(( $port + 1 ));
 
                     if [[ $port -gt $maxPort ]]; then
@@ -497,7 +586,7 @@ else
                             LIB_CAMERA_UVC_PID=$(ps -fax | grep camera-streamer | grep -- "$NODE"                 | xargs | cut -d ' ' -f 1);
                             LIB_CAMERA_CSI_PID=$(ps -fax | grep camera-streamer | grep -- "$CAMERA_STREAMER_NODE" | xargs | cut -d ' ' -f 1);
                         else
-                            LIB_CAMERA_UVC_PID=$(ps -fax | grep mjpg_streamer   | grep -- "$NODE"                 | xargs | cut -d ' ' -f 1);
+                            LIB_CAMERA_UVC_PID=$(ps -fax | grep ustreamer       | grep -- "$NODE"                 | xargs | cut -d ' ' -f 1);
                         fi;
 
                         if [[ "$ENABLED" -eq 1 ]] && [[ -e "$NODE" ]]; then
@@ -520,9 +609,12 @@ else
                                                 --http-listen=0.0.0.0 \
                                                 --http-port="${port}" &
                                         else
-                                            mjpg_streamer \
-                                                -i "input_uvc.so -d $NODE -r $RESOLUTION -f $FRAMERATE" \
-                                                -o "output_http.so -p ${port}" &
+                                            ustreamer \
+                                                --device      "$NODE" \
+                                                --resolution  "$RESOLUTION" \
+                                                --desired-fps $(printf "$FRAMERATE" | sed 's/\..*//' | sed 's/,.*//') \
+                                                --host        'streamer' \
+                                                --port        "$port" &
                                         fi;
                                     else
                                         if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]] && [[ $(php artisan get:config enableLibCamera --default=true) == 'true' ]]; then
@@ -548,7 +640,7 @@ else
                                     if [[ "$HAS_RPI_CAM_INCLUDES" -eq 1 ]]; then
                                         port=$(ps -fax | grep camera-streamer | grep "$NODE" | sed 's/.*--http-port=//' | cut -d ' ' -f 1 | xargs);
                                     else
-                                        port=$(ps -fax | grep mjpg_streamer   | grep "$NODE" | sed 's/.*-p //'          | sed 's/ //g'    | xargs);
+                                        port=$(ps -fax | grep ustreamer       | grep "$NODE" | sed 's/.*--port //'      | xargs           | sed 's/ .*//g');
                                     fi;
                                 elif [[ "$LIB_CAMERA_CSI_PID" != '' ]]; then
                                     echo "PID CSI: ${LIB_CAMERA_CSI_PID}" >&2;
@@ -616,24 +708,6 @@ else
 
             truncate --size 0 /tmp/cameras.conf;
 
-            waitForAssetBundler;
-
-            CURRENT_SUM=$(ps -x | grep -e mjpg -e camera-streamer | grep -v -e grep -e sed | sed 's/.*mjpg//' | sed 's/.*camera-streamer//' | md5sum | cut -d ' ' -f 1);
-
-            while true; do
-                NEW_SUM=$(ps -x | grep -e mjpg -e camera-streamer | grep -v -e grep -e sed | sed 's/.*mjpg//' | sed 's/.*camera-streamer//' | md5sum | cut -d ' ' -f 1);
-
-                if [[ "$CURRENT_SUM" != "$NEW_SUM" ]]; then
-                    echo "Camera configuration change detected, probing cameras... CSUM = ${CURRENT_SUM}, NSUM = ${NEW_SUM}";
-
-                    CURRENT_SUM="$NEW_SUM";
-
-                    touch /var/www/internal/.requires_camera_detection;
-                fi;
-
-                sleep 5;
-            done &
-
             updateCameras;
 
             inotifywait -m /dev /var/www/internal -e create -e delete -e delete_self |
@@ -643,7 +717,7 @@ else
                     ACTION=$(printf "$event" | cut -d ' ' -f 2);
                     FILENAME=$(printf "$event" | cut -d ' ' -f 3);
 
-                    if ([[ "$ACTION" != 'DELETE' ]] && [[ "$FILENAME" == '.requires_camera_detection' ]]) || [[ "$FILENAME" != '.requires_camera_detection' ]]; then
+                    if ([[ "$FILENAME" == *'video'* ]]); then
                         updateCameras;
                     fi;
                 done;

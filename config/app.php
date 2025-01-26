@@ -218,6 +218,7 @@ return [
         'CreateSampleUser'  => \App\Console\Commands\CreateSampleUser::class,
         'DataType'          => \App\Enums\DataType::class,
         'LogoutReason'      => \App\Enums\LogoutReason::class,
+        'Plugin'            => \App\Models\Plugin::class,
         'SortingMode'       => \App\Enums\SortingMode::class,
         'ToastMessageType'  => \App\Enums\ToastMessageType::class,
         'ThemeOption'       => \App\Enums\ThemeOption::class,
