@@ -52,4 +52,7 @@ ADD . /app
 
 WORKDIR /app
 
+# Install dependencies
+RUN pnpm install --force --loglevel verbose
+
 ENTRYPOINT [ "./entrypoint.sh" ]
