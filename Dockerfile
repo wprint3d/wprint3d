@@ -110,7 +110,7 @@ RUN git clone https://github.com/ArduCAM/mjpg-streamer.git -b v1.0.2 --depth 1 &
     make install
 
 # ustreamer
-RUN apt-get update && apt install -y --no-install-recommends build-essential libevent-dev libjpeg-dev libbsd-dev &&\
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential libevent-dev libjpeg-dev libbsd-dev &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/* &&\
     git clone --depth=1 https://github.com/pikvm/ustreamer &&\
