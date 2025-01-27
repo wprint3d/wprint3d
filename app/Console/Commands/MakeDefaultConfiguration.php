@@ -33,21 +33,26 @@ class MakeDefaultConfiguration extends Command
         foreach ($defaults as $key => $value) {
             $configuration = Configuration::where('key', $key)->first();
 
-            if ($configuration) { continue; }
+            if (!$configuration) {
+                $configuration = new Configuration();
+                $configuration->value = $value['value'];
+            }
 
-            $configuration = new Configuration();
-            $configuration->key     = $key;
-            $configuration->value   = $value['value'];
-            $configuration->default = $value['value'];
-            $configuration->hint    = $value['hint'];
-            $configuration->type    = $value['type'];
-            $configuration->section = $value['section'];
+            $configuration->key         = $key;
+            $configuration->default     = $value['value'];
+            $configuration->hint        = $value['hint'];
+            $configuration->type        = $value['type'];
+            $configuration->section     = $value['section'];
             $configuration->description = $value['description'];
             $configuration->writeable   = $value['writeable'] ?? true;
-            $configuration->enum        = $value['enum'] ?? null;
+            $configuration->enum        = $value['enum']      ?? null;
             $configuration->save();
 
-            $this->info("Created configuration key: {$key}");
+            if (isset($configuration->_id)) {
+                $this->info("Updated configuration key: {$key}");
+            } else {
+                $this->info("Created configuration key: {$key}");
+            }
         }
 
         return Command::SUCCESS;
