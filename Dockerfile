@@ -151,7 +151,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libmemcached-de
     ./configure                                          &&\
     THREADS=$(( $(nproc --all) / 2 ))                    &&\
     if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
-    make -j${THREADS} && make install                    &&\
+    make -j${THREADS} && make Install                    &&\
     docker-php-ext-enable memcached
 
 # Install ffmpeg
