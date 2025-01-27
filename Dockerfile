@@ -36,44 +36,34 @@ RUN pecl install -f --onlyreqdeps --nobuild mongodb      &&\
     cd "$(pecl config-get temp_dir)/mongodb"             &&\
     phpize                                               &&\
     ./configure                                          &&\
-    THREADS=$(( $(nproc --all) / 2 ))                    &&\
-    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
-    make -j${THREADS} && make install
+    make -j$(nproc --all) && make install
 
 # PHP extensions: Redis
 RUN pecl install -f --onlyreqdeps --nobuild redis        &&\
     cd "$(pecl config-get temp_dir)/redis"               &&\
     phpize                                               &&\
     ./configure                                          &&\
-    THREADS=$(( $(nproc --all) / 2 ))                    &&\
-    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
-    make -j${THREADS} && make install
+    make -j$(nproc --all) && make install
 
 # PHP extensions: DIO
 RUN pecl install -f --onlyreqdeps --nobuild dio          &&\
     cd "$(pecl config-get temp_dir)/dio"                 &&\
     phpize                                               &&\
     ./configure                                          &&\
-    THREADS=$(( $(nproc --all) / 2 ))                    &&\
-    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
-    make -j${THREADS} && make install
+    make -j$(nproc --all) && make install
 
 # PHP extensions: Swoole
 RUN pecl install -f --onlyreqdeps --nobuild swoole       &&\
     cd "$(pecl config-get temp_dir)/swoole"              &&\
     phpize                                               &&\
     ./configure                                          &&\
-    THREADS=$(( $(nproc --all) / 2 ))                    &&\
-    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
-    make -j${THREADS} && make install
+    make -j$(nproc --all) && make install
 
 # Enable PECL-based extensions: MongoDB + Redis + DIO (Direct I/O)
 RUN docker-php-ext-enable mongodb redis dio swoole
 
 # Install several officially supported PHP extensions: cURL, XML, ZIP, DOM, MySQLi, PDO MySQL, Sockets and PCNTL.
-RUN THREADS=$(( $(nproc --all) / 2 ))                    &&\
-    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
-    docker-php-ext-install -j${THREADS} curl xml zip dom mysqli pdo_mysql sockets pcntl
+RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) curl xml zip dom mysqli pdo_mysql sockets pcntl
 
 # Build and install Camera Streamer and MJPG Streamer
 #
@@ -149,9 +139,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libmemcached-de
     cd "$(pecl config-get temp_dir)/memcached"           &&\
     phpize                                               &&\
     ./configure                                          &&\
-    THREADS=$(( $(nproc --all) / 2 ))                    &&\
-    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
-    make -j${THREADS} && make Install                    &&\
+    make -j$(nproc --all) && make install                &&\
     docker-php-ext-enable memcached
 
 # Install ffmpeg
@@ -160,9 +148,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg &&\
     rm -rf /var/lib/apt/lists/*
 
 # PHP extension: intl
-RUN THREADS=$(( $(nproc --all) / 2 ))                    &&\
-    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
-    docker-php-ext-install -j${THREADS} intl
+RUN docker-php-ext-install -j$(( $(nproc --all) * 2 )) intl
 
 # Install unzip
 RUN apt-get update && apt-get install -y --no-install-recommends unzip &&\
