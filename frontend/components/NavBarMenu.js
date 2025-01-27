@@ -66,10 +66,10 @@ export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, 
             anchor={<Appbar.Action icon="dots-vertical" onPress={openMenu} />}
             anchorPosition='bottom'
           >
-            <Menu.Item title="Profile"  leadingIcon="account" onPress={() => {}} />
-            <Menu.Item title="Settings" leadingIcon="cog"     onPress={() => setShowSettingsModal(true)} />
+            <Menu.Item title="Profile"  leadingIcon="account" onPress={() => { closeMenu(); setShowProfileModal(true);  }} />
+            <Menu.Item title="Settings" leadingIcon="cog"     onPress={() => { closeMenu(); setShowSettingsModal(true); }} />
             <Divider />
-            <Menu.Item title="Sign out" leadingIcon="logout"  onPress={() => handleLogout()} />
+            <Menu.Item title="Sign out" leadingIcon="logout"  onPress={() => { closeMenu(); setShowLogoutDialog(true);  }} />
           </Menu>
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
