@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Icon, Modal, PaperProvider, Portal, Text, useTheme } from "react-native-paper";
 import { Tabs, TabsProvider, TabScreen } from "react-native-paper-tabs";
+import { View } from "react-native";
 import NavBarMenuSettingsModalPrinters from "./NavBarMenuSettingsModalPrinters";
 import { SnackbarProvider, useSnackbar } from "react-native-paper-snackbar-stack";
 import NavBarMenuSettingsModalPresets from "./NavBarMenuSettingsModalPresets";
@@ -19,6 +20,12 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
     const doDismiss = () => {
         setIsVisible(false);
     };
+
+    const Wrapper = ({ children }) => (
+        <View style={{ width: '100%', height: '100%', maxWidth: 1400, alignSelf: 'center' }}>
+            {children}
+        </View>
+    );
 
     return (
         <Portal>
@@ -52,25 +59,39 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
                             showLeadingSpace={false}
                         >
                             <TabScreen label="Printers" icon="printer-3d">
-                                <NavBarMenuSettingsModalPrinters isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                <Wrapper>
+                                    <NavBarMenuSettingsModalPrinters isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                </Wrapper>
                             </TabScreen>
                             <TabScreen label="Presets" icon="printer-3d-nozzle">
-                                <NavBarMenuSettingsModalPresets isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                <Wrapper>
+                                    <NavBarMenuSettingsModalPresets isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                </Wrapper>
                             </TabScreen>
                             <TabScreen label="Cameras" icon="camera">
-                                <NavBarMenuSettingsModalCameras isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                <Wrapper>
+                                    <NavBarMenuSettingsModalCameras isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                </Wrapper>
                             </TabScreen>
                             <TabScreen label="Recording" icon="record">
-                                <NavBarMenuSettingsModalRecording isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                <Wrapper>
+                                    <NavBarMenuSettingsModalRecording isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                </Wrapper>
                             </TabScreen>
                             <TabScreen label="System" icon="cog">
-                                <NavBarMenuSettingsModalSystem isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                <Wrapper>
+                                    <NavBarMenuSettingsModalSystem isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                </Wrapper>
                             </TabScreen>
                             <TabScreen label="Users" icon="account">
-                                <NavBarMenuSettingsModalUsers isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                <Wrapper>
+                                    <NavBarMenuSettingsModalUsers isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                </Wrapper>
                             </TabScreen>
                             <TabScreen label="About" icon="information">
-                                <NavBarMenuSettingsModalAbout isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                <Wrapper>
+                                    <NavBarMenuSettingsModalAbout isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                </Wrapper>
                             </TabScreen>
                         </Tabs>
                     </TabsProvider>
