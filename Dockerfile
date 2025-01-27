@@ -36,34 +36,44 @@ RUN pecl install -f --onlyreqdeps --nobuild mongodb      &&\
     cd "$(pecl config-get temp_dir)/mongodb"             &&\
     phpize                                               &&\
     ./configure                                          &&\
-    make -j1 && make install
+    THREADS=$(( $(nproc --all) / 2 ))                    &&\
+    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
+    make -j${THREADS} && make install
 
 # PHP extensions: Redis
 RUN pecl install -f --onlyreqdeps --nobuild redis        &&\
     cd "$(pecl config-get temp_dir)/redis"               &&\
     phpize                                               &&\
     ./configure                                          &&\
-    make -j1 && make install
+    THREADS=$(( $(nproc --all) / 2 ))                    &&\
+    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
+    make -j${THREADS} && make install
 
 # PHP extensions: DIO
 RUN pecl install -f --onlyreqdeps --nobuild dio          &&\
     cd "$(pecl config-get temp_dir)/dio"                 &&\
     phpize                                               &&\
     ./configure                                          &&\
-    make -j1 && make install
+    THREADS=$(( $(nproc --all) / 2 ))                    &&\
+    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
+    make -j${THREADS} && make install
 
 # PHP extensions: Swoole
 RUN pecl install -f --onlyreqdeps --nobuild swoole       &&\
     cd "$(pecl config-get temp_dir)/swoole"              &&\
     phpize                                               &&\
     ./configure                                          &&\
-    make -j1 && make install
+    THREADS=$(( $(nproc --all) / 2 ))                    &&\
+    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
+    make -j${THREADS} && make install
 
 # Enable PECL-based extensions: MongoDB + Redis + DIO (Direct I/O)
 RUN docker-php-ext-enable mongodb redis dio swoole
 
 # Install several officially supported PHP extensions: cURL, XML, ZIP, DOM, MySQLi, PDO MySQL, Sockets and PCNTL.
-RUN docker-php-ext-install -j1 curl xml zip dom mysqli pdo_mysql sockets pcntl
+RUN THREADS=$(( $(nproc --all) / 2 ))                    &&\
+    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
+    docker-php-ext-install -j${THREADS} curl xml zip dom mysqli pdo_mysql sockets pcntl
 
 # Build and install Camera Streamer and MJPG Streamer
 #
@@ -92,20 +102,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends libtiff5-dev li
     git clone https://github.com/raspberrypi/libcamera-apps.git --depth 1 -b v1.4.3 &&\
     cd libcamera-apps &&\
     meson setup build -Denable_libav=true -Denable_drm=true -Denable_egl=false -Denable_qt=false -Denable_opencv=false -Denable_tflite=false &&\
-    meson compile -C build -j1 &&\
+    meson compile -C build -j"$(nproc --all)" &&\
     meson install -C build &&\
     ldconfig;
 
 # camera-streamer
 RUN git clone https://github.com/ayufan/camera-streamer.git -b v0.2.8 --depth 1 --recursive --shallow-submodules &&\
     cd camera-streamer &&\
-    make -j1 && make install;
+    make -j$(( "$(nproc --all)" * 2 )) &&\
+    make install;
 
 # MJPG Streamer
 RUN git clone https://github.com/ArduCAM/mjpg-streamer.git -b v1.0.2 --depth 1 &&\
     cd mjpg-streamer/mjpg-streamer-experimental &&\
     sed -i 's/add_subdirectory(plugins\/input_raspicam)//g' CMakeLists.txt &&\
-    make -j1 && make install
+    make -j$(( "$(nproc --all)" * 2 )) &&\
+    make install
 
 # ustreamer
 RUN apt-get update && apt install -y --no-install-recommends build-essential libevent-dev libjpeg-dev libbsd-dev &&\
@@ -113,7 +125,8 @@ RUN apt-get update && apt install -y --no-install-recommends build-essential lib
     rm -rf /var/lib/apt/lists/* &&\
     git clone --depth=1 https://github.com/pikvm/ustreamer &&\
     cd ustreamer &&\
-    make -j1 && make install
+    make -j$(( "$(nproc --all)" * 2 )) &&\
+    make install
 
 # Install the ping tool
 RUN apt-get update && apt-get install -y --no-install-recommends inetutils-ping &&\
@@ -136,7 +149,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends libmemcached-de
     cd "$(pecl config-get temp_dir)/memcached"           &&\
     phpize                                               &&\
     ./configure                                          &&\
-    make -j1 && make install                             &&\
+    THREADS=$(( $(nproc --all) / 2 ))                    &&\
+    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
+    make -j${THREADS} && make install                    &&\
     docker-php-ext-enable memcached
 
 # Install ffmpeg
@@ -145,7 +160,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg &&\
     rm -rf /var/lib/apt/lists/*
 
 # PHP extension: intl
-RUN docker-php-ext-install -j1 intl
+RUN THREADS=$(( $(nproc --all) / 2 ))                    &&\
+    if [ $THREADS -lt 1 ]; then THREADS=1; fi            &&\
+    docker-php-ext-install -j${THREADS} intl
 
 # Install unzip
 RUN apt-get update && apt-get install -y --no-install-recommends unzip &&\
@@ -171,7 +188,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends jq &&\
 RUN git clone https://github.com/wprint3d/gcodestat /root/gcodestat --depth 1 &&\
     cd /root/gcodestat &&\
     sed -i'' 's/CFLAGS := -Wall -Werror/CFLAGS := -Wall/' Makefile &&\
-    make STATIC=0 NOCURL=1 -j1 &&\
+    make STATIC=0 NOCURL=1 -j$( nproc --all ) &&\
     mv gcodestat.exe gcodestat;
 
 # Install cron(tab)
