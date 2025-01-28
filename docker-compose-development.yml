@@ -47,8 +47,12 @@ services:
       - redis
       - mongo
   web:
-    build: frontend
+    build:
+      context: frontend
+      args:
+        - DEVELOPER_MODE=true
     restart: always
+    entrypoint: '/app/entrypoint_dev.sh'
     tty: true
     stdin_open: true
     volumes:
