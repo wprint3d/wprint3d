@@ -1,5 +1,7 @@
 FROM ubuntu:22.04
 
+ARG DEVELOPER_MODE
+
 # Install OS dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential curl git unzip rsync &&\
     apt-get clean &&\
@@ -55,4 +57,22 @@ WORKDIR /app
 # Install dependencies
 RUN pnpm install --force --loglevel verbose
 
-ENTRYPOINT [ "./entrypoint.sh" ]
+# Build the frontend bundle
+RUN pnpm exec expo export -p web
+
+# If on production mode, remove all the files except the build
+RUN if [ "$DEVELOPER_MODE" != "true" ]; then\
+        echo "Removing unnecessary files...";\
+        pnpm store prune;\
+        rm -rf node_modules;\
+    fi
+
+# Install lighttpd
+RUN apt-get update && apt-get install -y --no-install-recommends lighttpd &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/*
+
+# Copy the lighttpd configuration
+ADD internal/lighttpd.conf /etc/lighttpd/lighttpd.conf
+
+ENTRYPOINT [ "./entrypoint_prd.sh" ]

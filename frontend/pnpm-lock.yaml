@@ -147,9 +147,15 @@ importers:
       '@tanstack/eslint-plugin-query':
         specifier: ^5.28.6
         version: 5.62.1(eslint@9.17.0)(typescript@5.7.2)
+      babel-plugin-transform-remove-console:
+        specifier: ^6.9.4
+        version: 6.9.4
       metro-config:
         specifier: ^0.80.7
         version: 0.80.12
+      metro-minify-terser:
+        specifier: ^0.81.0
+        version: 0.81.0
       patch-package:
         specifier: ^8.0.0
         version: 8.0.0
@@ -1687,6 +1693,9 @@ packages:
 
   babel-plugin-transform-flow-enums@0.0.2:
     resolution: {integrity: sha512-g4aaCrDDOsWjbm0PUUeVnkcVd6AKJsVc/MbnPhEotEpkeJQP6b8nzewohQi7+QS8UyPehOhGWn0nOwjvWpmMvQ==}
+
+  babel-plugin-transform-remove-console@6.9.4:
+    resolution: {integrity: sha512-88blrUrMX3SPiGkT1GnvVY8E/7A+k6oj3MNvUtTIxJflFzXTw1bHkuJ/y039ouhFMp2prRn5cQGzokViYi1dsg==}
 
   babel-preset-expo@10.0.2:
     resolution: {integrity: sha512-hg06qdSTK7MjKmFXSiq6cFoIbI3n3uT8a3NI2EZoISWhu+tedCj4DQduwi+3adFuRuYvAwECI0IYn/5iGh5zWQ==}
@@ -3365,6 +3374,10 @@ packages:
   metro-minify-terser@0.80.12:
     resolution: {integrity: sha512-muWzUw3y5k+9083ZoX9VaJLWEV2Jcgi+Oan0Mmb/fBNMPqP9xVDuy4pOMn/HOiGndgfh/MK7s4bsjkyLJKMnXQ==}
     engines: {node: '>=18'}
+
+  metro-minify-terser@0.81.0:
+    resolution: {integrity: sha512-U2ramh3W822ZR1nfXgIk+emxsf5eZSg10GbQrT0ZizImK8IZ5BmJY+BHRIkQgHzWFpExOVxC7kWbGL1bZALswA==}
+    engines: {node: '>=18.18'}
 
   metro-resolver@0.80.12:
     resolution: {integrity: sha512-PR24gYRZnYHM3xT9pg6BdbrGbM/Cu1TcyIFBVlAk7qDAuHkUNQ1nMzWumWs+kwSvtd9eZGzHoucGJpTUEeLZAw==}
@@ -7213,6 +7226,8 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/core'
 
+  babel-plugin-transform-remove-console@6.9.4: {}
+
   babel-preset-expo@10.0.2(@babel/core@7.26.0):
     dependencies:
       '@babel/plugin-proposal-decorators': 7.25.9(@babel/core@7.26.0)
@@ -9127,6 +9142,11 @@ snapshots:
       - supports-color
 
   metro-minify-terser@0.80.12:
+    dependencies:
+      flow-enums-runtime: 0.0.6
+      terser: 5.37.0
+
+  metro-minify-terser@0.81.0:
     dependencies:
       flow-enums-runtime: 0.0.6
       terser: 5.37.0
