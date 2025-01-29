@@ -49,17 +49,14 @@ ADD . /app
 
 WORKDIR /app
 
-# Install dependencies
-RUN pnpm install --force --loglevel verbose
-
-# Build the frontend bundle
-RUN pnpm exec expo export -p web
-
-# If on production mode, remove all the files except the build
-RUN if [ "$DEVELOPER_MODE" != "true" ]; then\
+# Install dependencies and build the frontend bundle if not in developer mode
+RUN pnpm install --force --loglevel verbose &&\
+    if [ "$DEVELOPER_MODE" != "true" ]; then\
+        echo "Building the frontend bundle...";\
+        pnpm exec expo export -p web &&\
         echo "Removing unnecessary files...";\
-        pnpm store prune;\
-        rm -rf node_modules;\
+        pnpm store prune &&\
+        rm -rf .git node_modules;\
     fi
 
 # Install lighttpd
