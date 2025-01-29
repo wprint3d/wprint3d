@@ -3,7 +3,7 @@ FROM ubuntu:22.04
 ARG DEVELOPER_MODE
 
 # Install OS dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential curl git unzip &&\
+RUN apt-get update && apt-get install -y --no-install-recommends curl git unzip &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
