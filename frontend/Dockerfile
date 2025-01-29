@@ -39,13 +39,8 @@ RUN npm install --global yarn
 # Install PNPM
 RUN npm install --global pnpm
 
-# Install JQ
-RUN apt-get update && apt-get install -y --no-install-recommends jq &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/*
-
-# Install file
-RUN apt-get update && apt-get install -y --no-install-recommends file &&\
+# Install JQ and file
+RUN apt-get update && apt-get install -y --no-install-recommends jq file &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
