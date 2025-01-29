@@ -3,22 +3,22 @@ FROM ubuntu:22.04
 ARG DEVELOPER_MODE
 
 # Install OS dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential curl git unzip rsync &&\
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential curl git unzip &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
 # Install OpenJDK 17 JDK
-RUN apt-get update && apt-get install -y --no-install-recommends openjdk-17-jdk &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y --no-install-recommends openjdk-17-jdk &&\
+#     apt-get clean &&\
+#     rm -rf /var/lib/apt/lists/*
 
 # Install the Android SDK command line tools
-RUN curl -o /tmp/android-commandlinetools-linux.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip &&\
-    cd /tmp &&\
-    unzip /tmp/android-commandlinetools-linux.zip &&\
-    mkdir -p /tmp/android/sdk/cmdline-tools &&\
-    mv -v cmdline-tools /tmp/android/sdk/cmdline-tools/latest &&\
-    chmod +x /tmp/android/sdk/cmdline-tools/latest/bin/*
+# RUN curl -o /tmp/android-commandlinetools-linux.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip &&\
+#     cd /tmp &&\
+#     unzip /tmp/android-commandlinetools-linux.zip &&\
+#     mkdir -p /tmp/android/sdk/cmdline-tools &&\
+#     mv -v cmdline-tools /tmp/android/sdk/cmdline-tools/latest &&\
+#     chmod +x /tmp/android/sdk/cmdline-tools/latest/bin/*
 
 # Refresh SSL certificates
 RUN rm -f /etc/ssl/certs/ca-bundle.crt &&\
