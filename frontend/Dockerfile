@@ -56,7 +56,7 @@ RUN pnpm install --force --loglevel verbose &&\
         pnpm exec expo export -p web &&\
         echo "Removing unnecessary files...";\
         pnpm store prune &&\
-        rm -rf .git node_modules;\
+        rm -rf .git ~/.local/share/pnpm ~/.npm /tmp/metro-cache /usr/local/share/.cache node_modules;\
     fi
 
 # Install lighttpd
