@@ -11,6 +11,9 @@ start() {
     install_dependencies;
 
     echo '=> Starting the server in developer mode...';
+
+    export EXPO_UNSTABLE_ATLAS=true;
+
     pnpm exec expo start --clear;
 
     return $?;
