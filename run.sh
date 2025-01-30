@@ -77,11 +77,15 @@ for container_name in $(docker ps --format '{{ .Names }}'  | grep buildx_buildki
 done;
 
 if [[ "$ENV" == 'dev' ]]; then
+    echo 'Starting development environment...';
+
     if [[ -f 'docker-compose.override.yml' ]]; then
         docker compose -f docker-compose-development.yml -f docker-compose.override.yml up -d --remove-orphans;
     else
         docker compose -f docker-compose-development.yml up -d --remove-orphans;
     fi;
 elif [[ "$ENV" == 'production' ]]; then
+    echo 'Starting production environment...';
+
     docker compose up -d --remove-orphans;
 fi;
