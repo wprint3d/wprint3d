@@ -5,8 +5,20 @@
     </p>
 </div>
 
-> [!TIP]
-> A renewed, faster and more reliable frontend is coming!
+> [!CAUTION]
+> #### The new frontend is here!
+> 
+> In order to complete the migration, please delete your `.env` file as it's not necessary anymore and may break some of the new services.
+>
+> ## FAQ
+>
+> #### **Q:** Why is the `.env` file not necessary anymore?
+>
+> **A:** The `.env` file was used to store environment variables for the old frontend and backend combination, which is now gone. The new frontend uses a different approach to store its configuration, which is done through the web interface itself. The `.env` file is generated automatically by the new backend during the first run. You may still edit the `.env` file afterwards if you want to change some internal/advanced settings, but it's not necessary for the software to run.
+>
+> **Q:** After this upgrade, the application is not starting anymore. What should I do?
+>
+> **A:** Try running `rm -rf vendor .env`, then, restart your host. If the issue persists, please [create a new issue](https://github.com/wprint3d/wprint3d/issues/new?template=Blank+issue) so that we can follow up on it.
 
 ## Compatibility information
 
@@ -27,16 +39,10 @@ Other firmwares     | :x: No support
 
 Architecture        | Support
 ------------------- | -----------
-arm                 | :exclamation: Broken (*read more below*)
 arm64               | :white_check_mark:
 amd64               | :white_check_mark:
 x86                 | :white_check_mark:
 Other architectures | :x: No support
-
-> [!CAUTION]
-> **armhf/armv7l** builds are not currently runnable, since the latest version of **MongoDB** is not compatible with the architecture.
->
-> We'll migrate to **FerretDB** instead once the missing aggregation feature set is implemented.
 
 > [!WARNING]
 > Further testing is pending on small and low-powered SBCs as they may freeze sometimes.

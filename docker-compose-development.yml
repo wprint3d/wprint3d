@@ -23,11 +23,7 @@ services:
     depends_on:
       - web
       - ws-server
-    deploy:
-      resources:
-         limits:
-           memory: 64M
-  web:
+  backend:
     build: .
     restart: always
     logging:
@@ -44,11 +40,29 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
+    tmpfs:
+      - /tmp
     depends_on:
       - redis
       - mongo
-      - bundler
-      # - mariadb
+  web:
+    build:
+      context: frontend
+      args:
+        - DEVELOPER_MODE=true
+    restart: always
+    entrypoint: '/app/entrypoint_dev.sh'
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./frontend:/app
+    ports:
+      - 8081:8081
+    depends_on:
+      - backend
+      - redis
+      - mongo
   scheduler:
     build: .
     restart: always
@@ -68,7 +82,6 @@ services:
     depends_on:
       - redis
       - mongo
-      # - mariadb
   serial-scheduler:
     build: .
     restart: always
@@ -88,7 +101,6 @@ services:
     depends_on:
       - redis
       - mongo
-      # - mariadb
   mapper:
     build: .
     restart: always
@@ -111,7 +123,6 @@ services:
     depends_on:
       - redis
       - mongo
-      # - mariadb
   queue:
     build: .
     restart: always
@@ -123,7 +134,7 @@ services:
     privileged: true
     environment:
       - ROLE=queue
-      - QUEUES=default:1,control:1,broadcasts:2,prints,previews,snapshots,recordings # <queue-name>:<min-number-of-workers>
+      - QUEUES=default:1,control:1,broadcasts:2,prints,previews,snapshots,recordings # <queue-name>:<min-number-of-workers, default=0>
       - SLEEP=5
     volumes:
       - .:/var/www
@@ -133,7 +144,6 @@ services:
     depends_on:
       - redis
       - mongo
-      # - mariadb
   ws-server:
     build: .
     restart: always
@@ -150,19 +160,6 @@ services:
     depends_on:
       - redis
       - mongo
-      # - mariadb
-  bundler:
-    build: .
-    restart: always
-    logging:
-      driver: local
-      options:
-        max-size: "16m"
-        mode: non-blocking
-    environment:
-      - ROLE=bundler
-    volumes:
-      - .:/var/www
   streamer:
     build: .
     restart: always
@@ -188,32 +185,32 @@ services:
     depends_on:
       - redis
       - mongo
-      - bundler
       - proxy
-      # - mariadb
       - mapper
   redis:
     image: redis:7.2.5
+    restart: always
     logging:
       driver: local
       options:
         max-size: "16m"
         mode: non-blocking
-    restart: always
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
     command: redis-server --save "" --appendonly no
   mongo:
     image: mongo:4.4.6
+    restart: always
     logging:
       driver: local
       options:
         max-size: "16m"
         mode: non-blocking
-    restart: always
     command: mongod --quiet
     volumes:
       - mongo:/data/db
+    ports:
+      - 27017:27017
   memcached:
     image: memcached
     logging:

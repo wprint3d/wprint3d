@@ -3,7 +3,6 @@
 namespace App\Listeners;
 
 use App\Events\CommandQueued;
-use App\Events\PrinterConnectionStatusUpdated;
 
 use App\Exceptions\InitializationException;
 
@@ -67,8 +66,6 @@ class RunQeueuedCommands implements ShouldQueue
             }
 
             $printer->updateLastSeen();
-
-            PrinterConnectionStatusUpdated::dispatch( $printer->_id );
         } catch (Exception $exception) {
             $printer->setLastError( $exception->getMessage() );
 
@@ -77,8 +74,6 @@ class RunQeueuedCommands implements ShouldQueue
                 PHP_EOL .
                 $exception->getTraceAsString()
             );
-
-            PrinterConnectionStatusUpdated::dispatch( $printer->_id );
         }
     }
 }

@@ -24,67 +24,67 @@ Broadcast::channel('App.Models.User.{id}', function (User $user, $id) {
 Broadcast::channel('console.{printerId}', function (User $user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
-    return $printerId == $user->getActivePrinter();
+    return $printerId == $user->getActivePrinterId();
 });
 
 Broadcast::channel('connection-status.{printerId}', function (User $user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
-    return $printerId == $user->getActivePrinter();
+    return $printerId == $user->getActivePrinterId();
 });
 
 Broadcast::channel('preview.{printerId}', function (User $user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
-    return $printerId == $user->getActivePrinter();
+    return $printerId == $user->getActivePrinterId();
 });
 
 Broadcast::channel('failed-job.{printerId}', function (User $user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
-    return $printerId == $user->getActivePrinter();
+    return $printerId == $user->getActivePrinterId();
 });
 
 Broadcast::channel('job-progress.{printerId}', function (User $user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
-    return $printerId == $user->getActivePrinter();
+    return $printerId == $user->getActivePrinterId();
 });
 
 Broadcast::channel('finished-job.{printerId}', function (User $user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
-    return $printerId == $user->getActivePrinter();
+    return $printerId == $user->getActivePrinterId();
 });
 
 Broadcast::channel('preview-loading.{printerId}', function (User $user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
-    return $printerId == $user->getActivePrinter();
+    return $printerId == $user->getActivePrinterId();
 });
 
 Broadcast::channel('preview-command.{printerId}', function (User $user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
-    return $printerId == $user->getActivePrinter();
+    return $printerId == $user->getActivePrinterId();
 });
 
 Broadcast::channel('recovery-stage-changed.{printerId}', function (User $user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
-    return $printerId == $user->getActivePrinter();
+    return $printerId == $user->getActivePrinterId();
 });
 
 Broadcast::channel('recovery-progress.{printerId}', function (User $user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
-    return $printerId == $user->getActivePrinter();
+    return $printerId == $user->getActivePrinterId();
 });
 
 Broadcast::channel('recovery-completed.{printerId}', function (User $user, $printerId) {
     Log::info('=> ' . json_encode($user) . ', ' . json_encode($printerId));
 
-    return $printerId == $user->getActivePrinter();
+    return $printerId == $user->getActivePrinterId();
 });
 
 Broadcast::channel('system-message.{userId}', function (User $user, $userId) {

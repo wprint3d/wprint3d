@@ -37,11 +37,11 @@ return [
 
         'mongodb' => [
             'driver'    => 'mongodb',
-            'host'      => env('DB_HOST', '127.0.0.1'),
+            'host'      => env('DB_HOST', 'mongo'),
             'port'      => env('DB_PORT', 27017),
-            'database'  => env('DB_DATABASE', 'homestead'),
+            'database'  => env('DB_DATABASE', 'wprint3d'),
             'options'   => [
-                'appname' => env('APP_NAME'),
+                'appname' => env('APP_NAME', 'WPrint 3D'),
             ],
         ],
 
@@ -82,7 +82,7 @@ return [
 
         'default' => [
             'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'host' => env('REDIS_HOST', 'redis'),
             'username' => env('REDIS_USERNAME'),
             'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),
@@ -91,7 +91,7 @@ return [
 
         'cache' => [
             'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'host' => env('REDIS_HOST', 'redis'),
             'username' => env('REDIS_USERNAME'),
             'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),

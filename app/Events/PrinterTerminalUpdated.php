@@ -33,8 +33,17 @@ class PrinterTerminalUpdated implements ShouldBroadcast
      *
      * @return void
      */
-    public function __construct(string $printerId, string $command, ?int $line = null, ?int $maxLine = null, ?int $terminalMaxLines = null, ?bool $isRunning = null, ?array $statistics = null, mixed $stopTimestampSecs = null)
-    {
+    public function __construct(
+        string   $printerId,
+        string   $command,
+          ?int   $line              = null,
+          ?int   $maxLine           = null,
+          ?int   $terminalMaxLines  = null,
+          ?bool  $isRunning         = null,
+          ?array $statistics        = null,
+          ?int   $stopTimestampSecs = null,
+          mixed  $thresholdSecs     = null
+    ) {
         if (!is_numeric($stopTimestampSecs)) { $stopTimestampSecs = null; }
 
         $this->printerId    = $printerId;
@@ -78,7 +87,10 @@ class PrinterTerminalUpdated implements ShouldBroadcast
             PrinterConnectionStatusUpdated::dispatch(
                 $this->printerId,                               // printerId
                 Printer::updateLastSeenOf( $this->printerId ),  // lastSeen
-                $statistics                                     // statistics
+                $statistics,                                    // statistics
+                $maxLine !== null,                              // hasActiveFile
+                !$this->running,                                // isPaused
+                $thresholdSecs                                  // thresholdSecs
             );
         }
 

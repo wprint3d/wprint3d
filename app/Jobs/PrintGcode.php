@@ -19,12 +19,15 @@ use App\Libraries\GcodeStat;
 use App\Libraries\Serial;
 
 use App\Models\Configuration;
+use App\Models\File;
 use App\Models\Printer;
 use App\Models\User;
 
 use Illuminate\Bus\Queueable;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
+
+use Illuminate\Filesystem\FilesystemAdapter;
 
 use Illuminate\Foundation\Bus\Dispatchable;
 
@@ -62,6 +65,8 @@ class PrintGcode implements ShouldQueue
      */
     public $failOnTimeout = false;
 
+    private FilesystemAdapter $storage;
+
     private string  $uid;
     private string  $filePath;
     private User    $owner;
@@ -76,6 +81,7 @@ class PrintGcode implements ShouldQueue
 
     private int $lineNumber = 0;
     private int $lineNumberCount;
+    private int $layerCount;
 
     private Printer $printer;
 
@@ -87,7 +93,7 @@ class PrintGcode implements ShouldQueue
     const LOG_CHANNEL = 'gcode-printer';
 
     const PRINTER_REFRESH_INTERVAL_SECS  = 5;
-    const TERMINAL_REFRESH_INTERVAL_SECS = 1;
+    const TERMINAL_REFRESH_INTERVAL_SECS = 1; // TODO: make sure that it doesn't go over Reverb's buffer size limit
 
     const COLOR_SWAP_DEFAULT_X = 0; // mm
     const COLOR_SWAP_DEFAULT_Y = 0; // mm
@@ -134,6 +140,8 @@ class PrintGcode implements ShouldQueue
         $this->streamMaxLengthBytes = Configuration::get('streamMaxLengthBytes');
 
         $this->printer->setCurrentLine( 0 );
+        $this->printer->setCurrentLayer( 0 );
+        $this->printer->setLastCommand( null );
 
         $this->shouldRecord      = $this->owner->settings['recording']['enabled'];
         $this->recordableCameras = [];
@@ -260,6 +268,21 @@ class PrintGcode implements ShouldQueue
         $this->finished(resetPrinter: false);
     }
 
+    private function updatePrintedFile(): void {
+        $printedFile = File::where('path', $this->filePath)->first();
+
+        if (!$printedFile) {
+            $printedFile = new File();
+            $printedFile->path   = $this->filePath;
+            $printedFile->prints = 0;
+            $printedFile->size   = $this->storage->size($this->filePath);
+            $printedFile->save();
+        }
+
+        $printedFile->prints++;
+        $printedFile->save();
+    }
+
     private function retrySerialConnection(Exception $previousException, Serial &$serial, Logger &$log): string {
         /*
          * NOTE:
@@ -342,6 +365,8 @@ class PrintGcode implements ShouldQueue
         $log = Log::channel( self::LOG_CHANNEL );
         $log->info( "Job started: printing \"{$this->filePath}\"" );
 
+        $this->storage = Storage::disk('gcode');
+
         $fileMimeType = Storage::mimeType($this->filePath);
 
         if (
@@ -381,7 +406,7 @@ class PrintGcode implements ShouldQueue
             );
         }
 
-        $this->gcode = Storage::disk('gcode')->getDriver()->readStream( $this->filePath );
+        $this->gcode = $this->storage->getDriver()->readStream( $this->filePath );
 
         if (!$this->printer->node) {
             throw new Exception('This printer doesn\'t have a node assigned.');
@@ -396,6 +421,9 @@ class PrintGcode implements ShouldQueue
 
         $this->lineNumber      = $this->printer->getCurrentLine();
         $this->lineNumberCount = 0;
+        $this->layerCount      = 0;
+
+        $lastMovementMode = null;
 
         // count lines
         while (
@@ -403,7 +431,43 @@ class PrintGcode implements ShouldQueue
                 stream:    $this->gcode,
                 maxLength: $this->streamMaxLengthBytes
             )
-        ) { $this->lineNumberCount++; }
+        ) {
+            $this->lineNumberCount++;
+
+            if (Str::startsWith($line, 'G90') || Str::startsWith($line, 'G91')) {
+                $lastMovementMode = $line;
+            }
+
+            if (!Str::startsWith($line, 'G0') && !Str::startsWith($line, 'G1')) { continue; }
+
+            $nextVirtualPosition = movementToXYZE( $line );
+
+            if (!isset($nextVirtualPosition['z'])) {
+                $nextVirtualPosition['z'] = 0;
+            }
+
+            if (!isset($virtualPosition)) {
+                $virtualPosition = [ 'z' => 0 ];
+            }
+
+            if ($lastMovementMode === null || $lastMovementMode == 'G90') {
+                if (isset($nextVirtualPosition['z']) && $nextVirtualPosition['z'] != $virtualPosition['z']) {
+                    $virtualPosition['z'] = $nextVirtualPosition['z'];
+
+                    $this->layerCount++;
+                }
+            } else {
+                $log->info("Relative movement detected, skipping layer count check... {$line}");
+
+                $nextVirtualPosition['z'] += $virtualPosition['z'];
+
+                if ($nextVirtualPosition['z'] != $virtualPosition['z']) {
+                    $this->layerCount++;
+                }
+            }
+        }
+
+        $this->printer->setMaxLayer( $this->layerCount );
 
         // back to line 0
         rewind( $this->gcode );
@@ -425,7 +489,6 @@ class PrintGcode implements ShouldQueue
                 }
             }
 
-            $serial->setProperty('lastSnapshot', millis());
             $serial->everyBusyMillis(
                 clockName:  'lastSnapshot',
                 interval:   $this->captureIntervalSecs * 1000,
@@ -490,6 +553,8 @@ class PrintGcode implements ShouldQueue
         $progressPercentage = 0;
 
         tryToWaitForMapper($log);
+
+        $this->updatePrintedFile();
 
         $lastSeen = $this->printer->getLastSeen();
 
@@ -618,9 +683,15 @@ class PrintGcode implements ShouldQueue
                         try {
                             $log->debug('Trying to refresh statistics...');
 
+                            $temperatureCommand = 'M105';
+
+                            if ($extruderIndex > 0) {
+                                $temperatureCommand .= ' T' . $extruderIndex;
+                            }
+
                             $this->printer->setStatistics(
                                 lines:          $serial->query(
-                                    command:    'M105 T' . $extruderIndex,
+                                    command:    $temperatureCommand,
                                     lineNumber: $this->lineNumber,
                                     maxLine:    $this->lineNumberCount
                                 ),
@@ -640,6 +711,8 @@ class PrintGcode implements ShouldQueue
                 &&
                 !str_ends_with($line, ';' . FormatterCommands::IGNORE_POSITION_CHANGE)
             ) {
+                $previousPosition = $absolutePosition;
+
                 if ($this->lastMovementMode == 'G90') { // absolute mode
                     foreach (movementToXYZE( $line ) as $key => $value) {
                         $absolutePosition[ $key ] = $value;
@@ -648,6 +721,10 @@ class PrintGcode implements ShouldQueue
                     foreach (movementToXYZE( $line ) as $key => $value) {
                         $absolutePosition[ $key ] += $value;
                     }
+                }
+
+                if ($previousPosition['z'] != $absolutePosition['z']) {
+                    $this->printer->incrementCurrentLayer();
                 }
 
                 $log->debug('POS: ' . json_encode($absolutePosition));

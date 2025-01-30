@@ -37,12 +37,18 @@ class CreateSampleUser extends Command
      */
     public function handle()
     {
-        $user = User::where( 'email', self::SAMPLE_USER_MAIL_ADDRESS )->first();
+        $user = User::where('email', self::SAMPLE_USER_MAIL_ADDRESS)->first();
 
         if ($user) {
-            if (!isset( $user->role ) || $user->role === null) {
+            if (!isset($user->role) || $user->role === null) {
                 // As of the commit after a2e5ffd, a role is required.
                 $user->role = UserRole::ADMINISTRATOR;
+                $user->save();
+            }
+
+            if (!isset($user->deletable) || $user->deletable === null) {
+                // As of the commit after 9fed8eb, a deletable flag is required.
+                $user->deletable = false;
                 $user->save();
             }
 

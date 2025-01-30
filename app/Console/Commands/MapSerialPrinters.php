@@ -217,22 +217,23 @@ class MapSerialPrinters extends Command
 
                         $response = $serial->query('M105');
                     } catch (TimedOutException $timedOutException) {
-                        $this->info('  - No response at ' . $baudRate . ' bps: ' . $timedOutException->getMessage());
+                        $errorMessage = "  - No response at {$baudRate} bps: {$timedOutException->getMessage()}";
 
-                        $log->info('No response from serial port at node ' . $device . ' while trying with a baud rate of ' . $baudRate . ' bps: ' . $timedOutException->getMessage());
+                        $this->info($errorMessage); $log->info($errorMessage);
 
                         break;
                     } catch (Exception $exception) {
-                        $this->info('  - Negotiation error at ' . $baudRate . ' bps: ' . $exception->getMessage());
+                        $errorMessage = "  - Negotiation error from serial port at node {$device} while trying with a baud rate of {$baudRate} bps: {$exception->getMessage()}";
 
-                        $log->info('Negotiation error from serial port at node ' . $device . ' while trying with a baud rate of ' . $baudRate . ' bps: ' . $exception->getMessage());
+                        $this->info($errorMessage); $log->info($errorMessage);
 
                         break;
                     }
 
                     if (!Str::contains( $response, 'ok' ) && !containsNonUTF8($response)) {
-                        $this->warn(  "  - At {$baudRate}, this looks like a printer but it didn't expose a proper reply, let's wait a few seconds and try again. Got: {$response}");
-                        $log->warning("  - At {$baudRate}, this looks like a printer but it didn't expose a proper reply, let's wait a few seconds and try again. Got: {$response}");
+                        $warnMessage = "  - At {$baudRate}, this looks like a printer but it didn't expose a proper reply, let's wait a few seconds and try again. Got: {$response}";
+
+                        $this->warn($warnMessage); $log->warning($warnMessage);
 
                         sleep( $negotiationTimeoutSecs );
 
@@ -251,15 +252,17 @@ class MapSerialPrinters extends Command
                             information: $serial->query('M115')
                         );
                     } catch (Exception $exception) {
-                        $this->info("  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}");
-                        $log->info( "  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}");
+                        $infoMessage = "  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}";
+
+                        $this->info($infoMessage); $log->info($infoMessage);
 
                         continue;
                     }
 
                     if (!isset( $machine['uuid'] )) {
-                        $this->info('  -> Invalid printer (no UUID available).');
-                        $log->info( '  -> Invalid printer (no UUID available).');
+                        $infoMessage = '  -> Invalid printer (no UUID available).';
+
+                        $this->info($infoMessage); $log->info($infoMessage);
 
                         break;
                     }

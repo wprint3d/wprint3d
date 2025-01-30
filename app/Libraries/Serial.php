@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 use Error;
-use Exception;
+use Throwable;
 
 class Serial {
 
@@ -32,6 +32,8 @@ class Serial {
     private string      $fileName;
     private int         $baudRate;
     private int         $terminalMaxLines;
+
+    private ?int        $maxTimeBetweenHeartbeatsSecs = null;
 
     private Repository  $lockCache;
     private string      $lockKey;
@@ -104,6 +106,12 @@ class Serial {
         $this->clocks                = [];
         $this->externalProperties    = [];
         $this->onNewLineActions      = [];
+
+        if ($this->log !== null) {
+            $this->log->debug( __METHOD__ . ': created instance with params: ' . json_encode(func_get_args()) );
+        }
+
+        $this->maxTimeBetweenHeartbeatsSecs = Configuration::get('lastSeenThresholdSecs');
     }
 
     public function __destruct() {
@@ -205,11 +213,11 @@ class Serial {
                 $this->clocks[ $key ]['lastRun'] = $millis;
 
                 try { $clock['callable'](); }
-                catch (Exception $exception) {
+                catch (Throwable $throwable) {
                     if ($this->log) {
                         $this->log->error(
-                            __METHOD__ . ': couldn\'t run queued callable: ' . $exception->getMessage() . PHP_EOL .
-                            $exception->getTraceAsString()
+                            __METHOD__ . ': couldn\'t run queued callable: ' . $throwable->getMessage() . PHP_EOL .
+                            $throwable->getTraceAsString()
                         );
                     }
                 }
@@ -277,7 +285,15 @@ class Serial {
     }
 
     private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, mixed $stopTimestampSecs = null) : void {
-        if (!$this->printerId) return; 
+        if (
+            !$this->printerId
+            ||
+            !trim($message)
+        ) return;
+
+        if ($this->log) {
+            $this->log->debug( __METHOD__ . ': appending log: ' . $message );
+        }
 
         if (!$stopTimestampSecs) {
             Log::warning(__METHOD__ . ': stopTimestampSecs is not numeric: ' . json_encode($stopTimestampSecs));
@@ -294,13 +310,14 @@ class Serial {
                 $this->terminalMaxLines,    // terminalMaxLines
                 $isRunning,                 // isRunning
                 $statistics,                // statistics
-                $stopTimestampSecs          // stopTimestampSecs
+                $stopTimestampSecs,         // stopTimestampSecs
+                $this->maxTimeBetweenHeartbeatsSecs // thresholdSecs
             );
-        } catch (Exception $exception) {
+        } catch (Throwable $throwable) {
             if ($this->log) {
                 $this->log->warning(
-                    __METHOD__ . ': PrinterTerminalUpdated: event dispatch failure: ' . $exception->getMessage() . PHP_EOL .
-                    $exception->getTraceAsString()
+                    __METHOD__ . ': PrinterTerminalUpdated: event dispatch failure: ' . $throwable->getMessage() . PHP_EOL .
+                    $throwable->getTraceAsString()
                 );
             }
         }
@@ -461,11 +478,11 @@ class Serial {
 
                         foreach ($this->onNewLineActions as $callable) {
                             try { $callable(); }
-                            catch (Exception $exception) {
+                            catch (Throwable $throwable) {
                                 if ($this->log) {
                                     $this->log->error(
-                                        __METHOD__ . ': onNewLineActions: couldn\'t run queued callable: ' . $exception->getMessage() . PHP_EOL .
-                                        $exception->getTraceAsString()
+                                        __METHOD__ . ': onNewLineActions: couldn\'t run queued callable: ' . $throwable->getMessage() . PHP_EOL .
+                                        $throwable->getTraceAsString()
                                     );
                                 }
                             }
@@ -591,9 +608,7 @@ class Serial {
                 lineNumber: $lineNumber,
                 maxLine:    $maxLine
             );
-        } catch (Exception $exception) {
-            $throwable = $exception;
-        }
+        } catch (Throwable $throwable) {}
 
         $lock->release();
 

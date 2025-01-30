@@ -60,14 +60,14 @@ return [
         'single' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
             'days' => 14,
         ],
 
@@ -81,7 +81,7 @@ return [
 
         'papertrail' => [
             'driver' => 'monolog',
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
             'handler' => env('LOG_PAPERTRAIL_HANDLER', SyslogUdpHandler::class),
             'handler_with' => [
                 'host' => env('PAPERTRAIL_URL'),
@@ -92,7 +92,7 @@ return [
 
         'stderr' => [
             'driver' => 'monolog',
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
             'handler' => StreamHandler::class,
             'formatter' => env('LOG_STDERR_FORMATTER'),
             'with' => [
@@ -102,12 +102,12 @@ return [
 
         'syslog' => [
             'driver' => 'syslog',
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
         ],
 
         'errorlog' => [
             'driver' => 'errorlog',
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
         ],
 
         'null' => [
@@ -119,66 +119,73 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'jobs-reset' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/jobs-reset.log'),
+            'level' => env('LOG_LEVEL', 'info'),
+            'days' => 1,
+        ],
+
         'serial-mapper' => [
             'driver' => 'daily',
             'path' => storage_path('logs/serial-mapper.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'hardware-cameras-mapper' => [
             'driver' => 'daily',
             'path' => storage_path('logs/hardware-cameras-mapper.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'gcode-printer' => [
             'driver' => 'daily',
             'path' => storage_path('logs/gcode-printer.log'),
-            'level' => env('LOG_LEVEL_GCODE_PRINTER', 'info'),
+            'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'printers-poller' => [
             'driver' => 'daily',
             'path' => storage_path('logs/printers-poller.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'serial' => [
             'driver' => 'daily',
             'path' => storage_path('logs/serial.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'device-variants-updater' => [
             'driver' => 'daily',
             'path' => storage_path('logs/device-variants-updater.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
-            'days' => 1,
-        ],
-
-        'job-recovery' => [
-            'driver' => 'daily',
-            'path' => storage_path('logs/job-recovery.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'video-renderer' => [
             'driver' => 'daily',
             'path' => storage_path('logs/video-renderer.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'queued-commands-listener' => [
             'driver' => 'daily',
             'path' => storage_path('logs/queued-commands-listener.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
+            'days' => 1,
+        ],
+
+        'package-manager' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/package-manager.log'),
+            'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
     ],
