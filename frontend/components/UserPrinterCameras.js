@@ -22,8 +22,8 @@ export default function UserPrinterCameras() {
     });
 
     useEffect(() => {
-        console.debug('UserPrinterCameras: cameraList:', cameraList);
-        console.debug('UserPrinterCameras: camera:', camera);
+        console.debug('UserPrinterCameras: cameraList:',     cameraList);
+        console.debug('UserPrinterCameras: selectedCamera:', selectedCamera);
     }, [ cameraList.isFetching ]);
 
     useEffect(() => {
