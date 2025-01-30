@@ -11,7 +11,7 @@ const NavBarMenuSettingsModalAbout = ({ isSmallTablet, isSmallLaptop, enqueueSna
     const { colors } = useTheme();
 
     const appName = useQuery({
-        queryKey: ['getAppName'],
+        queryKey: ['getAppNameAbout'],
         queryFn:  () => API.get('/app/name')
     });
 
