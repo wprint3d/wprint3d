@@ -91,6 +91,22 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
   //   );
   // }
 
+  if (getAppName.isError &&getAppName?.error?.status === 502) {
+    return (
+      <View style={styles.preloader}>
+        <View style={styles.container}>
+          <ActivityIndicator animating={true} />
+
+          <View style={styles.messageContainer}>
+              <Text style={messageStyle}>
+                Please wait for a while, the server is still starting up...
+              </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   if (!getAppName.isFetched || !checkLogin.isFetched) {
     return (
       <View style={styles.preloader}>
