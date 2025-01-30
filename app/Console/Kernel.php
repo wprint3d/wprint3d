@@ -19,8 +19,6 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        if (isLowMemoryDevice()) { return; }
-
         $schedule->command('refresh:device-variants')->daily();
     }
     

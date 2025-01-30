@@ -5,8 +5,8 @@ namespace App\Jobs;
 use App\Events\RecordingRenderFinished;
 use App\Events\RecordingRenderProgress;
 
-use App\Models\Configuration;
 use App\Models\User;
+use App\Models\Video;
 
 use Illuminate\Bus\Queueable;
 
@@ -16,6 +16,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+
+use Illuminate\Support\Str;
 
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -83,14 +85,13 @@ class RenderVideo implements ShouldQueue
     {
         $log = Log::channel( self::LOG_CHANNEL );
 
-        $recordingsPath   = Storage::path( self::RECORDINGS_DIRECTORY );
+        $recordingsDisk   = Storage::disk('recordings');
+
         $recorderSettings = $this->owner->settings['recording'];
 
         list($videoWidth, $videoHeight) = explode('x', $recorderSettings['resolution']);
 
-        $targetFile =
-            $recordingsPath
-            . '/' .
+        $targetFileName = (
             basename($this->fileName)
             . '_' .
             $this->jobUID
@@ -98,7 +99,18 @@ class RenderVideo implements ShouldQueue
             $this->index
             . '_' .
             ($this->requiresLibCamera ? '1' : '0')
-            . '.webm';
+            . '.webm'
+        );
+
+        $instance = new Video();
+        $instance->fileName    = $targetFileName;
+        $instance->jobUID      = $this->jobUID;
+        $instance->isComplete  = false;
+        $instance->printer()->associate($this->owner->getActivePrinter());
+        $instance->owner()->associate($this->owner);
+        $instance->save();
+
+        $targetFilePath = $recordingsDisk->path($targetFileName);
 
         $ffmpeg = FFMpeg::create([ 'timeout' => null ]);
 
@@ -132,31 +144,33 @@ class RenderVideo implements ShouldQueue
             ResizeFilter::RESIZEMODE_INSET
         );
 
-        $video->save( $format, $targetFile ); // render the video
+        // Render the video
+        $video->save(
+            format:         $format,
+            outputPathfile: $targetFilePath
+        );
 
         // Generate a thumbnail
-        $renderedFile = $ffmpeg->open( $targetFile );
+        $renderedFile = $ffmpeg->open($targetFilePath);
 
-        $thumbnailFrameSecs = $renderedFile->getFormat()->get('duration', 0);
+        $thumbnailFrameSecs = 0;
+        $videoDurationSecs  = $renderedFile->getFormat()->get('duration', 0);
 
-        if ($thumbnailFrameSecs > 0) {
-            $thumbnailFrameSecs /= 2;
+        if ($videoDurationSecs > 0) {
+            $thumbnailFrameSecs = $videoDurationSecs / 2;
         }
 
+        $targetThumbnailFileName = Str::replaceLast('.webm', '.jpg', $targetFileName);
+
+        // Save the thumbnail
         $renderedFile
-            ->frame( TimeCode::fromSeconds( $thumbnailFrameSecs ) )
-            ->save(
-                $recordingsPath
-                . '/' .
-                basename($this->fileName)
-                . '_' .
-                $this->jobUID
-                . '_' .
-                $this->index
-                . '_' .
-                ($this->requiresLibCamera ? '1' : '0')
-                . '.jpg'
-            );
+            ->frame( TimeCode::fromSeconds($thumbnailFrameSecs) )
+            ->save( $recordingsDisk->path($targetThumbnailFileName) );
+
+        $instance->duration   = $videoDurationSecs;
+        $instance->thumbnail  = $targetThumbnailFileName;
+        $instance->isComplete = true;
+        $instance->save();
 
         // Remove origin files
         foreach (Storage::files( SaveSnapshot::SNAPSHOTS_DIRECTORY ) as $file) {
@@ -177,9 +191,6 @@ class RenderVideo implements ShouldQueue
                 )
             ) { Storage::delete( $file ); }
         }
-
-        // Allow some time to allow the delete button to re-enable
-        sleep( Configuration::get('renderFileBlockingSecs') + 1 );
 
         RecordingRenderFinished::dispatch( $this->printerId );
     }

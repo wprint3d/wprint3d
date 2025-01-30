@@ -6,6 +6,8 @@ use App\Models\Printer;
 
 use Illuminate\Console\Command;
 
+use Illuminate\Support\Facades\Log;
+
 class ResetActiveJobs extends Command
 {
     /**
@@ -29,12 +31,20 @@ class ResetActiveJobs extends Command
      */
     public function handle()
     {
-        foreach (Printer::all() as $printer) {
-            if ($printer->hasActiveJob) {
-                $printer->hasActiveJob     = false;
-                $printer->lastJobHasFailed = true;
-                $printer->save();
+        $log = Log::channel('jobs-reset');
+
+        foreach (Printer::select('hasActiveJob')->cursor() as $printer) {
+            if (($printer->hasActiveJob ?? false) === false) {
+                $log->debug("[{$printer->_id}] No active job detected, skipping.");
+
+                continue;
             }
+
+            $printer->hasActiveJob     = false;
+            $printer->lastJobHasFailed = true;
+            $printer->save();
+
+            $log->info("[{$printer->_id}] Stalled job detected, resetting printer state.");
         }
 
         return Command::SUCCESS;

@@ -35,8 +35,8 @@ class MakeMarlinLabels extends Command
      */
     public function handle()
     {
-        $commandsFilename   = env('MARLIN_COMMANDS_FILENAME');
-        $generatedEnumPath  = self::ENUMS_BASE_DIR . '/' . env('MARLIN_GENERATED_ENUM_FILENAME');
+        $commandsFilename   = env('MARLIN_COMMANDS_FILENAME', 'marlin_commands.json');
+        $generatedEnumPath  = self::ENUMS_BASE_DIR . '/' . env('MARLIN_GENERATED_ENUM_FILENAME', 'Marlin.php');
 
         $this->info('Reading content from storage...');
 

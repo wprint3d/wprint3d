@@ -11,8 +11,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 use Laravel\Sanctum\HasApiTokens;
+
+use MongoDB\Laravel\Relations\HasMany;
 
 class User extends AuthenticatableUser
 {
@@ -55,6 +58,10 @@ class User extends AuthenticatableUser
         'email_verified_at' => 'datetime',
     ];
 
+    public function videos(): HasMany {
+        return $this->hasMany(Video::class);
+    }
+
     public function getCurrentFolder() {
         return Cache::get(
             key:     session()->getId() . self::CACHE_CURRENT_DIRECTORY_SUFFIX,
@@ -73,20 +80,30 @@ class User extends AuthenticatableUser
         );
     }
 
-    public function getActivePrinter() {
+    public function getActivePrinterId() {
         return Cache::get(
             session()->getId() . self::CACHE_ACTIVE_PRINTER_SUFFIX
         );
     }
-    
+
+    public function getActivePrinter(...$withFields): Printer|null {
+        $printerId = $this->getActivePrinterId();
+
+        if ($printerId) {
+            return Printer::select($withFields)->find($printerId);
+        }
+
+        return null;
+    }
+
     /**
-     * setActivePrinter
+     * setActivePrinterId
      *
      * @param  ?string $printerId
      * 
      * @return  bool Whether the user successfully set their printer
      */
-    public function setActivePrinter(string $printerId): bool {
+    public function setActivePrinterId(?string $printerId): bool {
         if ($printerId === null) {
             return true;
         }
@@ -102,6 +119,10 @@ class User extends AuthenticatableUser
 
             return false;
         }
+
+        Log::debug(
+            __METHOD__ . ': ' . session()->getId() . self::CACHE_ACTIVE_PRINTER_SUFFIX . ' => ' . $printerId
+        );
 
         return Cache::put(
             key:     session()->getId() . self::CACHE_ACTIVE_PRINTER_SUFFIX,

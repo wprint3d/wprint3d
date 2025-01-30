@@ -23,7 +23,7 @@ services:
     depends_on:
       - web
       - ws-server
-  web:
+  backend:
     image: wprint3d/wprint3d
     restart: always
     logging:
@@ -40,11 +40,24 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
+    tmpfs:
+      - /tmp
     depends_on:
       - redis
       - mongo
-      - bundler
-      # - mariadb
+  web:
+    image: wprint3d/wprint3d-frontend
+    restart: always
+    entrypoint: '/app/entrypoint_prd.sh'
+    tty: true
+    stdin_open: true
+    ports:
+      - 8081:8081
+    depends_on:
+      - backend
+      - redis
+      - mongo
   scheduler:
     image: wprint3d/wprint3d
     restart: always
@@ -64,7 +77,6 @@ services:
     depends_on:
       - redis
       - mongo
-      # - mariadb
   serial-scheduler:
     image: wprint3d/wprint3d
     restart: always
@@ -84,7 +96,6 @@ services:
     depends_on:
       - redis
       - mongo
-      # - mariadb
   mapper:
     image: wprint3d/wprint3d
     restart: always
@@ -107,7 +118,6 @@ services:
     depends_on:
       - redis
       - mongo
-      # - mariadb
   queue:
     image: wprint3d/wprint3d
     restart: always
@@ -129,7 +139,6 @@ services:
     depends_on:
       - redis
       - mongo
-      # - mariadb
   ws-server:
     image: wprint3d/wprint3d
     restart: always
@@ -146,19 +155,6 @@ services:
     depends_on:
       - redis
       - mongo
-      # - mariadb
-  bundler:
-    image: wprint3d/wprint3d
-    restart: always
-    logging:
-      driver: local
-      options:
-        max-size: "16m"
-        mode: non-blocking
-    environment:
-      - ROLE=bundler
-    volumes:
-      - .:/var/www
   streamer:
     image: wprint3d/wprint3d
     restart: always
@@ -184,9 +180,7 @@ services:
     depends_on:
       - redis
       - mongo
-      - bundler
       - proxy
-      # - mariadb
       - mapper
   redis:
     image: redis:7.2.5
