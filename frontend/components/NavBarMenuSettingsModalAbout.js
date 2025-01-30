@@ -33,7 +33,11 @@ const NavBarMenuSettingsModalAbout = ({ isSmallTablet, isSmallLaptop, enqueueSna
     if (licenses.isLoading) {
         licensesContent = <UserPaneLoadingIndicator message={'Downloading licenses…'} />;
     } else if (licenses.isError) {
-        licensesContent = <Text style={{ color: colors.error }}>Failed to download licenses.</Text>;
+        licensesContent = (
+            <Text style={{ color: colors.error, paddingVertical: 32 }}>
+                Failed to download licenses, please try again later.
+            </Text>
+        );
     } else {
         licensesContent = (
             <ScrollView style={{ width: '100%', flex: 1, maxHeight: '100%', padding: 16, marginTop: 16, backgroundColor: colors.background }}>
