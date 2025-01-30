@@ -142,7 +142,7 @@ refreshDockerLog() {
                     STATUS=1;
                 fi;
             elif [[ "$NAME" == *"web"* ]]; then
-                if docker exec "$CID" ps -fax | grep -e 'expo start' | grep -v grep > /dev/null; then
+                if docker exec "$CID" ps -fax | grep -e 'expo start' -e 'lighttpd' | grep -v grep > /dev/null; then
                     STATUS=1;
                 fi;
             else # all other services
