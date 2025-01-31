@@ -19,10 +19,10 @@ const PrinterSettingsModalDetails = ({ details, isLoading, error }) => {
 
     if (error) {
         return (
-            <View>
-                <Text>
-                    Couldn't load printer details, please try again later.
-                    {'\n'}
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ textAlign: 'center' }}>
+                    Couldn't load printer details, please try again later:
+                    {'\n\n'}
                     {error}
                 </Text>
             </View>
