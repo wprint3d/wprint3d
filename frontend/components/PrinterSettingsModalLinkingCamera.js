@@ -137,16 +137,11 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
                         setVisible={setPreviewVisible}
                         title={`Previewing camera "${camera.label}"`}
                         content={<UserPrinterCamera url={camera.url} isConnected={camera.connected} />}
-                        style={{ maxWidth: '100%', width: '95%' }}
+                        style={{ maxWidth: 1000, width: '95%' }}
                         actions={
-                            <>
-                                <Button
-                                    mode="text"
-                                    onPress={() => setPreviewVisible(false)}
-                                >
-                                    Close
-                                </Button>
-                            </>
+                            <Button mode="text" onPress={() => setPreviewVisible(false)}>
+                                Close
+                            </Button>
                         }
                     />
                 </View>
