@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { List, Switch, Text } from "react-native-paper";
@@ -6,6 +6,8 @@ import DropDown from "react-native-paper-dropdown";
 import API from "../includes/API";
 
 const CameraSettingsModalConfiguration = ({ camera, enqueueSnackbar }) => {
+    const queryClient = useQueryClient();
+
     console.debug('CameraSettingsModalConfiguration: camera:', camera);
 
     const toggleCameraEnabledMutation = useMutation({
@@ -19,6 +21,8 @@ const CameraSettingsModalConfiguration = ({ camera, enqueueSnackbar }) => {
             console.debug('CameraSettingsModalConfiguration: toggleCameraEnabledMutation: onSuccess:', response);
 
             setEnabled(!enabled);
+
+            queryClient.invalidateQueries({ queryKey: ['cameraList'] });
         },
         onError: (error, variables, context) => {
             console.error('CameraSettingsModalConfiguration: toggleCameraEnabledMutation: onError:', error, variables, context);
