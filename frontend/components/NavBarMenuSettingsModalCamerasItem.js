@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { Badge, Button, Card, Icon, Text, useTheme } from "react-native-paper";
-import SimpleDialog from "./SimpleDialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+
 import API from "../includes/API";
+
+import SimpleDialog from "./SimpleDialog";
+import UserPrinterCamera from "./UserPrinterCamera";
 
 const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLaptop, enqueueSnackbar, handleSettingsModal }) => {
     const { colors } = useTheme();
@@ -12,7 +15,8 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
 
     const [ thumbLoadError, setThumbLoadError ] = useState(null);
 
-    const [ showDeleteDialog, setShowDeleteDialog   ] = useState(false);
+    const [ showPreviewDialog,  setShowPreviewDialog ] = useState(false);
+    const [ showDeleteDialog,   setShowDeleteDialog  ] = useState(false);
 
     const deleteCameraMutation = useMutation({
         mutationFn: (printer) => API.delete(`/camera/${printer._id}`),
@@ -127,6 +131,14 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
                 />
                 <Card.Actions>
                     <Button
+                        icon="eye"
+                        onPress={() => {
+                            console.debug('Preview camera:', camera);
+
+                            setShowPreviewDialog(true);
+                        }}
+                    >Preview</Button>
+                    <Button
                         icon="pencil"
                         loading={deleteCameraMutation.isLoading}
                         onPress={() => {
@@ -166,6 +178,24 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
                     >Delete</Button>
                 </Card.Actions>
             </Card>
+
+            <SimpleDialog
+                visible={showPreviewDialog}
+                setVisible={setShowPreviewDialog}
+                title={`Previewing camera "${camera.label}"`}
+                content={<UserPrinterCamera url={camera.url} isConnected={camera.connected} />}
+                style={{ maxWidth: '100%', width: '95%' }}
+                actions={
+                    <>
+                        <Button
+                            mode="text"
+                            onPress={() => setShowPreviewDialog(false)}
+                        >
+                            Close
+                        </Button>
+                    </>
+                }
+            />
         </>
     );
 }
