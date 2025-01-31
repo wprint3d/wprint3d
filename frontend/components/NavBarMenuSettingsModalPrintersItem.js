@@ -129,6 +129,7 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
                     />
                     <Card.Actions>
                         <Button
+                            mode="contained"
                             icon="pencil"
                             loading={deletePrinterMutation.isLoading}
                             onPress={() => {

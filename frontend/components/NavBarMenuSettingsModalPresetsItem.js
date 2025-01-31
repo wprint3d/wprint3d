@@ -90,7 +90,7 @@ const NavBarMenuSettingsModalPresetsItem = ({ material, isSmallTablet, isSmallLa
                     <Card.Actions>
                         <View style={{ flexDirection: 'row', justifyContent: 'center', width: '100%', gap: 16 }}>
                             <Button
-                                mode="outlined"
+                                mode="contained"
                                 icon="pencil"
                                 loading={deleteMaterialMutation.isLoading}
                                 onPress={() => {
