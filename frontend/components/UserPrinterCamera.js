@@ -100,6 +100,8 @@ const UserPrinterCamera = ({ url, isConnected }) => {
                         console.error(error);
 
                         setError(error.error);
+
+                        setIsLoaded(true);
                     }}
                     onLoad={event   => {
                         console.log('event:', event);
