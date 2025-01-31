@@ -51,19 +51,21 @@ const UserPrinterCamera = ({ url, isConnected }) => {
 
     if (error) {
         return (
-            <UserPrinterCameraError
-                icon="exclamation"
-                message="This camera is not working."
-                height={viewHeight}
-                error={error}
-                suggestions={[
-                    'Reset the USB controller.',
-                    'Re-seat the camera into the port.',
-                    'Restart the host.',
-                    'Remove it from the list of assigned cameras.'
-                ]}
-                onLayout={event => setWidth(event.nativeEvent.layout.width)}
-            />
+            <View style={{ margin: 8 }}>
+                <UserPrinterCameraError
+                    icon="exclamation"
+                    message="This camera is not working."
+                    height={viewHeight}
+                    error={error}
+                    suggestions={[
+                        'Reset the USB controller.',
+                        'Re-seat the camera into the port.',
+                        'Restart the host.',
+                        'Remove it from the list of assigned cameras.'
+                    ]}
+                    onLayout={event => setWidth(event.nativeEvent.layout.width)}
+                />
+            </View>
         );
     }
 

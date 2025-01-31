@@ -16,8 +16,11 @@ export default function UserPrinterCameraInformation({ children, onLayout, style
                 borderStyle: 'solid',
                 borderColor: colors.secondaryContainer,
                 width:       '100%',
-                minHeight:   '28vh',
+                minHeight:   '32vh',
                 height:      height,
+                overflow:    'scroll',
+                paddingVertical: 12,
+                paddingHorizontal: 12,
                 ...style
             }}
             onLayout={onLayout}
