@@ -66,6 +66,15 @@ Other OSes          | :grey_question: Untested (may work if they can run Docker)
 >
 > Talk about your experience and any roadblocks you've found.
 
+## Dependencies
+- **Git**
+- **Docker** and **Docker Compose**
+- **GNU/Linux** or **Windows 10** (or greater) with **WSL2** enabled (experimental)
+- **USBIPD-Win** (Windows only)
+- [WPrint 3D - Frontend](https://github.com/wprint3d/wprint3d-frontend)**<sup>\*</sup>**
+
+**<sup>\*</sup>** The bundled frontend is downloaded automatically during the first run. If you're a developer and run the software in **developer mode**, the full source code will be added to the `frontend` directory.
+
 ## System requirements
 - Any **dual-core CPU** running at, at least, **1 GHz**
 - **1 GB** of memory running at **any speed** \*
