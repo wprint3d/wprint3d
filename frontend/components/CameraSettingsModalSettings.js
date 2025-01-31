@@ -82,7 +82,7 @@ const CameraSettingsModalConfiguration = ({ camera, enqueueSnackbar }) => {
                     right={() => (
                         <Switch
                             value={enabled}
-                            onValueChange={() => toggleCameraEnabledMutation.mutate({ cameraId: camera._id, enabled: !camera.enabled })}
+                            onValueChange={() => toggleCameraEnabledMutation.mutate({ cameraId: camera._id, enabled: !enabled })}
                             disabled={toggleCameraEnabledMutation.isPending}
                         />
                     )}
