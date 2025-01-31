@@ -10,7 +10,6 @@ export default function UserPrinterCameraError({ icon, message, error = null, su
             <View style={{
                 display:        'flex',
                 flexDirection:  'column',
-                flexGrow:       1,
                 alignItems:     'center',
                 justifyContent: 'center',
                 marginVertical: 3,

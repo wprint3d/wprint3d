@@ -10,15 +10,17 @@ export default function UserPrinterCameraInformation({ children, onLayout, style
     return (
         <View
             style={{
-                display:     'flex',
-                alignItems:  'center',
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                borderColor: colors.secondaryContainer,
-                width:       '100%',
-                minHeight:   '32vh',
-                height:      height,
-                overflow:    'scroll',
+                display:        'flex',
+                alignItems:     'center',
+                justifyContent: 'center',
+                borderWidth:    '1px',
+                borderStyle:    'solid',
+                borderColor:    colors.secondaryContainer,
+                width:          '100%',
+                minHeight:      '32vh',
+                maxHeight:      '50vh',
+                height:         height,
+                overflow:       'scroll',
                 paddingVertical: 12,
                 paddingHorizontal: 12,
                 ...style
