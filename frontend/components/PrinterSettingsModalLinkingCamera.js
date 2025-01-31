@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 import TooltipToggleButton from "./modules/TooltipToggleButton";
 import SimpleDialog from "./SimpleDialog";
-import VideoPlayer from "./modules/VideoPlayer";
 import UserPrinterCamera from "./UserPrinterCamera";
 
 const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }) => {
@@ -94,12 +93,17 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
                         {camera.node}
                     </Text>
                     {' - '}
-                    {!camera.connected && (
+                    {!camera.enabled && (
+                        <>
+                            <Text style={{ marginRight: 5 }}> disabled </Text>
+                            <Icon source="power" />
+                        </>
+                    ) || (!camera.connected && (
                         <>
                             <Text style={{ marginRight: 5 }}> offline </Text>
                             <Icon source="connection" />
                         </>
-                    )}
+                    ))}
                 </Text>
             }
             right={() => (
