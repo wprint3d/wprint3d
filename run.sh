@@ -63,6 +63,18 @@ if [[ -e /opt/vc ]]; then
 fi;
 
 if [[ "$ENV" == 'dev' ]]; then
+    if [[ ! -d 'frontend' ]]; then
+        echo 'Cloning frontend repository...';
+
+        git clone https://github.com/wprint3d/wprint3d-frontend frontend;
+
+        if [ $? -ne 0 ]; then
+            echo 'Failed to clone the frontend repository.';
+
+            exit 1;
+        fi;
+    fi;
+
     docker compose -f docker-compose-development.yml pull || exit 1;
 
     if [[ "$NO_BUILD" != 1 ]]; then
