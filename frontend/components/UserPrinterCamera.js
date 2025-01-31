@@ -40,9 +40,7 @@ const UserPrinterCamera = ({ url, isConnected }) => {
                 suggestions={[
                     'Make sure that the camera is plugged in.',
                     'Reset the USB controller.',
-                    'Re-seat the camera into the port.',
-                    'Restart the host.',
-                    'Remove it from the list of assigned cameras.',
+                    'Restart the host.'
                 ]}
                 onLayout={event => setWidth(event.nativeEvent.layout.width)}
             />
