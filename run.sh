@@ -103,15 +103,6 @@ if [[ $(cat /proc/sys/fs/inotify/max_user_watches) -lt 65536 ]]; then
     echo fs.inotify.max_user_watches=65536 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
 fi;
 
-# If on a RPi, check if we're missing the firmware modules to support the
-# camera. If they're missing, prepare them by copying everything to a local
-# path.
-if [[ -e /opt/vc ]]; then
-    echo 'Copying camera firmware...';
-
-    cp -rfv /opt/vc ./internal/vc;
-fi;
-
 if [[ "$ENV" == 'dev' ]]; then
     if [[ ! -d 'frontend' ]]; then
         echo 'Cloning frontend repository...';
