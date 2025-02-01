@@ -16,6 +16,12 @@ const UserPrinterControlTemperature = ({ connectionStatus }) => {
     const [ bedTemperature,    setBedTemperature    ] = useState('0');
     const [ lastTarget,        setLastTarget        ] = useState(null);
 
+    const afterMutation = () => {
+        console.debug('UserPrinterControlTemperature: afterMutation:', lastTarget);
+
+        setLastTarget(null);
+    }
+
     const sendTemperatureMutation = useMutation({
         mutationFn:  ({ target, temperature }) => (
             API.post(`/user/printer/selected/control/temperature/${target}`, {
@@ -43,12 +49,6 @@ const UserPrinterControlTemperature = ({ connectionStatus }) => {
             target:      target,
             temperature: temperature
         });
-    }
-
-    const afterMutation = () => {
-        console.debug('UserPrinterControlTemperature: afterMutation:', lastTarget);
-
-        setLastTarget(null);
     }
 
     useEffect(() => {

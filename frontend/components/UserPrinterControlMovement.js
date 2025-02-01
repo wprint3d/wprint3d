@@ -20,6 +20,12 @@ const UserPrinterControlMovement = ({ styles, isSmallTablet, isSmallLaptop }) =>
     const [ distance,       setDistance      ] = useState(5);
     const [ lastDirection,  setLastDirection ] = useState(null);
 
+    const afterMutation = () => {
+        console.debug('sendMovementMutation: afterMutation');
+
+        setLastDirection(null);
+    };
+
     const sendMovementMutation = useMutation({
         mutationFn: async (params) => API.post('/user/printer/selected/control/movement', params),
         onSuccess: () => {
@@ -39,12 +45,6 @@ const UserPrinterControlMovement = ({ styles, isSmallTablet, isSmallLaptop }) =>
             });
         }
     });
-
-    const afterMutation = () => {
-        console.debug('sendMovementMutation: afterMutation');
-
-        setLastDirection(null);
-    };
 
     const handleMovement = ({ direction, distance, feedrate }) => {
         console.debug('handleMovement:', direction, distance, feedrate);

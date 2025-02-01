@@ -1,8 +1,8 @@
 import Slider from '@react-native-community/slider';
 import { useMutation } from '@tanstack/react-query';
 import React, { useEffect, useState } from 'react';
-import { useWindowDimensions, View } from 'react-native';
-import { Button, Text, TextInput, ActivityIndicator, Picker, useTheme, Divider, Icon } from 'react-native-paper';
+import { View } from 'react-native';
+import { Button, Text, TextInput, useTheme, Divider, Icon } from 'react-native-paper';
 import DropDown from 'react-native-paper-dropdown';
 import { useSnackbar } from 'react-native-paper-snackbar-stack';
 import API from '../includes/API';
@@ -18,6 +18,12 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
     const [ extruderList,         setExtruderList         ] = useState([]);
 
     const [ lastAction, setLastAction ] = useState(null);
+
+    const afterMutation = () => {
+        console.debug('UserPrinterControlExtrusion: afterMutation:', lastAction);
+
+        setLastAction(null);
+    };
 
     const sendExtrusionMutation = useMutation({
         mutationFn:  ({ action, distance, extruder }) => (
@@ -48,12 +54,6 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
             distance: distance,
             extruder: selectedExtruder
         });
-    };
-
-    const afterMutation = () => {
-        console.debug('UserPrinterControlExtrusion: afterMutation:', lastAction);
-
-        setLastAction(null);
     };
 
     const retractButton = (
