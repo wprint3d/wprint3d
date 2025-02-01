@@ -1,3 +1,9 @@
+# temporary files
+**/.expo
+
+# secrets
+**/.github
+
 # dependencies
 **/.pnpm-store
 **/node_modules
