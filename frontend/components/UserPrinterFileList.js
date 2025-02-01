@@ -52,8 +52,9 @@ export default function UserPrinterFileList({
         queryKey:   [ 'fileList', subDirectory, sortingMode ],
         queryFn:    () => API.get('/files', {
             subPath: subDirectory,
-            sortBy:  sortingModes.data.data[sortingMode]
-        })
+            sortBy:  sortingModes?.data?.data[sortingMode]
+        }),
+        enabled:    sortingMode !== null
     });
 
     useEffect(() => setSelectedFileName(null), [ subDirectory ]);
@@ -63,6 +64,8 @@ export default function UserPrinterFileList({
 
         if (
             !sortingModes.isSuccess
+            ||
+            !sortingModes?.data?.data
             ||
             sortingMode !== null
         ) { return; }
