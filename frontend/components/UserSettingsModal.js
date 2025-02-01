@@ -51,7 +51,7 @@ const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTabl
     });
 
     const saveChangesMutation = useMutation({
-        mutationFn: async ({ username, email, role }) => API.put(`/users/${user._id}`, { username, email, role }),
+        mutationFn: async ({ username, email, role }) => API.put(`/users/${user?._id}`, { username, email, role }),
         onSuccess: () => {
             enqueueSnackbar({
                 message: (
