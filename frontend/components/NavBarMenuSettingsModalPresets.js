@@ -81,9 +81,14 @@ const NavBarMenuSettingsModalPresets = ({ isSmallTablet, isSmallLaptop, enqueueS
 
                         <FAB
                             icon="plus"
-                            label="Add"
+                            label="Add preset"
                             variant="primary"
-                            style={{ position: 'absolute', bottom: 16, right: 16 }}
+                            style={{
+                                position: 'fixed',
+                                margin: 16,
+                                right: 48,
+                                bottom: 32
+                            }}
                             onPress={() => setShowEditDialog(true)}
                         />
                     </View>
