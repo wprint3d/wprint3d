@@ -73,6 +73,7 @@ const NavBarMenuSettingsModalPresetsEditDialog = ({ material = null, visible, se
             title={material ? `Edit ${material.name}` : 'Add new material'}
             visible={visible}
             setVisible={setVisible}
+            style={{ maxWidth: 350 }}
             actions={
                 <>
                     <Button onPress={() => setVisible(false)}>Cancel</Button>
