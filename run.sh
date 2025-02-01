@@ -50,6 +50,10 @@ if [[ "$2" != 'dev' ]]; then
         if [[ -f 'docker-compose.yml.bak' ]]; then
             echo 'You can remove the old docker-compose.yml file by running: rm docker-compose.yml.bak';
         fi;
+    elif ! grep -q 'wprint3d' 'docker-compose.yml'; then
+        echo 'The docker-compose.yml file present is not compatible with this project, please create a new directory, cd into it and run this script again.';
+
+        exit 1;
     fi;
 fi;
 
