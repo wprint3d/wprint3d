@@ -3,7 +3,11 @@
 export PATH="$PATH":$(pwd)/bin;
 export PATH="$PATH":/root/gcodestat;
 
+# Remove any temporary files that might have been left behind
 rm -fv /tmp/*.txt /var/www/internal/startup/*.txt;
+
+# Create the base storage directories
+mkdir -p /var/www/storage/{app,framework/{cache,data,views},logs};
 
 waitForThirdPartyDependency() {
     echo 'Waiting for "'"$1"'" to become available...';
@@ -30,13 +34,15 @@ waitForThirdPartyDependencies() {
 waitForSecrets() {
     echo 'Waiting for environment variables to become available...';
 
-    while [[ ! -f '/var/www/.env' ]]; do
+    # Wait for the .env file to be created and populated
+    while [[ ! -f '/var/www/.env' || ! -s '/var/www/.env' ]]; do
         sleep .1;
     done;
 }
 
 generateSecrets() {
-    if [[ -f '/var/www/.env' ]]; then
+    # If the secrets already exist, skip the generation process
+    if [[ -f '/var/www/.env' && -s '/var/www/.env' ]]; then
         echo 'Secrets already exist, skipping generation...';
 
         return;
