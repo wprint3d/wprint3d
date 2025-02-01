@@ -7,47 +7,49 @@ SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )";
 
 cd "$SCRIPT_PATH";
 
-if [[ ! -f 'docker-compose.yml' ]] || grep -q 'wprint3d' 'docker-compose.yml'; then
-    if [[ ! -f 'docker-compose.yml' ]]; then
-        echo 'The docker-compose.yml file is missing, downloading it...';
-    else
-        echo 'Updating the docker-compose.yml file...';
-    fi;
-
-    TEMP_FILE=$(mktemp --suffix=-wprint3d-docker-compose);
-
-    DEFAULT_BRANCH=$(curl -sfL -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/wprint3d/wprint3d-core | grep default | sed 's/.*: "//' | sed 's/".*//');
-
-    if [[ "$DEFAULT_BRANCH" == '' ]]; then
-        echo 'Failed to get the default branch.';
-
-        exit 1;
-    fi;
-
-    curl -fL https://raw.githubusercontent.com/wprint3d/wprint3d/main/docker-compose.yml > "$TEMP_FILE";
-
-    if [[ ! -f "$TEMP_FILE" ]] || [[ ! -s "$TEMP_FILE" ]]; then
-        if [[ -f 'docker-compose.yml' ]]; then
-            echo 'Failed to download the new docker-compose.yml file.';
+if [[ "$2" != 'dev' ]]; then
+    if [[ ! -f 'docker-compose.yml' ]] || grep -q 'wprint3d' 'docker-compose.yml' || [[ ! -s 'docker-compose.yml' ]]; then
+        if [[ ! -f 'docker-compose.yml' ]]; then
+            echo 'The docker-compose.yml file is missing, downloading it...';
         else
-            echo 'Failed to download the docker-compose.yml file.';
+            echo 'Updating the docker-compose.yml file...';
+        fi;
+
+        TEMP_FILE=$(mktemp --suffix=-wprint3d-docker-compose);
+
+        DEFAULT_BRANCH=$(curl -sfL -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/wprint3d/wprint3d-core | grep default | sed 's/.*: "//' | sed 's/".*//');
+
+        if [[ "$DEFAULT_BRANCH" == '' ]]; then
+            echo 'Failed to get the default branch.';
 
             exit 1;
         fi;
-    fi;
 
-    if [[ -f 'docker-compose.yml' ]]; then
-        mv -v 'docker-compose.yml' 'docker-compose.yml.bak';
+        curl -fL https://raw.githubusercontent.com/wprint3d/wprint3d/${DEFAULT_BRANCH}/docker-compose.yml > "$TEMP_FILE";
 
-        echo 'The old docker-compose.yml file was renamed to docker-compose.yml.bak.';
-    fi;
+        if [[ ! -f "$TEMP_FILE" ]] || [[ ! -s "$TEMP_FILE" ]]; then
+            if [[ -f 'docker-compose.yml' ]]; then
+                echo 'Failed to download the new docker-compose.yml file.';
+            else
+                echo 'Failed to download the docker-compose.yml file.';
 
-    mv -v "$TEMP_FILE" 'docker-compose.yml';
+                exit 1;
+            fi;
+        fi;
 
-    echo 'The docker-compose.yml file was updated.';
+        if [[ -f 'docker-compose.yml' ]]; then
+            mv -v 'docker-compose.yml' 'docker-compose.yml.bak';
 
-    if [[ -f 'docker-compose.yml.bak' ]]; then
-        echo 'You can remove the old docker-compose.yml file by running: rm docker-compose.yml.bak';
+            echo 'The old docker-compose.yml file was renamed to docker-compose.yml.bak.';
+        fi;
+
+        mv -v "$TEMP_FILE" 'docker-compose.yml';
+
+        echo 'The docker-compose.yml file was updated.';
+
+        if [[ -f 'docker-compose.yml.bak' ]]; then
+            echo 'You can remove the old docker-compose.yml file by running: rm docker-compose.yml.bak';
+        fi;
     fi;
 fi;
 
