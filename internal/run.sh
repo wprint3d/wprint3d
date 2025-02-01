@@ -269,7 +269,11 @@ else
         if [[ "$ROLE" == 'server' ]]; then
             refreshDockerLog &
 
-            composer install;
+            # Downloads the required dependencies if they're not already
+            # present or if DEVELOPER_MODE is enabled
+            if ! php artisan 2>&1 > /dev/null || [[ "${DEVELOPER_MODE}" == 'true' ]]; then
+                composer install;
+            fi;
 
             if [[ $? -ne 0 ]]; then
                 exit 1; # crash and wait for self-restart
