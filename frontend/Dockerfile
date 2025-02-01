@@ -42,8 +42,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl           
     pnpm exec expo export -p web                                                &&\
     echo "Removing unnecessary files..."                                        &&\
     pnpm store prune                                                            &&\
-    rm -rf  .git node_modules           \
-            ~/.local/share/pnpm ~/.npm  \
+    rm -rf  .git node_modules \
+            ~/.local/share/pnpm ~/.npm /usr/lib/node_modules \
+            /usr/bin/node /usr/bin/npm /usr/bin/pnpm /usr/bin/pnpx \
             /tmp/metro-cache /usr/local/share/.cache                            &&\
     echo "Installing HTTP server..."                                            &&\
     apt-get install -y --no-install-recommends lighttpd                         &&\
