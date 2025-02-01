@@ -11,4 +11,4 @@ WORKDIR /var/www
 # Install dependencies
 RUN composer install --no-scripts
 
-ENTRYPOINT [ "./internal/run.sh" ]
+ENTRYPOINT [ "/var/www/internal/run.sh" ]
