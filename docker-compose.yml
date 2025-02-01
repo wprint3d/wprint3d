@@ -49,7 +49,6 @@ services:
   web:
     image: wprint3d/wprint3d-frontend
     restart: always
-    entrypoint: '/app/entrypoint_prd.sh'
     tty: true
     stdin_open: true
     ports:
