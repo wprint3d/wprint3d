@@ -33,7 +33,6 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
           [ isPasswordResetDialogOpen,  setIsPasswordResetDialogOpen ] = useState(false),
           [ isNewPasswordDialogOpen,    setIsNewPasswordDialogOpen   ] = useState(false),
           [ generatedPassword,          setGeneratedPassword         ] = useState(null);
-          [ isMobileMenuOpen,           setIsMobileMenuOpen          ] = useState(false);
 
     const resetPasswordMutation = useMutation({
         mutationFn: (userId) => API.post(`/users/${userId}/reset-password`),
