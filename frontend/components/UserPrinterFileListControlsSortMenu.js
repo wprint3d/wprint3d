@@ -49,7 +49,7 @@ export default function UserPrinterFileListControlsSortMenu({ isLoading, loaderS
             anchorPosition='bottom'
         >
             {
-                sortingModes.isSuccess &&
+                (sortingModes.isSuccess && sortingModes?.data?.data) &&
                     Object.keys(sortingModes.data.data).map(sortingModeKey => {
                         return (
                             <Menu.Item
