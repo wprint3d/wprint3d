@@ -49,10 +49,8 @@ services:
   web:
     build:
       context: frontend
-      args:
-        - DEVELOPER_MODE=true
+      dockerfile: Dockerfile.dev
     restart: always
-    entrypoint: '/app/entrypoint_dev.sh'
     tty: true
     stdin_open: true
     volumes:
