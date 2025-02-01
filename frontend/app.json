@@ -41,9 +41,9 @@
           "supportsPictureInPicture": true
         }
       ]
-    ]
-  },
-  "experiments": {
-    "reactCompiler": true
+    ],
+    "experiments": {
+      "reactCompiler": true
+    }
   }
 }
