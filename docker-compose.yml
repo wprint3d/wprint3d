@@ -35,12 +35,13 @@ services:
     environment:
       - ROLE=server
     volumes:
-      - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
+      - storage:/var/www/storage
+      - ./.env:/var/www/.env
     tmpfs:
       - /tmp
     depends_on:
@@ -51,8 +52,6 @@ services:
     restart: always
     tty: true
     stdin_open: true
-    ports:
-      - 8081:8081
     depends_on:
       - backend
       - redis
@@ -69,10 +68,11 @@ services:
     environment:
       - ROLE=scheduler
     volumes:
-      - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
+      - storage:/var/www/storage
+      - ./.env:/var/www/.env
     depends_on:
       - redis
       - mongo
@@ -88,10 +88,11 @@ services:
     environment:
       - ROLE=serial-scheduler
     volumes:
-      - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
+      - storage:/var/www/storage
+      - ./.env:/var/www/.env
     depends_on:
       - redis
       - mongo
@@ -107,13 +108,14 @@ services:
     environment:
       - ROLE=mapper
     volumes:
-      - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /sys/class:/sys/class
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
+      - storage:/var/www/storage
+      - ./.env:/var/www/.env
     depends_on:
       - redis
       - mongo
@@ -131,10 +133,11 @@ services:
       - QUEUES=default:1,control:1,broadcasts:2,prints,previews,snapshots,recordings # <queue-name>:<min-number-of-workers, default=0>
       - SLEEP=5
     volumes:
-      - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
+      - storage:/var/www/storage
+      - ./.env:/var/www/.env
     depends_on:
       - redis
       - mongo
@@ -149,8 +152,9 @@ services:
     environment:
       - ROLE=ws-server
     volumes:
-      - .:/var/www
       - /var/run/docker.sock:/var/run/docker.sock
+      - storage:/var/www/storage
+      - ./.env:/var/www/.env
     depends_on:
       - redis
       - mongo
@@ -168,7 +172,6 @@ services:
       - PORT_SCAN_END=60016
     privileged: true
     volumes:
-      - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
@@ -176,6 +179,8 @@ services:
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
       - /var/run/docker.sock:/var/run/docker.sock
+      - storage:/var/www/storage
+      - ./.env:/var/www/.env
     depends_on:
       - redis
       - mongo
@@ -213,3 +218,4 @@ services:
         mode: non-blocking
 volumes:
   mongo:
+  storage:

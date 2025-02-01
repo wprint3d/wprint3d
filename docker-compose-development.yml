@@ -24,7 +24,9 @@ services:
       - web
       - ws-server
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     restart: always
     logging:
       driver: local
@@ -34,6 +36,7 @@ services:
     privileged: true
     environment:
       - ROLE=server
+      - DEVELOPER_MODE=true
     volumes:
       - .:/var/www
       - ./internal/limits.ini:/usr/local/etc/php/conf.d/limits.ini:ro
@@ -62,7 +65,9 @@ services:
       - redis
       - mongo
   scheduler:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     restart: always
     logging:
       driver: local
@@ -81,7 +86,9 @@ services:
       - redis
       - mongo
   serial-scheduler:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     restart: always
     logging:
       driver: local
@@ -100,7 +107,9 @@ services:
       - redis
       - mongo
   mapper:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     restart: always
     logging:
       driver: local
@@ -122,7 +131,9 @@ services:
       - redis
       - mongo
   queue:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     restart: always
     logging:
       driver: local
@@ -143,7 +154,9 @@ services:
       - redis
       - mongo
   ws-server:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     restart: always
     logging:
       driver: local
@@ -159,7 +172,9 @@ services:
       - redis
       - mongo
   streamer:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     restart: always
     logging:
       driver: local
@@ -218,7 +233,9 @@ services:
         mode: non-blocking
     restart: always
   documentation-generator:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     logging:
       driver: local
       options:
