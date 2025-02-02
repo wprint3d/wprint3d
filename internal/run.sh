@@ -26,8 +26,6 @@ generateSecrets() {
         touch /var/www/.external-configs/.env;
 
         ln -s /var/www/.external-configs/.env /var/www/.env;
-
-        return;
     fi;
 
     # If the secrets already exist, skip the generation process
