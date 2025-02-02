@@ -1,0 +1,17 @@
+**/.github
+**/.git
+**/.gitignore
+**/.gitmodules
+**/.idea
+**/.vscode
+**/.vscode
+**/frontend
+**/docs
+**/storage
+**/internal/.*
+**/internal/tmp
+**/proxy/internal/*
+**/Dockerfile.*
+**/*.md
+**/dev
+**/vendor
