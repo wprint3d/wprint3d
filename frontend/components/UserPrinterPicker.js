@@ -49,7 +49,9 @@ export default function UserPrinterPicker({ selectedPrinter }) {
             return;
         }
 
-        if (printersList.data.data.length == 0) {
+        const printers = printersList?.data?.data;
+
+        if (!printers || !printers.length) {
             setParsedPrintersList([{
                 label: 'No printers available',
                 value: null
@@ -59,7 +61,7 @@ export default function UserPrinterPicker({ selectedPrinter }) {
         }
 
         setParsedPrintersList(
-            printersList.data.data.map(printer => {
+            printers.map(printer => {
                 return {
                     label: `${printer?.machine?.machineType ?? 'Unknown printer'} (${printer?.machine?.uuid})`,
                     value: printer._id
@@ -87,14 +89,10 @@ export default function UserPrinterPicker({ selectedPrinter }) {
                 visible={showDropDown}
                 showDropDown={() => setShowDropDown(true)}
                 onDismiss={()    => setShowDropDown(false)}
-                value={
-                    selectedPrinter.isSuccess
-                        ? selectedPrinter.data.data
-                        : null
-                }
+                value={selectedPrinter?.data?.data ?? null}
                 list={parsedPrintersList}
                 setValue={newPrinterId => {
-                    if (newPrinterId == selectedPrinter.data.data) { return; }
+                    if (newPrinterId == selectedPrinter?.data?.data) { return; }
 
                     selectPrinterMutation.mutate(newPrinterId);
                 }}
