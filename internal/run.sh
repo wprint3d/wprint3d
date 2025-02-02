@@ -64,6 +64,8 @@ generateSecrets() {
 }
 
 installThirdPartyDependencies() {
+    mkdir -p bin;
+
     if [[ ! -f 'bin/wait-for-it' ]]; then
         printf 'Installing dependency: wait-for-it... ';
 
