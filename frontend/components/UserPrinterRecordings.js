@@ -93,7 +93,7 @@ const UserPrinterRecordings = ({ userSettings, selectedPrinter, isSmallTablet, i
 
             {(recordings.length === 0 && !recordingsQuery.isLoading) && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', top: -TOP_CENTER_OFFSET }}>
-                    <View style={{ padding: 10, margin: 10, alignItems: 'center' }}>
+                    <View style={{ width: '100%', padding: 10, margin: 10, alignItems: 'center' }}>
                         <Icon source={'video-off'} size={48} />
                         <Text variant="bodyMedium" style={{ textAlign: 'center', marginTop: 10 }}>
                             {
