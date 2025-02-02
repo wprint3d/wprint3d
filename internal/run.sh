@@ -20,10 +20,12 @@ waitForSecrets() {
 
 generateSecrets() {
     # This logic triggers on production environments only
-    if [[ -f '/var/www/.external-configs/.env' && -s '/var/www/.external-configs/.env' ]]; then
+    if [[ -d '/var/www/.external-configs' ]]; then
         echo 'External secrets detected, copying...';
 
-        cp -f /var/www/.external-configs/.env /var/www/.env;
+        touch /var/www/.external-configs/.env;
+
+        ln -s /var/www/.external-configs/.env /var/www/.env;
 
         return;
     fi;
