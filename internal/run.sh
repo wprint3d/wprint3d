@@ -12,6 +12,15 @@ mkdir -p /var/www/storage/{app,framework/{cache,data,views},logs};
 waitForSecrets() {
     echo 'Waiting for environment variables to become available...';
 
+    # This logic triggers on production environments only
+    if [[ -d '/var/www/.external-configs' ]]; then
+        echo 'External secrets detected, copying...';
+
+        touch /var/www/.external-configs/.env;
+
+        ln -s /var/www/.external-configs/.env /var/www/.env;
+    fi;
+
     # Wait for the .env file to be created and populated
     while [[ ! -f '/var/www/.env' || ! -s '/var/www/.env' ]]; do
         sleep .1;
