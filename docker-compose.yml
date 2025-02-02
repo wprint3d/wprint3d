@@ -38,7 +38,7 @@ services:
       - storage:/var/www/storage
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
-      - ./.env:/var/www/.env
+      - ./wprint3d-config:/var/www/.external-configs
     tmpfs:
       - /tmp
     depends_on:
@@ -70,7 +70,7 @@ services:
       - storage:/var/www/storage
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
-      - ./.env:/var/www/.env
+      - ./wprint3d-config:/var/www/.external-configs
     depends_on:
       - redis
       - mongo
@@ -91,7 +91,7 @@ services:
       - storage:/var/www/storage
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
-      - ./.env:/var/www/.env
+      - ./wprint3d-config:/var/www/.external-configs
     depends_on:
       - redis
       - mongo
@@ -115,7 +115,7 @@ services:
       - storage:/var/www/storage
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
-      - ./.env:/var/www/.env
+      - ./wprint3d-config:/var/www/.external-configs
     depends_on:
       - redis
       - mongo
@@ -138,7 +138,7 @@ services:
       - storage:/var/www/storage
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
-      - ./.env:/var/www/.env
+      - ./wprint3d-config:/var/www/.external-configs
     depends_on:
       - redis
       - mongo
@@ -157,7 +157,7 @@ services:
       - storage:/var/www/storage
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
-      - ./.env:/var/www/.env
+      - ./wprint3d-config:/var/www/.external-configs
     depends_on:
       - redis
       - mongo
@@ -184,7 +184,7 @@ services:
       - storage:/var/www/storage
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
-      - ./.env:/var/www/.env
+      - ./wprint3d-config:/var/www/.external-configs
     depends_on:
       - redis
       - mongo
