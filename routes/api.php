@@ -104,7 +104,12 @@ Route::middleware([ 'auth:sanctum', 'password.ensure_changed' ])->group(function
     Route::prefix('/user')->group(function () {
 
         Route::get('/',             [ UserController::class,    'get'            ]);
-        Route::put('/settings',     [ UserController::class,    'updateSettings' ]);
+
+        Route::prefix('/settings')->group(function () {
+            Route::get('/', [ UserController::class,    'getSettings'    ]);
+            Route::put('/', [ UserController::class,    'updateSettings' ]);
+        });
+
         Route::post('/logout',      [ UserController::class,    'logout'         ]);
         Route::put('/password',     [ UserController::class,    'updatePassword' ])->withoutMiddleware('password.ensure_changed');
 

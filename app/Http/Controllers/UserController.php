@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\UserRole;
 use App\Models\Camera;
 use App\Models\File;
 use App\Models\Material;
-use App\Models\PrintedFile;
 use App\Models\Printer;
 use App\Models\User;
 
@@ -25,6 +23,8 @@ use Illuminate\Support\Facades\Storage;
 
 use MongoDB\BSON\ObjectId;
 
+use stdClass;
+
 class UserController extends Controller
 {
 
@@ -41,6 +41,10 @@ class UserController extends Controller
 
     public function get(): User {
         return $this->user;
+    }
+
+    public function getSettings(): array {
+        return data_get($this->user, 'settings', new stdClass);
     }
 
     public function updateSettings(Request $request): User {
