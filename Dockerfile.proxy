@@ -1,0 +1,14 @@
+FROM nginx:stable-alpine
+
+ADD ./proxy/nginxconfig.io /etc/nginx/nginxconfig.io
+ADD ./proxy/conf.d /etc/nginx/conf.d
+ADD ./proxy/ssl /etc/nginx/ssl
+ADD ./proxy/nginx.conf /etc/nginx/nginx.conf
+
+RUN mkdir -p /internal/startup   &&\
+    mkdir -p /public/recordings  &&\
+    mkdir -p /etc/nginx/internal &&\
+    ln -s /var/log/startup          /internal/startup   &&\
+    ln -s /storage/app/recordings   /public/recordings  &&\
+    touch /etc/nginx/internal/cameras.conf &&\
+    touch /etc/nginx/internal/recordings.conf

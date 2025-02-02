@@ -30,7 +30,7 @@ jobs:
         with:
           buildkitd-flags: --debug
       -
-        name: Build and push
+        name: Build and push main image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -38,5 +38,16 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/wprint3d:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      -
+        name: Build and push the proxy image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.proxy
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/wprint3d-proxy:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
