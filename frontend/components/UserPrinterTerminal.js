@@ -272,7 +272,7 @@ export default function UserPrinterTerminal({ selectedPrinter, lastMessage }) {
             return;
         }
         
-        terminalMaxLines = terminalMaxLinesConfig.data.data;
+        terminalMaxLines = terminalMaxLinesConfig?.data?.data ?? 0;
 
         console.debug('UserPrinterTerminal: lastMessage:', lastMessage);
 
@@ -303,6 +303,8 @@ export default function UserPrinterTerminal({ selectedPrinter, lastMessage }) {
         console.debug('setLog:', nextLog);
 
         setLog(prevLog => {
+            if (terminalMaxLines === 0) { return []; }
+
             let newLog = [...prevLog, ...nextLog];
 
             while (newLog.length > terminalMaxLines) { newLog.shift(); }
