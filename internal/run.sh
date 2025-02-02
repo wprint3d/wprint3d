@@ -174,7 +174,6 @@ if [[ "$ROLE" == 'server' ]]; then
     generateSecrets;
 fi;
 
-waitForThirdPartyDependencies;
 waitForSecrets;
 
 wait-for-it mongo:27017 -t 0;
