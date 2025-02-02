@@ -19,6 +19,15 @@ waitForSecrets() {
 }
 
 generateSecrets() {
+    # This logic triggers on production environments only
+    if [[ -f '/var/www/.external-configs/.env' && -s '/var/www/.external-configs/.env' ]]; then
+        echo 'External secrets detected, copying...';
+
+        cp -f /var/www/.external-configs/.env /var/www/.env;
+
+        return;
+    fi;
+
     # If the secrets already exist, skip the generation process
     if [[ -f '/var/www/.env' && -s '/var/www/.env' ]]; then
         echo 'Secrets already exist, skipping generation...';
