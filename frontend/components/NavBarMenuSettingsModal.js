@@ -22,7 +22,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
     };
 
     const Wrapper = ({ children }) => (
-        <View style={{ width: '100%', height: '100%', maxWidth: 1400, alignSelf: 'center' }}>
+        <View style={{ width: '100%', flexGrow: 1, maxWidth: 1400, alignSelf: 'center' }}>
             {children}
         </View>
     );
