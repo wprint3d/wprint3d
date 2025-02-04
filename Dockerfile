@@ -6,7 +6,12 @@ INCLUDE+ ./Dockerfile.dev
 ADD . /var/www
 
 # Store the revision hash
-RUN git rev-parse --short HEAD > /var/www/internal/app_ver;
+RUN apt-get update && apt-get install -y git &&\
+    git rev-parse --short HEAD > /var/www/internal/app_ver &&\
+    apt-get remove -y git &&\
+    apt-get autoremove -y &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /var/www
