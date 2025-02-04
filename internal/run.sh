@@ -2,6 +2,7 @@
 
 export PATH="$PATH":$(pwd)/bin;
 export PATH="$PATH":/root/gcodestat;
+export PATH="$PATH":"$HOME"/bin;
 
 # Remove any temporary files that might have been left behind
 rm -fv /tmp/*.txt /var/www/internal/startup/*.txt;
