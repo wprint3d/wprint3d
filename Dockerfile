@@ -14,6 +14,7 @@ RUN FULL_SHA=$(cat /var/www/.git/HEAD | cut -d' ' -f2)      &&\
     printf ${SHORT_SHA} > /var/www/internal/app_ver
 
 # Install dependencies
-RUN composer install --no-scripts
+RUN composer install --no-scripts &&\
+    composer clear-cache
 
 ENTRYPOINT [ "/var/www/internal/run.sh" ]
