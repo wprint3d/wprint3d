@@ -5,10 +5,11 @@ namespace App\Console\Commands;
 use App\Exceptions\InitializationException;
 
 use Illuminate\Console\Command;
-
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-use Illuminate\Support\Facades\Storage;
+use voku\helper\HtmlDomParser;
 
 class MakeMarlinLabels extends Command
 {
@@ -35,29 +36,61 @@ class MakeMarlinLabels extends Command
      */
     public function handle()
     {
-        $commandsFilename   = env('MARLIN_COMMANDS_FILENAME', 'marlin_commands.json');
         $generatedEnumPath  = self::ENUMS_BASE_DIR . '/' . env('MARLIN_GENERATED_ENUM_FILENAME', 'Marlin.php');
 
-        $this->info('Reading content from storage...');
+        $this->info('Fetching data from Marlin website...');
 
-        if (!Storage::disk('internal')->exists( $commandsFilename )) {
-            throw new InitializationException('Cannot initialize Marlin labels database: the expected file doesn\'t exist (' . $commandsFilename . ').');
+        $response = Http::get('https://marlinfw.org/meta/gcode/');
+
+        if ($response->failed()) {
+            throw new InitializationException('Failed to fetch data from Marlin website.');
         }
 
-        $this->info('Parsing data...');
+        $this->info('Parsing HTML content...');
 
-        $commands = json_decode(
-            json:   Storage::disk('internal')->get( $commandsFilename ),
-            flags:  JSON_THROW_ON_ERROR
-        );
+        $dom = HtmlDomParser::str_get_html($response->body());
+
+        $nodes = $dom->findMulti('.gcode h2');
+
+        $commands = [];
+
+        foreach ($nodes as $node) {
+            $text = $node->text;
+
+            list($command, $label) = explode(' - ', $text, 2);
+
+            $keys = explode('-', $command);
+
+            foreach ($keys as $key) {
+                $subKeys = explode(', ', $key);
+
+                foreach ($subKeys as $subKey) {
+                    if (Str::contains($subKey, '.')) {
+                        $subKey = Str::replaceMatches(
+                            pattern: '/\..*/',
+                            replace: '',
+                            subject: $subKey
+                        );
+                    }
+
+                    if (Str::match(pattern: '/[^a-zA-Z0-9]/', subject: $subKey)) {
+                        $this->warn('Skipping invalid key: ' . $subKey);
+
+                        continue;
+                    }
+
+                    $commands[trim($subKey)] = trim($label);
+                }
+            }
+        }
+
+        $this->info('Found ' . count($commands) . ' commands.');
 
         $this->info('Creating directory (if missing)...');
 
         Storage::disk('source')->makeDirectory( self::ENUMS_BASE_DIR );
 
-        $this->info(
-            'Generating file "' . Storage::disk('source')->path($generatedEnumPath) . '"...'
-        );
+        $this->info('Generating file "' . Storage::disk('source')->path($generatedEnumPath) . '"...');
 
         Storage::disk('source')->put(
             path: $generatedEnumPath,
@@ -92,15 +125,34 @@ class MakeMarlinLabels extends Command
             data:
                 PHP_EOL .
                 "\t" . 'public static function getLabel(string $gcodeLine) {' . PHP_EOL .
-                "\t\t" . '$command = preg_replace(\'/ ;.*/\', \'\', $gcodeLine);' . PHP_EOL .
-                "\t\t" . '$command = explode(\' \', $command, 2);' . PHP_EOL .
+                "\t" . '    $command = preg_replace(\'/ ;.*/\', \'\', $gcodeLine);' . PHP_EOL .
+                "\t" . '    $command = explode(\' \', $command, 2);' . PHP_EOL .
                 PHP_EOL .
-                "\t\t" . 'if (!$command || !$command[0]) return \': Unknown\';' . PHP_EOL .
+                "\t" . '    $output = \'?: Unknown\';' . PHP_EOL .
                 PHP_EOL .
-                "\t\t" . 'if (self::hasKey( $command[0] )) return $command[0] . \': \' . ($command[1] ?? \'\') . \' (\' . self::getValue( $command[0] ) . \')\';' . PHP_EOL .
+                "\t" . '    if (!$command || !$command[0]) {' . PHP_EOL .
+                "\t" . '        return $output;' . PHP_EOL .
+                "\t" . '    }' . PHP_EOL .
                 PHP_EOL .
-                "\t\t" . 'return $command[0] . \': \' . ($command[1] ?? \'\') . \' (Unknown)\';' . PHP_EOL .
+                "\t" . '    $params = trim($command[1] ?? \'\');' . PHP_EOL .
+                PHP_EOL .
+                "\t" . '    $output = "{$command[0]}: {$params}";' . PHP_EOL .
+                PHP_EOL .
+                "\t" . '    if ($params) { $output .= \' \'; }' . PHP_EOL .
+                PHP_EOL .
+                "\t" . '    $suffix = \'Unknown\';' . PHP_EOL .
+                PHP_EOL .
+                "\t" . '    if (self::hasKey($command[0])) {' . PHP_EOL .
+                "\t" . '        $suffix = self::getValue($command[0]);' . PHP_EOL .
+                "\t" . '    }' . PHP_EOL .
+                PHP_EOL .
+                "\t" . '    if ($params) {' . PHP_EOL .
+                "\t" . '        $suffix = "({$suffix})";' . PHP_EOL .
+                "\t" . '    }' . PHP_EOL .
+                PHP_EOL .
+                "\t" . '    return "{$output}{$suffix}";' . PHP_EOL .
                 "\t" . '}' . PHP_EOL .
+                PHP_EOL .
                 '}' . PHP_EOL .
                 PHP_EOL .
                 '?>'

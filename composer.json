@@ -21,7 +21,9 @@
         "nelexa/zip": "^4.0",
         "php-ffmpeg/php-ffmpeg": "dev-master",
         "pusher/pusher-php-server": "^7.2",
-        "spatie/temporary-directory": "^2.2"
+        "spatie/temporary-directory": "^2.2",
+        "voku/portable-utf8": "^6.0",
+        "voku/simple_html_dom": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
