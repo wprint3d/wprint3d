@@ -27,7 +27,7 @@ import Slider from '@react-native-community/slider'
 import GCodePreview from "./modules/GCodePreview";
 import SliderTag from "./modules/SliderTag";
 
-export default function UserPrinterPreview({ connectionStatus, lastUpdate }) {
+export default function UserPrinterPreview({ connectionStatus, lastUpdate, isSmallTablet = false }) {
     const cache = useCache();
 
     const windowSize = useWindowDimensions();
@@ -44,7 +44,7 @@ export default function UserPrinterPreview({ connectionStatus, lastUpdate }) {
     const [ sliderValue,   setSliderValue   ] = useState(0);
     const [ sliderLayout,  setSliderLayout  ] = useState(null);
 
-    const [ sliderTagVisible, setSliderTagVisible   ] = useState(false);
+    const [ sliderTagVisible,  setSliderTagVisible  ] = useState(false);
     const [ sliderTagPosition, setSliderTagPosition ] = useState(null);
     const [ sliderTagValue,    setSliderTagValue    ] = useState(sliderValue);
     const [ sliderShouldTrack, setSliderShouldTrack ] = useState(false);
@@ -64,7 +64,14 @@ export default function UserPrinterPreview({ connectionStatus, lastUpdate }) {
         return _setShowTravelMoves(newValue);
     };
 
-    const BOTTOM_APPBAR_HEIGHT = 48;
+    const BOTTOM_APPBAR_HEIGHT_BASE = 48;
+    const BOTTOM_APPBAR_HEIGHT = (
+        BOTTOM_APPBAR_HEIGHT_BASE + (
+            isSmallTablet
+                ? 8
+                : 0
+        )
+    );
 
     const { colors } = useTheme();
 
@@ -326,18 +333,13 @@ export default function UserPrinterPreview({ connectionStatus, lastUpdate }) {
                                     justifyContent: 'center'
                                 }}
                             />
-                            // : <Canvas ref={handleCanvas}></Canvas>
-                            // : <GCodeViewer
-                            //     orbitControls
-                            //     showAxes
-                            //     style={styles.canvas}
-                            // />
                             : <GCodePreview
                                 ref={gcodePreview}
                                 backgroundColor={colors.background}
                                 buildVolume={{ x: 220, y: 220, z: 250 }}
                                 renderExtrusion={showExtrusion ?? true}
                                 renderTravel={showTravelMoves  ?? true}
+                                key={colors.background}
                             />
                     }
                 </View>

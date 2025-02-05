@@ -8,9 +8,8 @@ import { Icon, Text, TextInput, useTheme } from "react-native-paper";
 import DropDown from "react-native-paper-dropdown";
 
 import API from "../includes/API";
-import UserPrinterPickerNoPrintersBanner from "./UserPrinterPickerNoPrintersBanner";
 
-export default function UserPrinterPicker({ selectedPrinter }) {
+export default function UserPrinterPicker({ printerId }) {
     const [ showDropDown,       setShowDropDown       ] = useState(false);
     const [ parsedPrintersList, setParsedPrintersList ] = useState([]);
 
@@ -72,9 +71,9 @@ export default function UserPrinterPicker({ selectedPrinter }) {
 
     useEffect(() => {
         console.debug('UserPrinterPicker: parsedPrintersList:', parsedPrintersList);
-        console.debug('UserPrinterPicker: selectedPrinter:', selectedPrinter);
+        console.debug('UserPrinterPicker: printerId:', printerId);
 
-        if (!parsedPrintersList.length || selectedPrinter.data) { return; }
+        if (!parsedPrintersList.length || (printerId && printerId.length)) { return; }
 
         console.debug('UserPrinterPicker: selecting first printer:', parsedPrintersList[0].value);
 
@@ -89,10 +88,10 @@ export default function UserPrinterPicker({ selectedPrinter }) {
                 visible={showDropDown}
                 showDropDown={() => setShowDropDown(true)}
                 onDismiss={()    => setShowDropDown(false)}
-                value={selectedPrinter?.data?.data ?? null}
+                value={printerId ?? null}
                 list={parsedPrintersList}
                 setValue={newPrinterId => {
-                    if (newPrinterId == selectedPrinter?.data?.data) { return; }
+                    if (newPrinterId == printerId) { return; }
 
                     selectPrinterMutation.mutate(newPrinterId);
                 }}

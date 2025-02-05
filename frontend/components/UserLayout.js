@@ -12,9 +12,10 @@ import { useEffect, useState } from "react";
 import { useEcho } from "../hooks/useEcho";
 import UserPrinterMapProgressSnackbar from "./UserPrinterMapProgressSnackbar";
 import SimpleDialog from "./SimpleDialog";
-import { Text } from "react-native-paper";
+import { BottomNavigation, Text } from "react-native-paper";
 import JobRecoveryModal from "./JobRecoveryModal";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
+import UserMobileLayout from "./UserMobileLayout";
 
 export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop }) {
     const dimensions = useWindowDimensions();
@@ -26,6 +27,8 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
     const [ isListening,            setIsListening           ] = useState(false);
     const [ connectionStatus,       setConnectionStatus      ] = useState(null);
     const [ isRunningMapper,        setIsRunningMapper       ] = useState(null);
+    const [ printerId,              setPrinterId             ] = useState(null);
+    const [ printStatus,            setPrintStatus           ] = useState(null);
 
     const selectedPrinter = useQuery({
         queryKey: ['selectedPrinter'],
@@ -52,12 +55,24 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
         }
 
         setEnableTerminalPolling(true);
+
+        const nextPrinterId = selectedPrinter.data?.data;
+
+        if (printerId === nextPrinterId) { return; }
+
+        console.debug('UserLayout: private: listen: printerId: ', nextPrinterId);
+
+        setPrinterId(nextPrinterId);
     }, [ echo, selectedPrinter ]);
 
     useEffect(() => {
-        if (!enableTerminalPolling && isListening || !echo) { return; }
+        if (isListening) { return; }
 
-        const printerId = selectedPrinter.data?.data;
+        if (!echo) {
+            console.warn('UserLayout: private: listen: echo is not ready');
+
+            return;
+        }
 
         if (!printerId) {
             console.warn('UserLayout: private: listen: printerId is not ready');
@@ -89,14 +104,10 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
 
             // setIsListening(false);
         };
-    }, [ enableTerminalPolling, setIsListening ]);
+    }, [ echo, enableTerminalPolling, setIsListening ]);
 
     useEffect(() => {
-        if (!echo || !selectedPrinter.isFetched || !selectedPrinter.isSuccess) { return; }
-
-        const printerId = selectedPrinter.data?.data;
-
-        if (!printerId) { return; }
+        if (!echo || !selectedPrinter.isFetched || !selectedPrinter.isSuccess || !printerId) { return; }
 
         const channelName = `connection-status.${printerId}`;
 
@@ -127,7 +138,7 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
             channel.stopListening(mapperEventName);
         }
     }, [ echo, selectedPrinter.data ]);
-        
+
     useEffect(() => {
         if (!isRunningMapper) { return; }
 
@@ -136,9 +147,19 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
         return () => clearTimeout(timeout);
     }, [isRunningMapper]);
 
-    const maxPaneHeight = dimensions.height - navbarHeight - (styles.root.padding * 2);
+    useEffect(() => {
+        if (!printStatusQuery.isFetched || !printStatusQuery.isSuccess) { return; }
 
-    const printStatus = printStatusQuery?.data?.data;
+        setPrintStatus(printStatusQuery?.data?.data ?? null);
+    }, [printStatusQuery]);
+
+    const BASE_PADDING = isSmallTablet ? 8 : 0;
+
+    const maxPaneHeight = (
+        isSmallTablet
+            ? '100%'
+            : dimensions.height - navbarHeight - (BASE_PADDING * 2)
+    );
 
     return (
         <View style={[
@@ -158,30 +179,50 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
         ]}>
             <UserPrinterMapProgressSnackbar isRunningMapper={isRunningMapper} />
 
-            <UserLeftPane
-                selectedPrinter={selectedPrinter}
-                maxHeight={maxPaneHeight}
-                connectionStatus={connectionStatus}
-                lastTerminalMessage={lastTerminalMessage}
-                isRunningMapper={isRunningMapper}
-                printStatus={printStatus}
-            />
-
-            <UserRightPane
-                selectedPrinter={selectedPrinter}
-                maxHeight={maxPaneHeight}
-                connectionStatus={connectionStatus}
-                lastTerminalMessage={lastTerminalMessage}
-                isSmallLaptop={isSmallLaptop}
-                isSmallTablet={isSmallTablet}
-            />
-
             <JobRecoveryModal
-                selectedPrinter={selectedPrinter}s
+                isLoadingPrinter={selectedPrinter.isLoading}
+                printerId={printerId}
                 isSmallLaptop={isSmallLaptop}
                 isSmallTablet={isSmallTablet}
                 printStatus={printStatus}
             />
+
+            {isSmallTablet
+                ? <UserMobileLayout
+                    printerId={printerId}
+                    isLoadingPrinter={selectedPrinter.isLoading}
+                    maxHeight={maxPaneHeight}
+                    connectionStatus={connectionStatus}
+                    lastTerminalMessage={lastTerminalMessage}
+                    isRunningMapper={isRunningMapper}
+                    printStatus={printStatus}
+                    isSmallLaptop={isSmallLaptop}
+                    isSmallTablet={isSmallTablet}
+                />
+                : (
+                    <>
+                        <UserLeftPane
+                            isLoadingPrinter={selectedPrinter.isLoading}
+                            printerId={printerId}
+                            maxHeight={maxPaneHeight}
+                            connectionStatus={connectionStatus}
+                            lastTerminalMessage={lastTerminalMessage}
+                            isRunningMapper={isRunningMapper}
+                            printStatus={printStatus}
+                        />
+
+                        <UserRightPane
+                            isLoadingPrinter={selectedPrinter.isLoading}
+                            printerId={printerId}
+                            maxHeight={maxPaneHeight}
+                            connectionStatus={connectionStatus}
+                            lastTerminalMessage={lastTerminalMessage}
+                            isSmallLaptop={isSmallLaptop}
+                            isSmallTablet={isSmallTablet}
+                        />
+                    </>
+                )
+            }
         </View>
     );
 }
@@ -191,7 +232,7 @@ const styles = StyleSheet.create({
         width: '100%',
         display: 'flex',
         flexDirection: 'row',
-        padding: 8,
+        flexGrow: 1,
         gap: 8
     }
 });

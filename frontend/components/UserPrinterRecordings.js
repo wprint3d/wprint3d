@@ -10,7 +10,7 @@ import TextBold from "./TextBold";
 import VideoPlayer from "./modules/VideoPlayer";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 
-const UserPrinterRecordings = ({ selectedPrinter, isSmallTablet, isSmallLaptop }) => {
+const UserPrinterRecordings = ({ isLoadingPrinter = true, printerId = null, isSmallTablet, isSmallLaptop }) => {
     const { enqueueSnackbar } = useSnackbar();
 
     const [ recordings, setRecordings ] = useState([]);
@@ -32,7 +32,7 @@ const UserPrinterRecordings = ({ selectedPrinter, isSmallTablet, isSmallLaptop }
     const isRecordingEnabled = !!userSettings?.recording?.enabled;
 
     const recordingsQuery = useQuery({
-        queryKey:   [ 'user', 'printer', selectedPrinter?.data, 'recordings' ],
+        queryKey:   [ 'user', 'printer', printerId, 'recordings' ],
         queryFn:    () => API.get(`/user/printer/selected/recordings`),
         refetchOnWindowFocus: true
     });

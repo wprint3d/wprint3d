@@ -10,7 +10,7 @@ import UserPaneLoadingIndicator from './UserPaneLoadingIndicator';
 import NavBarMenuSettingsModalPlaceholderItem from './NavBarMenuSettingsModalPlaceholderItem';
 import { useEcho } from '../hooks/useEcho';
 
-const JobRecoveryModal = ({ selectedPrinter, isSmallTablet, isSmallLaptop, printStatus }) => {
+const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus }) => {
     const queryClient = useQueryClient();
 
     const echo = useEcho();
@@ -173,7 +173,11 @@ const JobRecoveryModal = ({ selectedPrinter, isSmallTablet, isSmallLaptop, print
             return;
         }
 
-        const printerId = selectedPrinter?.data?.data;
+        if (!printerId) {
+            console.warn('JobRecoveryModal: printerId is missing');
+
+            return;
+        }
 
         const stageChangeChannel = makeChannel({
             channelName: `recovery-stage-changed.${printerId}`,
@@ -336,6 +340,7 @@ const JobRecoveryModal = ({ selectedPrinter, isSmallTablet, isSmallLaptop, print
                                                 buildVolume={{ x: 220, y: 220, z: 250 }}
                                                 renderExtrusion={true}
                                                 renderTravel={true}
+                                                key={colors.background}
                                             />
 
                                             <View style={{ minHeight: 64, flexDirection: 'column', width: '100%', marginTop: 16, justifyContent: 'center' }}>

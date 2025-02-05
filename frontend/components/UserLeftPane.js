@@ -11,15 +11,13 @@ import UserPrinterStatus             from "./UserPrinterStatus";
 
 import { useEffect } from "react";
 
-export default function UserLeftPane({ selectedPrinter, maxHeight, connectionStatus, lastTerminalMessage, isRunningMapper, printStatus }) {
+export default function UserLeftPane({ isLoadingPrinter = true, printerId = null, maxHeight, connectionStatus, lastTerminalMessage, isRunningMapper, printStatus }) {
     const windowWidth = useWindowDimensions().width;
 
     let width = '30%';
 
-    if (windowWidth        <= 425)  {   // mobile large
+    if (windowWidth <= 768)  {          // small tablet
         width = '100%';
-    } else if (windowWidth <= 768)  {   // small tablet
-        width = '50%';
     } else if (windowWidth <= 1024) {   // small laptop
         width = '45%';
     } else if (windowWidth <= 1440) {   // medium laptop
@@ -30,14 +28,12 @@ export default function UserLeftPane({ selectedPrinter, maxHeight, connectionSta
 
     let paneComponents = [];
 
-    if (selectedPrinter.isSuccess && selectedPrinter.data.data.length > 0) {
-        const printerId = selectedPrinter.data.data;
-
+    if (printerId) {
         paneComponents.push(<UserPrinterStatus              key={paneComponents.length} connectionStatus={connectionStatus} isRunningMapper={isRunningMapper} />);
         paneComponents.push(<UserPrinterTemperaturePresets  key={paneComponents.length} />);
         paneComponents.push(<UserPrinterCameras             key={paneComponents.length} />);
         paneComponents.push(<UserPrinterFileProgress        key={paneComponents.length} lastTerminalMessage={lastTerminalMessage} />);
-        paneComponents.push(<UserPrinterFileControls        key={paneComponents.length} selectedPrinter={printerId} connectionStatus={connectionStatus} printStatus={printStatus} />);
+        paneComponents.push(<UserPrinterFileControls        key={paneComponents.length} printerId={printerId} connectionStatus={connectionStatus} printStatus={printStatus} />);
     }
 
     useEffect(() => {
@@ -52,10 +48,10 @@ export default function UserLeftPane({ selectedPrinter, maxHeight, connectionSta
             overflow:   'auto'
         }}>
             {
-                selectedPrinter.isFetching
+                isLoadingPrinter
                     ? <UserPaneLoadingIndicator message={"Getting printer information"} />
                     : [
-                        <UserPrinterPicker key="-1" selectedPrinter={selectedPrinter} />,
+                        <UserPrinterPicker key="-1" printerId={printerId} />,
                         ...paneComponents
                     ]
             }

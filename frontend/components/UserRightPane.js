@@ -9,7 +9,7 @@ import UserPrinterPreview from "./UserPrinterPreview";
 import UserPrinterControl from "./UserPrinterControl";
 import UserPrinterRecordings from "./UserPrinterRecordings";
 
-export default function UserRightPane({ selectedPrinter, maxHeight, connectionStatus, lastTerminalMessage, isSmallLaptop, isSmallTablet }) {
+export default function UserRightPane({ isLoadingPrinter = true, printerId = null, maxHeight, connectionStatus, lastTerminalMessage, isSmallLaptop, isSmallTablet }) {
     const { colors } = useTheme();
 
     return (
@@ -21,7 +21,7 @@ export default function UserRightPane({ selectedPrinter, maxHeight, connectionSt
             width:      '1%' // NOTE: I have no idea why this works but I'm not willing to ask any further questions.
         }}>
             {
-                selectedPrinter.isFetching
+                isLoadingPrinter
                     ? <UserPaneLoadingIndicator message={"Preparing actions menu"} />
                     : <TabsProvider defaultIndex={0}>
                         <Tabs
@@ -38,24 +38,20 @@ export default function UserRightPane({ selectedPrinter, maxHeight, connectionSt
                         // disableSwipe={false} // (default=false) disable swipe to left/right gestures
                         >
                             <TabScreen label="Terminal" icon="console">
-                                <UserPrinterTerminal selectedPrinter={selectedPrinter} lastMessage={lastTerminalMessage} />
+                                <UserPrinterTerminal isLoadingPrinter={isLoadingPrinter} printerId={printerId} lastMessage={lastTerminalMessage} />
                             </TabScreen>
                             <TabScreen label="Preview" icon="eye">
-                                <UserPrinterPreview selectedPrinter={selectedPrinter} connectionStatus={connectionStatus} lastUpdate={lastTerminalMessage} />
+                                <UserPrinterPreview  lastUpdate={lastTerminalMessage} connectionStatus={connectionStatus} />
                             </TabScreen>
                             <TabScreen label="Control" icon="camera-control">
-                                <UserPrinterControl
-                                    isSmallLaptop={isSmallLaptop}
-                                    isSmallTablet={isSmallTablet}
-                                    selectedPrinter={selectedPrinter}
-                                    connectionStatus={connectionStatus}
-                                />
+                                <UserPrinterControl  isSmallLaptop={isSmallLaptop} isSmallTablet={isSmallTablet} connectionStatus={connectionStatus} />
                             </TabScreen>
                             <TabScreen label="Recordings" icon="record-circle-outline">
                                 <UserPrinterRecordings
+                                    isLoadingPrinter={isLoadingPrinter}
+                                    printerId={printerId}
                                     isSmallLaptop={isSmallLaptop}
                                     isSmallTablet={isSmallTablet}
-                                    selectedPrinter={selectedPrinter}
                                     connectionStatus={connectionStatus}
                                 />
                             </TabScreen>

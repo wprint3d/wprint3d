@@ -9,7 +9,10 @@ import UserPrinterControlTemperature from './UserPrinterControlTemperature';
 const UserPrinterControl = ({ connectionStatus, isSmallTablet, isSmallLaptop }) => {
     console.debug('UserPrinterControl: connectionStatus:', connectionStatus);
 
-    return <View style={{ paddingHorizontal: 8, paddingVertical: 16, paddingBottom: 32 }}>
+    return <View style={[
+        { paddingHorizontal: 8, paddingVertical: 16, paddingBottom: 32, overflow: 'scroll', maxHeight: '100%' },
+        isSmallTablet && { paddingHorizontal: 24 }
+    ]}>
         <UserPrinterControlMovement     styles={styles} isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} />
         <UserPrinterControlExtrusion    styles={styles} isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} connectionStatus={connectionStatus} />
         <UserPrinterControlTemperature  connectionStatus={connectionStatus} />

@@ -20,7 +20,7 @@ import SimpleDialog                   from "./SimpleDialog";
 import UserPrinterFileControlsUploader from "./UserPrinterFileControlsUploader";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 
-export default function UserPrinterFileControls({ selectedPrinter, connectionStatus, printStatus }) {
+export default function UserPrinterFileControls({ printerId, connectionStatus, printStatus }) {
     const echo = useEcho();
 
     const { enqueueSnackbar } = useSnackbar();
@@ -286,9 +286,15 @@ export default function UserPrinterFileControls({ selectedPrinter, connectionSta
             return;
         }
 
-        console.debug('UserPrinterFileControls: selectedPrinter:', selectedPrinter);
+        console.debug('UserPrinterFileControls: printerId:', printerId);
 
-        const channel = echo?.private(`finished-job.${selectedPrinter}`);
+        if (!printerId) {
+            console.warn('UserPrinterFileControls: printerId is not available');
+
+            return;
+        }
+
+        const channel = echo?.private(`finished-job.${printerId}`);
 
         if (!channel) {
             console.warn('UserPrinterFileControls: the channel is not available');
@@ -303,7 +309,7 @@ export default function UserPrinterFileControls({ selectedPrinter, connectionSta
             queryClient.invalidateQueries({ queryKey: ['fileList'] });
             queryClient.invalidateQueries({ queryKey: ['printStatus'] });
         });
-    }, [ echo, selectedPrinter ]);
+    }, [ echo, printerId ]);
 
     return (
         <View style={{ paddingTop: 10 }}>

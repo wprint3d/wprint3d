@@ -17,11 +17,18 @@ import { useCache } from "../hooks/useCache";
 import uuid from 'react-native-uuid';
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 
-export default function UserPrinterTerminal({ selectedPrinter, lastMessage }) {
+export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId = null, lastMessage, isSmallTablet = false }) {
     const { enqueueSnackbar } = useSnackbar();
     const { bottom }          = useSafeAreaInsets();
 
-    const BOTTOM_APPBAR_HEIGHT = 52;
+    const BOTTOM_APPBAR_HEIGHT_BASE = 48;
+    const BOTTOM_APPBAR_HEIGHT = (
+        BOTTOM_APPBAR_HEIGHT_BASE + (
+            isSmallTablet
+                ? 8
+                : 0
+        )
+    );
 
     const terminalView = useRef();
 
@@ -37,6 +44,7 @@ export default function UserPrinterTerminal({ selectedPrinter, lastMessage }) {
     const [ showInputCommands,      _setShowInputCommands    ] = useState(null);
     const [ inputLines,             setInputLines            ] = useState(0);
     const [ isSerialDriverFailing,  setIsSerialDriverFailing ] = useState(false);
+    const [ terminalMaxLines,       setTerminalMaxLines      ] = useState(0);
 
     // This is the maximum number of input lines matched before raising a serial error.
     const SERIAL_ERROR_INPUT_THRESHOLD = 10;
@@ -251,6 +259,10 @@ export default function UserPrinterTerminal({ selectedPrinter, lastMessage }) {
 
     useEffect(() => {
         console.debug('terminalMaxLines:', terminalMaxLinesConfig);
+
+        if (!terminalMaxLinesConfig.isFetched) { return; }
+
+        setTerminalMaxLines(terminalMaxLinesConfig?.data?.data ?? 0);
     }, [ terminalMaxLinesConfig.data ]);
 
     useEffect(() => {
@@ -266,13 +278,11 @@ export default function UserPrinterTerminal({ selectedPrinter, lastMessage }) {
             return;
         }
 
-        if (!selectedPrinter.isSuccess) {
-            console.error('UserPrinterTerminal: couldn\'t initialize:', selectedPrinter.error);
+        if (isLoadingPrinter) {
+            console.error('UserPrinterTerminal: couldn\'t initialize: printerId is missing.');
 
             return;
         }
-        
-        terminalMaxLines = terminalMaxLinesConfig?.data?.data ?? 0;
 
         console.debug('UserPrinterTerminal: lastMessage:', lastMessage);
 
@@ -325,7 +335,7 @@ export default function UserPrinterTerminal({ selectedPrinter, lastMessage }) {
 
     let loaderMessage = null;
 
-    if (!selectedPrinter.isFetched) {
+    if (isLoadingPrinter) {
         loaderMessage = 'Getting selected printer';
     } else if (terminalLastLog.isFetching) {
         loaderMessage = 'Downloading last console log';
