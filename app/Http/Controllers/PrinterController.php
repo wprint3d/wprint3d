@@ -17,7 +17,6 @@ use App\Models\Configuration;
 use App\Models\Printer;
 use App\Models\Video;
 use Carbon\Carbon;
-use CodeInc\HumanReadableFileSize\HumanReadableFileSize;
 use Illuminate\Support\Str;
 
 use Illuminate\Database\Eloquent\Collection;
