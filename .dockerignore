@@ -1,5 +1,7 @@
 **/.github
 **/.git
+!**/.git/HEAD
+!**/.git/refs/heads
 **/.gitignore
 **/.gitmodules
 **/.idea
@@ -9,6 +11,7 @@
 **/docs
 **/storage
 **/internal/.*
+**/internal/spx*
 **/internal/tmp
 **/proxy/internal/*
 **/Dockerfile.*

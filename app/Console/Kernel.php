@@ -2,10 +2,6 @@
 
 namespace App\Console;
 
-use App\Models\Configuration;
-
-use Spatie\ShortSchedule\ShortSchedule;
-
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -20,17 +16,6 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         $schedule->command('refresh:device-variants')->daily();
-    }
-    
-    /**
-     * Define the application's command fast-paced schedule.
-     *
-     * @param  mixed $shortSchedule
-     * @return void
-     */
-    protected function shortSchedule(ShortSchedule $shortSchedule)
-    {
-        // Do nothing for now
     }
 
     /**

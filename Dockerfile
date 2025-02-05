@@ -9,12 +9,9 @@ ADD . /var/www
 WORKDIR /var/www
 
 # Store the revision hash
-RUN apt-get update && apt-get install -y git &&\
-    git rev-parse --short HEAD > /var/www/internal/app_ver &&\
-    apt-get remove -y git &&\
-    apt-get autoremove -y &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/*
+RUN FULL_SHA=$(cat /var/www/.git/HEAD | cut -d' ' -f2)      &&\
+    SHORT_SHA=$(cat /var/www/.git/${FULL_SHA} | cut -c1-7)  &&\
+    printf ${SHORT_SHA} > /var/www/internal/app_ver
 
 # Install dependencies
 RUN composer install --no-scripts
