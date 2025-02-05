@@ -5,14 +5,30 @@ import { ActivityIndicator, Icon, Text } from "react-native-paper";
 import TextBold from "./TextBold";
 
 export default function UserPrinterStatusConnection({ connectionStatus, isRunningMapper }) {
-    const [ currentStatus,          setCurrentStatus         ] = useState('waiting for server...');
+    const [ currentStatus,          setCurrentStatus         ] = useState('waiting for server…');
     const [ thresholdSecs,          setThresholdSecs         ] = useState(null);
     const [ isWaitingForNewStatus,  setIsWaitingForNewStatus ] = useState(true);
+    const [ lastUpdate,             setLastUpdate            ] = useState(Date.now() / 1000);
+
+    const MAX_THRESHOLD_SECS = 15;
 
     const handleMapperRunning = () => setCurrentStatus('connecting…');
 
     useEffect(() => {
+        const timeout = setInterval(() => {
+            if ((Date.now() / 1000) - lastUpdate <= MAX_THRESHOLD_SECS) { return; }
+
+            setIsWaitingForNewStatus(false);
+            setCurrentStatus('offline');
+        }, 1000);
+
+        return () => { clearTimeout(timeout); };
+    }, [ lastUpdate ]);
+
+    useEffect(() => {
         if (!connectionStatus) { return; }
+
+        setLastUpdate(Date.now() / 1000);
 
         console.debug('UserPrinterStatusConnection: connectionStatus:', connectionStatus);
 
