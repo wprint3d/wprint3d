@@ -8,7 +8,7 @@
         "secondary": "rgb(208, 193, 218)",
         "onSecondary": "rgb(54, 44, 63)",
         "secondaryContainer": "rgb(82, 82, 82)",
-        "onSecondaryContainer": "rgb(237, 221, 246)",
+        "onSecondaryContainer": "rgb(235, 235, 235)",
         "tertiary": "rgb(243, 183, 190)",
         "onTertiary": "rgb(75, 37, 43)",
         "tertiaryContainer": "rgb(101, 58, 65)",
