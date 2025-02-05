@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>%WEB_TITLE%</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* Chrome, Edge, and Safari */
+      *::-webkit-scrollbar {
+          height: .35em;
+          width:  .35em;
+      }
+
+      *::-webkit-scrollbar-track,
+      *::-webkit-scrollbar-corner { background-color: transparent; }
+
+      *::-webkit-scrollbar-thumb {
+          background-color: rgb(79, 88, 99);
+          border-radius:    1em;
+      }
+
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+
+      /* Base theme */
+      body {
+        background-color: #f3f3f3;
+        background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAABefAAAXnwFLnDNSAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAArhJREFUeJztm89PE1EQx7/zthcStAFN0EBa6sGklSMaJREwARP13r/n8W/4J+xdoBbTLQGxlqNQr60kSIJtysmE7o6HumXZ/lAjvo3LfE7dX+nMvDezu/N9S1s7lacAYJFqLS/MHxKRhxijtVaLKy+zHngSAJR/wGVvwnm/n2NmNfzy/5uw8wCgFKjpb8Q5CFqzWlp9lQs6b5FqETPTu0oliw7d6p2d4Haz0TjI5/NuJNZeMYNG3k95RUS8s7n5OTgT0KFkciqdisTaf8CTZy/SYefLxW69I38nM1Nht5pLgCc7jLOz4/qnuMwA27atyTupB1CUDBf7Xq4TEX/YWq+dn3tf4uQ8AOTzebf5tXHgujjyRz5qmwRBEARBEARBEARBEITYY9u2VShXMloPb7lrrdVGaW/Wtm3LlF3061P+nlFNSZ+omrJGBJDkVDoFRUngQnwJzgSttSr9dB4AEoSbptryRgKwV9qohxWopdWuAsXM9DgkWiDB7fZJvWHCNiMpAPjS1H7OZW/C32eRajEzD1JsTLWujRUbx1njTGr6dPbe/XEGxgCAwWP+byAahdpYAADAcRzOpKa/BYPQMyQieT52KvCfYqwGAINV2iCxToFuERzv0+cV0XcG92pC4+j4Rib1+tRx1tiEXUZSoDvy1Wz4DrC8MH9YLr45HHaLNGGbkT8Zpc9rrb3trYc1i1TLP+6yN/F2+2PahG1GAtA+qTfgcRu4GHmtL/Jca/KCM0Exzkw9CBnj916GWBXKlYzJlyFBEARBEARBEARBEAThWhPnltSwltwliXpxpZq1LMzcvpuei1MQ/PUJloWZcMtdAf0fFXoG9XkTjFqfoIaJFs8XH9WjMviqGbU+gUq71bmw8+Xi5b59HBi2PkENkqvi5jzQL74A3ZnQKwbX4fP5rgy3XgsG4Qdl3LKltE6ZcwAAAABJRU5ErkJggg==");
+      }
+
+      .preloader-text-color { color: black; }
+
+      /* Dark theme */
+      @media (prefers-color-scheme: dark) {
+        body { background-color: black; }
+
+        .preloader-text-color { color: white; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+
+    <!-- The root element for your Expo app. -->
+    <div id="root">
+      <div style="font-family: Arial, Helvetica, sans-serif; height: 100vh; text-align: center; align-items: center; display: flex; flex-direction: row;">
+        <div class="preloader-text-color" style="width: 100vw">
+          <h1> WPrint 3D </h1>
+
+          <p> Loading the app... </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

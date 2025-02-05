@@ -52,6 +52,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl           
     apt-get clean                                                               &&\
     rm -rf /var/lib/apt/lists/* /tmp/metro-*
 
+# Patch the index.html file
+ADD public/index.production.html /app/public/index.html
+
 # Copy the lighttpd configuration
 ADD internal/lighttpd.conf /etc/lighttpd/lighttpd.conf
 
