@@ -327,8 +327,10 @@ else
             echo "Running migrations...";
             php artisan migrate;
 
-            echo "Generating Marlin labels...";
-            php artisan make:marlin-labels;
+            if [[ "${DEVELOPER_MODE}" == 'true' ]]; then
+                echo "Generating Marlin labels...";
+                php artisan make:marlin-labels;
+            fi;
 
             echo "Resetting stalled jobs...";
             php artisan reset:active-jobs;
