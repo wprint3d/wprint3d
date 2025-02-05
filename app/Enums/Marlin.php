@@ -19,7 +19,7 @@ final class Marlin extends Enum
 	const G2 = 'Arc or Circle Move';
 	const G3 = 'Arc or Circle Move';
 	const G4 = 'Dwell';
-	const G5 = 'BÃ©zier cubic spline';
+	const G5 = 'Bézier Cubic Spline';
 	const G6 = 'Direct Stepper Move';
 	const G10 = 'Retract';
 	const G11 = 'Recover';
@@ -31,19 +31,19 @@ final class Marlin extends Enum
 	const G26 = 'Mesh Validation Pattern';
 	const G27 = 'Park toolhead';
 	const G28 = 'Auto Home';
-	const G29 = 'Bed Leveling (Unified)';
+	const G29 = 'Bed Leveling';
 	const G30 = 'Single Z-Probe';
 	const G31 = 'Dock Sled';
 	const G32 = 'Undock Sled';
 	const G33 = 'Delta Auto Calibration';
-	const G34 = 'Mechanical Gantry Calibration';
+	const G34 = 'Z Steppers Auto-Alignment';
 	const G35 = 'Tramming Assistant';
 	const G38 = 'Probe target';
 	const G42 = 'Move to mesh coordinate';
 	const G53 = 'Move in Machine Coordinates';
 	const G54 = 'Workspace Coordinate System';
 	const G59 = 'Workspace Coordinate System';
-	const G60 = 'Save Current Position';
+	const G60 = 'Stored Positions';
 	const G61 = 'Return to Saved Position';
 	const G76 = 'Probe temperature calibration';
 	const G80 = 'Cancel Current Motion Mode';
@@ -75,13 +75,12 @@ final class Marlin extends Enum
 	const M28 = 'Start SD write';
 	const M29 = 'Stop SD write';
 	const M30 = 'Delete SD file';
-	const M31 = 'Print time';
+	const M31 = 'Report Print Time';
 	const M32 = 'Select and Start';
 	const M33 = 'Get Long Path';
 	const M34 = 'SDCard Sorting';
 	const M42 = 'Set Pin State';
 	const M43 = 'Debug Pins';
-	const M43_T = 'Toggle Pins';
 	const M48 = 'Probe Repeatability Test';
 	const M73 = 'Set Print Progress';
 	const M75 = 'Start Print Job Timer';
@@ -93,6 +92,8 @@ final class Marlin extends Enum
 	const M82 = 'E Absolute';
 	const M83 = 'E Relative';
 	const M85 = 'Inactivity Shutdown';
+	const M86 = 'Hotend Idle Timeout';
+	const M87 = 'Disable Hotend Idle Timeout';
 	const M92 = 'Set Axis Steps-per-unit';
 	const M100 = 'Free Memory';
 	const M102 = 'Configure Bed Distance Sensor';
@@ -102,9 +103,9 @@ final class Marlin extends Enum
 	const M107 = 'Fan Off';
 	const M108 = 'Break and Continue';
 	const M109 = 'Wait for Hotend Temperature';
-	const M110 = 'Set Line Number';
+	const M110 = 'Set / Get Line Number';
 	const M111 = 'Debug Level';
-	const M112 = 'Emergency Stop';
+	const M112 = 'Full Shutdown';
 	const M113 = 'Host Keepalive';
 	const M114 = 'Get Current Position';
 	const M115 = 'Firmware Info';
@@ -124,7 +125,7 @@ final class Marlin extends Enum
 	const M141 = 'Set Chamber Temperature';
 	const M143 = 'Set Laser Cooler Temperature';
 	const M145 = 'Set Material Preset';
-	const M149 = 'Set Temperature Units';
+	const M149 = 'Temperature Units';
 	const M150 = 'Set RGB(W) Color';
 	const M154 = 'Position Auto-Report';
 	const M155 = 'Temperature Auto-Report';
@@ -135,16 +136,17 @@ final class Marlin extends Enum
 	const M190 = 'Wait for Bed Temperature';
 	const M191 = 'Wait for Chamber Temperature';
 	const M192 = 'Wait for Probe temperature';
-	const M193 = 'Set Laser Cooler Temperature';
-	const M200 = 'Set Filament Diameter';
-	const M201 = 'Print Move Limits';
+	const M193 = 'Wait For Laser Cooler Temperature';
+	const M200 = 'Volumetric Extrusion Diameter';
+	const M201 = 'Print / Travel Move Limits';
 	const M203 = 'Set Max Feedrate';
 	const M204 = 'Set Starting Acceleration';
 	const M205 = 'Set Advanced Settings';
 	const M206 = 'Set Home Offsets';
-	const M207 = 'Set Firmware Retraction';
-	const M208 = 'Firmware Recover';
+	const M207 = 'Firmware Retraction Settings';
+	const M208 = 'Firmware Recover Settings';
 	const M209 = 'Set Auto Retract';
+	const M210 = 'Homing Feedrate';
 	const M211 = 'Software Endstops';
 	const M217 = 'Filament swap parameters';
 	const M218 = 'Set Hotend Offset';
@@ -167,7 +169,7 @@ final class Marlin extends Enum
 	const M303 = 'PID autotune';
 	const M304 = 'Set Bed PID';
 	const M305 = 'User Thermistor Parameters';
-	const M306 = 'Model predictive temperature control';
+	const M306 = 'Model Predictive Temp. Control';
 	const M350 = 'Set micro-stepping';
 	const M351 = 'Set Microstep Pins';
 	const M355 = 'Case Light Control';
@@ -182,10 +184,10 @@ final class Marlin extends Enum
 	const M401 = 'Deploy Probe';
 	const M402 = 'Stow Probe';
 	const M403 = 'MMU2 Filament Type';
-	const M404 = 'Set Filament Diameter';
+	const M404 = 'Filament Width Sensor Nominal Diameter';
 	const M405 = 'Filament Width Sensor On';
 	const M406 = 'Filament Width Sensor Off';
-	const M407 = 'Filament Width';
+	const M407 = 'Read Filament Width';
 	const M410 = 'Quickstop';
 	const M412 = 'Filament Runout';
 	const M413 = 'Power-loss Recovery';
@@ -197,6 +199,7 @@ final class Marlin extends Enum
 	const M428 = 'Home Offsets Here';
 	const M430 = 'Power Monitor';
 	const M486 = 'Cancel Objects';
+	const M493 = 'Fixed-Time Motion';
 	const M500 = 'Save Settings';
 	const M501 = 'Restore Settings';
 	const M502 = 'Factory Reset';
@@ -209,19 +212,22 @@ final class Marlin extends Enum
 	const M540 = 'Endstops Abort SD';
 	const M569 = 'Set TMC stepping mode';
 	const M575 = 'Serial baud rate';
-	const M593 = 'Input Shaping';
+	const M592 = 'Nonlinear Extrusion Control';
+	const M593 = 'ZV Input Shaping';
 	const M600 = 'Filament Change';
 	const M603 = 'Configure Filament Change';
 	const M605 = 'Multi Nozzle Mode';
-	const M665 = 'SCARA Configuration';
-	const M666 = 'Set dual endstop offsets';
+	const M665 = 'Delta Configuration';
+	const M666 = 'Set Delta endstop adjustments';
 	const M672 = 'Duet Smart Effector sensitivity';
 	const M701 = 'Load filament';
 	const M702 = 'Unload filament';
 	const M710 = 'Controller Fan settings';
+	const M7219 = 'MAX7219 Control';
 	const M808 = 'Repeat Marker';
 	const M810 = 'G-code macros';
 	const M819 = 'G-code macros';
+	const M820 = 'Report G-code macros';
 	const M851 = 'XYZ Probe Offset';
 	const M852 = 'Bed Skew Compensation';
 	const M860 = 'I2C Position Encoders';
@@ -230,9 +236,9 @@ final class Marlin extends Enum
 	const M876 = 'Handle Prompt Response';
 	const M900 = 'Linear Advance Factor';
 	const M906 = 'Stepper Motor Current';
-	const M907 = 'Set Motor Current';
+	const M907 = 'Trimpot Stepper Motor Current';
 	const M908 = 'Set Trimpot Pins';
-	const M909 = 'DAC Print Values';
+	const M909 = 'Report DAC Stepper Current';
 	const M910 = 'Commit DAC to EEPROM';
 	const M911 = 'TMC OT Pre-Warn Condition';
 	const M912 = 'Clear TMC OT Pre-Warn';
@@ -245,25 +251,44 @@ final class Marlin extends Enum
 	const M919 = 'TMC Chopper Timing';
 	const M928 = 'Start SD Logging';
 	const M951 = 'Magnetic Parking Extruder';
-	const M993 = 'SD / SPI Flash';
-	const M994 = 'SD / SPI Flash';
+	const M993 = 'Back up flash settings to SD';
+	const M994 = 'Restore flash from SD';
 	const M995 = 'Touch Screen Calibration';
 	const M997 = 'Firmware update';
 	const M999 = 'STOP Restart';
-	const M7219 = 'MAX7219 Control';
-	const T0 = 'Select Tool';
-	const T6 = 'Select Tool';
+	const Tx = 'MMU2 Special Commands';
+	const T0 = 'Select or Report Tool';
+	const T7 = 'Select or Report Tool';
 
 	public static function getLabel(string $gcodeLine) {
-		$command = preg_replace('/ ;.*/', '', $gcodeLine);
-		$command = explode(' ', $command, 2);
+	    $command = preg_replace('/ ;.*/', '', $gcodeLine);
+	    $command = explode(' ', $command, 2);
 
-		if (!$command || !$command[0]) return ': Unknown';
+	    $output = '?: Unknown';
 
-		if (self::hasKey( $command[0] )) return $command[0] . ': ' . ($command[1] ?? '') . ' (' . self::getValue( $command[0] ) . ')';
+	    if (!$command || !$command[0]) {
+	        return $output;
+	    }
 
-		return $command[0] . ': ' . ($command[1] ?? '') . ' (Unknown)';
+	    $params = trim($command[1] ?? '');
+
+	    $output = "{$command[0]}: {$params}";
+
+	    if ($params) { $output .= ' '; }
+
+	    $suffix = 'Unknown';
+
+	    if (self::hasKey($command[0])) {
+	        $suffix = self::getValue($command[0]);
+	    }
+
+	    if ($params) {
+	        $suffix = "({$suffix})";
+	    }
+
+	    return "{$output}{$suffix}";
 	}
+
 }
 
 ?>
