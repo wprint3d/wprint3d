@@ -3,6 +3,7 @@
 
 # secrets
 **/.github
+**/.git
 
 # dependencies
 **/.pnpm-store
