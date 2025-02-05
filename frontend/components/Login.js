@@ -59,9 +59,7 @@ const Form = ({ colors }) => {
                 password: password
             })
         ),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['checkLogin'] });
-        }
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['checkLogin'] })
     });
 
     const handleLoginRequest = () => {
