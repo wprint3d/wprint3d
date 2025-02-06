@@ -49,6 +49,9 @@ RUN --mount=type=bind,src=.,target=/source,rw \
     rm -rf /var/lib/apt/lists/* /tmp/metro-*                                    &&\
     mkdir -p /app/dist && mv -f /source/dist /app/dist
 
+# Add the entrypoint script
+ADD entrypoint_prd.sh /app/entrypoint_prd.sh
+
 # Set the working directory
 WORKDIR /app
 
