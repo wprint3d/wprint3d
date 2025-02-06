@@ -20,18 +20,14 @@ RUN rm -f /etc/ssl/certs/ca-bundle.crt &&\
     rm -rf /var/lib/apt/lists/* &&\
     update-ca-certificates
 
-# Copy the project files
-ADD . /app
-
-# Set the working directory
-WORKDIR /app
-
 # Build the bundle
-RUN apt-get update && apt-get install -y --no-install-recommends curl           &&\
+RUN --mount=type=bind,src=.,target=/source,rw \
+    cd /source &&\
+    cp -fv public/index.production.html public/index.html                       &&\
+    apt-get update && apt-get install -y --no-install-recommends curl           &&\
     echo "Installing Node.js 21.x..."                                           &&\
     curl -fsSL https://deb.nodesource.com/setup_21.x | bash -                   &&\
     apt-get install -y nodejs                                                   &&\
-    apt-get install -y --no-install-recommends jq file                          &&\
     echo "Installing Yarn..."                                                   &&\
     npm install --global yarn                                                   &&\
     echo "Installing PNPM..."                                                   &&\
@@ -48,12 +44,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl           
             /tmp/metro-cache /usr/local/share/.cache                            &&\
     echo "Installing HTTP server..."                                            &&\
     apt-get install -y --no-install-recommends lighttpd                         &&\
-    apt-get remove --purge -y curl jq file nodejs && apt-get autoremove -y      &&\
+    apt-get remove --purge -y nodejs && apt-get autoremove -y                   &&\
     apt-get clean                                                               &&\
-    rm -rf /var/lib/apt/lists/* /tmp/metro-*
+    rm -rf /var/lib/apt/lists/* /tmp/metro-*                                    &&\
+    mkdir -p /app/dist && mv -f /source/dist /app/dist
 
-# Patch the index.html file
-ADD public/index.production.html /app/public/index.html
+# Set the working directory
+WORKDIR /app
 
 # Copy the lighttpd configuration
 ADD internal/lighttpd.conf /etc/lighttpd/lighttpd.conf
