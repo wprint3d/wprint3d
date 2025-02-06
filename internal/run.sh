@@ -274,13 +274,11 @@ else
             # Discover and load plugins
             php artisan discover:plugins;
 
-            truncate --size 0 /var/www/internal/app_ver;
-
             # Disable permissions checks for the Git repository
             git config --global --add safe.directory /var/www;
 
             # If the Git repository is present, get the version from `git rev-parse`.
-            if [[ -f '/var/www/.git/HEAD' ]]; then
+            if [[ -f '/var/www/.git/HEAD' ]] && [[ "${DEVELOPER_MODE}" == 'true' ]]; then
                 git rev-parse --short HEAD > /var/www/internal/app_ver;
             fi;
 
