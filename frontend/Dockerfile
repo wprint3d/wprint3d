@@ -47,7 +47,7 @@ RUN --mount=type=bind,src=.,target=/source,rw \
     apt-get remove --purge -y nodejs && apt-get autoremove -y                   &&\
     apt-get clean                                                               &&\
     rm -rf /var/lib/apt/lists/* /tmp/metro-*                                    &&\
-    mkdir -p /app/dist && mv -f /source/dist /app/dist
+    cp -rf /source/dist /app/dist
 
 # Add the entrypoint script
 ADD entrypoint_prd.sh /app/entrypoint_prd.sh
