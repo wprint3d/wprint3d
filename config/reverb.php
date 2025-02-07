@@ -31,7 +31,7 @@ return [
         'reverb' => [
             'host' => env('REVERB_SERVER_HOST', '0.0.0.0'),
             'port' => 6001,
-            'hostname' => 'ws-server',
+            'hostname' => 'backend',
             'options' => [
                 'tls' => [],
             ],
@@ -75,7 +75,7 @@ return [
                 'secret' => env('PUSHER_APP_SECRET'),
                 'app_id' => env('PUSHER_APP_ID', 'wp3d'),
                 'options' => [
-                    'host' => 'ws-server',
+                    'host' => 'backend',
                     'port' => 6001,
                     'scheme' => env('PUSHER_SCHEME', 'https'),
                     'useTLS' => env('PUSHER_SCHEME', 'https') === 'https',

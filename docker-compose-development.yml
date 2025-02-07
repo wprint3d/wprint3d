@@ -24,7 +24,7 @@ services:
       - ${EXTERNAL_WEB_SOCKET_PORT:-6001}:6001
     depends_on:
       - web
-      - ws-server
+      - backend
   backend:
     build:
       context: .
@@ -147,24 +147,6 @@ services:
       - .:/var/www
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-    depends_on:
-      - redis
-      - mongo
-  ws-server:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    restart: always
-    logging:
-      driver: local
-      options:
-        max-size: "16m"
-        mode: non-blocking
-    environment:
-      - ROLE=ws-server
-    volumes:
-      - .:/var/www
-      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - redis
       - mongo

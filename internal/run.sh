@@ -336,6 +336,9 @@ else
             echo 'Declare default configurations...';
             php artisan make:default-configuration;
 
+            echo 'Starting the WebSocket server...';
+            php artisan reverb:start --host 0.0.0.0 --port 6001 &
+
             if [ "$(php artisan get:env OCTANE_ENABLED)" == 'true' ]; then
                 echo 'Starting Octane web server...';
                 php artisan octane:start --host 0.0.0.0 --port 80 --watch;
@@ -362,12 +365,8 @@ else
 
                 sleep 60;
             done;
-        elif [[ "$ROLE" == 'ws-server' ]]; then
-            while true; do
-                php artisan reverb:start --host 0.0.0.0 --port 6001;
-            done;
         elif [[ "$ROLE" == 'mapper' ]]; then
-            wait-for-it ws-server:6001 -t 0;
+            wait-for-it backend:6001 -t 0; # WebSocket server
 
             # Try to recognize a printer within them before enabling the udev monitor
             php artisan map:serial-printers;
@@ -498,8 +497,8 @@ else
             fi;
         elif [[ "$ROLE" == 'serial-scheduler' ]]; then
             # we need "backend" up in order to have the Marlin class available
-            wait-for-it backend:80      -t 0;
-            wait-for-it ws-server:6001  -t 0;
+            wait-for-it backend:80   -t 0; # web server
+            wait-for-it backend:6001 -t 0; # WebSocket server
 
             while true; do
                 php artisan printers:handle-auto-serial;
