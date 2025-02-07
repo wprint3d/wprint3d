@@ -141,7 +141,7 @@ services:
     privileged: true
     environment:
       - ROLE=queue
-      - QUEUES=default:1,control:1,broadcasts:2,prints,previews,snapshots,recordings # <queue-name>:<min-number-of-workers, default=0>
+      - QUEUES=default:1,broadcasts:2,prints,previews,snapshots,recordings # <queue-name>:<min-number-of-workers, default=0>
       - SLEEP=5
     volumes:
       - .:/var/www
