@@ -15,11 +15,15 @@ import AppbarActionWithTooltip from "./AppbarActionWithTooltip";
 import { useCache } from "../hooks/useCache";
 
 import uuid from 'react-native-uuid';
-import { useSnackbar } from "react-native-paper-snackbar-stack";
 
-export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId = null, lastMessage, isSmallTablet = false }) {
+import { useSnackbar } from "react-native-paper-snackbar-stack";
+import { useLastTerminalMessage } from "../hooks/useLastTerminalMessage";
+
+export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId = null, isSmallTablet = false }) {
     const { enqueueSnackbar } = useSnackbar();
     const { bottom }          = useSafeAreaInsets();
+
+    const lastTerminalMessage = useLastTerminalMessage({ printerId });
 
     const BOTTOM_APPBAR_HEIGHT_BASE = 48;
     const BOTTOM_APPBAR_HEIGHT = (
@@ -284,11 +288,11 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
             return;
         }
 
-        console.debug('UserPrinterTerminal: lastMessage:', lastMessage);
+        console.debug('UserPrinterTerminal: lastTerminalMessage:', lastTerminalMessage);
 
         let nextLog = [];
 
-        const command = lastMessage?.command;
+        const command = lastTerminalMessage?.command;
 
         if (!command || !command.length) { return; }
 
@@ -304,7 +308,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
             nextLog.push(
                 buildLogLine({
                     key:  uuid.v4(),
-                    date: lastMessage.dateString,
+                    date: lastTerminalMessage?.dateString,
                     line: line
                 })
             );
@@ -331,7 +335,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
         }
 
         terminalView.current.scrollToEnd({ animated: true });
-    }, [ lastMessage ]);
+    }, [ lastTerminalMessage ]);
 
     let loaderMessage = null;
 

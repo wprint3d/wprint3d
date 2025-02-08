@@ -8,9 +8,12 @@ import UserPrinterTerminal from "./UserPrinterTerminal";
 import UserPrinterPreview from "./UserPrinterPreview";
 import UserPrinterControl from "./UserPrinterControl";
 import UserPrinterRecordings from "./UserPrinterRecordings";
+import { useConnectionStatus } from "../hooks/useConnectionStatus";
 
-export default function UserRightPane({ isLoadingPrinter = true, printerId = null, maxHeight, connectionStatus, lastTerminalMessage, isSmallLaptop, isSmallTablet }) {
+export default function UserRightPane({ isLoadingPrinter = true, printerId = null, maxHeight, isSmallLaptop, isSmallTablet }) {
     const { colors } = useTheme();
+
+    const { connectionStatus } = useConnectionStatus({ printerId });
 
     return (
         <UserPane style={{
@@ -38,10 +41,10 @@ export default function UserRightPane({ isLoadingPrinter = true, printerId = nul
                         // disableSwipe={false} // (default=false) disable swipe to left/right gestures
                         >
                             <TabScreen label="Terminal" icon="console">
-                                <UserPrinterTerminal isLoadingPrinter={isLoadingPrinter} printerId={printerId} lastMessage={lastTerminalMessage} />
+                                <UserPrinterTerminal isLoadingPrinter={isLoadingPrinter} printerId={printerId} isSmallTablet={isSmallTablet} />
                             </TabScreen>
                             <TabScreen label="Preview" icon="eye">
-                                <UserPrinterPreview  lastUpdate={lastTerminalMessage} connectionStatus={connectionStatus} />
+                                <UserPrinterPreview printerId={printerId} isSmallTablet={isSmallTablet} />
                             </TabScreen>
                             <TabScreen label="Control" icon="camera-control">
                                 <UserPrinterControl  isSmallLaptop={isSmallLaptop} isSmallTablet={isSmallTablet} connectionStatus={connectionStatus} />
@@ -52,7 +55,6 @@ export default function UserRightPane({ isLoadingPrinter = true, printerId = nul
                                     printerId={printerId}
                                     isSmallLaptop={isSmallLaptop}
                                     isSmallTablet={isSmallTablet}
-                                    connectionStatus={connectionStatus}
                                 />
                             </TabScreen>
                         </Tabs>

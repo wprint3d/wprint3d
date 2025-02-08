@@ -10,7 +10,7 @@ import TextBold from "./TextBold";
 import VideoPlayer from "./modules/VideoPlayer";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 
-const UserPrinterRecordings = ({ isLoadingPrinter = true, printerId = null, isSmallTablet, isSmallLaptop }) => {
+const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop }) => {
     const { enqueueSnackbar } = useSnackbar();
 
     const [ recordings, setRecordings ] = useState([]);

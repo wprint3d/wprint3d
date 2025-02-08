@@ -99,7 +99,7 @@ export default function UserPrinterStatusConnection({ connectionStatus, isRunnin
         <Text style={{ 
             width:      '100%',
             textAlign:  'center',
-            paddingTop: 10
+            paddingTop: 15
         }}>
             <ActivityIndicator
                 animating={isWaitingForNewStatus}

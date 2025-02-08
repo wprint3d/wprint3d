@@ -27,7 +27,10 @@ import Slider from '@react-native-community/slider'
 import GCodePreview from "./modules/GCodePreview";
 import SliderTag from "./modules/SliderTag";
 
-export default function UserPrinterPreview({ connectionStatus, lastUpdate, isSmallTablet = false }) {
+import { useConnectionStatus } from "../hooks/useConnectionStatus";
+import { useLastTerminalMessage } from "../hooks/useLastTerminalMessage";
+
+export default function UserPrinterPreview({ printerId, isSmallTablet = false }) {
     const cache = useCache();
 
     const windowSize = useWindowDimensions();
@@ -51,6 +54,10 @@ export default function UserPrinterPreview({ connectionStatus, lastUpdate, isSma
 
     const [ showExtrusion,   _setShowExtrusion   ] = useState(null);
     const [ showTravelMoves, _setShowTravelMoves ] = useState(null);
+
+    const { connectionStatus } = useConnectionStatus({ printerId });
+
+    const lastUpdate = useLastTerminalMessage({ printerId });
 
     const setShowExtrusion = async newValue => {
         await cache.set('showExtrusion', newValue);

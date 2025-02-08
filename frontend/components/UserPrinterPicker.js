@@ -9,29 +9,25 @@ import DropDown from "react-native-paper-dropdown";
 
 import API from "../includes/API";
 
-export default function UserPrinterPicker({ printerId }) {
-    const [ showDropDown,       setShowDropDown       ] = useState(false);
-    const [ parsedPrintersList, setParsedPrintersList ] = useState([]);
+export default function UserPrinterPicker({ printerId, printersList }) {
+    const [ showDropDown, setShowDropDown ] = useState(false);
+    const [ options,      setOptions      ] = useState([]);
 
     const queryClient = useQueryClient();
 
-    const printersList = useQuery({
+    const selectPrinterMutation = useMutation({
+        mutationFn: newPrinterId => API.post('/user/printer/selected', { id: newPrinterId }),
+        onSuccess:  ()           => queryClient.invalidateQueries({ queryKey: ['selectedPrinter'] })
+    });
+
+    const printersListQuery = useQuery({
         queryKey: ['printersList'],
         queryFn:  () => API.get('/printers')
     });
 
-    const selectPrinterMutation = useMutation({
-        mutationFn: newPrinterId => API.post('/user/printer/selected', { id: newPrinterId }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['selectedPrinter'] })
-    });
-
     useEffect(() => {
-        console.debug('parsedPrintersList:', parsedPrintersList);
-    }, [ parsedPrintersList ]);
-
-    useEffect(() => {
-        if (printersList.isFetching) {
-            setParsedPrintersList([{
+        if (printersListQuery.isFetching) {
+            setOptions([{
                 label: 'Loading...',
                 value: null
             }]);
@@ -39,8 +35,8 @@ export default function UserPrinterPicker({ printerId }) {
             return;
         }
 
-        if (printersList.isError) {
-            setParsedPrintersList([{
+        if (printersListQuery.isError) {
+            setOptions([{
                 label: 'Something went wrong',
                 value: null
             }]);
@@ -48,10 +44,12 @@ export default function UserPrinterPicker({ printerId }) {
             return;
         }
 
-        const printers = printersList?.data?.data;
+        const printersList = printersListQuery?.data?.data ?? [];
 
-        if (!printers || !printers.length) {
-            setParsedPrintersList([{
+        console.debug('UserPrinterPicker: printersList', printersList);
+
+        if (!printersList || !printersList.length) {
+            setOptions([{
                 label: 'No printers available',
                 value: null
             }]);
@@ -59,26 +57,27 @@ export default function UserPrinterPicker({ printerId }) {
             return;
         }
 
-        setParsedPrintersList(
-            printers.map(printer => {
+        setOptions(
+            printersList.map(printer => {
                 return {
                     label: `${printer?.machine?.machineType ?? 'Unknown printer'} (${printer?.machine?.uuid})`,
                     value: printer._id
                 };
             })
         );
-    }, [ printersList.data ]);
+    }, [ printersListQuery.data ]);
 
     useEffect(() => {
-        console.debug('UserPrinterPicker: parsedPrintersList:', parsedPrintersList);
-        console.debug('UserPrinterPicker: printerId:', printerId);
+        console.debug('UserPrinterPicker: options', options);
 
-        if (!parsedPrintersList.length || (printerId && printerId.length)) { return; }
+        if (!options.length || (printerId && options.length) || options[0].value === null) {
+            return;
+        }
 
-        console.debug('UserPrinterPicker: selecting first printer:', parsedPrintersList[0].value);
+        console.debug('UserPrinterPicker: selecting first printer:', options[0].value);
 
-        selectPrinterMutation.mutate(parsedPrintersList[0].value);
-    }, [ parsedPrintersList ]);
+        selectPrinterMutation.mutate(options[0].value);
+    }, [ options ]);
 
     return (
         <>
@@ -89,7 +88,7 @@ export default function UserPrinterPicker({ printerId }) {
                 showDropDown={() => setShowDropDown(true)}
                 onDismiss={()    => setShowDropDown(false)}
                 value={printerId ?? null}
-                list={parsedPrintersList}
+                list={options}
                 setValue={newPrinterId => {
                     if (newPrinterId == printerId) { return; }
 
@@ -105,8 +104,8 @@ export default function UserPrinterPicker({ printerId }) {
                 }}
             />
             {
-                (printersList.isSuccess && printersList.data.data.length == 0) &&
-                    <View style={{ alignItems: 'center', flexGrow: 1, justifyContent: 'center', top: -20 }}>
+                (!printersListQuery.isError && !printerId) &&
+                    <View style={{ alignItems: 'center', flexGrow: 1, justifyContent: 'center', paddingVertical: 20 }}>
                         <Icon source="connection" size={48} />
                         <Text style={{ paddingTop: 20, textAlign: 'center' }}>
                             To get started, plug a compatible printer and wait for a few seconds.

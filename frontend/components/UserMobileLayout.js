@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native"
 import { BottomNavigation, Text, useTheme } from "react-native-paper";
 import UserLeftPane from "./UserLeftPane";
@@ -11,8 +11,8 @@ import UserPrinterRecordings from "./UserPrinterRecordings";
 
 const UserMobileLayout = ({
     isLoadingPrinter = true, printerId,
-    connectionStatus, isRunningMapper, lastTerminalMessage, maxHeight, printStatus,
-    isSmallLaptop, isSmallTablet
+    maxHeight, printStatus,
+    isSmallLaptop, isSmallTablet,
 }) => {
     const { colors } = useTheme();
 
@@ -27,29 +27,11 @@ const UserMobileLayout = ({
     ]);
 
     const renderScene = BottomNavigation.SceneMap({
-        home: () => (
-            <UserLeftPane
-                isLoadingPrinter={isLoadingPrinter}
-                printerId={printerId}
-                connectionStatus={connectionStatus}
-                isRunningMapper={isRunningMapper}
-                lastTerminalMessage={lastTerminalMessage}
-                maxHeight={maxHeight}
-                printStatus={printStatus}
-            />
-        ),
-        terminal:   () => <UserPrinterTerminal isLoadingPrinter={isLoadingPrinter} printerId={printerId} lastMessage={lastTerminalMessage} isSmallLaptop={isSmallLaptop} isSmallTablet={isSmallTablet} />,
-        control:    () => <UserPrinterControl  isSmallLaptop={isSmallLaptop} isSmallTablet={isSmallTablet} connectionStatus={connectionStatus} />,
-        preview:    () => <UserPrinterPreview  lastUpdate={lastTerminalMessage} connectionStatus={connectionStatus} isSmallTablet={isSmallTablet} />,
-        recordings: () => (
-            <UserPrinterRecordings
-                isLoadingPrinter={isLoadingPrinter}
-                printerId={printerId}
-                isSmallLaptop={isSmallLaptop}
-                isSmallTablet={isSmallTablet}
-                connectionStatus={connectionStatus}
-            />
-        )
+        home:       () => <UserLeftPane          isLoadingPrinter={isLoadingPrinter} printerId={printerId} maxHeight={maxHeight} printStatus={printStatus} />,
+        terminal:   () => <UserPrinterTerminal   isLoadingPrinter={isLoadingPrinter} printerId={printerId} isSmallLaptop={isSmallLaptop} isSmallTablet={isSmallTablet} />,
+        control:    () => <UserPrinterControl    isSmallLaptop={isSmallLaptop} isSmallTablet={isSmallTablet} />,
+        preview:    () => <UserPrinterPreview    isSmallTablet={isSmallTablet} printerId={printerId} />,
+        recordings: () => <UserPrinterRecordings isLoadingPrinter={isLoadingPrinter} printerId={printerId} isSmallLaptop={isSmallLaptop} isSmallTablet={isSmallTablet} />
     });
 
     return (
