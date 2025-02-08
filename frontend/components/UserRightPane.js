@@ -10,7 +10,7 @@ import UserPrinterControl from "./UserPrinterControl";
 import UserPrinterRecordings from "./UserPrinterRecordings";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 
-export default function UserRightPane({ isLoadingPrinter = true, printerId = null, maxHeight, isSmallLaptop, isSmallTablet }) {
+export default function UserRightPane({ isLoadingPrinter = true, printerId = null, isSmallLaptop, isSmallTablet }) {
     const { colors } = useTheme();
 
     const { connectionStatus } = useConnectionStatus({ printerId });
@@ -18,9 +18,8 @@ export default function UserRightPane({ isLoadingPrinter = true, printerId = nul
     return (
         <UserPane style={{
             display:    'flex',
-            flexGrow:   '1',
-            maxHeight:  maxHeight,
-            height:     maxHeight,
+            flexShrink: 1,
+            flexGrow:   1,
             width:      '1%' // NOTE: I have no idea why this works but I'm not willing to ask any further questions.
         }}>
             {

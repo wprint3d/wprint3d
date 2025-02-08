@@ -14,7 +14,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { useLastTerminalMessage } from "../hooks/useLastTerminalMessage";
 
-export default function UserLeftPane({ isLoadingPrinter = true, printerId = null, maxHeight, printStatus }) {
+export default function UserLeftPane({ isLoadingPrinter = true, printerId = null, printStatus }) {
     const windowWidth = useWindowDimensions().width;
 
     const { connectionStatus, isRunningMapper } = useConnectionStatus({ printerId });
@@ -38,12 +38,7 @@ export default function UserLeftPane({ isLoadingPrinter = true, printerId = null
     }, [ windowWidth ]);
 
     return (
-        <UserPane style={{
-            width:      width,
-            maxHeight:  maxHeight,
-            height:     maxHeight,
-            overflow:   'auto'
-        }}>
+        <UserPane style={{ width: width, maxWidth: width, overflow: 'auto' }}>
             {
                 isLoadingPrinter
                     ? <UserPaneLoadingIndicator message={"Getting printer information"} />

@@ -11,7 +11,10 @@ export default function UserPane({ children, style }) {
                 styles.root,
                 {
                     backgroundColor: colors.background,
-                    borderColor:     colors.elevation.level4
+                    borderColor:     colors.elevation.level4,
+                    maxHeight:       '100%',
+                    overflow:        'scroll',
+                    flexGrow:        1
                 },
                 style
             ]}

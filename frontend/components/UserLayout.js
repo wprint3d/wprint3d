@@ -86,6 +86,16 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
                     dimensions.width <= 425 // mobile large
                         ? 'wrap'
                         : 'nowrap'
+                ),
+                flexShrink: (
+                    isSmallTablet
+                        ? 0
+                        : 1
+                ),
+                padding: (
+                    isSmallTablet
+                        ? 0
+                        : 8
                 )
             }
         ]}>
@@ -103,18 +113,16 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
                 ? <UserMobileLayout
                     printerId={printerId}
                     isLoadingPrinter={selectedPrinter.isLoading}
-                    maxHeight={maxPaneHeight}
                     isRunningMapper={isRunningMapper}
                     printStatus={printStatus}
                     isSmallLaptop={isSmallLaptop}
                     isSmallTablet={isSmallTablet}
                 />
                 : (
-                    <>
+                    <View style={{ flexGrow: 1, gap: 8, flexDirection: 'row', maxHeight: '100%', maxWidth: '100%' }}>
                         <UserLeftPane
                             isLoadingPrinter={selectedPrinter.isLoading}
                             printerId={printerId}
-                            maxHeight={maxPaneHeight}
                             isRunningMapper={isRunningMapper}
                             printStatus={printStatus}
                         />
@@ -122,11 +130,10 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
                         <UserRightPane
                             isLoadingPrinter={selectedPrinter.isLoading}
                             printerId={printerId}
-                            maxHeight={maxPaneHeight}
                             isSmallLaptop={isSmallLaptop}
                             isSmallTablet={isSmallTablet}
                         />
-                    </>
+                    </View>
                 )
             }
         </View>
