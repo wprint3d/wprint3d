@@ -104,7 +104,7 @@ refreshDockerLog() {
                 if docker exec "$CID" grep -e php           /proc/*/stat 2> /dev/null | grep -v grep > /dev/null; then
                     STATUS=1;
                 fi;
-            elif [[ "$NAME" == *"scheduler"* ]] && [[ "$NAME" != *"serial"* ]]; then
+            elif [[ "$NAME" == *"scheduler"* ]] && [[ "$NAME" != *"concurrency"* ]]; then
                 if docker exec "$CID" ps -fax | grep -e cron | grep -v grep > /dev/null; then
                     STATUS=1;
                 fi;
