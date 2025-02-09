@@ -82,6 +82,12 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
         if (!nextSettings) { return; }
 
         Object.keys(nextSettings).forEach((key) => {
+            if (!(nextSettings[key].visible ?? true)) {
+                delete nextSettings[key];
+
+                return;
+            }
+
             nextSettings[key].initialValue = nextSettings[key].value;
             nextSettings[key].value        = settings[key]?.value ?? nextSettings[key].value;
         });
