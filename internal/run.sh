@@ -346,7 +346,7 @@ else
                 echo 'Starting Artisan web server...';
                 php artisan serve        --host 0.0.0.0 --port 80;
             fi;
-        elif [[ "$ROLE" == 'queue' ]]; then
+        elif [[ "$ROLE" == 'concurrency-scheduler' ]]; then
             php artisan cache:clear;
             php artisan queue:flush;
             php artisan queue:restart;
@@ -356,7 +356,7 @@ else
             supervisord -c /var/www/internal/supervisor/supervisord.conf;
             echo 'Supervisor started!';
 
-            php artisan printers:refresh-workers &
+            php artisan concurrent:run-indefinitely &
 
             while true; do
                 for log in /tmp/supervisor/logs/*.log; do
@@ -495,16 +495,6 @@ else
 
                 cron -f;
             fi;
-        elif [[ "$ROLE" == 'serial-scheduler' ]]; then
-            # we need "backend" up in order to have the Marlin class available
-            wait-for-it backend:80   -t 0; # web server
-            wait-for-it backend:6001 -t 0; # WebSocket server
-
-            while true; do
-                php artisan printers:handle-auto-serial;
-
-                sleep 1;
-            done;
         elif [[ "$ROLE" == 'streamer' ]]; then
             getFreePort() {
                 port=$PORT_SCAN_START;

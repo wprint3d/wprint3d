@@ -18,9 +18,11 @@
         "league/csv": "^9.21",
         "martbock/laravel-diceware": "^2.1",
         "mongodb/laravel-mongodb": "^4.0",
+        "n-hor/pcntl-parallel": "*",
         "nelexa/zip": "^4.0",
         "php-ffmpeg/php-ffmpeg": "dev-master",
         "pusher/pusher-php-server": "^7.2",
+        "spatie/fork": "^1.2",
         "spatie/temporary-directory": "^2.2",
         "voku/portable-utf8": "^6.0",
         "voku/simple_html_dom": "*"

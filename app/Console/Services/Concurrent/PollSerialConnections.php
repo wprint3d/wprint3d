@@ -1,34 +1,26 @@
 <?php
 
-namespace App\Console\Commands;
+namespace App\Console\Services\Concurrent;
+
+use App\Console\Services\Concurrent\Dependencies\ConcurrentService;
+
+use App\Libraries\Serial;
 
 use App\Models\Configuration;
 use App\Models\Printer;
 
-use App\Libraries\Serial;
-
-use Illuminate\Console\Command;
-
-use Illuminate\Support\Facades\Log;
+use Illuminate\Log\Logger;
 
 use Illuminate\Support\Str;
 
-use Exception;
+use Illuminate\Support\Facades\Log;
 
-class HandleAutoSerialPrinters extends Command
-{
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'printers:handle-auto-serial';
+use Throwable;
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
+class PollSerialConnections extends ConcurrentService {
+
+    private Logger $log;
+    
     protected $description = 'Poll printers for their connection status.';
 
     /**
@@ -36,9 +28,8 @@ class HandleAutoSerialPrinters extends Command
      *
      * @return int
      */
-    public function handle()
-    {
-        $log = Log::channel('printers-poller');
+    public function handle(): void {
+        $this->log = Log::channel('printers-poller');
 
         $minPollIntervalSecs          = Configuration::get('lastSeenPollIntervalSecs');
         $commandTimeoutSecs           = Configuration::get('commandTimeoutSecs');
@@ -48,16 +39,16 @@ class HandleAutoSerialPrinters extends Command
         $enabled = enabled('terminal.auto_temperature_query');
 
         if (!$enabled) {
-            $log->info( 'This feature has been disabled.' );
+            $this->log->info( 'This feature has been disabled.' );
 
             while (true) {
                 sleep( 60 * 60 * 24 * 365 ); // 1 year
             }
 
-            return Command::SUCCESS;
+            return;
         }
 
-        $log->info("Activating in {$autoSerialIntervalSecs} seconds...");
+        $this->log->info("Activating in {$autoSerialIntervalSecs} seconds...");
 
         while (true) {
             sleep( $autoSerialIntervalSecs );
@@ -68,13 +59,13 @@ class HandleAutoSerialPrinters extends Command
 
                     sleep(1);
 
-                    $log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: the mapper is running, skipping..." );
+                    $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: the mapper is running, skipping..." );
 
                     continue;
                 }
 
                 if ($printer->activeFile) {
-                    $log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: active file detected ({$printer->activeFile}), skipping..." );
+                    $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: active file detected ({$printer->activeFile}), skipping..." );
 
                     event(
                         new \App\Events\PrinterConnectionStatusUpdated(
@@ -88,7 +79,7 @@ class HandleAutoSerialPrinters extends Command
                 }
 
                 if (!$printer->node || !Serial::nodeExists( $printer->node )) {
-                    $log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: missing serial node ({$printer->node}), skipping..." );
+                    $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: missing serial node ({$printer->node}), skipping..." );
 
                     event(
                         new \App\Events\PrinterConnectionStatusUpdated(
@@ -118,7 +109,7 @@ class HandleAutoSerialPrinters extends Command
                         $response = $serial->query('M105');
 
                         if (!Str::contains($response, 'ok') && !Str::contains($response, 'busy')) {
-                            $log->error( $printer->node . ': connection failed: ' . $response );
+                            $this->log->error( $printer->node . ': connection failed: ' . $response );
 
                             $printer->setLastError( $response );
 
@@ -132,7 +123,7 @@ class HandleAutoSerialPrinters extends Command
                         if (isset( $statistics['extruders'] )) {
                             foreach (array_keys($statistics['extruders']) as $extruderIndex) {
                                 if (mapperIsRunning()) {
-                                    $log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: the mapper is running, skipping statistics update..." );
+                                    $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: the mapper is running, skipping statistics update..." );
 
                                     continue;
                                 }
@@ -143,7 +134,7 @@ class HandleAutoSerialPrinters extends Command
                             }
                         }
 
-                        $log->debug("OK: {$printer->node}: {$response}");
+                        $this->log->debug("OK: {$printer->node}: {$response}");
 
                         $printer->updateLastSeen();
 
@@ -154,10 +145,10 @@ class HandleAutoSerialPrinters extends Command
                             )
                         );
                     }
-                } catch (Exception $exception) {
+                } catch (Throwable $exception) {
                     $printer->setLastError( $exception->getMessage() );
 
-                    $log->error(
+                    $this->log->error(
                         $printer->node . ': connection failed: ' . $exception->getMessage() . PHP_EOL .
                         PHP_EOL .
                         $exception->getTraceAsString()
@@ -174,7 +165,6 @@ class HandleAutoSerialPrinters extends Command
                 }
             }
         }
-
-        return Command::FAILURE;
     }
+
 }

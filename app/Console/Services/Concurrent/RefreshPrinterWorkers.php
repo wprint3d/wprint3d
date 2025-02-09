@@ -1,27 +1,23 @@
 <?php
 
-namespace App\Console\Commands;
+namespace App\Console\Services\Concurrent;
+
+use App\Console\Services\Concurrent\Dependencies\ConcurrentService;
+
+use App\Exceptions\InitializationException;
 
 use App\Models\Printer;
 
+use Illuminate\Log\Logger;
+
 use Illuminate\Support\Arr;
 
-use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
-class RefreshPrinterWorkers extends Command
-{
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'printers:refresh-workers';
+class RefreshPrinterWorkers extends ConcurrentService {
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
+    private Logger $log;
+
     protected $description = 'Refresh the amount of active printer workers.';
 
     // This function creates the queue workers for the jobs that are scalable,
@@ -39,7 +35,7 @@ class RefreshPrinterWorkers extends Command
         $minWorkers = Printer::where('activeFile', '!=', null)->count();
 
         foreach ($queues as $queue) {
-            $this->comment(__METHOD__ . ": checking queue: {$queue['name']}...");
+            $this->log->debug(__METHOD__ . ": checking queue: {$queue['name']}...");
 
             if ($minWorkers < $queue['min_workers']) {
                 $minWorkers = $queue['min_workers'];
@@ -47,7 +43,7 @@ class RefreshPrinterWorkers extends Command
 
             if ($minWorkers == 0) {
                 if (file_exists("/tmp/supervisor/{$queue['name']}.conf")) {
-                    $this->info("Removing queue: {$queue['name']}...");
+                    $this->log->info("Removing queue: {$queue['name']}...");
 
                     unlink("/tmp/supervisor/{$queue['name']}.conf");
 
@@ -79,7 +75,7 @@ class RefreshPrinterWorkers extends Command
             if ($previousSum != $nextSum) {
                 $didChange = true;
 
-                $this->info(__METHOD__ . ": changes detected for queue {$queue['name']}: PREVIOUS_SUM = '$previousSum', NEXT_SUM = '$nextSum'");
+                $this->log->info(__METHOD__ . ": changes detected for queue {$queue['name']}: PREVIOUS_SUM = '$previousSum', NEXT_SUM = '$nextSum'");
 
                 file_put_contents("/tmp/supervisor/{$queue['name']}.conf", $configFile);
             }
@@ -107,7 +103,7 @@ class RefreshPrinterWorkers extends Command
 
         foreach ($printers as $printer) {
             foreach ($queues as $queue) {
-                $this->comment(__METHOD__ . ": checking queue: {$queue['name']} for printer {$printer->id}...");
+                $this->log->debug(__METHOD__ . ": checking queue: {$queue['name']} for printer {$printer->id}...");
 
                 if ($printer->activeFile === null) { continue; }
 
@@ -129,7 +125,7 @@ class RefreshPrinterWorkers extends Command
                 if (file_exists("/tmp/supervisor/{$queue['name']}_{$printer->id}.conf")) {
                     $previousSum = md5_file("/tmp/supervisor/{$queue['name']}_{$printer->id}.conf");
                 } else {
-                    $this->info(__METHOD__ . ": creating worker for queue {$queue['name']} for printer {$printer->id}...");
+                    $this->log->debug(__METHOD__ . ": creating worker for queue {$queue['name']} for printer {$printer->id}...");
                 }
 
                 $nextSum = md5($configFile);
@@ -137,7 +133,7 @@ class RefreshPrinterWorkers extends Command
                 if ($previousSum != $nextSum) {
                     $didChange = true;
 
-                    $this->info(__METHOD__ . ": changes detected for queue {$queue['name']} for printer {$printer->id}: PREVIOUS_SUM = '$previousSum', NEXT_SUM = '$nextSum'");
+                    $this->log->debug(__METHOD__ . ": changes detected for queue {$queue['name']} for printer {$printer->id}: PREVIOUS_SUM = '$previousSum', NEXT_SUM = '$nextSum'");
 
                     file_put_contents("/tmp/supervisor/{$queue['name']}_{$printer->id}.conf", $configFile);
                 }
@@ -149,13 +145,13 @@ class RefreshPrinterWorkers extends Command
         // workaround for the fact that the queue workers are not cancelable
         // and, currently, we can't tell who's the owner of a worker.
         if ($allPrintersInactive) {
-            $this->info('All printers are inactive. Removing all non-scalable queue workers...');
+            $this->log->debug('All printers are inactive. Removing all non-scalable queue workers...');
 
             foreach ($queues as $queue) {
                 $files = glob("/tmp/supervisor/{$queue['name']}_*.conf");
 
                 foreach ($files as $file) {
-                    $this->info("Removing queue: {$file}...");
+                    $this->log->info("Removing queue: {$file}...");
 
                     unlink($file);
 
@@ -184,34 +180,31 @@ class RefreshPrinterWorkers extends Command
         );
     }
 
-    /**
-     * Execute the console command.
-     *
-     * @return int
-     */
-    public function handle()
-    {
+    public function __construct() {
+        $this->log = Log::channel('printer-workers-refresh');
+    }
+
+    public function handle(): void {
+        $this->log->info('Starting printer workers refresh service...');
+
         $queues     = explode(',', env('QUEUES'));
         $sleepSecs  = env('SLEEP', 5);
 
         if (count($queues) == 0) {
-            $this->error('No queues configured. Exiting...');
-
-            return Command::FAILURE;
+            throw new InitializationException('No queues were configured.');
         }
 
         while (true) {
-            $this->comment('Regenerating queue configurations...');
+            $this->log->debug('Regenerating queue configurations...');
 
             if ($this->refreshWorkers($queues, $sleepSecs)) {
-                $this->info('Reloading supervisor...');
+                $this->log->info('Reloading supervisor...');
 
                 exec('supervisorctl update');
             }
 
             time_nanosleep(seconds: $sleepSecs, nanoseconds: 0);
         }
-
-        return Command::FAILURE;
     }
+
 }
