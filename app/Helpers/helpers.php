@@ -9,10 +9,11 @@ use App\Models\Configuration;
 
 use Illuminate\Log\Logger;
 
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
+
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
-
-use Illuminate\Support\Str;
 
 function mapperIsRunning() : bool {
     return Cache::get(
@@ -295,6 +296,24 @@ function getAppRevision() {
     }
 
     return 'rev. ' . $version;
+}
+
+function listServices(): array {
+    $services = scandir(base_path('app/Console/Services/Concurrent'));
+
+    return Arr::map(
+        array: array_values(
+            array_filter($services, function ($service) {
+                return
+                    !in_array($service, ['.', '..'])
+                    &&
+                    Str::endsWith($service, '.php');
+            })
+        ),
+        callback: function ($service) {
+            return Str::replaceLast('.php', '', $service);
+        }
+    );
 }
 
 ?>
