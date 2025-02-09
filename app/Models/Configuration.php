@@ -24,16 +24,18 @@ class Configuration extends Model
         return $config->value ?? $config->default ?? $default;
     }
 
-    public static function set($key, $value): bool {
+    public static function set($key, $value, $overrideWriteable = false): bool {
         $config = self::where('key', $key)->first();
 
         if (!$config) {
             throw new InitializationException("No such configuration");
         }
 
-        if (isset($config->writeable) && !$config->writeable) {
-            throw new InitializationException("The configuration key {$key} is not writeable");
-        }
+        if (
+            isset($config->writeable) && !$config->writeable
+            &&
+            !$overrideWriteable
+        ) { throw new InitializationException("The configuration key {$key} is not writeable"); }
 
         if ($config->type == DataType::BOOLEAN && !is_bool($value)) {
             throw new InitializationException("A boolean value is expected for this configuration key");
