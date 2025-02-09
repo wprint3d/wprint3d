@@ -4,7 +4,7 @@ namespace App\Console\Services\Concurrent\Dependencies;
 
 abstract class ConcurrentService implements ConcurrentServiceInterface {
 
-    protected $description;
+    protected $description = '';
 
     public function getDescription(): string {
         if (!trim($this->description ?? '')) {
