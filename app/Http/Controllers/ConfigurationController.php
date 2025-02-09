@@ -24,7 +24,9 @@ class ConfigurationController extends Controller
     }
 
     public function get(string $key): mixed {
-        return Configuration::get($key);
+        return response()->json(
+            Configuration::get($key)
+        );
     }
 
     public function update(string $key, Request $request): mixed {
