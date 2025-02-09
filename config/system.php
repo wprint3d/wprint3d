@@ -22,6 +22,15 @@ return [
             'description' => 'The time in seconds to block rendering recorded video files.',
             'section' => 'System'
         ],
+        'showFirstLoginHints' => [
+            'value' => true,
+            'hint' => 'Show first login hints',
+            'type' => DataType::BOOLEAN,
+            'description' => 'Whether to show first login hints.',
+            'section' => 'System',
+            'visible' => false,
+            'writeable' => false
+        ],
 
         // Connection
         'streamMaxLengthBytes' => [

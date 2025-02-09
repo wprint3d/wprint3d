@@ -72,8 +72,8 @@ Route::middleware([ 'auth:sanctum', 'password.ensure_changed' ])->group(function
     });
 
     Route::prefix('/config')->group(function () {
-        Route::get('/',             [ ConfigurationController::class, 'index'   ]);
-        Route::get('/{key}',        [ ConfigurationController::class, 'get'     ]);
+        Route::get('/',             [ ConfigurationController::class, 'index'   ])->withoutMiddleware([ 'auth:sanctum', 'password.ensure_changed' ]);
+        Route::get('/{key}',        [ ConfigurationController::class, 'get'     ])->withoutMiddleware([ 'auth:sanctum', 'password.ensure_changed' ]);
         Route::put('/{key}',        [ ConfigurationController::class, 'update'  ]);
     });
 

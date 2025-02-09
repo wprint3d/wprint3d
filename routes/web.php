@@ -1,5 +1,8 @@
 <?php
 
+use App\Console\Commands\CreateSampleUser;
+
+use App\Models\Configuration;
 use App\Models\Printer;
 use App\Models\User;
 
@@ -52,6 +55,14 @@ Route::middleware('web')->group(function () {
 
         if ($printers->count() > 0) {
             $user->setActivePrinterId( $printers->first()->_id );
+        }
+
+        if ($user->name === CreateSampleUser::SAMPLE_USER_NAME) {
+            Configuration::set(
+                key:    'showFirstLoginHints',
+                value:  false,
+                overrideWriteable: true
+            );
         }
     })->name('login');
 
