@@ -85,26 +85,6 @@ services:
     depends_on:
       - redis
       - mongo
-  serial-scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    restart: always
-    logging:
-      driver: local
-      options:
-        max-size: "16m"
-        mode: non-blocking
-    privileged: true
-    environment:
-      - ROLE=serial-scheduler
-    volumes:
-      - .:/var/www
-      - /dev/bus/usb:/dev/bus/usb
-      - /dev:/dev
-    depends_on:
-      - redis
-      - mongo
   mapper:
     build:
       context: .

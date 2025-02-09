@@ -188,6 +188,20 @@ return [
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
+
+        'concurrent-runner' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/concurrent-runner.log'),
+            'level' => env('LOG_LEVEL', 'info'),
+            'days' => 1,
+        ],
+
+        'printer-workers-refresh' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/printer-workers-refresh.log'),
+            'level' => env('LOG_LEVEL', 'info'),
+            'days' => 1,
+        ],
     ],
 
 ];

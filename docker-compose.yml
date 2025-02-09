@@ -73,27 +73,6 @@ services:
     depends_on:
       - redis
       - mongo
-  serial-scheduler:
-    image: wprint3d/wprint3d
-    restart: always
-    logging:
-      driver: local
-      options:
-        max-size: "16m"
-        mode: non-blocking
-    privileged: true
-    environment:
-      - ROLE=serial-scheduler
-    volumes:
-      - /dev/bus/usb:/dev/bus/usb
-      - /dev:/dev
-      - storage:/var/www/storage
-      - proxy:/etc/nginx/internal
-      - startup:/var/www/internal/startup
-      - ./wprint3d-config:/var/www/.external-configs
-    depends_on:
-      - redis
-      - mongo
   mapper:
     image: wprint3d/wprint3d
     restart: always
