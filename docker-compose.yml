@@ -5,7 +5,7 @@ services:
     logging:
       driver: local
       options:
-        max-size: "16m"
+        max-size: "1m"
         mode: non-blocking
     volumes:
       - storage:/storage
@@ -24,7 +24,7 @@ services:
     logging:
       driver: local
       options:
-        max-size: "16m"
+        max-size: "1m"
         mode: non-blocking
     privileged: true
     environment:
@@ -58,7 +58,7 @@ services:
     logging:
       driver: local
       options:
-        max-size: "16m"
+        max-size: "1m"
         mode: non-blocking
     privileged: true
     environment:
@@ -79,7 +79,7 @@ services:
     logging:
       driver: local
       options:
-        max-size: "16m"
+        max-size: "1m"
         mode: non-blocking
     privileged: true
     environment:
@@ -97,17 +97,17 @@ services:
     depends_on:
       - redis
       - mongo
-  queue:
+  concurrency-scheduler:
     image: wprint3d/wprint3d
     restart: always
     logging:
       driver: local
       options:
-        max-size: "16m"
+        max-size: "1m"
         mode: non-blocking
     privileged: true
     environment:
-      - ROLE=queue
+      - ROLE=concurrency-scheduler
       - QUEUES=default:1,broadcasts:2,prints,previews,snapshots,recordings # <queue-name>:<min-number-of-workers, default=0>
       - SLEEP=5
     volumes:
@@ -126,7 +126,7 @@ services:
     logging:
       driver: local
       options:
-        max-size: "16m"
+        max-size: "1m"
         mode: non-blocking
     environment:
       - ROLE=streamer
@@ -155,7 +155,7 @@ services:
     logging:
       driver: local
       options:
-        max-size: "16m"
+        max-size: "1m"
         mode: non-blocking
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
@@ -166,7 +166,7 @@ services:
     logging:
       driver: local
       options:
-        max-size: "16m"
+        max-size: "1m"
         mode: non-blocking
     command: mongod --quiet
     volumes:
@@ -177,7 +177,7 @@ services:
     logging:
       driver: local
       options:
-        max-size: "16m"
+        max-size: "1m"
         mode: non-blocking
 volumes:
   mongo:
