@@ -2,9 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useState }   from 'react';
 import { View, Text, StyleSheet }       from 'react-native';
 
-import { TextInput, Button, ActivityIndicator, HelperText, useTheme } from 'react-native-paper';
+import { TextInput, Button, ActivityIndicator, HelperText, useTheme, Icon } from 'react-native-paper';
 
 import Backend from '../includes/Backend';
+
+import API from '../includes/API';
 
 const Login = ({ appName, style }) => {
     const { colors } = useTheme();
@@ -51,6 +53,11 @@ const Form = ({ colors }) => {
         refetchOnWindowFocus: true
     });
 
+    const loginHintsQuery = useQuery({
+        queryKey:   [ 'login-hints' ],
+        queryFn:    () => API.get('/config/showFirstLoginHints')
+    });
+
     const loginMutation = useMutation({
         mutationKey: [ 'login' ],
         mutationFn:  ({ email, password }) => (
@@ -95,6 +102,12 @@ const Form = ({ colors }) => {
         }
     }, [ loginMutation ]);
 
+    useEffect(() => {
+        console.debug('loginHintsQuery:', loginHintsQuery);
+    }, [ loginHintsQuery.data ]);
+
+    const SHOW_LOGIN_HINTS = !!(loginHintsQuery?.data?.data);
+
     if (csrfTokenQuery.isFetching) {
         return (
             <View>
@@ -125,8 +138,11 @@ const Form = ({ colors }) => {
                 onKeyPress={handleKeyPress}
             />
 
-            <HelperText type="info">
-                The default username is <Text style={styles.textBold}>admin</Text>.
+            <HelperText type="info" style={{ marginVertical: 3 }}>
+                {SHOW_LOGIN_HINTS
+                    ? <Text>The default username is <Text style={styles.textBold}>admin</Text>.</Text>
+                    : <Text>Type your username or e-mail address.</Text>
+                }
             </HelperText>
 
             <TextInput
@@ -140,33 +156,39 @@ const Form = ({ colors }) => {
                 onKeyPress={handleKeyPress}
             />
 
-            <HelperText type="info">
-                The default passsword is <Text style={styles.textBold}>admin</Text>.
+            <HelperText type="info" style={{ marginVertical: 3 }}>
+                {SHOW_LOGIN_HINTS
+                    ? <Text>The default passsword is <Text style={styles.textBold}>admin</Text>.</Text>
+                    : <Text>Forgot your password? <Text style={styles.textBold}>Contact your administrator.</Text></Text>
+                }
             </HelperText>
 
-            {
-                loginError.length > 0
-                    ? <HelperText type="error" style={styles.centeredText}>
-                        {loginError}
-                      </HelperText>
-                    : <View></View>
+            {(loginError && loginError.length > 0) &&
+                <HelperText type="error" style={styles.centeredText}>
+                    {loginError}
+                </HelperText>
             }
 
-            <Button
-                onPress={handleLoginRequest}
-                mode="contained"
-                style={styles.formSubmitButton}
-                disabled={loginMutation.isPending}
-                loading={loginMutation.isPending}
-            >
-                <Text>
-                    {
-                        loginMutation.isPending
-                            ? 'Logging in...'
-                            : 'Submit'
-                    }
-                </Text>
-            </Button>
+            <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                <Button
+                    onPress={handleLoginRequest}
+                    mode="contained"
+                    style={styles.formSubmitButton}
+                    disabled={loginMutation.isPending}
+                    loading={loginMutation.isPending}
+                >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {!loginMutation.isPending && <Icon source='login' color={colors.onPrimary} size={16} />}
+                        <Text style={{ marginLeft: 4 }}>
+                            {
+                                loginMutation.isPending
+                                    ? 'Logging in...'
+                                    : 'Sign in'
+                            }
+                        </Text>
+                    </View>
+                </Button>
+            </View>
         </View>
     );
 };
@@ -214,7 +236,10 @@ const styles = StyleSheet.create({
         maxWidth: '100%',
         alignSelf: 'center'
     },
-    formSubmitButton: { marginTop: 10 },
+    formSubmitButton: {
+        marginTop: 10,
+        minWidth: 120
+    },
     formSubmitButtonLoaderContainer: {
         display: 'flex',
         flexDirection: 'row'
