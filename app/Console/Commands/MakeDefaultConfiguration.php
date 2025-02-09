@@ -44,8 +44,9 @@ class MakeDefaultConfiguration extends Command
             $configuration->type        = $value['type'];
             $configuration->section     = $value['section'];
             $configuration->description = $value['description'];
-            $configuration->writeable   = $value['writeable'] ?? true;
-            $configuration->enum        = $value['enum']      ?? null;
+            $configuration->visible     = $value['visible']    ?? true;
+            $configuration->writeable   = $value['writeable']  ?? true;
+            $configuration->enum        = $value['enum']       ?? null;
             $configuration->save();
 
             if (isset($configuration->_id)) {
