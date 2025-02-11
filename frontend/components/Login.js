@@ -163,7 +163,7 @@ const Form = ({ colors }) => {
                 }
             </HelperText>
 
-            {(loginError && loginError.length > 0) &&
+            {loginError.length > 0 &&
                 <HelperText type="error" style={styles.centeredText}>
                     {loginError}
                 </HelperText>
