@@ -91,7 +91,7 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
   //   );
   // }
 
-  if (getAppName.isError &&getAppName?.error?.status === 502) {
+  if (getAppName.isError && getAppName?.error?.status === 502) {
     return (
       <View style={styles.preloader}>
         <View style={styles.container}>
@@ -107,23 +107,7 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
     );
   }
 
-  if (!getAppName.isFetched || !checkLogin.isFetched) {
-    return (
-      <View style={styles.preloader}>
-        <View style={styles.container}>
-          <ActivityIndicator animating={true} />
-
-          <View style={styles.messageContainer}>
-              <Text style={messageStyle}>
-                Please wait for a while, we're still loading some assets...
-              </Text>
-          </View>
-        </View>
-      </View>
-    );
-  }
-
-  if (!getAppName.isSuccess) {
+  if (!getAppName.isSuccess && getAppName.isFetched) {
     return (
       <View style={styles.preloader}>
         <View style={styles.container}>
@@ -142,6 +126,22 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
                   If the problem persists, please <Text style={{ textDecorationLine: 'underline' }} onPress={() => Linking.openURL('https://github.com/wprint3d/wprint3d')}>create an issue on our GitHub repository</Text>.
                 </Text>
             </View>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  if (!getAppName.isFetched || !checkLogin.isFetched) {
+    return (
+      <View style={styles.preloader}>
+        <View style={styles.container}>
+          <ActivityIndicator animating={true} />
+
+          <View style={styles.messageContainer}>
+              <Text style={messageStyle}>
+                Please wait for a while, we're still loading some assets...
+              </Text>
           </View>
         </View>
       </View>
