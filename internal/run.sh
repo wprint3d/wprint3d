@@ -235,6 +235,9 @@ else
         if [[ "$ROLE" == 'server' ]]; then
             refreshDockerLog &
 
+            # Disable permissions checks for the Git repository
+            git config --global --add safe.directory /var/www;
+
             # Downloads the required dependencies if they're not already
             # present or if DEVELOPER_MODE is enabled
             if ! php artisan 2>&1 > /dev/null || [[ "${DEVELOPER_MODE}" == 'true' ]]; then
@@ -273,9 +276,6 @@ else
 
             # Discover and load plugins
             php artisan discover:plugins;
-
-            # Disable permissions checks for the Git repository
-            git config --global --add safe.directory /var/www;
 
             # If the Git repository is present, get the version from `git rev-parse`.
             if [[ -f '/var/www/.git/HEAD' ]] && [[ "${DEVELOPER_MODE}" == 'true' ]]; then
