@@ -235,6 +235,9 @@ else
         if [[ "$ROLE" == 'server' ]]; then
             refreshDockerLog &
 
+            # Reset proxy configuration
+            truncate --size 0 /var/www/proxy/internal/recordings.conf /var/www/proxy/internal/cameras.conf;
+
             # Disable permissions checks for the Git repository
             git config --global --add safe.directory /var/www;
 
