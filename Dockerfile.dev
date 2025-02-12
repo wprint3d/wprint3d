@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libjpeg-dev libbsd-dev zlib1g-dev libssl-dev libdrm-dev libexif-dev \
         libboost-program-options-dev libglib2.0-dev libavcodec-dev \
         libgstreamer-plugins-base1.0-dev libjpeg62-turbo-dev libtiff5-dev \
-        libpng-dev libavformat-dev libavutil-dev libjpeg62-turbo-dev libv4l-dev &&\
+        libpng-dev libavformat-dev libavutil-dev libjpeg62-turbo-dev libv4l-dev \
+        python3 python3-pip &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
@@ -84,7 +85,7 @@ RUN BUILD_TIME_DEPS='build-essential' &&\
 # though we're actually building "input_libcamera" into MJPG Streamer, we'll be
 # using Camera Streamer instead whenever an RPi camera is found, as it's faster
 # and more reliable.
-RUN BUILD_TIME_DEPS='build-essential cmake meson python3 python3-pip python3-jinja2 python3-ply python3-yaml xxd pkg-config' &&\
+RUN BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply python3-yaml xxd pkg-config' &&\
     apt-get update && apt-get install -y --no-install-recommends v4l-utils $BUILD_TIME_DEPS &&\
     git clone https://github.com/raspberrypi/libcamera.git --depth 1 -b v0.2.0+rpt20240215 &&\
     cd libcamera &&\
