@@ -161,13 +161,6 @@ return [
             'days' => 1,
         ],
 
-        'device-variants-updater' => [
-            'driver' => 'daily',
-            'path' => storage_path('logs/device-variants-updater.log'),
-            'level' => env('LOG_LEVEL', 'info'),
-            'days' => 1,
-        ],
-
         'video-renderer' => [
             'driver' => 'daily',
             'path' => storage_path('logs/video-renderer.log'),
