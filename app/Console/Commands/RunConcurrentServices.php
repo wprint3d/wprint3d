@@ -79,7 +79,7 @@ class RunConcurrentServices extends Command
 
         $this->info('All services started.');
 
-        $output = $parallelTasks->waitOutput();
+        $output = $parallelTasks->waitOutput(sleepTimeout: 1000000); // 1 second
 
         foreach ($output as $service => $serviceOutput) {
             if (!($serviceOutput instanceof WorkerExceptionMessage)) { continue; }
