@@ -22,7 +22,7 @@ COPY --from=docker:dind /usr/local/bin/docker /usr/local/bin/
 # Install the Composer PHP package manager
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
-# PHP extensions: MongoDB + Redis + DIO (Direct I/O) + Swoole 5.0.3
+# PHP extensions: MongoDB + Redis + DIO (Direct I/O) + OpenSwooole + Memcached
 RUN BUILD_TIME_DEPS='build-essential' &&\
     apt-get update && apt-get install -y --no-install-recommends $BUILD_TIME_DEPS &&\
     pecl install -f --onlyreqdeps --nobuild mongodb         &&\
@@ -43,12 +43,12 @@ RUN BUILD_TIME_DEPS='build-essential' &&\
     ./configure                                             &&\
     make -j$(nproc --all) && make install                   &&\
     cd / && rm -rf "$(pecl config-get temp_dir)/dio"        &&\
-    pecl install -f --onlyreqdeps --nobuild swoole          &&\
-    cd "$(pecl config-get temp_dir)/swoole"                 &&\
+    pecl install -f --onlyreqdeps --nobuild openswoole      &&\
+    cd "$(pecl config-get temp_dir)/openswoole"             &&\
     phpize                                                  &&\
     ./configure                                             &&\
     make -j$(nproc --all) && make install                   &&\
-    cd / && rm -rf "$(pecl config-get temp_dir)/swoole"     &&\
+    cd / && rm -rf "$(pecl config-get temp_dir)/openswoole" &&\
     pecl install -f --onlyreqdeps --nobuild memcached       &&\
     cd "$(pecl config-get temp_dir)/memcached"              &&\
     phpize                                                  &&\
@@ -60,8 +60,8 @@ RUN BUILD_TIME_DEPS='build-essential' &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
-# Enable PECL-based extensions: MongoDB + Redis + DIO (Direct I/O) + Swoole + Memcached
-RUN docker-php-ext-enable mongodb redis dio swoole memcached
+# Enable PECL-based extensions: MongoDB + Redis + DIO (Direct I/O) + OpenSwoole + Memcached
+RUN docker-php-ext-enable mongodb redis dio openswoole memcached
 
 # Install several officially supported PHP extensions: cURL, XML, ZIP, DOM, MySQLi, PDO MySQL, Sockets, PCNTL and Intl
 RUN BUILD_TIME_DEPS='build-essential' &&\
