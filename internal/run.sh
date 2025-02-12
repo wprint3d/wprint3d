@@ -382,8 +382,8 @@ else
             wait-for-it backend:6001 -t 0; # WebSocket server
 
             # Try to recognize a printer within them before enabling the udev monitor
-            php artisan map:serial-printers;
-            php artisan map:hardware-cameras;
+            php artisan map:serial-printers     &
+            php artisan map:hardware-cameras    &
 
             IFS=$'\n';
 
