@@ -14,14 +14,7 @@ return [
     | not explicitly specified when executing a given caching function.
     |
     */
-
-    // If Laravel Octane is enabled, we'll use its faster cache instead.
-    'default' =>
-        env('OCTANE_ENABLED')
-        &&
-        isset($_SERVER['LARAVEL_OCTANE']) && ((int)$_SERVER['LARAVEL_OCTANE'] === 1)
-            ? 'octane'
-            : env('CACHE_DRIVER', 'memcached'),
+    'default' => env('CACHE_DRIVER', 'memcached'),
 
     /*
     |--------------------------------------------------------------------------
