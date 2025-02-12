@@ -352,7 +352,7 @@ else
 
             if [ "$(php artisan get:env OCTANE_ENABLED)" == 'true' ]; then
                 echo 'Starting Octane web server...';
-                php artisan octane:start --host 0.0.0.0 --port 80 --watch;
+                php artisan octane:start --host 0.0.0.0 --port 80;
             else
                 echo 'Starting Artisan web server...';
                 php artisan serve        --host 0.0.0.0 --port 80;
