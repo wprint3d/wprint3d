@@ -416,7 +416,7 @@ else
 
                                 LABEL=$(lsusb -d "$VENDOR_PRODUCT" | sed 's/  */ /g' | cut -d ':' -f 3 | sed 's/.....//');
                             else
-                                echo "$DEVICE_INDEX: no label is available for this device.";
+                                echo "$NODE: no label is available for this device.";
                             fi;
                         elif printf "$NODE" | grep '/sys/firmware/devicetree' > /dev/null; then
                             VENDOR_PRODUCT=$(cat "$NODE"/compatible);
