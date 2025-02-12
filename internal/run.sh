@@ -42,6 +42,11 @@ generateSecrets() {
     if [[ -f '/var/www/.env' && -s '/var/www/.env' ]]; then
         echo 'Secrets already exist, skipping generation...';
 
+        # Ensure that the OCTANE_ENABLED variable is present
+        if ! grep -q 'OCTANE_ENABLED' /var/www/.env; then
+            echo 'OCTANE_ENABLED=true' >> /var/www/.env;
+        fi;
+
         return;
     fi;
 
@@ -55,6 +60,9 @@ generateSecrets() {
 
     # Generate the application key
     echo 'APP_KEY='$(PUSHER_APP_KEY="${PUSHER_APP_KEY}" PUSHER_APP_SECRET="${PUSHER_APP_KEY}" php artisan key:generate --show) >> /tmp/.secrets;
+
+    # Enable Octane by default
+    echo 'OCTANE_ENABLED=true' >> /tmp/.secrets;
 
     # Store the secrets in the target location
     cat /tmp/.secrets > /var/www/.env;
