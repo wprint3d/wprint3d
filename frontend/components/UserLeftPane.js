@@ -50,9 +50,9 @@ export default function UserLeftPane({ isLoadingPrinter = true, printerId = null
                                 <UserPrinterTemperaturePresets  />
                                 <UserPrinterCameras             />
                                 <UserPrinterFileProgress        lastTerminalMessage={lastTerminalMessage} />
-                                <UserPrinterFileControls        printerId={printerId} connectionStatus={connectionStatus} printStatus={printStatus} />
                             </>
                         )}
+                        <UserPrinterFileControls        printerId={printerId} connectionStatus={connectionStatus} printStatus={printStatus} />
                     </>
             }
         </UserPane>
