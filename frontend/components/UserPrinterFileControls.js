@@ -321,7 +321,7 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
                                 isPaused
                                     ? <SmallButton
                                         onPress={() => resumePrintMutation.mutate()}
-                                        disabled={resumePrintMutation.isPending || isWaitingForNewStatus}
+                                        disabled={resumePrintMutation.isPending || isWaitingForNewStatus || !printerId}
                                         left={
                                             <Animated.View style={{ opacity: sharedWaitingFade }}>
                                                 <Icon source="play" color={colors.onPrimary} size={16} />
@@ -337,7 +337,7 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
                                     />
                                     : <SmallButton
                                         onPress={() => pausePrintMutation.mutate()}
-                                        disabled={resumePrintMutation.isPending  || isWaitingForNewStatus}
+                                        disabled={resumePrintMutation.isPending  || isWaitingForNewStatus || !printerId}
                                         left={<Icon source="pause" color={colors.onPrimary} size={16} />}
                                         style={{
                                             borderWidth:             0,
@@ -350,7 +350,7 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
                             )
                             : <SmallButton
                                 onPress={() => setIsRequestingStart(true)}
-                                disabled={selectedFileName === null || isWaitingForNewStatus || !printStatus || (printStatus && printStatus.hasActiveJob)}
+                                disabled={selectedFileName === null || isWaitingForNewStatus || !printStatus || (printStatus && printStatus.hasActiveJob) || !printerId}
                                 left={<Icon source="play" color={colors.onPrimary} size={16} />}
                                 style={{
                                     borderWidth:             0,
@@ -364,7 +364,7 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
 
                     <SmallButton
                         onPress={() => setIsRequestingStop(true)}
-                        disabled={!isPrinting || isWaitingForNewStatus}
+                        disabled={!isPrinting || isWaitingForNewStatus || !printerId}
                         left={<Icon source="stop" color={colors.onPrimary} size={16} />}
                         style={{
                             borderWidth:      0,
