@@ -49,9 +49,9 @@ const NavBarMenuProfileModal = ({ isVisible, setIsVisible, onDismiss, isSmallTab
                     onDismiss={doDismiss}
                     contentContainerStyle={{
                         backgroundColor: colors.elevation.level1,
-                        height: isSmallTablet ? '100%' : '75%',
-                        width:  isSmallTablet ? '100%' : '60%',
-                        maxWidth: 500,
+                        height:     isSmallTablet ? '100%' : '75%',
+                        width:      isSmallTablet ? '100%' : '60%',
+                        maxWidth:   isSmallTablet ? '100%' : 500,
                         alignSelf: 'center',
                         padding: 16,
                         overflow: 'scroll'
