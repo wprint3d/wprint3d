@@ -105,7 +105,7 @@ export default function UserPrinterPicker({ printerId, printersList }) {
             />
             {
                 (!printersListQuery.isError && !printerId) &&
-                    <View style={{ alignItems: 'center', flexGrow: 1, justifyContent: 'center', paddingVertical: 20 }}>
+                    <View style={{ alignItems: 'center', flexGrow: 1, justifyContent: 'center', paddingVertical: 80 }}>
                         <Icon source="connection" size={48} />
                         <Text style={{ paddingTop: 20, textAlign: 'center' }}>
                             To get started, plug a compatible printer and wait for a few seconds.
