@@ -309,6 +309,8 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
             queryClient.invalidateQueries({ queryKey: ['fileList'] });
             queryClient.invalidateQueries({ queryKey: ['printStatus'] });
         });
+
+        return () => { channel.stopListening('PrintJobFinished'); }
     }, [ echo, printerId ]);
 
     return (
