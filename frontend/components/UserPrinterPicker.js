@@ -8,10 +8,13 @@ import { Icon, Text, TextInput, useTheme } from "react-native-paper";
 import DropDown from "react-native-paper-dropdown";
 
 import API from "../includes/API";
+import { useEcho } from "../hooks/useEcho";
 
 export default function UserPrinterPicker({ printerId, printersList }) {
     const [ showDropDown, setShowDropDown ] = useState(false);
     const [ options,      setOptions      ] = useState([]);
+
+    const echo = useEcho();
 
     const queryClient = useQueryClient();
 
@@ -78,6 +81,30 @@ export default function UserPrinterPicker({ printerId, printersList }) {
 
         selectPrinterMutation.mutate(options[0].value);
     }, [ options ]);
+
+    useEffect(() => {
+        if (!echo) {
+            console.warn('UserPrinterPicker: Echo is not available');
+
+            return;
+        }
+
+        const channel = echo?.channel('printers-map-updated');
+
+        if (!channel) {
+            console.warn('UserPrinterPicker: the channel is not available');
+
+            return;
+        }
+
+        channel.listen('PrintersMapUpdated', event => {
+            console.debug('UserPrinterPicker: printers-map-updated', event);
+
+            queryClient.invalidateQueries({ queryKey: ['printersList'] });
+        });
+
+        return () => { channel.stopListening('PrintersMapUpdated'); };
+    }, [ echo ]);
 
     return (
         <>
