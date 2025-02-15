@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Events\RecordingRenderFinished;
 use App\Events\RecordingRenderProgress;
 
 use App\Models\User;
@@ -118,11 +117,13 @@ class RenderVideo implements ShouldQueue
         $format->on('progress', function ($video, $format, $percentage) use ($log) {
             $log->debug("{$this->fileName}: {$percentage}% completed");
 
-            RecordingRenderProgress::dispatch(
-                $this->printerId, // printerId
-                $this->fileName,  // fileName
-                $percentage       // progress
-            );
+            if ($percentage <= 99) {
+                RecordingRenderProgress::dispatch(
+                    $this->printerId, // printerId
+                    $this->fileName,  // fileName
+                    $percentage       // progress
+                );
+            }
         })->setAdditionalParameters([
             '-framerate', $recorderSettings['framerate'],
             '-r',         $recorderSettings['framerate']
@@ -192,6 +193,10 @@ class RenderVideo implements ShouldQueue
             ) { Storage::delete( $file ); }
         }
 
-        RecordingRenderFinished::dispatch( $this->printerId );
+        RecordingRenderProgress::dispatch(
+            $this->printerId, // printerId
+            $this->fileName,  // fileName
+            100               // progress
+        );
     }
 }
