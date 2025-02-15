@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { Button, Card, Icon, Text, useTheme } from "react-native-paper";
+import { Banner, Button, Card, Icon, ProgressBar, Text, useTheme } from "react-native-paper";
 import API from "../includes/API";
 import UserPrinterRecordingItem from "./UserPrinterRecordingItem";
 import SimpleDialog from "./SimpleDialog";
@@ -9,8 +9,11 @@ import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import TextBold from "./TextBold";
 import VideoPlayer from "./modules/VideoPlayer";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
+import { useEcho } from "../hooks/useEcho";
 
 const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop }) => {
+    const echo = useEcho();
+
     const { enqueueSnackbar } = useSnackbar();
 
     const [ recordings, setRecordings ] = useState([]);
@@ -19,6 +22,8 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
 
     const [ deleteDialogVisible, setDeleteDialogVisible ] = useState(false);
     const [ playerDialogVisible, setPlayerDialogVisible ] = useState(false);
+
+    const [ lastRenderEvent, setLastRenderEvent ] = useState(null);
 
     const TOP_CENTER_OFFSET = 64; // px
 
@@ -84,12 +89,47 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
         setSelectedRecording(null);
     }, [ deleteDialogVisible, playerDialogVisible ]);
 
+    useEffect(() => {
+        if (!echo) {
+            console.warn('UserPrinterRecordings: echo is not initialized');
+
+            return;
+        }
+
+        const channel = echo.private(`job-progress.${printerId}`);
+
+        channel.listen('RecordingRenderProgress', (event) => {
+            console.debug('UserPrinterRecordings: RecordingRenderProgress:', event);
+
+            setLastRenderEvent(event);
+        });
+
+        return () => { channel.stopListening('RecordingRenderProgress'); };
+    }, [ echo ]);
+
+    useEffect(() => {
+        if (lastRenderEvent === null) { return; }
+
+        if (lastRenderEvent.progress === 100) {
+            setLastRenderEvent(null);
+
+            recordingsQuery.refetch();
+        }
+    }, [ lastRenderEvent ]);
+
     if (recordingsQuery.isLoading) {
         return <UserPaneLoadingIndicator message={'Loading recordings'} />;
     }
 
     return (
         <View style={{ padding: 10, height: '100%', overflow: 'hidden' }}>
+            <Banner
+                visible={lastRenderEvent !== null}
+                icon={({size}) => (<Icon source="progress-wrench" size={size} />)}
+            >
+                Rendering <TextBold>{lastRenderEvent?.fileName}</TextBold> ({lastRenderEvent?.progress}% complete)...
+                <ProgressBar progress={lastRenderEvent?.progress / 100} />
+            </Banner>
             {recordings.map((recording, index) => (
                 <UserPrinterRecordingItem
                     key={index}
