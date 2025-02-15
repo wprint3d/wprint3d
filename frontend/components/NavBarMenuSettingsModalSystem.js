@@ -95,7 +95,7 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
         setSettings(nextSettings);
 
         setEnumNames(
-            Object.keys(nextSettings).filter((key) => nextSettings[key].type === DATA_TYPES.ENUM).map(
+            Object.keys(nextSettings).filter((key) => nextSettings[key].type === DATA_TYPES?.ENUM).map(
                 (key) => nextSettings[key].enum
             )
         );
