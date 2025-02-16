@@ -171,7 +171,7 @@ export default function UserPrinterFileList({
                             <Badge
                                 theme={{
                                     colors: {
-                                        error:   colors.elevation.level1,
+                                        error:   colors.elevation.level2,
                                         onError: colors.primary
                                     }
                                 }}
