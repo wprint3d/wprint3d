@@ -1,16 +1,12 @@
-FROM ubuntu:22.04
+FROM alpine
 
 # Install OS dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends curl git unzip &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/*
+RUN apk update && apk add --no-cache curl git unzip ca-certificates jq file bash
 
-# Install OpenJDK 17 JDK
-# RUN apt-get update && apt-get install -y --no-install-recommends openjdk-17-jdk &&\
-#     apt-get clean &&\
-#     rm -rf /var/lib/apt/lists/*
+# Install OpenJDK 17 JDK (uncomment if needed)
+# RUN apk add --no-cache openjdk17
 
-# Install the Android SDK command line tools
+# Install the Android SDK command line tools (uncomment if needed)
 # RUN curl -o /tmp/android-commandlinetools-linux.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip &&\
 #     cd /tmp &&\
 #     unzip /tmp/android-commandlinetools-linux.zip &&\
@@ -19,28 +15,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl git unzip 
 #     chmod +x /tmp/android/sdk/cmdline-tools/latest/bin/*
 
 # Refresh SSL certificates
-RUN rm -f /etc/ssl/certs/ca-bundle.crt &&\
-    apt-get update && apt-get reinstall -y --no-install-recommends ca-certificates &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/* &&\
-    update-ca-certificates
+RUN update-ca-certificates
 
 # Install Node.js 21.x
-RUN curl -fsSL https://deb.nodesource.com/setup_21.x | bash - &&\
-    apt-get install -y nodejs &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache nodejs npm
 
 # Install Yarn
 RUN npm install --global yarn
 
 # Install PNPM
 RUN npm install --global pnpm
-
-# Install JQ and file
-RUN apt-get update && apt-get install -y --no-install-recommends jq file &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/*
 
 # Copy the base code
 ADD . /app
@@ -51,4 +35,4 @@ WORKDIR /app
 # Install dependencies and build the frontend bundle if not in developer mode
 RUN pnpm install --force --loglevel verbose
 
-ENTRYPOINT [ "./entrypoint_dev.sh" ]
+ENTRYPOINT [ "/app/entrypoint_dev.sh" ]

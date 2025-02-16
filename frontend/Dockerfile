@@ -1,33 +1,26 @@
-FROM ubuntu:22.04
+FROM alpine
+
+# Install OS dependencies
+RUN apk update && apk add --no-cache bash
 
 # Install OpenJDK 17 JDK
-# RUN apt-get update && apt-get install -y --no-install-recommends openjdk-17-jdk &&\
-#     apt-get clean &&\
-#     rm -rf /var/lib/apt/lists/*
+# RUN apk add --no-cache openjdk17
 
 # Install the Android SDK command line tools
-# RUN curl -o /tmp/android-commandlinetools-linux.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip &&\
+# RUN wget -O /tmp/android-commandlinetools-linux.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip &&\
 #     cd /tmp &&\
 #     unzip /tmp/android-commandlinetools-linux.zip &&\
 #     mkdir -p /tmp/android/sdk/cmdline-tools &&\
 #     mv -v cmdline-tools /tmp/android/sdk/cmdline-tools/latest &&\
 #     chmod +x /tmp/android/sdk/cmdline-tools/latest/bin/*
 
-# Refresh SSL certificates
-RUN rm -f /etc/ssl/certs/ca-bundle.crt &&\
-    apt-get update && apt-get reinstall -y --no-install-recommends ca-certificates &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/* &&\
-    update-ca-certificates
-
 # Build the bundle
 RUN --mount=type=bind,src=.,target=/source,rw \
     cd /source &&\
     cp -fv public/index.production.html public/index.html                       &&\
-    apt-get update && apt-get install -y --no-install-recommends curl           &&\
-    echo "Installing Node.js 21.x..."                                           &&\
-    curl -fsSL https://deb.nodesource.com/setup_21.x | bash -                   &&\
-    apt-get install -y nodejs                                                   &&\
+    apk add --no-cache curl                                                     &&\
+    echo "Installing Node.js..."                                                &&\
+    apk add --no-cache nodejs npm                                               &&\
     echo "Installing Yarn..."                                                   &&\
     npm install --global yarn                                                   &&\
     echo "Installing PNPM..."                                                   &&\
@@ -43,10 +36,10 @@ RUN --mount=type=bind,src=.,target=/source,rw \
             /usr/bin/node /usr/bin/npm /usr/bin/pnpm /usr/bin/pnpx \
             /tmp/metro-cache /usr/local/share/.cache                            &&\
     echo "Installing HTTP server..."                                            &&\
-    apt-get install -y --no-install-recommends lighttpd                         &&\
-    apt-get remove --purge -y nodejs && apt-get autoremove -y                   &&\
-    apt-get clean                                                               &&\
-    rm -rf /var/lib/apt/lists/* /tmp/metro-*                                    &&\
+    apk add --no-cache lighttpd                                                 &&\
+    apk del curl nodejs npm                                                     &&\
+    rm -rf /var/cache/apk/* /usr/local/lib/node_modules \
+           /tmp/metro-*     /tmp/node-compile-cache                             &&\
     mkdir -p /app                                                               &&\
     cp -rf /source/dist /app/dist
 
@@ -59,4 +52,4 @@ WORKDIR /app
 # Copy the lighttpd configuration
 ADD internal/lighttpd.conf /etc/lighttpd/lighttpd.conf
 
-ENTRYPOINT [ "./entrypoint_prd.sh" ]
+ENTRYPOINT [ "/app/entrypoint_prd.sh" ]
