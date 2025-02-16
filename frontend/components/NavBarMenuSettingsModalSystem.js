@@ -201,16 +201,15 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
                 ))
             }
 
-            {hasChanges && (
-                <FAB
-                    icon="content-save"
-                    label="Save changes"
-                    onPress={saveChanges}
-                    loading={saveChangeMutation.isPending}
-                    disabled={saveChangeMutation.isPending}
-                    style={{ position: 'fixed', bottom: 24, right: 48, margin: 16 }}
-                />
-            )}
+            <FAB
+                visible={hasChanges}
+                icon="content-save"
+                label="Save changes"
+                onPress={saveChanges}
+                loading={saveChangeMutation.isPending}
+                disabled={saveChangeMutation.isPending}
+                style={{ position: 'fixed', bottom: 24, right: 48, margin: 16 }}
+            />
         </>
     );
 }

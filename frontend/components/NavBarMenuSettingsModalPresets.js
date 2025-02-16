@@ -6,7 +6,7 @@ import API from "../includes/API";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import NavBarMenuSettingsModalPlaceholderItem from "./NavBarMenuSettingsModalPlaceholderItem";
 import NavBarMenuSettingsModalPresetsEditDialog from "./NavBarMenuSettingsModalPresetsEditDialog";
-import { Button, FAB } from "react-native-paper";
+import { Button, FAB, Portal } from "react-native-paper";
 
 const NavBarMenuSettingsModalPresets = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
     const materialsList = useQuery({
@@ -78,22 +78,31 @@ const NavBarMenuSettingsModalPresets = ({ isSmallTablet, isSmallLaptop, enqueueS
                                 ))
                             }
                         </View>
-
-                        <FAB
-                            icon="plus"
-                            label="Add preset"
-                            variant="primary"
-                            style={{
-                                position: 'fixed',
-                                margin: 16,
-                                right: 48,
-                                bottom: 32
-                            }}
-                            onPress={() => setShowEditDialog(true)}
-                        />
                     </View>
                 )
             }
+
+            <Portal>
+                <FAB
+                    icon="plus"
+                    visible={
+                        materials.length !== 0 && !materialsList.isFetching
+                        &&
+                        !showEditDialog
+                    }
+                    label="Add preset"
+                    variant="primary"
+                    style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        right: 0,
+                        marginVertical:     isSmallTablet ? 32 : 64,
+                        marginHorizontal:   isSmallTablet ? 32 : 80
+                    }}
+                    onPress={() => setShowEditDialog(true)}
+                />
+            </Portal>
+
             <NavBarMenuSettingsModalPresetsEditDialog setVisible={setShowEditDialog} visible={showEditDialog} material={selectedMaterial} />
         </>
     );
