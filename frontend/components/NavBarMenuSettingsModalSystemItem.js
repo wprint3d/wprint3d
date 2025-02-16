@@ -26,9 +26,7 @@ const NavBarMenuSettingsModalSystemItem = ({ setting, dataTypes, isSmallTablet, 
             nextValue = parseInt(nextValue);
         } else if (setting.type === dataTypes.FLOAT) {
             nextValue = parseFloat(nextValue);
-        } else if (setting.type === dataTypes.BOOLEAN) {
-            nextValue = nextValue === 'true';
-        } else {
+        } else if (setting.type !== dataTypes.BOOLEAN) {
             nextValue = nextValue.toString();
         }
 
