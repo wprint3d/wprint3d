@@ -13,8 +13,14 @@ import NavBarMenuSettingsModalAbout from "./NavBarMenuSettingsModalAbout";
 import BackButton from "./modules/BackButton";
 import { useQuery } from "@tanstack/react-query";
 import API from "../includes/API";
+import NavBarMenuSettingsModalDeveloper from "./NavBarMenuSettingsModalDeveloper";
 
 const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSmallLaptop }) => {
+    const developerModeQuery = useQuery({
+        queryKey:   ['developerMode'],
+        queryFn:    () => API.get('/config/developerMode'),
+    });
+
     const theme = useTheme();
 
     const { enqueueSnackbar } = useSnackbar();
@@ -91,6 +97,13 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
                                     <NavBarMenuSettingsModalUsers isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
                                 </Wrapper>
                             </TabScreen>
+                            {developerModeQuery?.data?.data === true && (
+                                <TabScreen label="Developer" icon="code-tags">
+                                    <Wrapper style={{ flexShrink: 1, overflow: 'scroll' }}>
+                                        <NavBarMenuSettingsModalDeveloper isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                    </Wrapper>
+                                </TabScreen>
+                            )}
                             <TabScreen label="About" icon="information">
                                 <Wrapper>
                                     <NavBarMenuSettingsModalAbout isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />

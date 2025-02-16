@@ -3,8 +3,8 @@
         "white": "rgb(255, 255, 255)",
         "primary": "rgb(79, 88, 99)",
         "onPrimary": "rgb(255, 255, 255)",
-        "primaryContainer": "rgb(211, 222, 249)",
-        "onPrimaryContainer": "rgb(78, 78, 78)",
+        "primaryContainer": "rgb(79, 88, 99)",
+        "onPrimaryContainer": "rgb(255, 255, 255)",
         "secondary": "rgb(95, 120, 134)",
         "onSecondary": "rgb(255, 255, 255)",
         "secondaryContainer": "rgb(227, 227, 227)",
@@ -37,7 +37,7 @@
         "elevation": {
             "level0": "transparent",
             "level1": "rgb(252, 252, 252)",
-            "level2": "rgb(241, 242, 244)",
+            "level2": "rgb(242, 242, 242)",
             "level3": "rgb(241, 242, 244)",
             "level4": "rgb(214, 214, 214)",
             "level5": "rgb(217, 217, 217)"

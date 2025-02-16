@@ -1,6 +1,6 @@
-import { useIsFetching, useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Button, FAB, List, Text, TextInput } from "react-native-paper"
+import { FAB, List } from "react-native-paper"
 import API from "../includes/API";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import NavBarMenuSettingsModalSystemItem from "./NavBarMenuSettingsModalSystemItem";
@@ -11,6 +11,8 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
           [ hasChanges,   setHasChanges   ] = useState(false),
           [ enumNames,    setEnumNames    ] = useState([]),
           [ enumOptions,  setEnumOptions  ] = useState({});
+
+    const queryClient = useQueryClient();
 
     const dataTypesList = useQuery({
         queryKey: ['dataTypes'],
@@ -46,6 +48,8 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
                     value:        settings[key].value
                 }
             });
+
+            queryClient.invalidateQueries({ queryKey: ['developerMode'] });
         },
         onError: (error, key) => {
             console.error('NavBarMenuSettingsModalSystem: saveChangeMutation: onError:', error, key);
