@@ -1,25 +1,19 @@
 <?php
 
-use App\Enums\ControlDirection;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\CameraController;
 use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\FilesController;
+use App\Http\Controllers\LoggingController;
 use App\Http\Controllers\PrinterController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UsersController;
-use App\Models\Camera;
-use App\Models\Configuration;
-use App\Models\DeviceVariant;
-use App\Models\Material;
-use App\Models\Printer;
-use App\Rules\IsValidObjectID;
-use Illuminate\Http\Request;
 
-use Illuminate\Support\Facades\Auth;
+use App\Models\DeviceVariant;
+
 use Illuminate\Support\Facades\Route;
-use MongoDB\BSON\ObjectId;
+
 use Symfony\Component\HttpFoundation\Response;
 
 /*
@@ -75,6 +69,19 @@ Route::middleware([ 'auth:sanctum', 'password.ensure_changed' ])->group(function
         Route::get('/',             [ ConfigurationController::class, 'index'   ])->withoutMiddleware([ 'auth:sanctum', 'password.ensure_changed' ]);
         Route::get('/{key}',        [ ConfigurationController::class, 'get'     ])->withoutMiddleware([ 'auth:sanctum', 'password.ensure_changed' ]);
         Route::put('/{key}',        [ ConfigurationController::class, 'update'  ]);
+    });
+
+    Route::middleware(['auth.ensure_admin'])->group(function () {
+        Route::prefix('/developer')->group(function () {
+            Route::prefix('/logs')->group(function () {
+                Route::get('/zip',      [ LoggingController::class, 'zip'    ]);
+
+                Route::get('/{id}',     [ LoggingController::class, 'get'    ]);
+
+                Route::get('/',         [ LoggingController::class, 'index'  ]);
+                Route::delete('/',      [ LoggingController::class, 'delete' ]);
+            });
+        });
     });
 
     Route::get('/recorder/options', [ ConfigurationController::class, 'recorderOptions' ]);
