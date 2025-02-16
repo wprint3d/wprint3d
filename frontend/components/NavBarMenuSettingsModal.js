@@ -11,6 +11,8 @@ import NavBarMenuSettingsModalSystem from "./NavBarMenuSettingsModalSystem";
 import NavBarMenuSettingsModalUsers from "./NavBarMenuSettingsModalUsers";
 import NavBarMenuSettingsModalAbout from "./NavBarMenuSettingsModalAbout";
 import BackButton from "./modules/BackButton";
+import { useQuery } from "@tanstack/react-query";
+import API from "../includes/API";
 
 const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSmallLaptop }) => {
     const theme = useTheme();
@@ -21,8 +23,8 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
         setIsVisible(false);
     };
 
-    const Wrapper = ({ children }) => (
-        <View style={{ width: '100%', flexGrow: 1, maxWidth: 1400, alignSelf: 'center' }}>
+    const Wrapper = ({ children, style = {} }) => (
+        <View style={[{ width: '100%', flexGrow: 1, maxWidth: 1400, alignSelf: 'center' }, style]}>
             {children}
         </View>
     );
@@ -38,7 +40,8 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
                         height: (isSmallLaptop || isSmallTablet) ? '100%' : '95%',
                         width:  (isSmallLaptop || isSmallTablet) ? '100%' : '95%',
                         alignSelf: 'center',
-                        padding: 16,
+                        paddingVertical: 16,
+                        paddingHorizontal: isSmallTablet ? 4 : 16,
                         overflow: 'scroll'
                     }}
                 >

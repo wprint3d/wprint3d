@@ -4,7 +4,7 @@ const BackButton = ({ onPress }) => (
     <Button onPress={onPress} style={{
         position: "absolute",
         top: 20,
-        left: 18,
+        left: 12,
         zIndex: 99999
     }}>
         <Icon source="arrow-left" size={20} />
