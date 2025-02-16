@@ -1,4 +1,5 @@
 {
+    "dark": true,
     "colors": {
         "white": "rgb(255, 255, 255)",
         "primary": "rgb(203, 203, 203)",
