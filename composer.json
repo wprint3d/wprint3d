@@ -16,6 +16,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10",
         "league/csv": "^9.21",
+        "maennchen/zipstream-php": "^3.1",
         "martbock/laravel-diceware": "^2.1",
         "mongodb/laravel-mongodb": "^4.0",
         "n-hor/pcntl-parallel": "*",
