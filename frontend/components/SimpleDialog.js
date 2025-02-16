@@ -1,6 +1,6 @@
 import { Dialog, Portal, Text } from "react-native-paper";
 
-export default function SimpleDialog({ visible, setVisible, title, content, actions, left = null, style = { maxWidth: 800 }, onDismiss = null }) {
+export default function SimpleDialog({ visible, setVisible = () => {}, title, content, actions, left = null, style = { maxWidth: 800 }, onDismiss = null }) {
   const hideDialog = () => setVisible(false);
 
   return (
