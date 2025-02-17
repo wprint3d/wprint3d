@@ -257,7 +257,7 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
                     >
                         Path
                     </DataTable.Title>
-                    <DataTable.Title style={{ flex: 'none', minWidth: 160 }}>
+                    <DataTable.Title style={{ flex: 'none', minWidth: 160, justifyContent: 'center' }}>
                         Actions
                     </DataTable.Title>
                 </DataTable.Header>
