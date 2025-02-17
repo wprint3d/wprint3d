@@ -49,40 +49,43 @@ const NavBarMenuSettingsModalPrinters = ({ isSmallTablet, isSmallLaptop, enqueue
         );
     }
 
-    return [
-        printersList.isFetching && !printers.length
-            ? <UserPaneLoadingIndicator key={-1} message={`Loading printers list...`} />
-            : (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                    {
-                        printers?.map(printer => {
-                            console.debug('NavBarMenuSettingsModalPrinters: printer:', printer);
+    return (
+        <>
+        {
+            printersList.isFetching && !printers.length
+                ? <UserPaneLoadingIndicator key={-1} message={`Loading printers list...`} />
+                : (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                        {
+                            printers?.map(printer => {
+                                console.debug('NavBarMenuSettingsModalPrinters: printer:', printer);
 
-                            return (
-                                <NavbarMenuSettingsModalPrintersItem
-                                    key={printer._id}
-                                    printer={printer}
-                                    isSmallTablet={isSmallTablet}
-                                    isSmallLaptop={isSmallLaptop}
-                                    enqueueSnackbar={enqueueSnackbar}
-                                    handleSettingsModal={handleSettingsModal}
-                                />
-                            );
-                        })
-                    }
-                </View>
-            ),
-
-        printer && (
+                                return (
+                                    <NavbarMenuSettingsModalPrintersItem
+                                        key={printer._id}
+                                        printer={printer}
+                                        isSmallTablet={isSmallTablet}
+                                        isSmallLaptop={isSmallLaptop}
+                                        enqueueSnackbar={enqueueSnackbar}
+                                        handleSettingsModal={handleSettingsModal}
+                                    />
+                                );
+                            })
+                        }
+                    </View>
+                )
+        }
+        {printer && (
             <PrinterSettingsModal
-                key={printer._id}
+                key={`printer-settings-modal-${printer._id ?? 'new'}`}
                 isVisible={showSettingsModal}
                 setIsVisible={setShowSettingsModal}
                 isSmallTablet={isSmallTablet}
                 printer={printer}
             />
-        )
-    ];
+        )}
+        </>
+    );
 }
 
 export default NavBarMenuSettingsModalPrinters;
