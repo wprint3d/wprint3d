@@ -38,6 +38,7 @@ services:
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
+      - ./docker-compose.yml:/var/www/docker-compose.yml
     tmpfs:
       - /tmp
     depends_on:
