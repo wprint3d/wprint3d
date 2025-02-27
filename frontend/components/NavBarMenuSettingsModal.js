@@ -11,11 +11,14 @@ import NavBarMenuSettingsModalSystem from "./NavBarMenuSettingsModalSystem";
 import NavBarMenuSettingsModalUsers from "./NavBarMenuSettingsModalUsers";
 import NavBarMenuSettingsModalAbout from "./NavBarMenuSettingsModalAbout";
 import BackButton from "./modules/BackButton";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import API from "../includes/API";
 import NavBarMenuSettingsModalDeveloper from "./NavBarMenuSettingsModalDeveloper";
+import NavBarMenuSystemUpdater from "./NavBarMenuSystemUpdater";
 
 const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSmallLaptop }) => {
+    const queryClient = useQueryClient();
+
     const developerModeQuery = useQuery({
         queryKey:   ['developerMode'],
         queryFn:    () => API.get('/config/developerMode'),
@@ -24,6 +27,34 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
     const theme = useTheme();
 
     const { enqueueSnackbar } = useSnackbar();
+
+    const checkForUpdatesMutation = useMutation({
+        mutationFn: () => API.post('/app/update/check'),
+        onSuccess: (response) => {
+            console.debug('checkForUpdatesMutation', response);
+
+            const updatableImages = response?.data;
+
+            if (!updatableImages || updatableImages.length === 0) {
+                enqueueSnackbar({
+                    message: 'No updates found.',
+                    variant: 'info',
+                    action:  { label: 'Got it' }
+                });
+
+                return;
+            }
+
+            queryClient.invalidateQueries({ queryKey: ['updateStatus'] });
+        },
+        onError: (error) => {
+            enqueueSnackbar({
+                message: 'An error occurred while checking for updates: ' + (error?.response?.data?.message || error.message),
+                variant: 'error',
+                action:  { label: 'Got it' }
+            });
+        }
+    });
 
     const doDismiss = () => {
         setIsVisible(false);
@@ -52,6 +83,9 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
                     }}
                 >
                     {(isSmallLaptop || isSmallTablet) && <BackButton onPress={doDismiss} />}
+
+                    <NavBarMenuSystemUpdater enqueueSnackbar={enqueueSnackbar} checkForUpdatesMutation={checkForUpdatesMutation} />
+
                     <TabsProvider defaultIndex={0}>
                         <Tabs
                             style={{
@@ -89,7 +123,12 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
                             </TabScreen>
                             <TabScreen label="System" icon="cog">
                                 <Wrapper>
-                                    <NavBarMenuSettingsModalSystem isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
+                                    <NavBarMenuSettingsModalSystem
+                                        isSmallTablet={isSmallTablet}
+                                        isSmallLaptop={isSmallLaptop}
+                                        enqueueSnackbar={enqueueSnackbar}
+                                        checkForUpdatesMutation={checkForUpdatesMutation}
+                                    />
                                 </Wrapper>
                             </TabScreen>
                             <TabScreen label="Users" icon="account">

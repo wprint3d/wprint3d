@@ -1,16 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { FAB, List } from "react-native-paper"
+import { Button, FAB, Icon, List, Portal, Text, useTheme } from "react-native-paper"
 import API from "../includes/API";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import NavBarMenuSettingsModalSystemItem from "./NavBarMenuSettingsModalSystemItem";
 import { InteractionManager, View } from "react-native";
+import SimpleDialog from "./SimpleDialog";
+import { useEcho } from "../hooks/useEcho";
+import NavBarMenuSystemUpdater from "./NavBarMenuSystemUpdater";
 
-const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
+const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar, checkForUpdatesMutation }) => {
+    const theme = useTheme();
+
     const [ settings,     setSettings     ] = useState({}),
           [ hasChanges,   setHasChanges   ] = useState(false),
           [ enumNames,    setEnumNames    ] = useState([]),
-          [ enumOptions,  setEnumOptions  ] = useState({});
+          [ enumOptions,  setEnumOptions  ] = useState({}),
+          [ isFabOpen,    setIsFabOpen    ] = useState(false);
 
     const queryClient = useQueryClient();
 
@@ -205,15 +211,74 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
                 ))
             }
 
-            <FAB
-                visible={hasChanges}
-                icon="content-save"
-                label="Save changes"
-                onPress={saveChanges}
-                loading={saveChangeMutation.isPending}
-                disabled={saveChangeMutation.isPending}
-                style={{ position: 'fixed', bottom: 24, right: 48, margin: 16 }}
-            />
+            <Portal>
+                <FAB.Group
+                    open={isFabOpen}
+                    visible={true}
+                    icon={isFabOpen ? 'close' : 'plus'}
+                    label='Options'
+                    actions={[
+                        {
+                            icon: 'update',
+                            style: {
+                                backgroundColor:
+                                    theme.dark
+                                        ? theme.colors.onPrimary
+                                        : theme.colors.primary
+                            },
+                            label: 'Check for updates',
+                            onPress: () => {
+                                console.debug('Check for updates');
+
+                                setIsFabOpen(false);
+
+                                checkForUpdatesMutation.mutate();
+                            }
+                        },
+                        {
+                            icon: 'content-save',
+                            style: {
+                                backgroundColor:
+                                    theme.dark
+                                        ? theme.colors.onPrimary
+                                        : theme.colors.primary
+                            },
+                            label: 'Save changes',
+                            onPress: () => {
+                                console.debug('Save changes');
+
+                                if (!hasChanges || saveChangeMutation.isPending) {
+                                    if (!hasChanges) {
+                                        enqueueSnackbar({
+                                            message: 'Nothing to do!',
+                                            variant: 'info',
+                                            action:  { label: 'Got it' }
+                                        });
+                                    }
+
+                                    return;
+                                }
+
+                                setIsFabOpen(false);
+
+                                saveChanges();
+                            },
+                        }
+                    ]}
+                    onStateChange={({ open }) => {
+                        console.debug('FAB.Group: onStateChange', open);
+
+                        setIsFabOpen(open);
+                    }}
+                    backdropColor={
+                        theme.dark
+                            ? "rgba(0, 0, 0, 0.5)"
+                            : "rgba(190, 190, 190, 0.5)"
+                    }
+                    onPress={() => setIsFabOpen(!isFabOpen)}
+                    style={{ padding: isSmallTablet ? 16 : 64 }}
+                />
+            </Portal>
         </>
     );
 }

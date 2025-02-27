@@ -16,6 +16,7 @@
     "@react-native-community/slider": "4.5.5",
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",
+    "@ronradtke/react-native-markdown-display": "^8.1.0",
     "@tanstack/react-query": "^5.28.6",
     "axios": "^1.6.8",
     "babel-plugin-react-compiler": "^19.0.0-beta-27714ef-20250124",

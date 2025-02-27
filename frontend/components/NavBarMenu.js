@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 
 import { useWindowDimensions, View } from 'react-native';
-import { Button, Menu, Divider, PaperProvider, Appbar, Text, useTheme, Icon } from 'react-native-paper';
+import { Button, Menu, Divider, PaperProvider, Appbar, Text, useTheme, Icon, IconButton, Tooltip, Portal, List, Badge } from 'react-native-paper';
 import NavBarMenuSettingsModal from './NavBarMenuSettingsModal';
 import NavBarMenuProfileModal from './NavBarMenuProfileModal';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import API from '../includes/API';
 import { useSnackbar } from 'react-native-paper-snackbar-stack';
 import SimpleDialog from './SimpleDialog';
+import NotificationsCenter from './modules/NotificationsCenter';
+import { useEcho } from '../hooks/useEcho';
 
-export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, setColorScheme }) {
+export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, setColorScheme, headerHeight, enqueueSnackbar = () => {} }) {
   const { colors } = useTheme();
 
   const window = useWindowDimensions();
-
-  const enqueueSnackbar = useSnackbar();
 
   const queryClient = useQueryClient();
 
@@ -58,6 +58,8 @@ export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, 
 
   return (
     <>
+      <NotificationsCenter isSmallTablet={isSmallTablet} headerHeight={headerHeight} enqueueSnackbar={enqueueSnackbar} />
+
       {isSmallTablet ?
         (
           <Menu

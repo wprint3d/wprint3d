@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import NavBar     from "./NavBar";
 import UserLayout from "./UserLayout";
 import { useWindowDimensions } from "react-native";
+import { useSnackbar } from "react-native-paper-snackbar-stack";
 
 export default function Main({ appName, colorScheme, setColorScheme }) {
     const [ navbarHeight, setNavbarHeight ] = useState(0);
+
+    const { enqueueSnackbar } = useSnackbar();
 
     const windowWidth = useWindowDimensions().width;
 
@@ -24,6 +27,7 @@ export default function Main({ appName, colorScheme, setColorScheme }) {
                 isSmallLaptop={IS_SMALL_LAPTOP}
                 colorScheme={colorScheme}
                 setColorScheme={setColorScheme}
+                enqueueSnackbar={enqueueSnackbar}
             />
 
             <UserLayout
