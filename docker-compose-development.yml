@@ -39,8 +39,10 @@ services:
     environment:
       - ROLE=server
       - DEVELOPER_MODE=true
+      - COMPOSE_DIR=${PWD}
     volumes:
       - .:/var/www
+      - ${PWD}:${PWD}
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /var/run/docker.sock:/var/run/docker.sock
@@ -80,6 +82,7 @@ services:
       - ROLE=scheduler
     volumes:
       - .:/var/www
+      - ${PWD}:${PWD}
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
@@ -100,6 +103,7 @@ services:
       - ROLE=mapper
     volumes:
       - .:/var/www
+      - ${PWD}:${PWD}
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /sys/class:/sys/class
@@ -125,6 +129,7 @@ services:
       - SLEEP=5
     volumes:
       - .:/var/www
+      - ${PWD}:${PWD}
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
@@ -147,6 +152,7 @@ services:
     privileged: true
     volumes:
       - .:/var/www
+      - ${PWD}:${PWD}
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /sys/class:/sys/class
@@ -203,6 +209,7 @@ services:
       - ROLE=documentation-generator
     volumes:
       - .:/var/www
+      - ${PWD}:${PWD}
     ports:
       - 30000:30000
 volumes:

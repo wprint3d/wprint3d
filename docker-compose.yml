@@ -29,6 +29,7 @@ services:
     privileged: true
     environment:
       - ROLE=server
+      - COMPOSE_DIR=${PWD}
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
@@ -38,7 +39,7 @@ services:
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
-      - ./docker-compose.yml:/var/www/docker-compose.yml
+      - ${PWD}:${PWD}
     tmpfs:
       - /tmp
     depends_on:
@@ -64,6 +65,7 @@ services:
     privileged: true
     environment:
       - ROLE=scheduler
+      - COMPOSE_DIR=${PWD}
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
@@ -71,6 +73,7 @@ services:
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
+      - ${PWD}:${PWD}
     depends_on:
       - redis
       - mongo
@@ -85,6 +88,7 @@ services:
     privileged: true
     environment:
       - ROLE=mapper
+      - COMPOSE_DIR=${PWD}
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
@@ -95,6 +99,7 @@ services:
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
+      - ${PWD}:${PWD}
     depends_on:
       - redis
       - mongo
@@ -109,6 +114,7 @@ services:
     privileged: true
     environment:
       - ROLE=concurrency-scheduler
+      - COMPOSE_DIR=${PWD}
       - QUEUES=default:1,broadcasts:2,prints,previews,snapshots,recordings # <queue-name>:<min-number-of-workers, default=0>
       - SLEEP=5
     volumes:
@@ -118,6 +124,7 @@ services:
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
+      - ${PWD}:${PWD}
     depends_on:
       - redis
       - mongo
@@ -131,6 +138,7 @@ services:
         mode: non-blocking
     environment:
       - ROLE=streamer
+      - COMPOSE_DIR=${PWD}
       - PORT_SCAN_START=60000
       - PORT_SCAN_END=60016
     privileged: true
@@ -145,6 +153,7 @@ services:
       - proxy:/etc/nginx/internal
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
+      - ${PWD}:${PWD}
     depends_on:
       - redis
       - mongo

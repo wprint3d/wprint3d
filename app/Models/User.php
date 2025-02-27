@@ -6,9 +6,9 @@ namespace App\Models;
 
 use App\Contracts\Auth\AuthenticatableUser;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\Notifiable;
 
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;

@@ -6,7 +6,7 @@ SHELL ["/bin/bash", "-c"]
 RUN apt-get update && apt-get install -y --no-install-recommends \
         coreutils git curl redis-tools inotify-tools gnupg inetutils-ping \
         udev ffmpeg unzip supervisor psmisc jq uuid-runtime cron \
-        fswebcam procps usbutils libzip-dev libmemcached-dev \
+        fswebcam procps usbutils libzip-dev libmemcached-dev libyaml-dev \
         libcurl4-openssl-dev libxml2-dev libzip-dev libevent-dev \
         libjpeg-dev libbsd-dev zlib1g-dev libssl-dev libdrm-dev libexif-dev \
         libboost-program-options-dev libglib2.0-dev libavcodec-dev \
@@ -17,12 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # Install the Docker CLI client
-COPY --from=docker:dind /usr/local/bin/docker /usr/local/bin/
+COPY --from=docker:dind /usr/local/bin/docker           /usr/local/bin/
+COPY --from=docker:dind /usr/local/bin/docker-compose   /usr/local/bin/
 
 # Install the Composer PHP package manager
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
-# PHP extensions: MongoDB + Redis + DIO (Direct I/O) + OpenSwooole + Memcached
+# PHP extensions: MongoDB + Redis + DIO (Direct I/O) + OpenSwooole + Memcached + YAML
 RUN BUILD_TIME_DEPS='build-essential' &&\
     apt-get update && apt-get install -y --no-install-recommends $BUILD_TIME_DEPS &&\
     pecl install -f --onlyreqdeps --nobuild mongodb         &&\
@@ -55,13 +56,19 @@ RUN BUILD_TIME_DEPS='build-essential' &&\
     ./configure                                             &&\
     make -j$(nproc --all) && make install                   &&\
     cd / && rm -rf "$(pecl config-get temp_dir)/memcached"  &&\
+    pecl install -f --onlyreqdeps --nobuild yaml            &&\
+    cd "$(pecl config-get temp_dir)/yaml"                   &&\
+    phpize                                                  &&\
+    ./configure                                             &&\
+    make -j$(nproc --all) && make install                   &&\
+    cd / && rm -rf "$(pecl config-get temp_dir)/yaml"       &&\
     apt-get purge -y $BUILD_TIME_DEPS &&\
     apt-get autoremove -y &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
-# Enable PECL-based extensions: MongoDB + Redis + DIO (Direct I/O) + OpenSwoole + Memcached
-RUN docker-php-ext-enable mongodb redis dio openswoole memcached
+# Enable PECL-based extensions: MongoDB + Redis + DIO (Direct I/O) + OpenSwoole + Memcached + YAML
+RUN docker-php-ext-enable mongodb redis dio openswoole memcached yaml
 
 # Install several officially supported PHP extensions: cURL, XML, ZIP, DOM, MySQLi, PDO MySQL, Sockets, PCNTL and Intl
 RUN BUILD_TIME_DEPS='build-essential' &&\

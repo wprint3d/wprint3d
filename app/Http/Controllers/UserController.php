@@ -14,9 +14,12 @@ use Illuminate\Database\Eloquent\Collection;
 
 use Illuminate\Http\Request;
 
+use Illuminate\Notifications\DatabaseNotificationCollection;
+
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+
 use Illuminate\Validation\ValidationException;
 
 use Illuminate\Support\Facades\Storage;
@@ -377,6 +380,43 @@ class UserController extends Controller
         $this->user->save();
 
         Auth::login($this->user);
+    }
+
+    public function getNotifications(): DatabaseNotificationCollection {
+        return $this->user->notifications;
+    }
+
+    public function markManyNotificationsAsRead(Request $request) {
+        $request->validate([
+            'ids'   => 'required|array',
+            'ids.*' => 'required|string'
+        ]);
+
+        $ids = $request->get('ids');
+
+        $this->user->notifications()->byIds($ids)->each(function ($notification) {
+            $notification->markAsRead();
+        });
+    }
+
+    public function markNotificationAsRead(string $id) {
+        $notification = $this->user->notifications()->byId($id);
+
+        if (!$notification) {
+            throw ValidationException::withMessages([ 'id' => 'No such notification.' ]);
+        }
+
+        $notification->markAsRead();
+    }
+
+    public function deleteNotification(string $id) {
+        $notification = $this->user->notifications()->byId($id);
+
+        if (!$notification) {
+            throw ValidationException::withMessages([ 'id' => 'No such notification.' ]);
+        }
+
+        $notification->delete();
     }
 
 }

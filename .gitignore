@@ -27,3 +27,4 @@ internal/spx
 docs/public
 docs/cache
 docker-compose.override.yml
+config/docker.php
