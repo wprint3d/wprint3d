@@ -5,6 +5,7 @@ import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import NavBarMenuSettingsModalPlaceholderItem from "./NavBarMenuSettingsModalPlaceholderItem";
 import { Text, useTheme } from "react-native-paper";
 import { View } from "react-native";
+import FormattedTextView from "./FormattedTextView";
 
 const FormattedLogView = ({ fileName, wrap = true }) => {
     const { colors } = useTheme();
@@ -32,15 +33,10 @@ const FormattedLogView = ({ fileName, wrap = true }) => {
     }
 
     return (
-        <View style={{ flexGrow: 1, flexShrink: 1, maxHeight: '50vh' }}>
-            <Text style={{
-                fontFamily: 'monospace', overflow: 'scroll',
-                backgroundColor: colors.elevation.level1,
-                padding: 8, whiteSpace: wrap ? 'pre-line' : 'pre',
-            }}>
-                {logContentsQuery.data?.data}
-            </Text>
-        </View>
+        <FormattedTextView
+            text={logContentsQuery.data?.data}
+            wrap={wrap}
+        />
     );
 };
 
