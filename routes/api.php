@@ -43,6 +43,12 @@ Route::prefix('/app')->group(function () {
     Route::get('/name',     [ ApplicationController::class, 'getName'     ]);
     Route::get('/revision', [ ApplicationController::class, 'getRevision' ]);
     Route::get('/licenses', [ ApplicationController::class, 'getLicenses' ]);
+
+    Route::prefix('/update')->group(function () {
+        Route::get('/status',   [ ApplicationController::class, 'getUpdateStatus' ]);
+        Route::post('/check',   [ ApplicationController::class, 'checkForUpdates' ]);
+        Route::post('/install', [ ApplicationController::class, 'installUpdate'   ]);
+    });
 });
 
 Route::middleware([ 'auth:sanctum', 'password.ensure_changed' ])->group(function () {
@@ -101,8 +107,6 @@ Route::middleware([ 'auth:sanctum', 'password.ensure_changed' ])->group(function
         Route::post('/disable', [ CameraController::class, 'disable' ]);
     });
 
-    Route::get('/camera/{id}',      [ CameraController::class, 'get'    ]);
-
     Route::get('/files',                [ FilesController::class,   'index'         ]);
     Route::get('/files/sortingModes',   [ FilesController::class,   'sortingModes'  ]);
 
@@ -110,7 +114,18 @@ Route::middleware([ 'auth:sanctum', 'password.ensure_changed' ])->group(function
 
     Route::prefix('/user')->group(function () {
 
-        Route::get('/',             [ UserController::class,    'get'            ]);
+        Route::get('/', [ UserController::class, 'get' ]);
+
+        Route::prefix('/notifications')->group(function () {
+            Route::get('/',      [ UserController::class, 'getNotifications'            ]);
+            Route::post('/read', [ UserController::class, 'markManyNotificationsAsRead' ]);
+
+            Route::prefix('/{id}')->group(function () {
+                Route::get('/',      [ UserController::class, 'getNotification'        ]);
+                Route::post('/read', [ UserController::class, 'markNotificationAsRead' ]);
+                Route::delete('/',   [ UserController::class, 'deleteNotification'     ]);
+            });
+        });
 
         Route::prefix('/settings')->group(function () {
             Route::get('/', [ UserController::class,    'getSettings'    ]);

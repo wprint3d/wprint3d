@@ -31,6 +31,13 @@ return [
             'visible' => false,
             'writeable' => false
         ],
+        'checkForUpdates' => [
+            'value' => true,
+            'hint' => 'Check for updates',
+            'type' => DataType::BOOLEAN,
+            'description' => 'Whether to check for updates on startup.',
+            'section' => 'System'
+        ],
 
         // Connection
         'streamMaxLengthBytes' => [

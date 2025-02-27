@@ -336,7 +336,7 @@ else
             php artisan create:sample-user;
 
             echo "Running migrations...";
-            php artisan migrate;
+            php artisan migrate --force;
 
             if [[ "${DEVELOPER_MODE}" == 'true' ]]; then
                 echo "Generating Marlin labels...";
