@@ -181,6 +181,8 @@ refreshDockerLog() {
 }
 
 refreshThirdPartyLicenses() {
+    echo "Refreshing third-party licenses...";
+
     TPL_PATH='/var/www/THIRD_PARTY_LICENSES.txt';
 
     cat '/var/www/_STATIC_THIRD_PARTY_LICENSES.txt' > $TPL_PATH;
@@ -327,8 +329,7 @@ else
                 done;
             fi;
 
-            echo "Refreshing third-party licenses...";
-            refreshThirdPartyLicenses;
+            refreshThirdPartyLicenses &
 
             # TODO: This is just for development and testing purposes and
             #       should be removed for production.
