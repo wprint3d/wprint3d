@@ -201,6 +201,16 @@ refreshThirdPartyLicenses() {
     done;
 }
 
+runDeferredTasks() {
+    echo 'Running deferred tasks...';
+
+    echo 'Resetting pending updates...';
+    php artisan app:reset-pending-updates;
+
+    echo 'Trying to look for updates...';
+    php artisan app:check-for-updates;
+}
+
 if [[ "$ROLE" == 'server' ]]; then
     generateSecrets;
 fi;
@@ -353,11 +363,7 @@ else
             echo 'Declare the Docker Compose directory...';
             php artisan make:compose-path-config;
 
-            echo 'Resetting pending updates...';
-            php artisan app:reset-pending-updates;
-
-            echo 'Trying to look for updates...';
-            php artisan app:check-for-updates;
+            runDeferredTasks &
 
             echo 'Starting the WebSocket server...';
             php artisan reverb:start --host 0.0.0.0 --port 6001 &
