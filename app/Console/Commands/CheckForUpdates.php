@@ -185,12 +185,6 @@ class CheckForUpdates extends Command
             }
         }
 
-        $updates[] = [
-            'image'  => 'wprint3d/wprint3d',
-            'local'  => 'a',
-            'remote' => 'b',
-        ];
-
         return $updates;
     }
 
