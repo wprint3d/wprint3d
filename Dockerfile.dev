@@ -168,12 +168,12 @@ ADD ./internal/limits.ini /usr/local/etc/php/conf.d/limits.ini
 
 WORKDIR /var/www
 
-RUN mkdir -p bin &&\
+RUN mkdir -p /usr/local/bin &&\
     echo 'Installing dependency: wait-for-it... ' &&\
-    curl -s https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -o bin/wait-for-it &&\
-        chmod +x bin/wait-for-it &&\
+    curl -s https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -o /usr/local/bin/wait-for-it &&\
+        chmod +x /usr/local/bin/wait-for-it &&\
     echo 'Installing dependency: doctum... ' &&\
-    curl -s https://doctum.long-term.support/releases/latest/doctum.phar -o bin/doctum &&\
-        chmod +x bin/doctum
+    curl -s https://doctum.long-term.support/releases/latest/doctum.phar -o /usr/local/bin/doctum &&\
+        chmod +x /usr/local/bin/doctum
 
 ENTRYPOINT [ "/var/www/internal/run.sh" ]
