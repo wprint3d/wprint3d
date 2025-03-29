@@ -50,6 +50,12 @@ generateSecrets() {
         return;
     fi;
 
+    if ! php artisan 2>&1 > /dev/null; then
+        echo 'Composer dependencies are missing, installing...';
+
+        composer install;
+    fi;
+
     echo 'Generating secrets...';
 
     PUSHER_APP_KEY=$(uuidgen    | md5sum    | cut -d ' ' -f 1);
