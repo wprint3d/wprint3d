@@ -154,12 +154,20 @@ class PollSerialConnections extends ConcurrentService {
                         $exception->getTraceAsString()
                     );
 
-                    event(
-                        new \App\Events\PrinterConnectionStatusUpdated(
-                            printerId:      $printer->_id,
-                            thresholdSecs:  $maxTimeBetweenHeartbeatsSecs
-                        )
-                    );
+                    try {
+                        event(
+                            new \App\Events\PrinterConnectionStatusUpdated(
+                                printerId:      $printer->_id,
+                                thresholdSecs:  $maxTimeBetweenHeartbeatsSecs
+                            )
+                        );
+                    } catch (Throwable $exception) {
+                        $this->log->error(
+                            "{$printer->node}: couldn't dispatch fallback event: {$exception->getMessage()}" . PHP_EOL.
+                            PHP_EOL.
+                            $exception->getTraceAsString()
+                        );
+                    }
 
                     continue;
                 }
