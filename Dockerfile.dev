@@ -171,9 +171,6 @@ WORKDIR /var/www
 RUN mkdir -p /usr/local/bin &&\
     echo 'Installing dependency: wait-for-it... ' &&\
     curl -s https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -o /usr/local/bin/wait-for-it &&\
-        chmod +x /usr/local/bin/wait-for-it &&\
-    echo 'Installing dependency: doctum... ' &&\
-    curl -s https://doctum.long-term.support/releases/latest/doctum.phar -o /usr/local/bin/doctum &&\
-        chmod +x /usr/local/bin/doctum
+        chmod +x /usr/local/bin/wait-for-it
 
 ENTRYPOINT [ "/var/www/internal/run.sh" ]

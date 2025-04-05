@@ -196,21 +196,5 @@ services:
         max-size: "1m"
         mode: non-blocking
     restart: always
-  documentation-generator:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    logging:
-      driver: local
-      options:
-        max-size: "1m"
-        mode: non-blocking
-    environment:
-      - ROLE=documentation-generator
-    volumes:
-      - .:/var/www
-      - ${PWD}:${PWD}
-    ports:
-      - 30000:30000
 volumes:
   mongo:
