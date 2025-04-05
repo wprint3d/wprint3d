@@ -210,6 +210,7 @@ final class Marlin extends Enum
 	const M512 = 'Set Passcode';
 	const M524 = 'Abort SD print';
 	const M540 = 'Endstops Abort SD';
+	const M550 = 'Machine Name';
 	const M569 = 'Set TMC stepping mode';
 	const M575 = 'Serial baud rate';
 	const M592 = 'Nonlinear Extrusion Control';
