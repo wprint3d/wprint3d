@@ -84,7 +84,7 @@ class RunConcurrentServices extends Command
         foreach ($output as $service => $serviceOutput) {
             if (!($serviceOutput instanceof WorkerExceptionMessage)) { continue; }
 
-            $this->error("Service '{$service}' failed with message: {$serviceOutput->getMessage()}");
+            $this->error("Service '{$service}' failed with message: {$serviceOutput->message}");
         }
     }
 
