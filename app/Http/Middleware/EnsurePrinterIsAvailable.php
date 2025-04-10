@@ -11,8 +11,10 @@ use Illuminate\Validation\ValidationException;
 
 use Symfony\Component\HttpFoundation\Response;
 
+use AllowDynamicProperties;
 use Closure;
 
+#[AllowDynamicProperties]
 class EnsurePrinterIsAvailable
 {
 
