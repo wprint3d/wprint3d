@@ -44,9 +44,7 @@ amd64               | :white_check_mark:
 x86                 | :white_check_mark:
 Other architectures | :x: No support
 
-> [!WARNING]
-> Further testing is pending on small and low-powered SBCs as they may freeze sometimes.
->
+> [!NOTE]
 > On a **Raspberry Pi 3** or any other low-memory SBC, try running a headless OS (such as **Ubuntu Server**) and strip out any unnecessary components, such as `snapd` and `multipathd`. If needed, **add a swap partition and enable swapping**.
 
 ### Operating system
