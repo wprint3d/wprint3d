@@ -26,7 +26,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 # PHP extensions: MongoDB + Redis + DIO (Direct I/O) + OpenSwooole + Memcached + YAML
 RUN BUILD_TIME_DEPS='build-essential' &&\
     apt-get update && apt-get install -y --no-install-recommends $BUILD_TIME_DEPS &&\
-    pecl install -f --onlyreqdeps --nobuild mongodb         &&\
+    pecl install -f --onlyreqdeps --nobuild mongodb-1.21.0  &&\
     cd "$(pecl config-get temp_dir)/mongodb"                &&\
     phpize                                                  &&\
     ./configure                                             &&\
