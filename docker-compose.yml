@@ -36,7 +36,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
       - storage:/var/www/storage
-      - proxy:/etc/nginx/internal
+      - proxy:/var/www/proxy/internal
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
       - ${PWD}:${PWD}
@@ -70,7 +70,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - storage:/var/www/storage
-      - proxy:/etc/nginx/internal
+      - proxy:/var/www/proxy/internal
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
       - ${PWD}:${PWD}
@@ -96,7 +96,7 @@ services:
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
       - storage:/var/www/storage
-      - proxy:/etc/nginx/internal
+      - proxy:/var/www/proxy/internal
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
       - ${PWD}:${PWD}
@@ -121,7 +121,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - storage:/var/www/storage
-      - proxy:/etc/nginx/internal
+      - proxy:/var/www/proxy/internal
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
       - ${PWD}:${PWD}
@@ -150,7 +150,7 @@ services:
       - /run/udev:/run/udev:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - storage:/var/www/storage
-      - proxy:/etc/nginx/internal
+      - proxy:/var/www/proxy/internal
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
       - ${PWD}:${PWD}
