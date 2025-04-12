@@ -457,7 +457,7 @@ class PrintGcode implements ShouldQueue
                     $this->layerCount++;
                 }
             } else {
-                $log->info("Relative movement detected, skipping layer count check... {$line}");
+                $log->debug("Relative movement detected, skipping layer count check... {$line}");
 
                 $nextVirtualPosition['z'] += $virtualPosition['z'];
 
