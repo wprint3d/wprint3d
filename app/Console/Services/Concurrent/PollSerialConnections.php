@@ -53,90 +53,36 @@ class PollSerialConnections extends ConcurrentService {
         while (true) {
             sleep( $autoSerialIntervalSecs );
 
-            foreach (Printer::cursor() as $printer) {
-                if (mapperIsRunning()) {
-                    event(new \App\Events\PrinterMapperIsRunning($printer->_id));
+            try {
+                foreach (Printer::cursor() as $printer) {
+                    $this->log->debug( __METHOD__. '@'. __LINE__. ": {$printer->_id}: checking..." );
 
-                    sleep(1);
+                    if (mapperIsRunning()) {
+                        event(new \App\Events\PrinterMapperIsRunning($printer->_id));
 
-                    $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: the mapper is running, skipping..." );
+                        $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: the mapper is running, skipping..." );
 
-                    continue;
-                }
+                        sleep(1);
 
-                if ($printer->activeFile) {
-                    $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: active file detected ({$printer->activeFile}), skipping..." );
+                        continue;
+                    }
 
-                    event(
-                        new \App\Events\PrinterConnectionStatusUpdated(
-                            printerId:      $printer->_id,
-                            thresholdSecs:  $maxTimeBetweenHeartbeatsSecs,
-                            hasActiveFile:  true
-                        )
-                    );
+                    if ($printer->activeFile) {
+                        $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: active file detected ({$printer->activeFile}), skipping..." );
 
-                    continue;
-                }
+                        event(
+                            new \App\Events\PrinterConnectionStatusUpdated(
+                                printerId:      $printer->_id,
+                                thresholdSecs:  $maxTimeBetweenHeartbeatsSecs,
+                                hasActiveFile:  true
+                            )
+                        );
 
-                if (!$printer->node || !Serial::nodeExists( $printer->node )) {
-                    $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: missing serial node ({$printer->node}), skipping..." );
+                        continue;
+                    }
 
-                    event(
-                        new \App\Events\PrinterConnectionStatusUpdated(
-                            printerId:      $printer->_id,
-                            thresholdSecs:  $maxTimeBetweenHeartbeatsSecs
-                        )
-                    );
-
-                    continue;
-                }
-
-                $serial = new Serial(
-                    fileName:  $printer->node,
-                    baudRate:  $printer->baudRate,
-                    timeout:   $commandTimeoutSecs,
-                    printerId: $printer->_id
-                );
-
-                try {
-                    $lastSeen = $printer->getLastSeen();
-
-                    if (
-                        !$lastSeen
-                        ||
-                        time() - $lastSeen > $minPollIntervalSecs
-                    ) { // should update lastSeen?
-                        $response = $serial->query('M105');
-
-                        if (!Str::contains($response, 'ok') && !Str::contains($response, 'busy')) {
-                            $this->log->error( $printer->node . ': connection failed: ' . $response );
-
-                            $printer->setLastError( $response );
-
-                            continue;
-                        }
-
-                        $printer->setStatistics( $response, 0 );
-
-                        $statistics = $printer->getStatistics();
-
-                        if (isset( $statistics['extruders'] )) {
-                            foreach (array_keys($statistics['extruders']) as $extruderIndex) {
-                                if (mapperIsRunning()) {
-                                    $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: the mapper is running, skipping statistics update..." );
-
-                                    continue;
-                                }
-
-                                if ($extruderIndex == 0) { continue; }
-
-                                $printer->setStatistics( $serial->query('M105 T' . $extruderIndex), $extruderIndex );
-                            }
-                        }
-
-                        $this->log->debug("OK: {$printer->node}: {$response}");
-
-                        $printer->updateLastSeen();
+                    if (!$printer->node || !Serial::nodeExists( $printer->node )) {
+                        $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: missing serial node ({$printer->node}), skipping..." );
 
                         event(
                             new \App\Events\PrinterConnectionStatusUpdated(
@@ -144,33 +90,107 @@ class PollSerialConnections extends ConcurrentService {
                                 thresholdSecs:  $maxTimeBetweenHeartbeatsSecs
                             )
                         );
-                    }
-                } catch (Throwable $exception) {
-                    $printer->setLastError( $exception->getMessage() );
 
-                    $this->log->error(
-                        $printer->node . ': connection failed: ' . $exception->getMessage() . PHP_EOL .
-                        PHP_EOL .
-                        $exception->getTraceAsString()
-                    );
+                        continue;
+                    }
 
                     try {
-                        event(
-                            new \App\Events\PrinterConnectionStatusUpdated(
-                                printerId:      $printer->_id,
-                                thresholdSecs:  $maxTimeBetweenHeartbeatsSecs
-                            )
+                        $serial = new Serial(
+                            fileName:  $printer->node,
+                            baudRate:  $printer->baudRate,
+                            timeout:   $commandTimeoutSecs,
+                            printerId: $printer->_id
                         );
                     } catch (Throwable $exception) {
                         $this->log->error(
-                            "{$printer->node}: couldn't dispatch fallback event: {$exception->getMessage()}" . PHP_EOL.
+                            "{$printer->node}: couldn't connect: {$exception->getMessage()}". PHP_EOL.
                             PHP_EOL.
                             $exception->getTraceAsString()
                         );
+
+                        continue;
                     }
 
-                    continue;
+                    try {
+                        $lastSeen = $printer->getLastSeen();
+
+                        if (
+                            !$lastSeen
+                            ||
+                            time() - $lastSeen > $minPollIntervalSecs
+                        ) { // should update lastSeen?
+                            $response = $serial->query('M105');
+
+                            if (!Str::contains($response, 'ok') && !Str::contains($response, 'busy')) {
+                                $this->log->error( $printer->node . ': connection failed: ' . $response );
+
+                                $printer->setLastError( $response );
+
+                                continue;
+                            }
+
+                            $printer->setStatistics( $response, 0 );
+
+                            $statistics = $printer->getStatistics();
+
+                            if (isset( $statistics['extruders'] )) {
+                                foreach (array_keys($statistics['extruders']) as $extruderIndex) {
+                                    if (mapperIsRunning()) {
+                                        $this->log->debug( __METHOD__ . '@' . __LINE__ . ": {$printer->_id}: the mapper is running, skipping statistics update..." );
+
+                                        continue;
+                                    }
+
+                                    if ($extruderIndex == 0) { continue; }
+
+                                    $printer->setStatistics( $serial->query('M105 T' . $extruderIndex), $extruderIndex );
+                                }
+                            }
+
+                            $this->log->debug("OK: {$printer->node}: {$response}");
+
+                            $printer->updateLastSeen();
+
+                            event(
+                                new \App\Events\PrinterConnectionStatusUpdated(
+                                    printerId:      $printer->_id,
+                                    thresholdSecs:  $maxTimeBetweenHeartbeatsSecs
+                                )
+                            );
+                        }
+                    } catch (Throwable $exception) {
+                        $printer->setLastError( $exception->getMessage() );
+
+                        $this->log->error(
+                            $printer->node . ': connection failed: ' . $exception->getMessage() . PHP_EOL .
+                            PHP_EOL .
+                            $exception->getTraceAsString()
+                        );
+
+                        try {
+                            event(
+                                new \App\Events\PrinterConnectionStatusUpdated(
+                                    printerId:      $printer->_id,
+                                    thresholdSecs:  $maxTimeBetweenHeartbeatsSecs
+                                )
+                            );
+                        } catch (Throwable $exception) {
+                            $this->log->error(
+                                "{$printer->node}: couldn't dispatch fallback event: {$exception->getMessage()}" . PHP_EOL.
+                                PHP_EOL.
+                                $exception->getTraceAsString()
+                            );
+                        }
+
+                        continue;
+                    }
                 }
+            } catch (Throwable $exception) {
+                $this->log->error(
+                    "{$printer->node}: couldn't poll printers: {$exception->getMessage()}". PHP_EOL.
+                    PHP_EOL.
+                    $exception->getTraceAsString()
+                );
             }
         }
     }
