@@ -2,8 +2,6 @@
 
 namespace App\Events;
 
-use App\Models\Printer;
-
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 
