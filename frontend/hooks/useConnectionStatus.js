@@ -21,33 +21,49 @@ export function useConnectionStatus({ printerId }) {
             return;
         }
 
-        const channelName = `connection-status.${printerId}`;
+        const mainChannelName   = `connection-status.${printerId}`,
+              mapperChannelName = 'printers-map-updated';
 
-        console.debug('UserPrinterStatusConnection: private: listen: ', channelName);
+        console.debug('UserPrinterStatusConnection: private: listen: ', mainChannelName, mapperChannelName);
 
-        const channel = echo.private(channelName),
-            statusEventName = 'PrinterConnectionStatusUpdated',
-            mapperEventName = 'PrinterMapperIsRunning'; 
+        const mainChannel = echo.private(mainChannelName),
+              statusEventName         = 'PrinterConnectionStatusUpdated',
+              mapperRunningEventName  = 'PrinterMapperIsRunning';
 
-        channel.listen(statusEventName, event => {
-            console.debug(`UserPrinterStatusConnection: private: listen: event: ${channelName}.${statusEventName}: `, event);
+        const mapperChannel = echo.channel(mapperChannelName),
+              mapperStoppedEventName = 'PrintersMapUpdated';
+
+        mainChannel.listen(statusEventName, event => {
+            console.debug(`UserPrinterStatusConnection: private: listen: event: ${mainChannelName}.${statusEventName}: `, event);
 
             setConnectionStatus(event);
         });
 
-        channel.listen(mapperEventName, event => {
-            console.debug(`UserPrinterStatusConnection: private: listen: event: ${channelName}.${mapperEventName}: `, event);
+        mainChannel.listen(mapperRunningEventName, event => {
+            console.debug(`UserPrinterStatusConnection: private: listen: event: ${mainChannelName}.${mapperRunningEventName}: `, event);
 
             setIsRunningMapper(event);
+
+            console.debug('UserPrinterStatusConnection: private: listen: isRunningMapper: ', isRunningMapper);
+        });
+
+        mapperChannel.listen(mapperStoppedEventName, event => {
+            console.debug(`UserPrinterStatusConnection: private: listen: event: ${mapperChannel}.${mapperStoppedEventName}: `, event);
+
+            setIsRunningMapper(null);
+
+            console.debug('UserPrinterStatusConnection: private: listen: isRunningMapper: ', isRunningMapper);
         });
 
         return () => {
-            console.debug(`UserPrinterStatusConnection: private: listen: cleanup: ${channelName}`);
+            console.debug(`UserPrinterStatusConnection: private: listen: cleanup: ${mainChannelName}, ${mapperChannelName}`);
 
-            if (channel === null) { return; }
+            if (mainChannel === null && mapperChannel === null) { return; }
 
-            channel.stopListening(statusEventName);
-            channel.stopListening(mapperEventName);
+            mainChannel.stopListening(statusEventName);
+            mainChannel.stopListening(mapperRunningEventName);
+
+            mapperChannel.stopListening(mapperStoppedEventName);
         }
     }, [ echo, printerId ]);
 
