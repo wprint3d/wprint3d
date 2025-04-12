@@ -296,7 +296,7 @@ class Serial {
         }
 
         if (!$stopTimestampSecs) {
-            Log::warning(__METHOD__ . ': stopTimestampSecs is not numeric: ' . json_encode($stopTimestampSecs));
+            Log::debug(__METHOD__ . ': stopTimestampSecs is not numeric: ' . json_encode($stopTimestampSecs));
 
             $stopTimestampSecs = null;
         }
@@ -619,7 +619,7 @@ class Serial {
 
     public function tryToAppendNow(?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, mixed $stopTimestampSecs = null) {
         if (!is_numeric($stopTimestampSecs)) {
-            Log::warning(__METHOD__ . ': stopTimestampSecs is not numeric: ' . json_encode($stopTimestampSecs));
+            Log::debug(__METHOD__ . ': stopTimestampSecs is not numeric: ' . json_encode($stopTimestampSecs));
 
             $stopTimestampSecs = null;
         }
