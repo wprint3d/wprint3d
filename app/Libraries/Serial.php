@@ -267,21 +267,33 @@ class Serial {
     private function configure() {
         $lock = $this->blockWhileLocking();
 
-        $this->fd = dio_open(
-            self::TERMINAL_PATH . '/' . self::TERMINAL_PREFIX . $this->fileName, // filename
-            O_RDWR | O_NONBLOCK | O_ASYNC                                        // flags
-        );
+        try {
+            $this->fd = dio_open(
+                self::TERMINAL_PATH . '/' . self::TERMINAL_PREFIX . $this->fileName, // filename
+                O_RDWR | O_NONBLOCK | O_ASYNC                                        // flags
+            );
 
-        dio_fcntl($this->fd, F_SETFL, O_NONBLOCK | O_ASYNC);
+            dio_fcntl($this->fd, F_SETFL, O_NONBLOCK | O_ASYNC);
 
-        dio_tcsetattr($this->fd, [
-            'baud'   => $this->baudRate,
-            'bits'   => 8,
-            'stop'   => 1,
-            'parity' => 0
-        ]);
+            dio_tcsetattr($this->fd, [
+                'baud'   => $this->baudRate,
+                'bits'   => 8,
+                'stop'   => 1,
+                'parity' => 0
+            ]);
+        } catch (Throwable $exception) {
+            if ($this->log) {
+                $this->log->error(
+                    "{$this->fileName}: couldn't configure: {$exception->getMessage()}". PHP_EOL.
+                    PHP_EOL.
+                    $exception->getTraceAsString()
+                );
+            }
 
-        $lock->release();
+            throw $exception;
+        } finally {
+            $lock->release();
+        }
     }
 
     private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, mixed $stopTimestampSecs = null) : void {
@@ -594,10 +606,10 @@ class Serial {
         $lock = $this->blockWhileLocking();
 
         $throwable = null;
-
-        $this->tickClocks();
-
+        
         try {
+            $this->tickClocks();
+
             if ($command) {
                 $this->sendCommand( $command, $lineNumber, $maxLine );
             }
