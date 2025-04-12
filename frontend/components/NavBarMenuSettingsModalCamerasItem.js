@@ -74,9 +74,8 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
                 }
             />
 
-            <Card style={{
-                backgroundColor: colors.surface,
-                padding: 4,
+            <View style={{
+                padding: 8,
                 width: (
                     isSmallTablet
                         ? '100%'
@@ -87,97 +86,99 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
                         )
                 )
             }}>
-                <View>
-                    {
-                        thumbLoadError === null && camera?.url
-                            ? (
-                                <Card.Cover
-                                    source={{ uri: `${camera.url}/?action=snapshot` }}
-                                    onError={(error) => {
-                                        console.error('NavbarMenuSettingsModalCamerasItem: error:', error);
+                <Card style={{ backgroundColor: colors.surface, padding: 4 }}>
+                    <View>
+                        {
+                            thumbLoadError === null && camera?.url
+                                ? (
+                                    <Card.Cover
+                                        source={{ uri: `${camera.url}/?action=snapshot` }}
+                                        onError={(error) => {
+                                            console.error('NavbarMenuSettingsModalCamerasItem: error:', error);
 
-                                        setThumbLoadError(error);
-                                    }}
-                                />
-                            )
-                            : (
-                                <View style={{ height: 195, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' }}>
-                                    <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                                        <Icon source={'eye-off'} color={colors.onPrimary} size={48} />
-                                        <Text style={{ color: colors.onPrimary, fontSize: 16, textAlign: 'center', paddingVertical: 8 }}>
-                                            No preview available
-                                        </Text>
+                                            setThumbLoadError(error);
+                                        }}
+                                    />
+                                )
+                                : (
+                                    <View style={{ height: 195, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' }}>
+                                        <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                                            <Icon source={'eye-off'} color={colors.onPrimary} size={48} />
+                                            <Text style={{ color: colors.onPrimary, fontSize: 16, textAlign: 'center', paddingVertical: 8 }}>
+                                                No preview available
+                                            </Text>
+                                        </View>
                                     </View>
-                                </View>
-                            )
-                    }
+                                )
+                        }
 
-                    <Badge
-                        style={{ position: 'absolute', top: 8, right: 8, paddingHorizontal: 8 }}
-                        theme={{
-                            colors: {
-                                error:   camera?.connected ? colors.success : colors.error,
-                                onError: colors.white
-                            }
-                        }}
-                    >
-                        {camera?.connected ? 'Online' : 'Offline'}
-                    </Badge>
-                </View>
-                <Card.Title
-                    title={camera?.label ?? 'Unknown camera'}
-                    subtitle={camera?.node}
-                    titleVariant="headlineSmall"
-                />
-                <Card.Actions>
-                    <Button
-                        icon="eye"
-                        onPress={() => {
-                            console.debug('Preview camera:', camera);
+                        <Badge
+                            style={{ position: 'absolute', top: 8, right: 8, paddingHorizontal: 8 }}
+                            theme={{
+                                colors: {
+                                    error:   camera?.connected ? colors.success : colors.error,
+                                    onError: colors.white
+                                }
+                            }}
+                        >
+                            {camera?.connected ? 'Online' : 'Offline'}
+                        </Badge>
+                    </View>
+                    <Card.Title
+                        title={camera?.label ?? 'Unknown camera'}
+                        subtitle={camera?.node}
+                        titleVariant="headlineSmall"
+                    />
+                    <Card.Actions>
+                        <Button
+                            icon="eye"
+                            onPress={() => {
+                                console.debug('Preview camera:', camera);
 
-                            setShowPreviewDialog(true);
-                        }}
-                    >Preview</Button>
-                    <Button
-                        icon="pencil"
-                        loading={deleteCameraMutation.isLoading}
-                        onPress={() => {
-                            console.debug('Edit camera:', camera);
+                                setShowPreviewDialog(true);
+                            }}
+                        >Preview</Button>
+                        <Button
+                            icon="pencil"
+                            loading={deleteCameraMutation.isLoading}
+                            onPress={() => {
+                                console.debug('Edit camera:', camera);
 
-                            handleSettingsModal(camera);
-                        }}
-                    >Edit</Button>
-                    <Button
-                        icon="delete"
-                        loading={deleteCameraMutation.isLoading}
-                        onPress={() => {
-                            console.debug('Delete camera:', camera);
+                                handleSettingsModal(camera);
+                            }}
+                        >Edit</Button>
+                        <Button
+                            icon="delete"
+                            loading={deleteCameraMutation.isLoading}
+                            onPress={() => {
+                                console.debug('Delete camera:', camera);
 
-                            if (!camera.connected) {
-                                console.debug('Camera is offline, can delete');
+                                if (!camera.connected) {
+                                    console.debug('Camera is offline, can delete');
 
-                                setShowDeleteDialog(true);
+                                    setShowDeleteDialog(true);
 
-                                return;
-                            }
+                                    return;
+                                }
 
-                            console.debug('Camera is online, cannot delete');
+                                console.debug('Camera is online, cannot delete');
 
-                            enqueueSnackbar({
-                                message: 'Cannot delete a camera while it\'s online',
-                                variant: 'error',
-                                action:  { label: 'Got it' }
-                            });
-                        }}
-                        theme={{
-                            colors: {
-                                primary:    colors.error,
-                                onPrimary:  colors.white
-                            }
-                        }}
-                    >Delete</Button>
-                </Card.Actions>
-            </Card>
+                                enqueueSnackbar({
+                                    message: 'Cannot delete a camera while it\'s online',
+                                    variant: 'error',
+                                    action:  { label: 'Got it' }
+                                });
+                            }}
+                            theme={{
+                                colors: {
+                                    primary:    colors.error,
+                                    onPrimary:  colors.white
+                                }
+                            }}
+                        >Delete</Button>
+                    </Card.Actions>
+                </Card>
+            </View>
 
             <SimpleDialog
                 visible={showPreviewDialog}

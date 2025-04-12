@@ -6,6 +6,7 @@ import NavBarMenuSettingsModalPlaceholderItem from "./NavBarMenuSettingsModalPla
 import { useEffect, useState } from "react";
 import API from "../includes/API";
 import CameraSettingsModal from "./CameraSettingsModal";
+import { View } from "react-native";
 
 const NavBarMenuSettingsModalCameras = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
   const allCameras = useQuery({
@@ -52,17 +53,23 @@ const NavBarMenuSettingsModalCameras = ({ isSmallTablet, isSmallLaptop, enqueueS
                 'Restart the host.',
               ]}
           />
-        : cameras.map(camera => (
-          <NavBarMenuSettingsModalCamerasItem
-            key={camera._id}
-            camera={camera}
-            isLoading={allCameras.isLoading}
-            handleSettingsModal={handleEditModal}
-            enqueueSnackbar={enqueueSnackbar}
-            isSmallLaptop={isSmallLaptop}
-            isSmallTablet={isSmallTablet}
-          />
-        ))
+        : (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {
+              cameras.map(camera => (
+                <NavBarMenuSettingsModalCamerasItem
+                  key={camera._id}
+                  camera={camera}
+                  isLoading={allCameras.isLoading}
+                  handleSettingsModal={handleEditModal}
+                  enqueueSnackbar={enqueueSnackbar}
+                  isSmallLaptop={isSmallLaptop}
+                  isSmallTablet={isSmallTablet}
+                />
+              ))
+            }
+          </View>
+        )
       }
       {selectedCamera &&
         <CameraSettingsModal
