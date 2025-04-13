@@ -15,7 +15,7 @@ const UserPrinterCamera = ({ url, isConnected, supportsMjpeg = true }) => {
     const { colors } = useTheme();
 
     const [ width,      setWidth      ] = useState(0);
-    const [ activeURL,  setActiveURL  ] = useState(url);
+    const [ activeURL,  setActiveURL  ] = useState(null);
     const [ error,      setError      ] = useState(null);
     const [ isLoaded,   setIsLoaded   ] = useState(false);
     const [ isUpdating, setIsUpdating ] = useState(true);
@@ -48,6 +48,10 @@ const UserPrinterCamera = ({ url, isConnected, supportsMjpeg = true }) => {
             clearInterval(interval); // Cleanup the interval when the component unmounts
         };
     }, [url]); // Depend on `url` to update the interval if `url` changes
+
+    useEffect(() => {
+        console.debug('UserPrinterCamera: activeURL:', activeURL);
+    }, [ activeURL ]);
 
     const viewHeight = width / 2;
 
