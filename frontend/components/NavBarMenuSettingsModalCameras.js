@@ -37,7 +37,7 @@ const NavBarMenuSettingsModalCameras = ({ isSmallTablet, isSmallLaptop, enqueueS
   }, [ allCameras ]);
 
   if (allCameras.isFetching) {
-    return <UserPaneLoadingIndicator message={`Loading cameras list...`} />;
+    return <UserPaneLoadingIndicator message={`Loading cameras list`} />;
   }
 
   return (
