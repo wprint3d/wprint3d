@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { Button, Card, Icon, IconButton, Text, useTheme } from "react-native-paper";
 import dayjs from 'dayjs';
@@ -35,6 +35,14 @@ const UserPrinterRecordingItem = ({
         setSelectedRecording(recording);
         setPlayerDialogVisible(true);
     };
+
+    useEffect(() => {
+        console.debug('UserPrinterRecordingItem: recording:', recording);
+
+        if (recording) {
+            setThumbLoadError(null);
+        }
+    }, [ recording ]);
 
     return (
         <View style={{
