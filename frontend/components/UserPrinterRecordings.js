@@ -150,7 +150,7 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
                     </View>
                 </View>
             ) : (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around' }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', overflowY: 'scroll', height: '100%' }}>
                     {recordings.map((recording, index) => (
                         <UserPrinterRecordingItem
                             key={index}
