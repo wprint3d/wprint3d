@@ -904,10 +904,11 @@ class PrinterController extends Controller
                 'name'          => $basename,
                 'sizeBytes'     => $disk->size($video->fileName),
                 'modified'      => Carbon::createFromTimestamp( $lastModified )->diffForHumans(),
+                'modifiedTs'    => $lastModified,
                 'durationSecs'  => $video->duration,
                 'deletable'     => $video->isComplete
             ];
-        })->toArray();
+        })->sortByDesc('modifiedTs')->values()->all();
     }
 
     public function deleteRecording($recordingId, Request $request) {
