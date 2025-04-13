@@ -126,23 +126,13 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
             <Banner
                 visible={lastRenderEvent !== null}
                 icon={({size}) => (<Icon source="progress-wrench" size={size} />)}
+                style={{ marginBottom: 10 }}
             >
                 Rendering <TextBold>{lastRenderEvent?.fileName}</TextBold> ({lastRenderEvent?.progress}% complete)...
                 <ProgressBar progress={lastRenderEvent?.progress / 100} />
             </Banner>
-            {recordings.map((recording, index) => (
-                <UserPrinterRecordingItem
-                    key={index}
-                    recording={recording}
-                    isSmallTablet={isSmallTablet}
-                    isSmallLaptop={isSmallLaptop}
-                    setSelectedRecording={setSelectedRecording}
-                    setDeleteDialogVisible={setDeleteDialogVisible}
-                    setPlayerDialogVisible={setPlayerDialogVisible}
-                />
-            ))}
 
-            {(recordings.length === 0 && !recordingsQuery.isLoading) && (
+            {(recordings.length === 0 && !recordingsQuery.isLoading) ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', top: -TOP_CENTER_OFFSET }}>
                     <View style={{ width: '100%', padding: 10, margin: 10, alignItems: 'center' }}>
                         <Icon source={'video-off'} size={48} />
@@ -158,6 +148,20 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
                             }
                         </Text>
                     </View>
+                </View>
+            ) : (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around' }}>
+                    {recordings.map((recording, index) => (
+                        <UserPrinterRecordingItem
+                            key={index}
+                            recording={recording}
+                            isSmallTablet={isSmallTablet}
+                            isSmallLaptop={isSmallLaptop}
+                            setSelectedRecording={setSelectedRecording}
+                            setDeleteDialogVisible={setDeleteDialogVisible}
+                            setPlayerDialogVisible={setPlayerDialogVisible}
+                        />
+                    ))}
                 </View>
             )}
 
