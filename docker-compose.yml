@@ -116,7 +116,7 @@ services:
     environment:
       - ROLE=concurrency-scheduler
       - COMPOSE_DIR=${PWD}
-      - QUEUES=default:1,broadcasts:2,prints,previews,snapshots,recordings # <queue-name>:<min-number-of-workers, default=0>
+      - QUEUES=default:1,recordings:1,broadcasts:2,prints,previews,snapshots # <queue-name>:<min-number-of-workers, default=0>
       - SLEEP=5
     volumes:
       - /dev/bus/usb:/dev/bus/usb
