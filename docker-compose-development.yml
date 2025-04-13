@@ -18,6 +18,7 @@ services:
       - ./public:/public
       - ./storage/app/recordings:/public/recordings
       - ./internal/startup:/internal/startup:ro
+      - /tmp/video:/tmp/video
     ports:
       - ${EXTERNAL_WEB_HTTP_PORT:-80}:80
       - ${EXTERNAL_WEB_HTTPS_PORT:-443}:443
@@ -125,7 +126,7 @@ services:
     privileged: true
     environment:
       - ROLE=concurrency-scheduler
-      - QUEUES=default:1,broadcasts:2,prints,previews,snapshots,recordings # <queue-name>:<min-number-of-workers, default=0>
+      - QUEUES=default:1,recordings:1,broadcasts:2,prints,previews,snapshots, # <queue-name>:<min-number-of-workers, default=0>
       - SLEEP=5
     volumes:
       - .:/var/www
@@ -159,6 +160,7 @@ services:
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
       - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/video:/tmp/video
     depends_on:
       - redis
       - mongo

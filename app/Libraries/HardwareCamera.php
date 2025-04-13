@@ -5,6 +5,7 @@ namespace App\Libraries;
 use App\Models\Configuration;
 
 use Illuminate\Support\Str;
+use Illuminate\Support\Stringable;
 
 use Symfony\Component\Process\Process;
 
@@ -17,7 +18,8 @@ class HardwareCamera {
 
     private array   $formats = [];
 
-    private bool    $requiresLibCamera = false;
+    private bool    $supportsMjpeg      = false;
+    private bool    $requiresLibCamera  = false;
 
     const LIB_CAMERA_ALLOWED_FRAMERATES = [ 15, 30, 60 ];
 
@@ -45,6 +47,36 @@ class HardwareCamera {
         return trim( $process->getOutput() );
     }
 
+    private function loadFormatsFromDiscreteUVC(Stringable $input, string $captureType): void {
+        $shouldRecordFormats = false; 
+
+        $index = -1;
+
+        $resolution = null;
+
+        foreach ($input->explode( PHP_EOL ) as $line) {
+            $line = Str::of( $line )->trim();
+
+            if ($line->startsWith('[') && $line->contains($captureType)) {
+                $shouldRecordFormats = true;
+            } else if ($line->startsWith('[') && !$line->contains($captureType)) {
+                $shouldRecordFormats = false;
+            }
+
+            if ($shouldRecordFormats) {
+                if ($line->startsWith('Size') && $line->contains('Discrete')) {
+                    $index++;
+
+                    $resolution = $line->replace('Size: Discrete ', '');
+                } else if ($line->startsWith('Interval') && $resolution) {
+                    $this->formats[] = $resolution . '@' . $line->replaceMatches('/Interval: Discrete .*\(/', '')->replaceMatches('/ fps.*/', '');
+
+                    $index++;
+                }
+            }
+        }
+    }
+
     private function loadDiscreteUVCFormats() : void {
         $process = new Process([
             'v4l2-ctl',
@@ -60,34 +92,14 @@ class HardwareCamera {
 
         $output = Str::of( $process->getOutput() )->trim();
 
-        if ($output->contains('MJPG')) {
-            $shouldRecordFormats = false; 
+        if ($output->contains('MJPG') && !env('DEBUG_CAMERA_MJPEG_DISABLED', false)) {
+            $this->loadFormatsFromDiscreteUVC(input: $output, captureType: 'MJPG');
+        }
 
-            $index = -1;
-
-            $resolution = null;
-
-            foreach ($output->explode( PHP_EOL ) as $line) {
-                $line = Str::of( $line )->trim();
-
-                if ($line->startsWith('[') && $line->contains('MJPG')) {
-                    $shouldRecordFormats = true;
-                } else if ($line->startsWith('[') && !$line->contains('MJPG')) {
-                    $shouldRecordFormats = false;
-                }
-
-                if ($shouldRecordFormats) {
-                    if ($line->startsWith('Size') && $line->contains('Discrete')) {
-                        $index++;
-
-                        $resolution = $line->replace('Size: Discrete ', '');
-                    } else if ($line->startsWith('Interval') && $resolution) {
-                        $this->formats[] = $resolution . '@' . $line->replaceMatches('/Interval: Discrete .*\(/', '')->replaceMatches('/ fps.*/', '');
-
-                        $index++;
-                    }
-                }
-            }
+        if ($this->formats) {            
+            $this->supportsMjpeg = true;
+        } else if ($output->contains('YUYV')) {
+            $this->loadFormatsFromDiscreteUVC(input: $output, captureType: 'YUYV');
         }
     }
 
@@ -138,6 +150,10 @@ class HardwareCamera {
         }
 
         return $this->formats;
+    }
+
+    public function supportsMjpeg() : bool {
+        return $this->supportsMjpeg;
     }
 
 }

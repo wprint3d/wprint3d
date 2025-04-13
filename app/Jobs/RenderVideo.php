@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Events\RecordingRenderProgress;
 
+use App\Models\Printer;
 use App\Models\User;
 use App\Models\Video;
 
@@ -29,6 +30,8 @@ use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\Filters\Video\ResizeFilter;
 
 use FFMpeg\Format\Video\WebM;
+
+use Throwable;
 
 class RenderVideo implements ShouldQueue
 {
@@ -105,7 +108,7 @@ class RenderVideo implements ShouldQueue
         $instance->fileName    = $targetFileName;
         $instance->jobUID      = $this->jobUID;
         $instance->isComplete  = false;
-        $instance->printer()->associate($this->owner->getActivePrinter());
+        $instance->printer()->associate(Printer::find($this->printerId));
         $instance->owner()->associate($this->owner);
         $instance->save();
 
