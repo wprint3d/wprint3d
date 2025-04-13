@@ -108,6 +108,8 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
     }, [ echo ]);
 
     useEffect(() => {
+        console.debug('UserPrinterRecordings: lastRenderEvent:', lastRenderEvent);
+
         if (lastRenderEvent === null) { return; }
 
         if (lastRenderEvent.progress === 100) {
