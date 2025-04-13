@@ -112,6 +112,15 @@ const CameraSettingsModalConfiguration = ({ camera, enqueueSnackbar }) => {
                 <List.Item title="Requires libcamera" description={parseBoolean(camera?.requiresLibCamera)} />
                 <List.Item title="URL" description={camera?.url} />
             </List.Section>
+            {!(camera?.supportsMjpeg ?? true) && (
+                <List.Section title="Warning">
+                    <List.Item
+                        title="This camera does not support MJPEG encoding"
+                        description="To avoid performance issues, the camera will be updated every 1.5 seconds. Please consider using a camera that supports MJPEG."
+                        left={() => <List.Icon icon="alert" color="red" style={{ marginLeft: 16 }} />}
+                    />
+                </List.Section>
+            )}
         </View>
     );
 }

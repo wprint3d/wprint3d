@@ -90,7 +90,7 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
                             thumbLoadError === null && printer?.mainCamera?.url
                                 ? (
                                     <Card.Cover
-                                        source={{ uri: `${printer.mainCamera.url}/?action=snapshot` }}
+                                        source={{ uri: `${printer.mainCamera.url}?${new URLSearchParams({ action: 'snapshot' })}` }}
                                         onError={(error) => {
                                             console.error('NavbarMenuSettingsModalPrintersItem: error:', error);
 

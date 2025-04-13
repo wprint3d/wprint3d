@@ -41,7 +41,7 @@ export default function UserPrinterCameras() {
     return (
         <View style={{ paddingTop: 10 }}>
             {typeof camera !== 'undefined' &&
-                <UserPrinterCamera url={camera.url} isConnected={camera.connected} />
+                <UserPrinterCamera url={camera.url} isConnected={camera.connected} supportsMjpeg={camera?.supportsMjpeg ?? true} />
             }
             <View style={{
                 display:        'flex',

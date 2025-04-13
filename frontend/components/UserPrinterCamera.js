@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 
 import { Platform, View } from "react-native";
+import { Icon, Text, useTheme } from "react-native-paper";
 
 import { Image } from "expo-image";
 
@@ -8,13 +9,16 @@ import UserPrinterCameraError from "./UserPrinterCameraError";
 import UserPrinterCameraInformation from "./UserPrinterCameraInformation";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 
-const UserPrinterCamera = ({ url, isConnected }) => {
+const UserPrinterCamera = ({ url, isConnected, supportsMjpeg = true }) => {
     const image = useRef(null);
 
-    const [ width,      setWidth     ] = useState(0);
-    const [ activeURL,  setActiveURL ] = useState(url);
-    const [ error,      setError     ] = useState(null);
-    const [ isLoaded,   setIsLoaded  ] = useState(false);
+    const { colors } = useTheme();
+
+    const [ width,      setWidth      ] = useState(0);
+    const [ activeURL,  setActiveURL  ] = useState(url);
+    const [ error,      setError      ] = useState(null);
+    const [ isLoaded,   setIsLoaded   ] = useState(false);
+    const [ isUpdating, setIsUpdating ] = useState(true);
 
     useEffect(() => {
         if (
@@ -26,8 +30,24 @@ const UserPrinterCamera = ({ url, isConnected }) => {
         }
 
         setError(null);
-        setActiveURL(url);
+        setActiveURL(`${url}?${new URLSearchParams({ action: 'stream', t: (new Date()).getTime() })}`);
     }, [ url ] );
+
+    useEffect(() => {
+        console.debug('UserPrinterCamera: isUpdating:', isUpdating);
+
+        if (supportsMjpeg) {
+            return; // Exit early if MJPEG is supported
+        }
+
+        const interval = setInterval(() => {
+            setActiveURL(`${url}?${new URLSearchParams({ action: 'stream', t: (new Date()).getTime() })}`);
+        }, 1500);
+
+        return () => {
+            clearInterval(interval); // Cleanup the interval when the component unmounts
+        };
+    }, [url]); // Depend on `url` to update the interval if `url` changes
 
     const viewHeight = width / 2;
 
@@ -91,24 +111,36 @@ const UserPrinterCamera = ({ url, isConnected }) => {
             >
                 <Image
                     ref={image}
-                    source={{ uri: `${activeURL}?${new URLSearchParams({ action: 'stream' })}` }}
+                    source={{ uri: activeURL }}
                     onError={error  => {
-                        console.error(error);
+                        console.error('UserPrinterCamera: error:', error);
 
                         setError(error.error);
 
                         setIsLoaded(true);
+                        setIsUpdating(false);
                     }}
                     onLoad={event   => {
-                        console.log('event:', event);
+                        console.debug('UserPrinterCamera: event:', event);
 
                         setIsLoaded(true);
+                        setIsUpdating(false);
                     }}
                     style={{
                         height:     (isLoaded ? width / 2 : 0),
                         transform:  'scale(1, 1) rotate(0deg)'
                     }}
                 />
+
+                {!supportsMjpeg && (
+                    <View style={{ width: '100%', flexDirection: 'row', justifyContent: 'center', paddingTop: 10 }}>
+                        <Icon source="alert" size={12} />
+
+                        <Text style={{ marginLeft: 2, fontSize: 12, color: colors.onSurfaceVariant }}>
+                            Slow mode (MJPEG is not supported)
+                        </Text>
+                    </View>
+                )}
             </View>
         </>
     );

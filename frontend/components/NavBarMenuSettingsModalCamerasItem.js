@@ -92,7 +92,7 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
                             thumbLoadError === null && camera?.url
                                 ? (
                                     <Card.Cover
-                                        source={{ uri: `${camera.url}/?action=snapshot` }}
+                                        source={{ uri: `${camera.url}?${new URLSearchParams({ action: 'snapshot', t: (new Date()).getTime() })}` }}
                                         onError={(error) => {
                                             console.error('NavbarMenuSettingsModalCamerasItem: error:', error);
 
@@ -126,7 +126,22 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
                     </View>
                     <Card.Title
                         title={camera?.label ?? 'Unknown camera'}
-                        subtitle={camera?.node}
+                        subtitleNumberOfLines={4}
+                        subtitle={
+                            <Text>
+                                {camera?.node}
+                                {'\n'}
+                                {!(camera?.supportsMjpeg ?? true) && (
+                                    <Text>
+                                        <Icon source="alert" size={12} />
+
+                                        <Text style={{ marginLeft: 2, fontSize: 12, color: colors.onSurfaceVariant }}>
+                                            Slow mode (MJPEG is not supported)
+                                        </Text>
+                                    </Text>
+                                )}
+                            </Text>
+                        }
                         titleVariant="headlineSmall"
                     />
                     <Card.Actions>
@@ -184,7 +199,7 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
                 visible={showPreviewDialog}
                 setVisible={setShowPreviewDialog}
                 title={`Previewing camera "${camera.label}"`}
-                content={<UserPrinterCamera url={camera.url} isConnected={camera.connected} />}
+                content={<UserPrinterCamera url={camera.url} isConnected={camera.connected} supportsMjpeg={camera?.supportsMjpeg ?? true} />}
                 style={{ maxWidth: 1000, width: '95%' }}
                 actions={
                     <Button mode="text" onPress={() => setShowPreviewDialog(false)}>
