@@ -11,7 +11,9 @@ use App\Libraries\HardwareCamera;
 use App\Models\Camera;
 
 use Illuminate\Console\Command;
+
 use Illuminate\Log\Logger;
+
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
@@ -82,6 +84,10 @@ class MapHardwareCameras extends Command
 
         if ($camera && $camera->mode) $mode = $camera->mode;
 
+        // TODO: This implementation SUCKS, it's SO RIDICULOUSLY redundant.
+        //
+        //       Find a way to simplify this logic so that it's less verbose
+        //       and error prone.
         $fields = [
             'url'               => '/video/' . machineUUID() . '/' . ($requiresLibCamera ? 'csi' : 'uvc') . '/' . $index,
             'index'             => $index,
@@ -90,6 +96,7 @@ class MapHardwareCameras extends Command
             'format'            => $currentFormat,
             'availableFormats'  => $formats,
             'requiresLibCamera' => $requiresLibCamera,
+            'supportsMjpeg'     => $hwCamera->supportsMjpeg()
         ];
 
         if (!isset( $camera->enabled )) $fields['enabled'] = true;
