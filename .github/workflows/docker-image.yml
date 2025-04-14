@@ -16,6 +16,18 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       -
+        name: Restore from cache
+        uses: tespkg/actions-cache/restore@v1
+        with:
+          endpoint: ${{ secrets.S3_ENDPOINT }}
+          accessKey: ${{ secrets.S3_ACCESS_KEY_ID }}
+          secretKey: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          region: ${{ secrets.S3_REGION }}
+          bucket: actions-cache
+          key: ${{ runner.os }}
+          path: |
+            /var/lib/docker
+      -
         name: Checkout
         uses: actions/checkout@v3
       -
@@ -49,5 +61,15 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/wprint3d-proxy:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      -
+        name: Save to cache
+        uses: tespkg/actions-cache/save@v1
+        with:
+          endpoint: ${{ secrets.S3_ENDPOINT }}
+          accessKey: ${{ secrets.S3_ACCESS_KEY_ID }}
+          secretKey: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          region: ${{ secrets.S3_REGION }}
+          bucket: actions-cache
+          key: ${{ runner.os }}
+          path: |
+            /var/lib/docker
