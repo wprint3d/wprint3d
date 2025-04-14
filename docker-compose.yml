@@ -18,6 +18,7 @@ services:
       - ${EXTERNAL_WEB_SOCKET_PORT:-6001}:6001
     depends_on:
       - web
+      - ws-server
       - backend
   backend:
     image: wprint3d/wprint3d
@@ -121,6 +122,30 @@ services:
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
+      - storage:/var/www/storage
+      - proxy:/var/www/proxy/internal
+      - startup:/var/www/internal/startup
+      - ./wprint3d-config:/var/www/.external-configs
+      - ${PWD}:${PWD}
+    depends_on:
+      - redis
+      - mongo
+  ws-server:
+    image: wprint3d/wprint3d
+    restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "1m"
+        mode: non-blocking
+    environment:
+      - ROLE=ws-server
+      - COMPOSE_DIR=${PWD}
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev:/dev
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
       - storage:/var/www/storage
       - proxy:/var/www/proxy/internal
       - startup:/var/www/internal/startup
