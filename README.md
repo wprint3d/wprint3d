@@ -3,6 +3,13 @@
     <p align="center">
         Web-based remote control software for FDM printers via USB serial/TTY.
     </p>
+    <p align="center">
+        <a href="https://github.com/wprint3d/wprint3dos-pi-gen">
+            WPrint 3D OS
+        </a> | <a href="https://github.com/wprint3d/wprint3d-frontend">
+            Frontend
+        </a>
+    </p>
 </div>
 
 > [!CAUTION]
