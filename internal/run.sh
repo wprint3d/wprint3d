@@ -368,9 +368,6 @@ else
 
             runDeferredTasks &
 
-            echo 'Starting the WebSocket server...';
-            php artisan reverb:start --host 0.0.0.0 --port 6001 &
-
             if [ "$(php artisan get:env OCTANE_ENABLED)" == 'true' ]; then
                 echo 'Starting Octane web server...';
                 php artisan octane:start --host 0.0.0.0 --port 80;
@@ -397,8 +394,12 @@ else
 
                 sleep 60;
             done;
+        elif [[ "$ROLE" == 'ws-server' ]]; then
+            while true; do
+                php artisan reverb:start --host 0.0.0.0 --port 6001;
+            done;
         elif [[ "$ROLE" == 'mapper' ]]; then
-            wait-for-it backend:6001 -t 0; # WebSocket server
+            wait-for-it ws-server:6001 -t 0;
 
             # Try to recognize a printer within them before enabling the udev monitor
             php artisan map:serial-printers     &
