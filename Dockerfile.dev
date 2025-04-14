@@ -5,8 +5,8 @@ SHELL ["/bin/bash", "-c"]
 # Basic dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         coreutils git curl redis-tools inotify-tools gnupg inetutils-ping \
-        udev ffmpeg unzip supervisor psmisc jq uuid-runtime cron \
-        fswebcam procps usbutils libzip-dev libmemcached-dev libyaml-dev \
+        udev ffmpeg unzip supervisor psmisc jq uuid-runtime cron fswebcam \
+        procps usbutils libzip-dev libmemcached-dev libyaml-dev libuv1-dev \
         libcurl4-openssl-dev libxml2-dev libzip-dev libevent-dev \
         libjpeg-dev libbsd-dev zlib1g-dev libssl-dev libdrm-dev libexif-dev \
         libboost-program-options-dev libglib2.0-dev libavcodec-dev \
@@ -62,6 +62,12 @@ RUN BUILD_TIME_DEPS='build-essential' &&\
     ./configure                                             &&\
     make -j$(nproc --all) && make install                   &&\
     cd / && rm -rf "$(pecl config-get temp_dir)/yaml"       &&\
+    pecl install -f --onlyreqdeps --nobuild uv              &&\
+    cd "$(pecl config-get temp_dir)/uv"                     &&\
+    phpize                                                  &&\
+    ./configure                                             &&\
+    make -j$(nproc --all) && make install                   &&\
+    cd / && rm -rf "$(pecl config-get temp_dir)/uv"         &&\
     apt-get purge -y $BUILD_TIME_DEPS &&\
     apt-get autoremove -y &&\
     apt-get clean &&\
