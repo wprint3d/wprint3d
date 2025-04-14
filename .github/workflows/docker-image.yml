@@ -14,11 +14,6 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       -
-        name: Intall Tar
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y tar
-      -
         name: Restore from cache
         uses: tespkg/actions-cache/restore@v1
         with:
