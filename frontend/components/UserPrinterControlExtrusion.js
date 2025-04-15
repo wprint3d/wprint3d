@@ -6,18 +6,27 @@ import { Button, Text, TextInput, useTheme, Divider, Icon } from 'react-native-p
 import DropDown from 'react-native-paper-dropdown';
 import { useSnackbar } from 'react-native-paper-snackbar-stack';
 import API from '../includes/API';
+import { useCache } from '../hooks/useCache';
 
 const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, isSmallTablet }) => {
+    const cache = useCache();
+
     const { colors } = useTheme();
 
     const { enqueueSnackbar } = useSnackbar();
 
-    const [ extrusionDistance,    setExtrusionDistance    ] = useState(5);
+    const [ extrusionDistance,    _setExtrusionDistance   ] = useState(5);
     const [ showExtruderDropDown, setShowExtruderDropDown ] = useState(false);
     const [ selectedExtruder,     setSelectedExtruder     ] = useState(null);
     const [ extruderList,         setExtruderList         ] = useState([]);
 
     const [ lastAction, setLastAction ] = useState(null);
+
+    const setExtrusionDistance = (value) => {
+        console.debug('UserPrinterControlExtrusion: setExtrusionDistance:', value);
+        _setExtrusionDistance(value);
+        cache.set('extrusionDistance', value);
+    };
 
     const afterMutation = () => {
         console.debug('UserPrinterControlExtrusion: afterMutation:', lastAction);
@@ -115,6 +124,12 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
             setSelectedExtruder(0);
         }
     }, [ connectionStatus ]);
+
+    useEffect(() => {
+        (async () => {
+            _setExtrusionDistance(await cache.get('extrusionDistance', 5))
+        })();
+    }, []);
 
     return (
         <>

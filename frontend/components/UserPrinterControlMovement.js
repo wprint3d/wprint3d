@@ -7,8 +7,11 @@ import API from "../includes/API";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import UserPrinterControlMovementButton from "./UserPrinterControlMovementButton";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
+import { useCache } from "../hooks/useCache";
 
 const UserPrinterControlMovement = ({ styles, isSmallTablet, isSmallLaptop }) => {
+    const cache = useCache();
+
     const { colors } = useTheme();
 
     const { enqueueSnackbar } = useSnackbar();
@@ -16,9 +19,21 @@ const UserPrinterControlMovement = ({ styles, isSmallTablet, isSmallLaptop }) =>
     const [ yLabelLayout,     setYLabelLayout     ] = useState({ width: 0, height: 0, x: 0, y: 0 });
     const [ xyControlsLayout, setXYControlsLayout ] = useState({ width: 0, height: 0, x: 0, y: 0 });
 
-    const [ feedrate,       setFeedrate      ] = useState(100);
-    const [ distance,       setDistance      ] = useState(5);
-    const [ lastDirection,  setLastDirection ] = useState(null);
+    const [ feedrate,       _setFeedrate      ] = useState(100);
+    const [ distance,       _setDistance      ] = useState(5);
+    const [ lastDirection,  setLastDirection  ] = useState(null);
+
+    const setFeedrate = (value) => {
+        console.debug('setFeedrate:', value);
+        _setFeedrate(value);
+        cache.set('feedrate', value);
+    };
+
+    const setDistance = (value) => {
+        console.debug('setDistance:', value);
+        _setDistance(value);
+        cache.set('distance', value);
+    }
 
     const afterMutation = () => {
         console.debug('sendMovementMutation: afterMutation');
@@ -69,6 +84,13 @@ const UserPrinterControlMovement = ({ styles, isSmallTablet, isSmallLaptop }) =>
             ? '100%'
             : 'auto'
     );
+
+    useEffect(() => {
+        (async () => {
+            _setFeedrate(await cache.get('feedrate', 100));
+            _setDistance(await cache.get('distance', 5));   
+        })();
+    }, []);
 
     return (
         <>
