@@ -9,7 +9,6 @@ import {
     MD3LightTheme,
     MD3DarkTheme
 } from 'react-native-paper';
-import { useCache } from '../hooks/useCache';
 
 export default (({ colorScheme }) => {
     const preferredScheme = useColorScheme();
