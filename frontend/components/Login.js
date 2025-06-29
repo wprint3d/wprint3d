@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useState }   from 'react';
 import { View, Text, StyleSheet }       from 'react-native';
+import Reanimated, { FadeIn } from 'react-native-reanimated';
 
 import { TextInput, Button, ActivityIndicator, HelperText, useTheme, Icon } from 'react-native-paper';
 
@@ -13,8 +14,8 @@ const Login = ({ appName, style }) => {
 
     return (
         <View style={style}>
-            <View style={styles.container}>
-                <View style={styles.content}>
+            <Reanimated.View style={styles.container} entering={FadeIn.duration(500)}>
+                <Reanimated.View style={styles.content} entering={FadeIn.duration(500)}>
                     <Text style={[
                         styles.title,
                         { color: colors.onBackground }
@@ -34,8 +35,8 @@ const Login = ({ appName, style }) => {
                     </View>
 
                     <Form colors={colors} />
-                </View>
-            </View>
+                </Reanimated.View>
+            </Reanimated.View>
         </View>
     );
 };
@@ -110,66 +111,78 @@ const Form = ({ colors }) => {
 
     if (csrfTokenQuery.isFetching) {
         return (
-            <View>
+            <Reanimated.View entering={FadeIn.duration(500)}>
                 <ActivityIndicator animating={true} />
 
-                <View style={styles.messageContainer}>
+                <Reanimated.View style={styles.messageContainer} entering={FadeIn.duration(500)}>
                     <Text style={styles.message}>Preparing login form...</Text>
-                </View>
-            </View>
+                </Reanimated.View>
+            </Reanimated.View>
         );
     }
 
     return (
-        <View style={[
-            styles.formContainer,
-            {
-                backgroundColor: colors.elevation.level1,
-                borderColor:     colors.elevation.level4
-            }
-        ]}>
-            <TextInput
-                value={email}
-                onChangeText={email => setEmail(email)}
-                label="Username or e-mail address"
-                mode="outlined"
-                placeholder="Enter username or email"
-                disabled={loginMutation.isPending}
-                onKeyPress={handleKeyPress}
-            />
-
-            <HelperText type="info" style={{ marginVertical: 3 }}>
-                {SHOW_LOGIN_HINTS
-                    ? <Text>The default username is <Text style={styles.textBold}>admin</Text>.</Text>
-                    : <Text>Type your username or e-mail address.</Text>
+        <Reanimated.View 
+            style={[styles.formContainer,
+                {
+                    backgroundColor: colors.elevation.level1,
+                    borderColor:     colors.elevation.level4
                 }
-            </HelperText>
+            ]}
+            entering={FadeIn.duration(500)}
+        >
+            <Reanimated.View entering={FadeIn.duration(500)}>
+                <TextInput
+                    value={email}
+                    onChangeText={email => setEmail(email)}
+                    label="Username or e-mail address"
+                    mode="outlined"
+                    placeholder="Enter username or email"
+                    disabled={loginMutation.isPending}
+                    onKeyPress={handleKeyPress}
+                />
+            </Reanimated.View>
 
-            <TextInput
-                value={password}
-                onChangeText={password => setPassword(password)}
-                label="Password"
-                mode="outlined"
-                placeholder="Enter password"
-                secureTextEntry
-                disabled={loginMutation.isPending}
-                onKeyPress={handleKeyPress}
-            />
+            <Reanimated.View entering={FadeIn.duration(500)}>
+                <HelperText type="info" style={{ marginVertical: 3 }}>
+                    {SHOW_LOGIN_HINTS
+                        ? <Text>The default username is <Text style={styles.textBold}>admin</Text>.</Text>
+                        : <Text>Type your username or e-mail address.</Text>
+                    }
+                </HelperText>
+            </Reanimated.View>
 
-            <HelperText type="info" style={{ marginVertical: 3 }}>
-                {SHOW_LOGIN_HINTS
-                    ? <Text>The default passsword is <Text style={styles.textBold}>admin</Text>.</Text>
-                    : <Text>Forgot your password? <Text style={styles.textBold}>Contact your administrator.</Text></Text>
-                }
-            </HelperText>
+            <Reanimated.View entering={FadeIn.duration(500)}>
+                <TextInput
+                    value={password}
+                    onChangeText={password => setPassword(password)}
+                    label="Password"
+                    mode="outlined"
+                    placeholder="Enter password"
+                    secureTextEntry
+                    disabled={loginMutation.isPending}
+                    onKeyPress={handleKeyPress}
+                />
+            </Reanimated.View>
+
+            <Reanimated.View entering={FadeIn.duration(500)}>
+                <HelperText type="info" style={{ marginVertical: 3 }}>
+                    {SHOW_LOGIN_HINTS
+                        ? <Text>The default passsword is <Text style={styles.textBold}>admin</Text>.</Text>
+                        : <Text>Forgot your password? <Text style={styles.textBold}>Contact your administrator.</Text></Text>
+                    }
+                </HelperText>
+            </Reanimated.View>
 
             {loginError.length > 0 &&
-                <HelperText type="error" style={styles.centeredText}>
-                    {loginError}
-                </HelperText>
+                <Reanimated.View entering={FadeIn.duration(500)}>
+                    <HelperText type="error" style={styles.centeredText}>
+                        {loginError}
+                    </HelperText>
+                </Reanimated.View>
             }
 
-            <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+            <Reanimated.View style={{ flexDirection: 'row', justifyContent: 'center' }} entering={FadeIn.duration(500)}>
                 <Button
                     onPress={handleLoginRequest}
                     mode="contained"
@@ -183,13 +196,13 @@ const Form = ({ colors }) => {
                             {
                                 loginMutation.isPending
                                     ? 'Logging in...'
-                                    : 'Sign in'
+                                    : 'Log in'
                             }
                         </Text>
                     </View>
                 </Button>
-            </View>
-        </View>
+            </Reanimated.View>
+        </Reanimated.View>
     );
 };
 

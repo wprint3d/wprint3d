@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { Animated, AppState, Linking, StyleSheet, Text, View } from 'react-native';
+import Reanimated, { FadeIn } from 'react-native-reanimated';
 import { ActivityIndicator, Icon, useTheme } from 'react-native-paper';
 
 import Login  from './components/Login';
@@ -93,17 +94,23 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
 
   if (getAppName.isError && getAppName?.error?.status === 502) {
     return (
-      <View style={styles.preloader}>
+      <Reanimated.View 
+        style={styles.preloader}
+        entering={FadeIn.duration(500)}
+      >
         <View style={styles.container}>
           <ActivityIndicator animating={true} />
 
-          <View style={styles.messageContainer}>
+          <Reanimated.View 
+            style={styles.messageContainer}
+            entering={FadeIn.delay(200).duration(500)}
+          >
               <Text style={messageStyle}>
                 Please wait for a while, the server is still starting up...
               </Text>
-          </View>
+          </Reanimated.View>
         </View>
-      </View>
+      </Reanimated.View>
     );
   }
 
@@ -134,17 +141,23 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
 
   if (!getAppName.isFetched || !checkLogin.isFetched) {
     return (
-      <View style={styles.preloader}>
-        <View style={styles.container}>
+      <Reanimated.View 
+        style={styles.preloader}
+        entering={FadeIn.duration(500)}
+      >
+        <Reanimated.View style={styles.container}>
           <ActivityIndicator animating={true} />
 
-          <View style={styles.messageContainer}>
+          <Reanimated.View 
+            style={styles.messageContainer}
+            entering={FadeIn.delay(200).duration(500)}
+          >
               <Text style={messageStyle}>
                 Please wait for a while, we're still loading some assets...
               </Text>
-          </View>
-        </View>
-      </View>
+          </Reanimated.View>
+        </Reanimated.View>
+      </Reanimated.View>
     );
   }
 
@@ -159,12 +172,18 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
             extraHint={checkLogin?.error?.response?.data}
           />
         )}
-        <Login appName={appName} style={styles.container} />
+        <Reanimated.View style={styles.container} entering={FadeIn.duration(500)}>
+          <Login appName={appName} style={{flex: 1}} />
+        </Reanimated.View>
       </>
     );
   }
 
-  return <Main appName={appName} colorScheme={colorScheme} setColorScheme={setColorScheme} />;
+  return (
+    <Reanimated.View style={{flex: 1}} entering={FadeIn.duration(500)}>
+      <Main appName={appName} colorScheme={colorScheme} setColorScheme={setColorScheme} />
+    </Reanimated.View>
+  );
 }
 
 const styles = StyleSheet.create({

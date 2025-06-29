@@ -3,6 +3,7 @@ import NavBar     from "./NavBar";
 import UserLayout from "./UserLayout";
 import { useWindowDimensions } from "react-native";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
+import Reanimated, { FadeIn } from "react-native-reanimated";
 
 export default function Main({ appName, colorScheme, setColorScheme }) {
     const [ navbarHeight, setNavbarHeight ] = useState(0);
@@ -19,7 +20,10 @@ export default function Main({ appName, colorScheme, setColorScheme }) {
           IS_SMALL_LAPTOP = windowWidth < 1024; // small laptop
 
     return (
-        <>
+        <Reanimated.View 
+            style={{ flex: 1 }}
+            entering={FadeIn.duration(500)}
+        >
             <NavBar
                 appName={appName}
                 heightReporter={setNavbarHeight}
@@ -37,6 +41,6 @@ export default function Main({ appName, colorScheme, setColorScheme }) {
                 colorScheme={colorScheme}
                 setColorScheme={setColorScheme}
             />
-        </>
+        </Reanimated.View>
     );
 }
