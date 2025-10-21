@@ -1,4 +1,4 @@
-FROM php:8.4
+FROM php:8.4.12-bookworm
 
 SHELL ["/bin/bash", "-c"]
 
@@ -98,6 +98,8 @@ RUN BUILD_TIME_DEPS='build-essential' &&\
 # though we're actually building "input_libcamera" into MJPG Streamer, we'll be
 # using Camera Streamer instead whenever an RPi camera is found, as it's faster
 # and more reliable.
+
+# libcamera
 RUN BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply python3-yaml xxd pkg-config' &&\
     apt-get update && apt-get install -y --no-install-recommends v4l-utils $BUILD_TIME_DEPS &&\
     git clone https://github.com/raspberrypi/libcamera.git --depth 1 -b v0.2.0+rpt20240215 &&\
@@ -106,23 +108,48 @@ RUN BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply pyth
     ninja -C build &&\
     ninja -C build install &&\
     cd .. &&\
-    git clone https://github.com/raspberrypi/libcamera-apps.git --depth 1 -b v1.4.3 &&\
-    cd libcamera-apps &&\
-    meson setup build -Denable_libav=true -Denable_drm=true -Denable_egl=false -Denable_qt=false -Denable_opencv=false -Denable_tflite=false &&\
-    meson compile -C build -j"$(nproc --all)" &&\
-    meson install -C build &&\
-    cd .. &&\
-    git clone https://github.com/ayufan/camera-streamer.git -b v0.2.8 --depth 1 --recursive --shallow-submodules &&\
-    cd camera-streamer &&\
-    make -j$(( "$(nproc --all)" * 2 )) && make install &&\
-    cd .. &&\
-    rm -rf libcamera libcamera-apps camera-streamer &&\
+    rm -rf libcamera &&\
     apt-get purge -y $BUILD_TIME_DEPS &&\
     apt-get autoremove -y &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/* &&\
-    rm -rf libcamera libcamera-apps camera-streamer/.git &&\
     ldconfig
+
+# rpicam-apps (previously "libcamera-apps")
+# RUN git clone https://github.com/raspberrypi/rpicam-apps.git --depth 1 -b v1.4.3 &&\
+#     cd rpicam-apps &&\
+#     meson setup build -Denable_libav=true -Denable_drm=true -Denable_egl=false -Denable_qt=false -Denable_opencv=false -Denable_tflite=false &&\
+#     meson compile -C build -j"$(nproc --all)" &&\
+#     meson install -C build
+
+# camera-streamer
+# RUN git clone https://github.com/ayufan/camera-streamer.git -b v0.2.8 --depth 1 --recursive --shallow-submodules &&\
+#     cd camera-streamer &&\
+#     make -j$(( "$(nproc --all)" * 2 )) && make install &&\
+#     cd .. &&\
+#     rm -rf libcamera libcamera-apps camera-streamer &&\
+#     apt-get purge -y $BUILD_TIME_DEPS &&\
+#     apt-get autoremove -y &&\
+#     apt-get clean &&\
+#     rm -rf /var/lib/apt/lists/* &&\
+#     rm -rf libcamera libcamera-apps camera-streamer/.git &&\
+#     ldconfig
+
+RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+        URL="https://github.com/ayufan/camera-streamer/releases/download/v0.3.0/camera-streamer-generic_0.3.0.bookworm_$(dpkg --print-architecture).deb" ;\
+    else \
+        URL="https://github.com/ayufan/camera-streamer/releases/download/v0.3.0/camera-streamer-raspi_0.3.0.bookworm_$(dpkg --print-architecture).deb" ;\
+    fi &&\
+    echo "Downloading Camera Streamer from: $URL" &&\
+    curl -L "$URL" -o /tmp/camera-streamer.deb &&\
+    apt-get install -y /tmp/camera-streamer.deb &&\
+    rm /tmp/camera-streamer.deb &&\
+    ldconfig &&\
+    camera-streamer --version &&\
+    apt-get purge -y &&\
+    apt-get autoremove -y &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/*
 
 # MJPG Streamer
 RUN BUILD_TIME_DEPS='build-essential pkg-config cmake' &&\
