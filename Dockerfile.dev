@@ -1,4 +1,4 @@
-FROM php:8.4.12-bookworm
+FROM php:8.4.12-trixie
 
 SHELL ["/bin/bash", "-c"]
 
@@ -88,9 +88,9 @@ RUN BUILD_TIME_DEPS='build-essential' &&\
 # Build and install Camera Streamer and MJPG Streamer
 #
 # In the two blocks shown below, we will compile and install the RPi camera
-# dependencies (libcamera and libcamera-apps-lite) which are then bundled with
-# the image. This is useful as most SBCs DO have a built-in hardware
-# encoder/decoder that camera-streamer can take advantage of.
+# dependencies (libcamera) which are then bundled with the image. This is
+# useful as most SBCs DO have a built-in hardware encoder/decoder that
+# camera-streamer can take advantage of.
 #
 # Note that we're manually removing "input_raspicam" from MJPG streamer as it's
 # broken on 64-bit builds of Raspberry Pi OS and it's terribly slow too, so
@@ -99,57 +99,47 @@ RUN BUILD_TIME_DEPS='build-essential' &&\
 # using Camera Streamer instead whenever an RPi camera is found, as it's faster
 # and more reliable.
 
-# libcamera
-RUN BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply python3-yaml xxd pkg-config' &&\
+# libcamera (RPi camera dependency - built and installed from source)
+RUN BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply python3-yaml xxd pkg-config debhelper dh-make' &&\
     apt-get update && apt-get install -y --no-install-recommends v4l-utils $BUILD_TIME_DEPS &&\
-    git clone https://github.com/raspberrypi/libcamera.git --depth 1 -b v0.2.0+rpt20240215 &&\
-    cd libcamera &&\
+    git clone https://github.com/raspberrypi/libcamera.git --depth 1 -b v0.5.0+rpt20250429 /tmp/libcamera &&\
+    cd /tmp/libcamera &&\
     meson build --buildtype=release -Dpipelines=rpi/vc4 -Dipas=rpi/vc4 -Dv4l2=true -Dgstreamer=enabled -Dtest=false -Dlc-compliance=disabled -Dcam=disabled -Dqcam=disabled -Ddocumentation=disabled -Dpycamera=disabled &&\
-    ninja -C build &&\
     ninja -C build install &&\
+    apt-get purge -y $BUILD_TIME_DEPS &&\
+    apt-get autoremove -y &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/* /tmp/libcamera &&\
+    ldconfig
+
+# camera-streamer
+#
+# 60c41f7 - ffmpeg: fix for latest FFMpeg library
+# e08ba88 - webrtc: update libdatachannel to v0.23
+# 9df363e - libdatachannel: force to update libdatachannel 
+#
+# Some of these changes break WebRTC support but we don't use WebRTC anyway,
+# so it's not an issue.
+RUN BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply python3-yaml xxd pkg-config debhelper dh-make' &&\
+    apt-get update && apt-get install -y --no-install-recommends v4l-utils $BUILD_TIME_DEPS &&\
+    git clone https://github.com/ayufan/camera-streamer.git -b v0.3.0 --recursive --shallow-submodules &&\
+    cd camera-streamer &&\
+    git config user.email "builder@localhost" &&\
+    git config user.name "Builder" &&\
+    git remote add ffmpeg-fix https://github.com/andreili/camera-streamer.git &&\
+    git fetch ffmpeg-fix &&\
+    git cherry-pick 60c41f7 &&\
+    git cherry-pick e08ba88 &&\
+    git cherry-pick 9df363e &&\
+    make -j$(( "$(nproc --all)" * 2 )) && make install &&\
     cd .. &&\
-    rm -rf libcamera &&\
+    rm -rf libcamera libcamera-apps camera-streamer &&\
     apt-get purge -y $BUILD_TIME_DEPS &&\
     apt-get autoremove -y &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/* &&\
+    rm -rf libcamera libcamera-apps camera-streamer/.git &&\
     ldconfig
-
-# rpicam-apps (previously "libcamera-apps")
-# RUN git clone https://github.com/raspberrypi/rpicam-apps.git --depth 1 -b v1.4.3 &&\
-#     cd rpicam-apps &&\
-#     meson setup build -Denable_libav=true -Denable_drm=true -Denable_egl=false -Denable_qt=false -Denable_opencv=false -Denable_tflite=false &&\
-#     meson compile -C build -j"$(nproc --all)" &&\
-#     meson install -C build
-
-# camera-streamer
-# RUN git clone https://github.com/ayufan/camera-streamer.git -b v0.2.8 --depth 1 --recursive --shallow-submodules &&\
-#     cd camera-streamer &&\
-#     make -j$(( "$(nproc --all)" * 2 )) && make install &&\
-#     cd .. &&\
-#     rm -rf libcamera libcamera-apps camera-streamer &&\
-#     apt-get purge -y $BUILD_TIME_DEPS &&\
-#     apt-get autoremove -y &&\
-#     apt-get clean &&\
-#     rm -rf /var/lib/apt/lists/* &&\
-#     rm -rf libcamera libcamera-apps camera-streamer/.git &&\
-#     ldconfig
-
-RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
-        URL="https://github.com/ayufan/camera-streamer/releases/download/v0.3.0/camera-streamer-generic_0.3.0.bookworm_$(dpkg --print-architecture).deb" ;\
-    else \
-        URL="https://github.com/ayufan/camera-streamer/releases/download/v0.3.0/camera-streamer-raspi_0.3.0.bookworm_$(dpkg --print-architecture).deb" ;\
-    fi &&\
-    echo "Downloading Camera Streamer from: $URL" &&\
-    curl -L "$URL" -o /tmp/camera-streamer.deb &&\
-    apt-get install -y /tmp/camera-streamer.deb &&\
-    rm /tmp/camera-streamer.deb &&\
-    ldconfig &&\
-    camera-streamer --version &&\
-    apt-get purge -y &&\
-    apt-get autoremove -y &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/*
 
 # MJPG Streamer
 RUN BUILD_TIME_DEPS='build-essential pkg-config cmake' &&\
