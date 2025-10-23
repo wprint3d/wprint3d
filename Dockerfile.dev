@@ -100,17 +100,22 @@ RUN BUILD_TIME_DEPS='build-essential' &&\
 # and more reliable.
 
 # libcamera (RPi camera dependency - built and installed from source)
-RUN BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply python3-yaml xxd pkg-config debhelper dh-make' &&\
-    apt-get update && apt-get install -y --no-install-recommends v4l-utils $BUILD_TIME_DEPS &&\
-    git clone https://github.com/raspberrypi/libcamera.git --depth 1 -b v0.5.0+rpt20250429 /tmp/libcamera &&\
-    cd /tmp/libcamera &&\
-    meson build --buildtype=release -Dpipelines=rpi/vc4 -Dipas=rpi/vc4 -Dv4l2=true -Dgstreamer=enabled -Dtest=false -Dlc-compliance=disabled -Dcam=disabled -Dqcam=disabled -Ddocumentation=disabled -Dpycamera=disabled &&\
-    ninja -C build install &&\
-    apt-get purge -y $BUILD_TIME_DEPS &&\
-    apt-get autoremove -y &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/* /tmp/libcamera &&\
-    ldconfig
+RUN if [ "$(dpkg --print-architecture)" = "arm64" ]; then \
+        echo "Building and installing libcamera... " ;\
+        BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply python3-yaml xxd pkg-config debhelper dh-make' &&\
+        apt-get update && apt-get install -y --no-install-recommends v4l-utils $BUILD_TIME_DEPS &&\
+        git clone https://github.com/raspberrypi/libcamera.git --depth 1 -b v0.5.0+rpt20250429 /tmp/libcamera &&\
+        cd /tmp/libcamera &&\
+        meson build --buildtype=release -Dpipelines=rpi/vc4 -Dipas=rpi/vc4 -Dv4l2=true -Dgstreamer=enabled -Dtest=false -Dlc-compliance=disabled -Dcam=disabled -Dqcam=disabled -Ddocumentation=disabled -Dpycamera=disabled &&\
+        ninja -C build install &&\
+        apt-get purge -y $BUILD_TIME_DEPS &&\
+        apt-get autoremove -y &&\
+        apt-get clean &&\
+        rm -rf /var/lib/apt/lists/* /tmp/libcamera &&\
+        ldconfig ;\
+    else \
+        echo "Skipping libcamera build on non-arm64 architecture... " ;\
+    fi
 
 # camera-streamer
 #
@@ -120,26 +125,31 @@ RUN BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply pyth
 #
 # Some of these changes break WebRTC support but we don't use WebRTC anyway,
 # so it's not an issue.
-RUN BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply python3-yaml xxd pkg-config debhelper dh-make' &&\
-    apt-get update && apt-get install -y --no-install-recommends v4l-utils $BUILD_TIME_DEPS &&\
-    git clone https://github.com/ayufan/camera-streamer.git -b v0.3.0 --recursive --shallow-submodules &&\
-    cd camera-streamer &&\
-    git config user.email "builder@localhost" &&\
-    git config user.name "Builder" &&\
-    git remote add ffmpeg-fix https://github.com/andreili/camera-streamer.git &&\
-    git fetch ffmpeg-fix &&\
-    git cherry-pick 60c41f7 &&\
-    git cherry-pick e08ba88 &&\
-    git cherry-pick 9df363e &&\
-    make -j$(( "$(nproc --all)" * 2 )) && make install &&\
-    cd .. &&\
-    rm -rf libcamera libcamera-apps camera-streamer &&\
-    apt-get purge -y $BUILD_TIME_DEPS &&\
-    apt-get autoremove -y &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/* &&\
-    rm -rf libcamera libcamera-apps camera-streamer/.git &&\
-    ldconfig
+RUN if [ "$(dpkg --print-architecture)" = "arm64" ]; then \
+        echo "Building and installing camera-streamer... " ;\
+        BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply python3-yaml xxd pkg-config debhelper dh-make' &&\
+        apt-get update && apt-get install -y --no-install-recommends v4l-utils $BUILD_TIME_DEPS &&\
+        git clone https://github.com/ayufan/camera-streamer.git -b v0.3.0 --recursive --shallow-submodules &&\
+        cd camera-streamer &&\
+        git config user.email "builder@localhost" &&\
+        git config user.name "Builder" &&\
+        git remote add ffmpeg-fix https://github.com/andreili/camera-streamer.git &&\
+        git fetch ffmpeg-fix &&\
+        git cherry-pick 60c41f7 &&\
+        git cherry-pick e08ba88 &&\
+        git cherry-pick 9df363e &&\
+        make -j$(( "$(nproc --all)" * 2 )) && make install &&\
+        cd .. &&\
+        rm -rf libcamera libcamera-apps camera-streamer &&\
+        apt-get purge -y $BUILD_TIME_DEPS &&\
+        apt-get autoremove -y &&\
+        apt-get clean &&\
+        rm -rf /var/lib/apt/lists/* &&\
+        rm -rf libcamera libcamera-apps camera-streamer/.git &&\
+        ldconfig ;\
+    else \
+        echo "Skipping camera-streamer build on non-arm64 architecture... " ;\
+    fi
 
 # MJPG Streamer
 RUN BUILD_TIME_DEPS='build-essential pkg-config cmake' &&\
