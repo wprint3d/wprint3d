@@ -46,6 +46,7 @@ Other firmwares     | :x: No support
 
 Architecture        | Support
 ------------------- | -----------
+armel/armhf         | :heavy_minus_sign: Planned
 arm64               | :white_check_mark:
 amd64               | :white_check_mark:
 x86                 | :white_check_mark:
