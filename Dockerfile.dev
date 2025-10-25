@@ -129,18 +129,17 @@ RUN if [ "$(dpkg --print-architecture)" = "arm64" ]; then \
         echo "Building and installing camera-streamer... " ;\
         BUILD_TIME_DEPS='build-essential cmake meson python3-jinja2 python3-ply python3-yaml xxd pkg-config debhelper dh-make' &&\
         apt-get update && apt-get install -y --no-install-recommends v4l-utils $BUILD_TIME_DEPS &&\
-        git clone https://github.com/ayufan/camera-streamer.git -b v0.3.0 --recursive --shallow-submodules &&\
-        cd camera-streamer &&\
-        git config user.email "builder@localhost" &&\
-        git config user.name "Builder" &&\
-        git remote add ffmpeg-fix https://github.com/andreili/camera-streamer.git &&\
-        git fetch ffmpeg-fix &&\
-        git cherry-pick 60c41f7 &&\
-        git cherry-pick e08ba88 &&\
-        git cherry-pick 9df363e &&\
-        make -j$(( "$(nproc --all)" * 2 )) && make install &&\
+        echo "Cloning camera-streamer repository... " &&\
+        git clone https://github.com/wprint3d/camera-streamer.git --recursive --shallow-submodules /tmp/camera-streamer &&\
+        cd /tmp/camera-streamer &&\
+        echo "Continuing camera-streamer build... " &&\
+        cd /tmp/camera-streamer &&\
+        make -j$(( "$(nproc --all)" * 2 )) &&\
+        echo "Installing camera-streamer... " ;\
+        cd /tmp/camera-streamer &&\
+        make install &&\
         cd .. &&\
-        rm -rf libcamera libcamera-apps camera-streamer &&\
+        rm -rf /tmp/camera-streamer &&\
         apt-get purge -y $BUILD_TIME_DEPS &&\
         apt-get autoremove -y &&\
         apt-get clean &&\
