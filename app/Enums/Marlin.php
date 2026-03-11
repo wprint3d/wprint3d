@@ -19,7 +19,7 @@ final class Marlin extends Enum
 	const G2 = 'Arc or Circle Move';
 	const G3 = 'Arc or Circle Move';
 	const G4 = 'Dwell';
-	const G5 = 'Bézier Cubic Spline';
+	const G5 = 'Bézier Cubic Spline Move';
 	const G6 = 'Direct Stepper Move';
 	const G10 = 'Retract';
 	const G11 = 'Recover';
@@ -41,8 +41,8 @@ final class Marlin extends Enum
 	const G38 = 'Probe target';
 	const G42 = 'Move to mesh coordinate';
 	const G53 = 'Move in Machine Coordinates';
-	const G54 = 'Workspace Coordinate System';
-	const G59 = 'Workspace Coordinate System';
+	const G54 = 'Select Workspace';
+	const G59 = 'Select Workspace';
 	const G60 = 'Stored Positions';
 	const G61 = 'Return to Saved Position';
 	const G76 = 'Probe temperature calibration';
@@ -80,7 +80,7 @@ final class Marlin extends Enum
 	const M33 = 'Get Long Path';
 	const M34 = 'SDCard Sorting';
 	const M42 = 'Set Pin State';
-	const M43 = 'Debug Pins';
+	const M43 = 'Pins Debugging';
 	const M48 = 'Probe Repeatability Test';
 	const M73 = 'Set Print Progress';
 	const M75 = 'Start Print Job Timer';
@@ -125,7 +125,7 @@ final class Marlin extends Enum
 	const M141 = 'Set Chamber Temperature';
 	const M143 = 'Set Laser Cooler Temperature';
 	const M145 = 'Set Material Preset';
-	const M149 = 'Temperature Units';
+	const M149 = 'Set Temperature Units';
 	const M150 = 'Set RGB(W) Color';
 	const M154 = 'Position Auto-Report';
 	const M155 = 'Temperature Auto-Report';
@@ -159,6 +159,7 @@ final class Marlin extends Enum
 	const M256 = 'LCD Brightness';
 	const M260 = 'I2C Send';
 	const M261 = 'I2C Request';
+	const M265 = 'Scan I2C Bus';
 	const M280 = 'Servo Position';
 	const M281 = 'Edit Servo Angles';
 	const M282 = 'Detach Servo';
@@ -170,6 +171,7 @@ final class Marlin extends Enum
 	const M304 = 'Set Bed PID';
 	const M305 = 'User Thermistor Parameters';
 	const M306 = 'Model Predictive Temp. Control';
+	const M309 = 'Set Chamber PID';
 	const M350 = 'Set micro-stepping';
 	const M351 = 'Set Microstep Pins';
 	const M355 = 'Case Light Control';
@@ -191,6 +193,7 @@ final class Marlin extends Enum
 	const M410 = 'Quickstop';
 	const M412 = 'Filament Runout';
 	const M413 = 'Power-loss Recovery';
+	const M414 = 'LCD language';
 	const M420 = 'Bed Leveling State';
 	const M421 = 'Set Mesh Value';
 	const M422 = 'Set Z Motor XY';
@@ -200,6 +203,7 @@ final class Marlin extends Enum
 	const M430 = 'Power Monitor';
 	const M486 = 'Cancel Objects';
 	const M493 = 'Fixed-Time Motion';
+	const M494 = 'FT Motion Trajectory Smoothing';
 	const M500 = 'Save Settings';
 	const M501 = 'Restore Settings';
 	const M502 = 'Factory Reset';
@@ -211,7 +215,10 @@ final class Marlin extends Enum
 	const M524 = 'Abort SD print';
 	const M540 = 'Endstops Abort SD';
 	const M550 = 'Machine Name';
-	const M569 = 'Set TMC stepping mode';
+	const M552 = 'Ethernet IP Address, Network IF';
+	const M553 = 'Ethernet Subnet Mask';
+	const M554 = 'Ethernet Gateway IP Address';
+	const M569 = 'Set TMC Stepping Mode';
 	const M575 = 'Serial baud rate';
 	const M592 = 'Nonlinear Extrusion Control';
 	const M593 = 'ZV Input Shaping';
@@ -250,6 +257,7 @@ final class Marlin extends Enum
 	const M917 = 'L6474 Overcurrent Warning Test';
 	const M918 = 'L6474 Speed Warning Test';
 	const M919 = 'TMC Chopper Timing';
+	const M920 = 'TMC Homing Current';
 	const M928 = 'Start SD Logging';
 	const M951 = 'Magnetic Parking Extruder';
 	const M993 = 'Back up flash settings to SD';
