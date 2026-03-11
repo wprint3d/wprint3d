@@ -105,15 +105,9 @@ fi;
 
 if [[ "$ENV" == 'dev' ]]; then
     if [[ ! -d 'frontend' ]]; then
-        echo 'Cloning frontend repository...';
+        echo 'The frontend directory is missing. Restore it from git and try again.';
 
-        git clone https://github.com/wprint3d/wprint3d-frontend frontend;
-
-        if [ $? -ne 0 ]; then
-            echo 'Failed to clone the frontend repository.';
-
-            exit 1;
-        fi;
+        exit 1;
     fi;
 
     docker compose -f docker-compose-development.yml pull || exit 1;

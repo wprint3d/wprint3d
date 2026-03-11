@@ -6,8 +6,6 @@
     <p align="center">
         <a href="https://github.com/wprint3d/wprint3dos-pi-gen">
             WPrint 3D OS
-        </a> | <a href="https://github.com/wprint3d/wprint3d-frontend">
-            Frontend
         </a>
     </p>
 </div>
@@ -77,9 +75,9 @@ Other OSes          | :grey_question: Untested (may work if they can run Docker)
 - **Docker** and **Docker Compose**
 - **GNU/Linux** or **Windows 10** (or greater) with **WSL2** enabled (experimental)
 - **USBIPD-Win** (Windows only)
-- [WPrint 3D - Frontend](https://github.com/wprint3d/wprint3d-frontend)**<sup>\*</sup>**
+- The Expo frontend source shipped in this repository under `frontend/`**<sup>\*\*</sup>**
 
-**<sup>\*</sup>** The bundled frontend is downloaded automatically during the first run. If you're a developer and run the software in **developer mode**, the full source code will be added to the `frontend` directory.
+**<sup>\*\*</sup>** Development and production assets now come from the same monorepo. Use the tracked `frontend/` directory directly when working on the UI.
 
 ## System requirements
 - Any **dual-core CPU** running at, at least, **1 GHz**
