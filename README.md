@@ -92,6 +92,8 @@ WPrint 3D now includes a plugin platform with:
 
 When running `./run.sh -e dev`, unpacked plugins can be installed directly from the live development mount exposed at `/var/www/plugins-dev` inside the containers. Start with the developer guide at [docs/plugins.md](/home/facuarmo/wprint3d-core/docs/plugins.md) and the sample plugin at [examples/plugins/hello-world](/home/facuarmo/wprint3d-core/examples/plugins/hello-world).
 
+Production backend images intentionally exclude `examples/plugins` so sample plugins do not ship in the runtime image. Use the development stack or a source checkout when you need the example plugins for testing, packaging, or demos.
+
 ## System requirements
 - Any **dual-core CPU** running at, at least, **1 GHz**
 - **1 GB** of memory running at **any speed** \*

@@ -5,6 +5,10 @@ INCLUDE+ ./Dockerfile.dev
 # Copy the source code
 ADD . /var/www
 
+# Production images ship the plugin framework only. Example plugins remain
+# available through the development stack's bind mounts.
+RUN rm -rf /var/www/examples/plugins
+
 # Set the working directory
 WORKDIR /var/www
 

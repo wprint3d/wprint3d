@@ -56,6 +56,8 @@ When WPrint 3D runs through `./run.sh -e dev`, unpacked source plugins are mount
 
 Enable `developerMode` in Settings, then open `Settings -> Plugins -> Add a plugin -> Install unpacked` to install live source directories without packaging them first.
 
+Production backend images do not bundle `examples/plugins`. That keeps the shipped runtime smaller and avoids publishing demonstration packages in production images. If you want the sample plugins, use the development stack or a source checkout.
+
 ## Registry And Trust
 
 - Official packages come from the GitHub-backed official registry.
