@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { Button, Card, Dialog, Divider, List, Portal, ProgressBar, Text, TextInput, useTheme } from "react-native-paper";
 import { WebView } from "react-native-webview";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 import API from "../includes/API";
+import { usePluginLoading } from "./PluginLoadingProvider";
 
 const clampPercentage = (value) => {
   if (!Number.isFinite(value)) { return 0; }
@@ -66,12 +67,15 @@ const ProgressMetric = ({ label, percentage, accentColor }) => {
 
 const ProgressClusterNode = ({ extension, node, printerId = null }) => {
   const { colors } = useTheme();
+  const { setPluginTaskState } = usePluginLoading();
   const tones = [
     colors.primary,
     colors.secondary || colors.primary,
     colors.tertiary || colors.primary,
   ];
   const queryKeyPayload = JSON.stringify(node.dataActionPayload || {});
+  const taskKey = `data:${extension.id}:${node.dataActionId}:${printerId || "global"}:${queryKeyPayload}`;
+  const hasSettledInitialLoadRef = useRef(false);
 
   const dataQuery = useQuery({
     queryKey: ["pluginExtensionData", extension.pluginId, extension.id, printerId, node.dataActionId, queryKeyPayload],
@@ -89,6 +93,52 @@ const ProgressClusterNode = ({ extension, node, printerId = null }) => {
     refetchOnWindowFocus: false,
     staleTime: node.pollIntervalMs || 10000,
   });
+
+  useEffect(() => {
+    if (!node.dataActionId || hasSettledInitialLoadRef.current) {
+      return undefined;
+    }
+
+    if (dataQuery.isPending || dataQuery.isFetching) {
+      setPluginTaskState({
+        pluginId: extension.pluginId,
+        pluginName: extension.pluginName,
+        taskKey,
+        status: "loading",
+      });
+    }
+
+    if (dataQuery.isSuccess || dataQuery.isError) {
+      hasSettledInitialLoadRef.current = true;
+      setPluginTaskState({
+        pluginId: extension.pluginId,
+        pluginName: extension.pluginName,
+        taskKey,
+        status: "complete",
+      });
+    }
+
+    return () => {
+      if (!hasSettledInitialLoadRef.current) {
+        setPluginTaskState({
+          pluginId: extension.pluginId,
+          pluginName: extension.pluginName,
+          taskKey,
+          status: "complete",
+        });
+      }
+    };
+  }, [
+    dataQuery.isError,
+    dataQuery.isFetching,
+    dataQuery.isPending,
+    dataQuery.isSuccess,
+    extension.pluginId,
+    extension.pluginName,
+    node.dataActionId,
+    setPluginTaskState,
+    taskKey,
+  ]);
 
   const metrics = dataQuery.data || {};
 

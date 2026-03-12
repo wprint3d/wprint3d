@@ -11,6 +11,7 @@ import API from './includes/API';
 
 import { useEffect, useState } from 'react';
 import UserChangePasswordModal from './components/UserChangePasswordModal';
+import PluginLoadingProvider from './components/PluginLoadingProvider';
 
 export default function QueryableApp({ colorScheme, setColorScheme }) {
   const { colors } = useTheme();
@@ -181,7 +182,9 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
 
   return (
     <Reanimated.View style={{flex: 1}} entering={FadeIn.duration(500)}>
-      <Main appName={appName} colorScheme={colorScheme} setColorScheme={setColorScheme} />
+      <PluginLoadingProvider>
+        <Main appName={appName} colorScheme={colorScheme} setColorScheme={setColorScheme} />
+      </PluginLoadingProvider>
     </Reanimated.View>
   );
 }
