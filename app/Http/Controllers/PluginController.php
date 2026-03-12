@@ -14,6 +14,11 @@ class PluginController extends Controller
         private PluginManager $pluginManager,
     ) {}
 
+    public function sdk(): array
+    {
+        return $this->pluginManager->sdkMetadata();
+    }
+
     public function index(): array
     {
         return $this->pluginManager->listInstalled();
@@ -134,6 +139,20 @@ class PluginController extends Controller
             context: [
                 'userId' => optional($request->user())->_id,
                 'printerId' => $request->input('printerId'),
+            ],
+        );
+    }
+
+    public function asset(string $pluginId, string $assetPath): Response
+    {
+        $asset = $this->pluginManager->resolveAsset($pluginId, $assetPath);
+
+        return response(
+            file_get_contents($asset['path']),
+            Response::HTTP_OK,
+            [
+                'Content-Type' => $asset['mimeType'],
+                'Cache-Control' => 'private, max-age=60',
             ],
         );
     }

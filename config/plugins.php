@@ -2,6 +2,44 @@
 
 return [
     'sdk_version' => 1,
+    'sdk_revision' => 1,
+
+    'sdk' => [
+        'current' => [
+            'version' => 1,
+            'revision' => 1,
+        ],
+        'versions' => [
+            1 => [
+                'label' => 'WPrint3D Plugin SDK 1',
+                'status' => 'active',
+                'defaultRevision' => 1,
+                'deprecatedAfter' => null,
+                'revisions' => [
+                    0 => [
+                        'releasedAt' => '2026-03-11',
+                        'status' => 'supported',
+                        'summary' => 'Initial public plugin SDK release.',
+                        'changes' => [
+                            'Introduced PHP and bridge runtime adapters.',
+                            'Added declarative UI surfaces, WebView mode, and custom bundle mode.',
+                            'Added signed, sideloaded, and development-mount installation flows.',
+                        ],
+                    ],
+                    1 => [
+                        'releasedAt' => '2026-03-12',
+                        'status' => 'current',
+                        'summary' => 'Asset-backed elevated UI revisions and settings-tab parity release.',
+                        'changes' => [
+                            'Added revisioned SDK metadata with compatibility validation.',
+                            'Added host-served plugin assets for WebView and custom bundle extensions.',
+                            'Standardized dedicated plugin settings tabs and elevated UI warnings.',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ],
 
     'core_version' => env('APP_VERSION', '0.0.0'),
 

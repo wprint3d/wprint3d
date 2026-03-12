@@ -161,4 +161,4 @@ Note:
 
 - Point `PLUGIN_REGISTRY_INDEX_URL` to a working registry and repeat the browser flow for registry install/update.
 - Add a browser E2E case for `.w3dp` upload once a stable web file-input path is exposed.
-- Add a second sample plugin that uses `webview` or `custom_bundle` mode so elevated UI flows can be documented with the same script.
+- The full runtime/UI shape matrix now lives in [docs/plugin-shape-matrix-e2e.md](/home/facuarmo/wprint3d-core/docs/plugin-shape-matrix-e2e.md).

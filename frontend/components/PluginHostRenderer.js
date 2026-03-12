@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Platform, ScrollView, View } from "react-native";
 import { Button, Card, Dialog, Divider, List, Portal, ProgressBar, Text, TextInput, useTheme } from "react-native-paper";
 import { WebView } from "react-native-webview";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,6 +18,80 @@ const readValueByPath = (object, path) => {
   return path.split(".").reduce((value, key) => (
     value && typeof value === "object" ? value[key] : undefined
   ), object);
+};
+
+const resolveTemplateString = (value, props) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  return value.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_match, key) => {
+    const resolved = readValueByPath(props, key);
+
+    return resolved === undefined || resolved === null ? "" : String(resolved);
+  });
+};
+
+const resolveRemoteComponentValue = (value, props) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveRemoteComponentValue(item, props));
+  }
+
+  if (value && typeof value === "object") {
+    if (Object.prototype.hasOwnProperty.call(value, "$prop")) {
+      const resolved = readValueByPath(props, value.$prop);
+
+      return resolved === undefined ? value.default : resolved;
+    }
+
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, resolveRemoteComponentValue(nestedValue, props)])
+    );
+  }
+
+  return resolveTemplateString(value, props);
+};
+
+const buildEmbeddedUiUrl = (rawUrl, extension, colors) => {
+  if (!rawUrl) { return rawUrl; }
+
+  let resolvedUrl = null;
+
+  try {
+    resolvedUrl = new URL(rawUrl);
+  } catch (_error) {
+    if (typeof window !== "undefined" && window?.location?.origin) {
+      resolvedUrl = new URL(rawUrl, window.location.origin);
+    }
+  }
+
+  if (!resolvedUrl) { return rawUrl; }
+
+  resolvedUrl.searchParams.set("pluginId", extension.pluginId);
+  resolvedUrl.searchParams.set("pluginName", extension.pluginName || "");
+  resolvedUrl.searchParams.set("extensionId", extension.id || "");
+  resolvedUrl.searchParams.set("extensionMode", extension.mode || "declarative");
+  resolvedUrl.searchParams.set("actionId", extension.dataActionId || extension.actionId || "");
+  resolvedUrl.searchParams.set("pluginApiBase", `/backend/api/plugins/${extension.pluginId}`);
+  resolvedUrl.searchParams.set("components", JSON.stringify(extension.pluginManifest?.components || []));
+  resolvedUrl.searchParams.set("componentIds", JSON.stringify(extension.components || []));
+  resolvedUrl.searchParams.set("theme", JSON.stringify({
+    primary: colors.primary,
+    secondary: colors.secondary,
+    tertiary: colors.tertiary,
+    surface: colors.surface,
+    surfaceVariant: colors.surfaceVariant,
+    background: colors.background,
+    onSurface: colors.onSurface,
+    onSurfaceVariant: colors.onSurfaceVariant,
+    outline: colors.outline,
+    outlineVariant: colors.outlineVariant,
+    elevation: colors.elevation || {},
+    error: colors.error,
+    onError: colors.onError,
+  }));
+
+  return resolvedUrl.toString();
 };
 
 const ProgressMetric = ({ label, percentage, accentColor }) => {
@@ -165,6 +239,26 @@ const ProgressClusterNode = ({ extension, node, printerId = null }) => {
   );
 };
 
+const EmbeddedBrowserFrame = ({ uri, minHeight = 360 }) => {
+  if (Platform.OS === "web") {
+    return (
+      <iframe
+        src={uri}
+        title={uri}
+        style={{
+          width: "100%",
+          minHeight,
+          border: "0",
+          display: "block",
+          background: "transparent",
+        }}
+      />
+    );
+  }
+
+  return <WebView source={{ uri }} />;
+};
+
 const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null }) => {
   const { colors } = useTheme();
   const { enqueueSnackbar } = useSnackbar();
@@ -176,6 +270,12 @@ const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null 
   const modalExtensionMap = useMemo(() => {
     return Object.fromEntries((modalExtensions || []).map(item => [item.id, item]));
   }, [modalExtensions]);
+
+  const manifestComponentMap = useMemo(() => {
+    return Object.fromEntries(
+      ((extension.pluginManifest?.components) || []).map((component) => [component.id, component])
+    );
+  }, [extension.pluginManifest]);
 
   const actionMutation = useMutation({
     mutationFn: ({ actionId, payload }) => API.post(`/plugins/${extension.pluginId}/actions/${actionId}`, {
@@ -208,7 +308,7 @@ const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null 
     actionMutation.mutate({ actionId, payload });
   };
 
-  const renderNode = (node, keyPrefix = "root") => {
+  const renderNode = (node, keyPrefix = "root", componentStack = []) => {
     if (!node) { return null; }
 
     const key = `${keyPrefix}-${node.id || node.component || "node"}`;
@@ -224,7 +324,7 @@ const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null 
               <Card.Title title={node.title} subtitle={node.subtitle} />
             )}
             <Card.Content>
-              {(node.children || []).map((child, index) => renderNode(child, `${key}-${index}`))}
+              {(node.children || []).map((child, index) => renderNode(child, `${key}-${index}`, componentStack))}
             </Card.Content>
           </Card>
         );
@@ -330,17 +430,55 @@ const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null 
             printerId={printerId}
           />
         );
+      case "remote_component": {
+        const componentId = node.componentId;
+        const definition = componentId ? manifestComponentMap[componentId] : null;
+
+        if (!definition || definition.kind !== "remote_component") {
+          return (
+            <Card key={key} style={{ marginBottom: 12, backgroundColor: colors.errorContainer }}>
+              <Card.Content>
+                <Text style={{ color: colors.onErrorContainer }}>
+                  Unable to render remote component {componentId || "unknown"}.
+                </Text>
+              </Card.Content>
+            </Card>
+          );
+        }
+
+        if (componentStack.includes(componentId)) {
+          return (
+            <Card key={key} style={{ marginBottom: 12, backgroundColor: colors.errorContainer }}>
+              <Card.Content>
+                <Text style={{ color: colors.onErrorContainer }}>
+                  Remote component recursion detected for {componentId}.
+                </Text>
+              </Card.Content>
+            </Card>
+          );
+        }
+
+        const resolvedSchema = resolveRemoteComponentValue(definition.schema, node.props || {});
+
+        return renderNode(
+          resolvedSchema,
+          `${key}-remote-${componentId}`,
+          [...componentStack, componentId]
+        );
+      }
       default:
         return null;
     }
   };
 
   if ((extension.mode || "declarative") === "webview") {
+    const embeddedUrl = buildEmbeddedUiUrl(extension.url, extension, colors);
+
     return (
       <Card style={{ marginBottom: 12, overflow: "hidden" }}>
         <Card.Title title={extension.title} subtitle={`${extension.pluginName} WebView`} />
         <View style={{ minHeight: 360 }}>
-          <WebView source={{ uri: extension.url }} />
+          <EmbeddedBrowserFrame uri={embeddedUrl} minHeight={360} />
         </View>
       </Card>
     );
@@ -348,6 +486,7 @@ const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null 
 
   if ((extension.mode || "declarative") === "custom_bundle") {
     const customBundleUrl = extension.bundle?.url || extension.url;
+    const embeddedUrl = buildEmbeddedUiUrl(customBundleUrl, extension, colors);
 
     return (
       <Card style={{ marginBottom: 12, overflow: "hidden" }}>
@@ -357,9 +496,9 @@ const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null 
             This extension uses the elevated custom bundle mode. It is isolated and may consume more resources than the default declarative mode.
           </Text>
         </Card.Content>
-        {customBundleUrl ? (
+        {embeddedUrl ? (
           <View style={{ minHeight: 360 }}>
-            <WebView source={{ uri: customBundleUrl }} />
+            <EmbeddedBrowserFrame uri={embeddedUrl} minHeight={360} />
           </View>
         ) : (
           <Card.Content>

@@ -18,6 +18,17 @@ class PluginManagerService implements PluginManager
         private PluginRuntimeRegistry $runtimeRegistry,
     ) {}
 
+    public function sdkMetadata(): array
+    {
+        return [
+            'current' => [
+                'version' => (int) config('plugins.sdk.current.version', config('plugins.sdk_version', 1)),
+                'revision' => (int) config('plugins.sdk.current.revision', config('plugins.sdk_revision', 0)),
+            ],
+            'versions' => config('plugins.sdk.versions', []),
+        ];
+    }
+
     public function listInstalled(): array
     {
         return Plugin::query()->orderBy('name')->get()->map(fn (Plugin $plugin) => $this->serializePlugin($plugin))->all();
@@ -377,6 +388,35 @@ class PluginManagerService implements PluginManager
         ]);
     }
 
+    public function resolveAsset(string $pluginId, string $assetPath): array
+    {
+        $plugin = $this->serializePlugin($this->requireModel($pluginId));
+        $runtimePath = rtrim((string) ($plugin['runtimePath'] ?? ''), DIRECTORY_SEPARATOR);
+
+        if ($runtimePath === '' || ! is_dir($runtimePath)) {
+            throw new PluginRuntimeException("Plugin {$pluginId} runtime path is unavailable.");
+        }
+
+        $normalizedAssetPath = ltrim(urldecode($assetPath), DIRECTORY_SEPARATOR);
+        $declaredAssets = collect($plugin['manifest']['assets'] ?? []);
+
+        if (! $declaredAssets->contains(fn (array $asset) => ($asset['path'] ?? null) === $normalizedAssetPath)) {
+            throw new PluginRuntimeException("Plugin asset {$normalizedAssetPath} is not declared by {$pluginId}.");
+        }
+
+        $candidatePath = realpath($runtimePath.DIRECTORY_SEPARATOR.$normalizedAssetPath);
+        $normalizedRuntimePath = $runtimePath.DIRECTORY_SEPARATOR;
+
+        if (! $candidatePath || ! is_file($candidatePath) || ! str_starts_with($candidatePath, $normalizedRuntimePath)) {
+            throw new PluginRuntimeException("Plugin asset {$normalizedAssetPath} could not be resolved.");
+        }
+
+        return [
+            'path' => $candidatePath,
+            'mimeType' => $this->detectAssetMimeType($candidatePath),
+        ];
+    }
+
     private function installFromUrlWithSource(string $url, array $source): array
     {
         $tempPath = config('plugins.paths.tmp').'/plugin-'.uniqid().'.w3dp';
@@ -418,6 +458,10 @@ class PluginManagerService implements PluginManager
     private function serializePlugin(Plugin $plugin): array
     {
         $plugin = $this->synchronizeDevelopmentPlugin($plugin);
+        $manifest = $plugin->manifest ?? [];
+        $uiExtensions = $this->normalizeExtensionAssetUrls($plugin->plugin_id, $plugin->ui_extensions ?? []);
+        $manifest['uiExtensions'] = $this->normalizeExtensionAssetUrls($plugin->plugin_id, $manifest['uiExtensions'] ?? []);
+        $manifest['components'] = $this->normalizeManifestComponents($plugin->plugin_id, $manifest['components'] ?? []);
 
         return [
             'id' => $plugin->plugin_id,
@@ -428,11 +472,11 @@ class PluginManagerService implements PluginManager
             'enabled' => (bool) $plugin->enabled,
             'trustLevel' => $plugin->trust_level ?? 'unsigned',
             'installSource' => $plugin->install_source ?? [],
-            'manifest' => $plugin->manifest ?? [],
+            'manifest' => $manifest,
             'permissions' => $plugin->permissions ?? [],
             'hooks' => $plugin->hooks ?? [],
             'actions' => $plugin->actions ?? [],
-            'uiExtensions' => $plugin->ui_extensions ?? [],
+            'uiExtensions' => $uiExtensions,
             'warnings' => $plugin->warnings ?? [],
             'runtimePath' => $plugin->getCurrentRuntimePath(),
             'runtime_path' => $plugin->getCurrentRuntimePath(),
@@ -523,6 +567,54 @@ class PluginManagerService implements PluginManager
         }
 
         return $plugin->fresh() ?? $plugin;
+    }
+
+    private function normalizeExtensionAssetUrls(string $pluginId, array $extensions): array
+    {
+        return array_map(function (array $extension) use ($pluginId) {
+            if (! empty($extension['url'])) {
+                $extension['url'] = $this->normalizeAssetReference($pluginId, (string) $extension['url']);
+            }
+
+            if (! empty($extension['bundle']['url'])) {
+                $extension['bundle']['url'] = $this->normalizeAssetReference($pluginId, (string) $extension['bundle']['url']);
+            }
+
+            return $extension;
+        }, $extensions);
+    }
+
+    private function normalizeAssetReference(string $pluginId, string $reference): string
+    {
+        if (! str_starts_with($reference, 'asset://')) {
+            return $reference;
+        }
+
+        $assetPath = ltrim(substr($reference, strlen('asset://')), DIRECTORY_SEPARATOR);
+
+        return '/backend/api/plugins/'.rawurlencode($pluginId).'/assets/'.implode('/', array_map('rawurlencode', explode('/', $assetPath)));
+    }
+
+    private function normalizeManifestComponents(string $pluginId, array $components): array
+    {
+        return array_map(function (array $component) use ($pluginId) {
+            if (! empty($component['entry'])) {
+                $component['entry'] = $this->normalizeAssetReference($pluginId, (string) $component['entry']);
+            }
+
+            return $component;
+        }, $components);
+    }
+
+    private function detectAssetMimeType(string $path): string
+    {
+        return match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+            'js', 'mjs' => 'text/javascript',
+            'css' => 'text/css',
+            'html', 'htm' => 'text/html',
+            'json' => 'application/json',
+            default => mime_content_type($path) ?: 'application/octet-stream',
+        };
     }
 
     private function resolveDevelopmentPath(string $path): string

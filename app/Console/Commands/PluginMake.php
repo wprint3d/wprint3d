@@ -29,11 +29,15 @@ class PluginMake extends Command
         mkdir($targetPath . '/hooks', 0777, true);
         mkdir($targetPath . '/actions', 0777, true);
 
+        $sdkVersion = (int) config('plugins.sdk.current.version', config('plugins.sdk_version', 1));
+        $sdkRevision = (int) config('plugins.sdk.current.revision', config('plugins.sdk_revision', 0));
+
         file_put_contents($targetPath . '/plugin.json', json_encode([
             'id' => $pluginId,
             'name' => $name,
             'version' => '0.1.0',
-            'sdkVersion' => config('plugins.sdk_version', 1),
+            'sdkVersion' => $sdkVersion,
+            'sdkRevision' => $sdkRevision,
             'minCoreVersion' => config('plugins.core_version', '0.0.0'),
             'description' => 'Describe what this plugin adds to WPrint3D.',
             'author' => 'Your Name',
@@ -127,6 +131,8 @@ This plugin scaffold defaults to declarative host-rendered UI because it is the 
 Alternative UI modes are available in the manifest:
 - `webview`
 - `custom_bundle`
+
+Asset-backed WebView and custom bundle extensions should declare their HTML entrypoint in `assets` and reference it with an `asset://` URL.
 
 Package the plugin with:
 

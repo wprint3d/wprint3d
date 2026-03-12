@@ -12,6 +12,7 @@ class PluginManifestValidator
         private ?array $allowedSurfaces = null,
         private ?array $allowedModes = null,
         private ?int $sdkVersion = null,
+        private ?int $sdkRevision = null,
     ) {
         $this->allowedPermissions ??= $this->config('plugins.permissions', [
             'printer.read',
@@ -50,7 +51,8 @@ class PluginManifestValidator
             'page',
         ]);
         $this->allowedModes ??= $this->config('plugins.ui.modes', ['declarative']);
-        $this->sdkVersion ??= (int) $this->config('plugins.sdk_version', 1);
+        $this->sdkVersion ??= (int) $this->config('plugins.sdk.current.version', $this->config('plugins.sdk_version', 1));
+        $this->sdkRevision ??= (int) $this->config('plugins.sdk.current.revision', $this->config('plugins.sdk_revision', 0));
     }
 
     public function validate(array $manifest): array
@@ -62,9 +64,16 @@ class PluginManifestValidator
         }
 
         $manifest['sdkVersion'] = (int) $manifest['sdkVersion'];
+        $manifest['sdkRevision'] = array_key_exists('sdkRevision', $manifest)
+            ? (int) $manifest['sdkRevision']
+            : $this->defaultRevisionForVersion($manifest['sdkVersion']);
 
-        if ($manifest['sdkVersion'] !== $this->sdkVersion) {
+        if (! $this->supportsSdkVersion($manifest['sdkVersion'])) {
             throw new InvalidPluginManifestException('Unsupported plugin SDK version.');
+        }
+
+        if (! $this->supportsSdkRevision($manifest['sdkVersion'], $manifest['sdkRevision'])) {
+            throw new InvalidPluginManifestException('Unsupported plugin SDK revision.');
         }
 
         if (! preg_match('/^[a-z0-9]+(?:[._-][a-z0-9]+)+$/', (string) $manifest['id'])) {
@@ -129,6 +138,8 @@ class PluginManifestValidator
             }
         }
 
+        $manifest['assets'] = $this->normalizeAssets($manifest['assets'] ?? []);
+        $manifest['components'] = $this->normalizeComponents($manifest['components'] ?? [], $manifest['assets']);
         $manifest['uiExtensions'] = array_values($manifest['uiExtensions'] ?? []);
 
         foreach ($manifest['uiExtensions'] as $extension) {
@@ -157,16 +168,147 @@ class PluginManifestValidator
             if ($mode === 'custom_bundle' && empty($extension['bundle'])) {
                 throw new InvalidPluginManifestException("Custom bundle UI extension {$extension['id']} must declare bundle.");
             }
+
+            if ($mode === 'webview') {
+                $this->assertDeclaredAssetReference($extension['url'], $extension['id'], $manifest['assets']);
+            }
+
+            if ($mode === 'custom_bundle') {
+                $bundleUrl = $extension['bundle']['url'] ?? $extension['url'] ?? null;
+
+                if (! $bundleUrl) {
+                    throw new InvalidPluginManifestException("Custom bundle UI extension {$extension['id']} must declare bundle.url.");
+                }
+
+                $this->assertDeclaredAssetReference($bundleUrl, $extension['id'], $manifest['assets']);
+            }
+
+            foreach (($extension['components'] ?? []) as $componentId) {
+                if (! collect($manifest['components'])->contains(fn (array $component) => ($component['id'] ?? null) === $componentId)) {
+                    throw new InvalidPluginManifestException("UI extension {$extension['id']} references unknown component {$componentId}.");
+                }
+            }
         }
 
         $manifest['signature'] = $manifest['signature'] ?? ['algorithm' => 'none'];
         $manifest['minCoreVersion'] = $manifest['minCoreVersion'] ?? null;
         $manifest['description'] = $manifest['description'] ?? null;
         $manifest['author'] = $manifest['author'] ?? null;
-        $manifest['assets'] = array_values($manifest['assets'] ?? []);
         $manifest['updateSource'] = $manifest['updateSource'] ?? [];
 
         return $manifest;
+    }
+
+    private function supportsSdkVersion(int $version): bool
+    {
+        $versions = $this->config('plugins.sdk.versions', []);
+
+        if ($versions === []) {
+            return $version === $this->sdkVersion;
+        }
+
+        return array_key_exists($version, $versions);
+    }
+
+    private function supportsSdkRevision(int $version, int $revision): bool
+    {
+        $versions = $this->config('plugins.sdk.versions', []);
+        $versionConfig = $versions[$version] ?? null;
+
+        if (! is_array($versionConfig)) {
+            return $version === $this->sdkVersion && $revision === $this->sdkRevision;
+        }
+
+        return array_key_exists($revision, $versionConfig['revisions'] ?? []);
+    }
+
+    private function defaultRevisionForVersion(int $version): int
+    {
+        $versions = $this->config('plugins.sdk.versions', []);
+        $versionConfig = $versions[$version] ?? null;
+
+        if (! is_array($versionConfig)) {
+            return $version === $this->sdkVersion ? $this->sdkRevision : 0;
+        }
+
+        return (int) ($versionConfig['defaultRevision'] ?? $this->sdkRevision ?? 0);
+    }
+
+    private function normalizeAssets(array $assets): array
+    {
+        $normalizedAssets = [];
+
+        foreach (array_values($assets) as $index => $asset) {
+            if (is_string($asset)) {
+                $asset = ['path' => $asset];
+            }
+
+            if (! is_array($asset) || empty($asset['path'])) {
+                throw new InvalidPluginManifestException("Plugin asset at index {$index} must declare path.");
+            }
+
+            $path = ltrim((string) $asset['path'], DIRECTORY_SEPARATOR);
+
+            if ($path === '' || str_contains($path, '..')) {
+                throw new InvalidPluginManifestException("Plugin asset path is invalid: {$path}");
+            }
+
+            $normalizedAssets[] = array_merge($asset, ['path' => $path]);
+        }
+
+        return $normalizedAssets;
+    }
+
+    private function normalizeComponents(array $components, array $declaredAssets): array
+    {
+        $normalizedComponents = [];
+
+        foreach (array_values($components) as $index => $component) {
+            if (! is_array($component) || empty($component['id'])) {
+                throw new InvalidPluginManifestException("Plugin component at index {$index} must declare id.");
+            }
+
+            $component['kind'] = $component['kind'] ?? 'remote_component';
+
+            if (! in_array($component['kind'], ['remote_component', 'browser_module'], true)) {
+                throw new InvalidPluginManifestException("Unsupported plugin component kind: {$component['kind']}");
+            }
+
+            if ($component['kind'] === 'browser_module') {
+                if (empty($component['entry'])) {
+                    throw new InvalidPluginManifestException("Browser module component {$component['id']} must declare entry.");
+                }
+
+                $component['exports'] = $component['exports'] ?? 'mount';
+                $this->assertDeclaredAssetReference((string) $component['entry'], $component['id'], $declaredAssets);
+            }
+
+            if ($component['kind'] === 'remote_component') {
+                if (empty($component['schema']) || ! is_array($component['schema'])) {
+                    throw new InvalidPluginManifestException("Remote component {$component['id']} must declare schema.");
+                }
+            }
+
+            $normalizedComponents[] = $component;
+        }
+
+        return $normalizedComponents;
+    }
+
+    private function assertDeclaredAssetReference(?string $reference, string $extensionId, array $declaredAssets): void
+    {
+        if (! is_string($reference) || ! str_starts_with($reference, 'asset://')) {
+            return;
+        }
+
+        $assetPath = ltrim(substr($reference, strlen('asset://')), DIRECTORY_SEPARATOR);
+        $declaredAssets = collect($declaredAssets);
+
+        if ($declaredAssets->contains(fn (array $asset) => ($asset['path'] ?? null) === $assetPath)) {
+            return;
+        }
+
+        throw new InvalidPluginManifestException("UI extension {$extensionId} references undeclared asset {$assetPath}.");
     }
 
     private function config(string $key, mixed $default = null): mixed

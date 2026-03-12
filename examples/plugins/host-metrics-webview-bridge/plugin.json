@@ -1,0 +1,69 @@
+{
+  "id": "wprint3d.host-metrics-webview-bridge",
+  "name": "Host Metrics Bridge WebView",
+  "version": "0.1.0",
+  "sdkVersion": 1,
+  "sdkRevision": 1,
+  "minCoreVersion": "0.0.0",
+  "description": "Host metrics example using the bridge runtime and a WebView settings page.",
+  "author": "WPrint 3D",
+  "icon": "server-network",
+  "runtime": {
+    "type": "bridge",
+    "baseUrl": "http://127.0.0.1:9310"
+  },
+  "permissions": [
+    "host.metrics.read",
+    "ui.navbar_widget",
+    "ui.settings_tab",
+    "ui.webview"
+  ],
+  "actions": [
+    {
+      "id": "host_metrics",
+      "label": "Read host metrics",
+      "path": "/actions/host_metrics"
+    }
+  ],
+  "uiExtensions": [
+    {
+      "id": "host-metrics-settings",
+      "surface": "settings_tab",
+      "mode": "webview",
+      "title": "Host Metrics",
+      "url": "asset://ui/settings.html",
+      "dataActionId": "host_metrics"
+    },
+    {
+      "id": "host-metrics-navbar",
+      "surface": "navbar_widget",
+      "mode": "declarative",
+      "title": "Host Metrics",
+      "schema": {
+        "component": "progress_cluster",
+        "dataActionId": "host_metrics",
+        "pollIntervalMs": 10000,
+        "items": [
+          {
+            "id": "cpu",
+            "label": "CPU",
+            "valueKey": "cpu.usedPercentage"
+          },
+          {
+            "id": "ram",
+            "label": "RAM",
+            "valueKey": "ram.usedPercentage"
+          }
+        ]
+      }
+    }
+  ],
+  "assets": [
+    {
+      "path": "ui/settings.html"
+    }
+  ],
+  "signature": {
+    "algorithm": "none"
+  }
+}

@@ -6,6 +6,8 @@ use App\Models\Plugin;
 
 interface PluginManager
 {
+    public function sdkMetadata(): array;
+
     public function listInstalled(): array;
 
     public function listRegistry(): array;
@@ -45,4 +47,6 @@ interface PluginManager
     public function findModel(string $pluginId): ?Plugin;
 
     public function listDevelopmentPlugins(): array;
+
+    public function resolveAsset(string $pluginId, string $assetPath): array;
 }
