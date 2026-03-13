@@ -75,9 +75,9 @@ Other OSes          | :grey_question: Untested (may work if they can run Docker)
 - **Docker** and **Docker Compose**, or **Podman** with a Compose provider
 - **GNU/Linux** or **Windows 10** (or greater) with **WSL2** enabled (experimental)
 - **USBIPD-Win** (Windows only)
-- The Expo frontend source shipped in this repository under `frontend/`**<sup>\*\*</sup>**
+- The Expo frontend source shipped in this repository under `frontend/`**<sup>\*</sup>**
 
-**<sup>\*\*</sup>** Development and production assets now come from the same monorepo. Use the tracked `frontend/` directory directly when working on the UI.
+**<sup>\*</sup>** Development and production assets now come from the same monorepo. Use the tracked `frontend/` directory directly when working on the UI.
 
 ## Plugins
 
