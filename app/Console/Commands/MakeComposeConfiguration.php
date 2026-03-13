@@ -2,8 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Configuration;
-
 use Illuminate\Console\Command;
 
 class MakeComposeConfiguration extends Command
@@ -27,26 +25,39 @@ class MakeComposeConfiguration extends Command
      *
      * @return int
      */
-    public function handle() {
+    public function handle()
+    {
         $composeDir = env('COMPOSE_DIR');
+        $containerCli = trim((string) env('CONTAINER_CLI', 'docker'));
+        $composeCommand = trim((string) env('CONTAINER_COMPOSE_COMMAND', 'docker-compose'));
 
-        if (!$composeDir) {
+        if (! $composeDir) {
             $this->error('COMPOSE_DIR is not set within the environment');
 
             return Command::FAILURE;
         }
 
-        $configContent = <<<PHP
+        $configContent = <<<'PHP'
         <?php
 
         return [
-            'compose_dir' => '{$composeDir}',
+            'compose_dir' => %s,
+            'container_cli' => %s,
+            'compose_command' => %s,
         ];
         PHP;
 
-        file_put_contents(config_path('docker.php'), $configContent);
+        file_put_contents(
+            config_path('docker.php'),
+            sprintf(
+                $configContent,
+                var_export($composeDir, true),
+                var_export($containerCli !== '' ? $containerCli : 'docker', true),
+                var_export($composeCommand !== '' ? $composeCommand : 'docker-compose', true),
+            )
+        );
 
-        $this->info('docker.php created with compose_path set to: ' . $composeDir);
+        $this->info('docker.php created with compose_path set to: '.$composeDir);
 
         return Command::SUCCESS;
     }

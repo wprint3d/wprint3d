@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.proxy
     restart: always
     logging:
-      driver: local
+      driver: ${CONTAINER_LOG_DRIVER:-local}
       options:
         max-size: "1m"
         mode: non-blocking
@@ -20,9 +20,9 @@ services:
       - ./internal/startup:/internal/startup:ro
       - /tmp/video:/tmp/video
     ports:
-      - ${EXTERNAL_WEB_HTTP_PORT:-80}:80
-      - ${EXTERNAL_WEB_HTTPS_PORT:-443}:443
-      - ${EXTERNAL_WEB_SOCKET_PORT:-6001}:6001
+      - 80:80
+      - 443:443
+      - 6001:6001
     depends_on:
       - web
       - ws-server
@@ -32,7 +32,7 @@ services:
       dockerfile: Dockerfile.dev
     restart: always
     logging:
-      driver: local
+      driver: ${CONTAINER_LOG_DRIVER:-local}
       options:
         max-size: "1m"
         mode: non-blocking
@@ -41,6 +41,8 @@ services:
       - ROLE=server
       - DEVELOPER_MODE=true
       - COMPOSE_DIR=${PWD}
+      - CONTAINER_CLI=${IN_CONTAINER_CLI:-docker}
+      - CONTAINER_COMPOSE_COMMAND=${IN_CONTAINER_COMPOSE_COMMAND:-docker-compose}
       - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
     volumes:
       - .:/var/www
@@ -48,7 +50,7 @@ services:
       - ./examples/plugins:/var/www/plugins-dev
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ${CONTAINER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
       - /proc:/proc
     tmpfs:
       - /tmp
@@ -76,7 +78,7 @@ services:
       dockerfile: Dockerfile.dev
     restart: always
     logging:
-      driver: local
+      driver: ${CONTAINER_LOG_DRIVER:-local}
       options:
         max-size: "1m"
         mode: non-blocking
@@ -99,7 +101,7 @@ services:
       dockerfile: Dockerfile.dev
     restart: always
     logging:
-      driver: local
+      driver: ${CONTAINER_LOG_DRIVER:-local}
       options:
         max-size: "1m"
         mode: non-blocking
@@ -113,6 +115,7 @@ services:
       - ./examples/plugins:/var/www/plugins-dev
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
+      - ${CONTAINER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
       - /sys/class:/sys/class
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
@@ -125,7 +128,7 @@ services:
       dockerfile: Dockerfile.dev
     restart: always
     logging:
-      driver: local
+      driver: ${CONTAINER_LOG_DRIVER:-local}
       options:
         max-size: "1m"
         mode: non-blocking
@@ -150,7 +153,7 @@ services:
       dockerfile: Dockerfile.dev
     restart: always
     logging:
-      driver: local
+      driver: ${CONTAINER_LOG_DRIVER:-local}
       options:
         max-size: "1m"
         mode: non-blocking
@@ -158,6 +161,8 @@ services:
       - ROLE=ws-server
       - DEVELOPER_MODE=true
       - COMPOSE_DIR=${PWD}
+      - CONTAINER_CLI=${IN_CONTAINER_CLI:-docker}
+      - CONTAINER_COMPOSE_COMMAND=${IN_CONTAINER_COMPOSE_COMMAND:-docker-compose}
       - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
     volumes:
       - .:/var/www
@@ -165,7 +170,7 @@ services:
       - ./examples/plugins:/var/www/plugins-dev
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ${CONTAINER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
       - /proc:/proc
     depends_on:
       - redis
@@ -176,7 +181,7 @@ services:
       dockerfile: Dockerfile.dev
     restart: always
     logging:
-      driver: local
+      driver: ${CONTAINER_LOG_DRIVER:-local}
       options:
         max-size: "1m"
         mode: non-blocking
@@ -195,7 +200,7 @@ services:
       - /sys/class:/sys/class
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ${CONTAINER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
       - /tmp/video:/tmp/video
     depends_on:
       - redis
@@ -203,10 +208,10 @@ services:
       - proxy
       - mapper
   redis:
-    image: redis:7.2.5
+    image: docker.io/library/redis:7.2.5
     restart: always
     logging:
-      driver: local
+      driver: ${CONTAINER_LOG_DRIVER:-local}
       options:
         max-size: "1m"
         mode: non-blocking
@@ -214,10 +219,10 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
     command: redis-server --save "" --appendonly no
   mongo:
-    image: mongo:4.4.6
+    image: docker.io/library/mongo:4.4.6
     restart: always
     logging:
-      driver: local
+      driver: ${CONTAINER_LOG_DRIVER:-local}
       options:
         max-size: "1m"
         mode: non-blocking
@@ -227,9 +232,9 @@ services:
     ports:
       - 27017:27017
   memcached:
-    image: memcached
+    image: docker.io/library/memcached:latest
     logging:
-      driver: local
+      driver: ${CONTAINER_LOG_DRIVER:-local}
       options:
         max-size: "1m"
         mode: non-blocking

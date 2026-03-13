@@ -1,6 +1,4 @@
-FROM php:8.4.12-bookworm
-
-SHELL ["/bin/bash", "-c"]
+FROM docker.io/library/php:8.4.12-bookworm
 
 # Basic dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -17,11 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # Install the Docker CLI client
-COPY --from=docker:dind /usr/local/bin/docker           /usr/local/bin/
-COPY --from=docker:dind /usr/local/bin/docker-compose   /usr/local/bin/
+COPY --from=docker.io/library/docker:dind /usr/local/bin/docker           /usr/local/bin/
+COPY --from=docker.io/library/docker:dind /usr/local/bin/docker-compose   /usr/local/bin/
 
 # Install the Composer PHP package manager
-COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
+COPY --from=docker.io/library/composer:latest /usr/bin/composer /usr/local/bin/composer
 
 # PHP extensions: MongoDB + Redis + DIO (Direct I/O) + OpenSwooole + Memcached + YAML
 RUN BUILD_TIME_DEPS='build-essential' &&\
@@ -134,7 +132,7 @@ RUN if [ "$(dpkg --print-architecture)" = "arm64" ]; then \
         cd /tmp/camera-streamer &&\
         echo "Continuing camera-streamer build... " &&\
         cd /tmp/camera-streamer &&\
-        make -j$(( "$(nproc --all)" * 2 )) &&\
+        make -j$(( $(nproc --all) * 2 )) &&\
         echo "Installing camera-streamer... " ;\
         cd /tmp/camera-streamer &&\
         make install &&\
@@ -156,7 +154,7 @@ RUN BUILD_TIME_DEPS='build-essential pkg-config cmake' &&\
     git clone https://github.com/ArduCAM/mjpg-streamer.git -b v1.0.2 --depth 1 &&\
     cd mjpg-streamer/mjpg-streamer-experimental &&\
     sed -i 's/add_subdirectory(plugins\/input_raspicam)//g' CMakeLists.txt &&\
-    make -j$(( "$(nproc --all)" * 2 )) &&\
+    make -j$(( $(nproc --all) * 2 )) &&\
     make install &&\
     cd ../.. &&\
     rm -rf mjpg-streamer &&\
@@ -172,7 +170,7 @@ RUN BUILD_TIME_DEPS='build-essential pkg-config' &&\
     rm -rf /var/lib/apt/lists/* &&\
     git clone --depth=1 https://github.com/pikvm/ustreamer &&\
     cd ustreamer &&\
-    make -j$(( "$(nproc --all)" * 2 )) &&\
+    make -j$(( $(nproc --all) * 2 )) &&\
     make install &&\
     cd .. &&\
     rm -rf ustreamer &&\
