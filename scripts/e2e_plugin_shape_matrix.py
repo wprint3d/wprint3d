@@ -1,13 +1,14 @@
 from pathlib import Path
+import os
 import subprocess
 import time
 
 from playwright.sync_api import sync_playwright
 
 
-BASE_URL = "https://127.0.0.1"
-BACKEND_CONTAINER = "wprint3d-core-backend-1"
-SCREENSHOT_DIR = Path("/home/facuarmo/wprint3d-core/docs/assets/plugin-shapes")
+BASE_URL = os.environ.get("BASE_URL", "https://127.0.0.1")
+BACKEND_CONTAINER = os.environ.get("BACKEND_CONTAINER", "wprint3d-core-backend-1")
+SCREENSHOT_DIR = Path(os.environ.get("SCREENSHOT_DIR", "/home/facuarmo/wprint3d-core/docs/assets/plugin-shapes"))
 
 PLUGINS = [
     {

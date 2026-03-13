@@ -1,9 +1,10 @@
 from pathlib import Path
+import os
 from playwright.sync_api import sync_playwright
 
 
-BASE_URL = "https://127.0.0.1"
-SCREENSHOT_DIR = Path("/home/facuarmo/wprint3d-core/docs/assets/plugins")
+BASE_URL = os.environ.get("BASE_URL", "https://127.0.0.1")
+SCREENSHOT_DIR = Path(os.environ.get("SCREENSHOT_DIR", "/home/facuarmo/wprint3d-core/docs/assets/plugins"))
 
 
 def save(page, name: str) -> None:
@@ -35,16 +36,26 @@ def main() -> None:
         page.wait_for_selector("text=Installed plugins")
         save(page, "03-plugins-tab.png")
 
+        page.get_by_role("button", name="Settings", exact=True).last.click()
+        page.wait_for_timeout(1500)
+        page.wait_for_selector("text=Hello World Settings")
         page.get_by_role("button", name="Ping plugin").click()
         page.wait_for_selector("text=pong from Hello World")
         save(page, "04-plugin-action-toast.png")
 
+        page.get_by_role("button", name="Plugins").click()
+        page.wait_for_timeout(1000)
+        page.wait_for_selector("text=Installed plugins")
         page.get_by_role("button", name="Disable").click()
+        page.get_by_role("button", name="Disable plugin").click()
+        page.wait_for_timeout(2500)
         page.wait_for_selector("text=Disabled")
         save(page, "05-plugin-disabled.png")
 
         page.get_by_role("button", name="Enable").click()
-        page.wait_for_selector("text=Enabled")
+        page.get_by_role("button", name="Enable plugin").click()
+        page.wait_for_timeout(2500)
+        page.wait_for_selector('button:has-text("Disable")')
         save(page, "06-plugin-enabled-again.png")
 
         browser.close()

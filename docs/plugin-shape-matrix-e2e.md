@@ -19,6 +19,7 @@ Generated screenshots:
 - declarative, WebView, and custom-bundle settings surfaces all render in browser
 - custom-bundle variants load a manifest-declared JS component module and render it in-browser
 - declarative variants render a manifest-declared remote component through the host renderer
+- compiled serial/camera hook invokers continue to power the same visible plugin behavior after the runtime refactor
 - bridge variants work through the companion bridge service
 - cleanup leaves the instance back at its previous plugin inventory
 
@@ -26,6 +27,7 @@ Generated screenshots:
 
 ```bash
 LOG_CHANNEL=stderr CACHE_DRIVER=array php artisan test \
+  tests/Unit/Plugins/PluginHookCompilerTest.php \
   tests/Unit/Plugins/PluginManifestValidatorTest.php \
   tests/Feature/Plugins/PluginManagementApiTest.php \
   tests/Unit/Plugins/PluginArchiveServiceTest.php
@@ -33,6 +35,9 @@ LOG_CHANNEL=stderr CACHE_DRIVER=array php artisan test \
 docker exec wprint3d-core-backend-1 php artisan optimize:clear
 docker exec wprint3d-core-web-1 sh -lc 'cd /app && pnpm exec expo export -p web'
 python3 scripts/e2e_plugin_shape_matrix.py
+
+# optional when your local proxy uses a non-default port
+BASE_URL=https://127.0.0.1:8443 python3 scripts/e2e_plugin_shape_matrix.py
 ```
 
 ## Variant Matrix

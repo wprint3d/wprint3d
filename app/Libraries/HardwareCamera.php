@@ -3,7 +3,7 @@
 namespace App\Libraries;
 
 use App\Models\Configuration;
-use App\Plugins\PluginHookDispatcher;
+use App\Plugins\PluginHookCompiler;
 use Closure;
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
@@ -18,7 +18,7 @@ class HardwareCamera
 
     private array $formats = [];
 
-    private Closure $pluginHookDispatcher;
+    private array $pluginHooks;
 
     private bool $supportsMjpeg = false;
 
@@ -26,28 +26,38 @@ class HardwareCamera
 
     const LIB_CAMERA_ALLOWED_FRAMERATES = [15, 30, 60];
 
-    public function __construct(int $index, string $node, bool $requiresLibCamera = false, ?callable $pluginHookDispatcher = null)
+    public function __construct(int $index, string $node, bool $requiresLibCamera = false, array $pluginHooks = [])
     {
         $this->index = $index;
         $this->node = $node;
         $this->requiresLibCamera = $requiresLibCamera;
-        $this->pluginHookDispatcher = $this->makePluginHookDispatcher($pluginHookDispatcher);
+        $this->pluginHooks = $this->resolvePluginHooks($pluginHooks);
     }
 
-    private function makePluginHookDispatcher(?callable $pluginHookDispatcher = null): Closure
+    private function resolvePluginHooks(array $pluginHooks = []): array
     {
-        if ($pluginHookDispatcher !== null) {
-            return Closure::fromCallable($pluginHookDispatcher);
+        if ($pluginHooks === []) {
+            $pluginHooks = app(PluginHookCompiler::class)->compileCameraHooks();
         }
 
-        $dispatcher = app(PluginHookDispatcher::class);
+        return [
+            'camera.snapshot.before_take' => $this->resolvePluginHookCallable($pluginHooks['camera.snapshot.before_take'] ?? null),
+            'camera.snapshot.after_take' => $this->resolvePluginHookCallable($pluginHooks['camera.snapshot.after_take'] ?? null),
+        ];
+    }
 
-        return static fn (string $hook, array $context = []): array => $dispatcher->dispatch($hook, $context);
+    private function resolvePluginHookCallable(?callable $pluginHook = null): Closure
+    {
+        if ($pluginHook !== null) {
+            return Closure::fromCallable($pluginHook);
+        }
+
+        return static fn (array $context = []): array => [];
     }
 
     private function dispatchPluginHook(string $hook, array $context = []): array
     {
-        return ($this->pluginHookDispatcher)($hook, $context);
+        return ($this->pluginHooks[$hook])($context);
     }
 
     public function takeSnapshot()

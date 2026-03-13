@@ -7,7 +7,7 @@ use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
 use App\Models\Configuration;
 use App\Models\Printer;
-use App\Plugins\PluginHookDispatcher;
+use App\Plugins\PluginHookCompiler;
 use Closure;
 use Error;
 use Illuminate\Cache\Repository;
@@ -51,7 +51,7 @@ class Serial
 
     private array $onNewLineActions;
 
-    private Closure $pluginHookDispatcher;
+    private array $pluginHooks;
 
     private array $pendingPluginLineHookContext = [];
 
@@ -81,7 +81,7 @@ class Serial
      *
      * @throws InitializationException
      */
-    public function __construct(string $fileName, int $baudRate, ?int $timeout = null, ?string $printerId = null, bool $terminalAutoAppend = true, ?callable $pluginHookDispatcher = null)
+    public function __construct(string $fileName, int $baudRate, ?int $timeout = null, ?string $printerId = null, bool $terminalAutoAppend = true, array $pluginHooks = [])
     {
         $this->fileName = $fileName;
         $this->baudRate = $baudRate;
@@ -114,7 +114,7 @@ class Serial
         $this->clocks = [];
         $this->externalProperties = [];
         $this->onNewLineActions = [];
-        $this->pluginHookDispatcher = $this->makePluginHookDispatcher($pluginHookDispatcher);
+        $this->pluginHooks = $this->resolvePluginHooks($pluginHooks);
 
         $this->registerPluginHooks();
 
@@ -125,15 +125,26 @@ class Serial
         $this->maxTimeBetweenHeartbeatsSecs = Configuration::get('lastSeenThresholdSecs');
     }
 
-    private function makePluginHookDispatcher(?callable $pluginHookDispatcher = null): Closure
+    private function resolvePluginHooks(array $pluginHooks = []): array
     {
-        if ($pluginHookDispatcher !== null) {
-            return Closure::fromCallable($pluginHookDispatcher);
+        if ($pluginHooks === []) {
+            $pluginHooks = app(PluginHookCompiler::class)->compileSerialHooks();
         }
 
-        $dispatcher = app(PluginHookDispatcher::class);
+        return [
+            'serial.command.before_send' => $this->resolvePluginHookCallable($pluginHooks['serial.command.before_send'] ?? null),
+            'serial.line.received' => $this->resolvePluginHookCallable($pluginHooks['serial.line.received'] ?? null),
+            'serial.command.response_received' => $this->resolvePluginHookCallable($pluginHooks['serial.command.response_received'] ?? null),
+        ];
+    }
 
-        return static fn (string $hook, array $context = []): array => $dispatcher->dispatch($hook, $context);
+    private function resolvePluginHookCallable(?callable $pluginHook = null): Closure
+    {
+        if ($pluginHook !== null) {
+            return Closure::fromCallable($pluginHook);
+        }
+
+        return static fn (array $context = []): array => [];
     }
 
     private function registerPluginHooks(): void
@@ -149,7 +160,7 @@ class Serial
 
     private function dispatchPluginHook(string $hook, array $context = []): array
     {
-        return ($this->pluginHookDispatcher)($hook, $context);
+        return ($this->pluginHooks[$hook])($context);
     }
 
     public function __destruct()
