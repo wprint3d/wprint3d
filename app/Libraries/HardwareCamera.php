@@ -4,35 +4,55 @@ namespace App\Libraries;
 
 use App\Models\Configuration;
 use App\Plugins\PluginHookDispatcher;
-
+use Closure;
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
-
+use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 
-use Symfony\Component\Process\Exception\ProcessFailedException;
+class HardwareCamera
+{
+    private int $index;
 
-class HardwareCamera {
+    private string $node;
 
-    private int     $index;
-    private string  $node;
+    private array $formats = [];
 
-    private array   $formats = [];
+    private Closure $pluginHookDispatcher;
 
-    private bool    $supportsMjpeg      = false;
-    private bool    $requiresLibCamera  = false;
+    private bool $supportsMjpeg = false;
 
-    const LIB_CAMERA_ALLOWED_FRAMERATES = [ 15, 30, 60 ];
+    private bool $requiresLibCamera = false;
 
-    public function __construct(int $index, string $node, bool $requiresLibCamera = false)
+    const LIB_CAMERA_ALLOWED_FRAMERATES = [15, 30, 60];
+
+    public function __construct(int $index, string $node, bool $requiresLibCamera = false, ?callable $pluginHookDispatcher = null)
     {
         $this->index = $index;
-        $this->node  = $node;
+        $this->node = $node;
         $this->requiresLibCamera = $requiresLibCamera;
+        $this->pluginHookDispatcher = $this->makePluginHookDispatcher($pluginHookDispatcher);
     }
 
-    public function takeSnapshot() {
-        app(PluginHookDispatcher::class)->dispatch('camera.snapshot.before_take', [
+    private function makePluginHookDispatcher(?callable $pluginHookDispatcher = null): Closure
+    {
+        if ($pluginHookDispatcher !== null) {
+            return Closure::fromCallable($pluginHookDispatcher);
+        }
+
+        $dispatcher = app(PluginHookDispatcher::class);
+
+        return static fn (string $hook, array $context = []): array => $dispatcher->dispatch($hook, $context);
+    }
+
+    private function dispatchPluginHook(string $hook, array $context = []): array
+    {
+        return ($this->pluginHookDispatcher)($hook, $context);
+    }
+
+    public function takeSnapshot()
+    {
+        $this->dispatchPluginHook('camera.snapshot.before_take', [
             'index' => $this->index,
             'node' => $this->node,
             'requiresLibCamera' => $this->requiresLibCamera,
@@ -42,18 +62,18 @@ class HardwareCamera {
             'fswebcam',
             '-d', $this->node,
             '--no-banner',
-            '-'
+            '-',
         ]);
 
         $process->run();
 
-        if (!$process->isSuccessful()) {
+        if (! $process->isSuccessful()) {
             throw new ProcessFailedException($process);
         }
 
-        $snapshot = trim( $process->getOutput() );
+        $snapshot = trim($process->getOutput());
 
-        app(PluginHookDispatcher::class)->dispatch('camera.snapshot.after_take', [
+        $this->dispatchPluginHook('camera.snapshot.after_take', [
             'index' => $this->index,
             'node' => $this->node,
             'requiresLibCamera' => $this->requiresLibCamera,
@@ -63,19 +83,20 @@ class HardwareCamera {
         return $snapshot;
     }
 
-    private function loadFormatsFromDiscreteUVC(Stringable $input, string $captureType): void {
-        $shouldRecordFormats = false; 
+    private function loadFormatsFromDiscreteUVC(Stringable $input, string $captureType): void
+    {
+        $shouldRecordFormats = false;
 
         $index = -1;
 
         $resolution = null;
 
-        foreach ($input->explode( PHP_EOL ) as $line) {
-            $line = Str::of( $line )->trim();
+        foreach ($input->explode(PHP_EOL) as $line) {
+            $line = Str::of($line)->trim();
 
             if ($line->startsWith('[') && $line->contains($captureType)) {
                 $shouldRecordFormats = true;
-            } else if ($line->startsWith('[') && !$line->contains($captureType)) {
+            } elseif ($line->startsWith('[') && ! $line->contains($captureType)) {
                 $shouldRecordFormats = false;
             }
 
@@ -84,8 +105,8 @@ class HardwareCamera {
                     $index++;
 
                     $resolution = $line->replace('Size: Discrete ', '');
-                } else if ($line->startsWith('Interval') && $resolution) {
-                    $this->formats[] = $resolution . '@' . $line->replaceMatches('/Interval: Discrete .*\(/', '')->replaceMatches('/ fps.*/', '');
+                } elseif ($line->startsWith('Interval') && $resolution) {
+                    $this->formats[] = $resolution.'@'.$line->replaceMatches('/Interval: Discrete .*\(/', '')->replaceMatches('/ fps.*/', '');
 
                     $index++;
                 }
@@ -93,52 +114,60 @@ class HardwareCamera {
         }
     }
 
-    private function loadDiscreteUVCFormats() : void {
+    private function loadDiscreteUVCFormats(): void
+    {
         $process = new Process([
             'v4l2-ctl',
             '-d', $this->node,
-            '--list-formats-ext'
+            '--list-formats-ext',
         ]);
 
         $process->run();
 
-        if (!$process->isSuccessful()) {
+        if (! $process->isSuccessful()) {
             throw new ProcessFailedException($process);
         }
 
-        $output = Str::of( $process->getOutput() )->trim();
+        $output = Str::of($process->getOutput())->trim();
 
-        if ($output->contains('MJPG') && !env('DEBUG_CAMERA_MJPEG_DISABLED', false)) {
+        if ($output->contains('MJPG') && ! env('DEBUG_CAMERA_MJPEG_DISABLED', false)) {
             $this->loadFormatsFromDiscreteUVC(input: $output, captureType: 'MJPG');
         }
 
-        if ($this->formats) {            
+        if ($this->formats) {
             $this->supportsMjpeg = true;
-        } else if ($output->contains('YUYV')) {
+        } elseif ($output->contains('YUYV')) {
             $this->loadFormatsFromDiscreteUVC(input: $output, captureType: 'YUYV');
         }
     }
 
-    private function loadLibCameraFormats() : void {
-        if (!Configuration::get('enableLibCamera')) { return; }
+    private function loadLibCameraFormats(): void
+    {
+        if (! Configuration::get('enableLibCamera')) {
+            return;
+        }
 
         $process = new Process([
             'libcamera-vid',
-            '--list-cameras'
+            '--list-cameras',
         ]);
-        
+
         $process->run();
 
-        if (!$process->isSuccessful()) { return; }
+        if (! $process->isSuccessful()) {
+            return;
+        }
 
-        $output = Str::of( $process->getOutput() )->trim();
+        $output = Str::of($process->getOutput())->trim();
 
-        if (!$output->contains('Available cameras')) { return; }
+        if (! $output->contains('Available cameras')) {
+            return;
+        }
 
         $currentIndex = null;
 
-        foreach ($output->explode( PHP_EOL ) as $line) {
-            $line = Str::of( $line )->trim();
+        foreach ($output->explode(PHP_EOL) as $line) {
+            $line = Str::of($line)->trim();
 
             if ($line->contains('/base/soc')) {
                 $currentIndex = (int) $line->toString()[0]; // '0 : imx219 [3280x2464] (/base/soc/i2c0mux/i2c@1/imx219@10)' => '0'
@@ -149,7 +178,7 @@ class HardwareCamera {
             if ($currentIndex === $this->index) {
                 $resolution =
                     $line->replaceMatches('/.*: /', '')     // 'Modes: \'SRGGB10_CSI2P\' : 640x480 [206.65 fps - (1000, 752)/1280x960 crop]' => '640x480 [206.65 fps - (1000, 752)/1280x960 crop]'
-                         ->replaceMatches('/ \[.*/', '');   // '640x480 [206.65 fps - (1000, 752)/1280x960 crop]' => '640x480'
+                        ->replaceMatches('/ \[.*/', '');   // '640x480 [206.65 fps - (1000, 752)/1280x960 crop]' => '640x480'
 
                 foreach (self::LIB_CAMERA_ALLOWED_FRAMERATES as $fps) {
                     $this->formats[] = "{$resolution}@{$fps}";
@@ -158,7 +187,8 @@ class HardwareCamera {
         }
     }
 
-    public function getCompatibleFormats() : array {
+    public function getCompatibleFormats(): array
+    {
         if ($this->requiresLibCamera) {
             $this->loadLibCameraFormats();
         } else {
@@ -168,10 +198,8 @@ class HardwareCamera {
         return $this->formats;
     }
 
-    public function supportsMjpeg() : bool {
+    public function supportsMjpeg(): bool
+    {
         return $this->supportsMjpeg;
     }
-
 }
-
-?>
