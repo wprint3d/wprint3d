@@ -79,6 +79,19 @@ Other OSes          | :grey_question: Untested (may work if they can run Docker)
 
 **<sup>\*\*</sup>** Development and production assets now come from the same monorepo. Use the tracked `frontend/` directory directly when working on the UI.
 
+## Plugins
+
+WPrint 3D now includes a plugin platform with:
+
+- `.w3dp` plugin packages
+- PHP and bridge runtimes
+- declarative, WebView, and custom bundle UI modes
+- in-app plugin management
+- unpacked live-source installs in the development stack
+- an Artisan CLI for scaffold, package, install, search, and diagnostics
+
+When running `./run.sh -e dev`, unpacked plugins can be installed directly from the live development mount exposed at `/var/www/plugins-dev` inside the containers. Start with the developer guide at [docs/plugins.md](/home/facuarmo/wprint3d-core/docs/plugins.md) and the sample plugin at [examples/plugins/hello-world](/home/facuarmo/wprint3d-core/examples/plugins/hello-world).
+
 ## System requirements
 - Any **dual-core CPU** running at, at least, **1 GHz**
 - **1 GB** of memory running at **any speed** \*

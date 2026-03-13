@@ -6,6 +6,7 @@ use App\Events\PrinterTerminalUpdated;
 
 use App\Models\Configuration;
 use App\Models\Printer;
+use App\Plugins\PluginHookDispatcher;
 
 use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
@@ -338,6 +339,13 @@ class Serial {
     }
 
     private function sendCommand(string $command, ?int $lineNumber = null, ?int $maxLine = null) {
+        app(PluginHookDispatcher::class)->dispatch('serial.command.before_send', [
+            'printerId' => $this->printerId,
+            'command' => $command,
+            'lineNumber' => $lineNumber,
+            'maxLine' => $maxLine,
+        ]);
+
         if ($this->log) {
             $this->log->debug('dio_write: ' . $command);
         }
@@ -499,6 +507,14 @@ class Serial {
                                 }
                             }
                         }
+
+                        app(PluginHookDispatcher::class)->dispatch('serial.line.received', [
+                            'printerId' => $this->printerId,
+                            'command' => $command,
+                            'line' => trim($message),
+                            'lineNumber' => $lineNumber,
+                            'maxLine' => $maxLine,
+                        ]);
                     }
                 }
 
@@ -598,6 +614,14 @@ class Serial {
                 );
             }
         }
+
+        app(PluginHookDispatcher::class)->dispatch('serial.command.response_received', [
+            'printerId' => $this->printerId,
+            'command' => $command,
+            'response' => trim($result),
+            'lineNumber' => $lineNumber,
+            'maxLine' => $maxLine,
+        ]);
 
         return trim($result);
     }

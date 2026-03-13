@@ -9,11 +9,15 @@ import UserPrinterPreview from "./UserPrinterPreview";
 import UserPrinterControl from "./UserPrinterControl";
 import UserPrinterRecordings from "./UserPrinterRecordings";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
+import usePluginExtensions from "../hooks/usePluginExtensions";
+import PluginHostRenderer from "./PluginHostRenderer";
 
 export default function UserRightPane({ isLoadingPrinter = true, printerId = null, isSmallLaptop, isSmallTablet }) {
     const { colors } = useTheme();
 
     const { connectionStatus } = useConnectionStatus({ printerId });
+    const pageExtensions = usePluginExtensions('page');
+    const modalExtensions = usePluginExtensions('modal');
 
     return (
         <UserPane style={{
@@ -46,7 +50,7 @@ export default function UserRightPane({ isLoadingPrinter = true, printerId = nul
                                 <UserPrinterPreview printerId={printerId} isSmallTablet={isSmallTablet} />
                             </TabScreen>
                             <TabScreen label="Control" icon="camera-control">
-                                <UserPrinterControl  isSmallLaptop={isSmallLaptop} isSmallTablet={isSmallTablet} connectionStatus={connectionStatus} />
+                                <UserPrinterControl  isSmallLaptop={isSmallLaptop} isSmallTablet={isSmallTablet} connectionStatus={connectionStatus} printerId={printerId} />
                             </TabScreen>
                             <TabScreen label="Recordings" icon="record-circle-outline">
                                 <UserPrinterRecordings
@@ -56,6 +60,15 @@ export default function UserRightPane({ isLoadingPrinter = true, printerId = nul
                                     isSmallTablet={isSmallTablet}
                                 />
                             </TabScreen>
+                            {(pageExtensions?.data?.data || []).map((extension) => (
+                                <TabScreen key={`${extension.pluginId}-${extension.id}`} label={extension.title} icon="puzzle">
+                                    <PluginHostRenderer
+                                        extension={extension}
+                                        modalExtensions={modalExtensions?.data?.data || []}
+                                        printerId={printerId}
+                                    />
+                                </TabScreen>
+                            ))}
                         </Tabs>
                       </TabsProvider>
             }

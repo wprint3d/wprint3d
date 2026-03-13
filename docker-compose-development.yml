@@ -41,9 +41,11 @@ services:
       - ROLE=server
       - DEVELOPER_MODE=true
       - COMPOSE_DIR=${PWD}
+      - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
     volumes:
       - .:/var/www
       - ${PWD}:${PWD}
+      - ./examples/plugins:/var/www/plugins-dev
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /var/run/docker.sock:/var/run/docker.sock
@@ -81,9 +83,11 @@ services:
     privileged: true
     environment:
       - ROLE=scheduler
+      - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
     volumes:
       - .:/var/www
       - ${PWD}:${PWD}
+      - ./examples/plugins:/var/www/plugins-dev
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
@@ -102,9 +106,11 @@ services:
     privileged: true
     environment:
       - ROLE=mapper
+      - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
     volumes:
       - .:/var/www
       - ${PWD}:${PWD}
+      - ./examples/plugins:/var/www/plugins-dev
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /sys/class:/sys/class
@@ -128,9 +134,11 @@ services:
       - ROLE=concurrency-scheduler
       - QUEUES=default:1,recordings:1,broadcasts:2,prints,previews,snapshots, # <queue-name>:<min-number-of-workers, default=0>
       - SLEEP=5
+      - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
     volumes:
       - .:/var/www
       - ${PWD}:${PWD}
+      - ./examples/plugins:/var/www/plugins-dev
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
     depends_on:
@@ -150,9 +158,11 @@ services:
       - ROLE=ws-server
       - DEVELOPER_MODE=true
       - COMPOSE_DIR=${PWD}
+      - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
     volumes:
       - .:/var/www
       - ${PWD}:${PWD}
+      - ./examples/plugins:/var/www/plugins-dev
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /var/run/docker.sock:/var/run/docker.sock
@@ -174,10 +184,12 @@ services:
       - ROLE=streamer
       - PORT_SCAN_START=60000
       - PORT_SCAN_END=60016
+      - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
     privileged: true
     volumes:
       - .:/var/www
       - ${PWD}:${PWD}
+      - ./examples/plugins:/var/www/plugins-dev
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /sys/class:/sys/class

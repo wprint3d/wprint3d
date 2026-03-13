@@ -22,6 +22,7 @@ use App\Models\Configuration;
 use App\Models\File;
 use App\Models\Printer;
 use App\Models\User;
+use App\Plugins\PluginHookDispatcher;
 
 use Illuminate\Bus\Queueable;
 
@@ -219,6 +220,12 @@ class PrintGcode implements ShouldQueue
 
         // Report that the job has finished.
         PrintJobFinished::dispatch( $this->printer->_id );
+        app(PluginHookDispatcher::class)->dispatch('print.job.finished', [
+            'printerId' => $this->printer->_id,
+            'filePath' => $this->filePath,
+            'jobUid' => $this->uid,
+            'resetPrinter' => $resetPrinter,
+        ]);
 
         // Dispatch video rendering job (if recording was enabled).
         if ($this->shouldRecord) {
@@ -258,6 +265,12 @@ class PrintGcode implements ShouldQueue
 
         try {
             PrintJobFailed::dispatch( $this->printer->_id );
+            app(PluginHookDispatcher::class)->dispatch('print.job.failed', [
+                'printerId' => $this->printer->_id,
+                'filePath' => $this->filePath,
+                'jobUid' => $this->uid,
+                'message' => $exception->getMessage(),
+            ]);
         } catch (Exception $exception) {
             $log->warning(
                 'PrintJobFailed: dispatch error: ' . $exception->getMessage() . PHP_EOL .
@@ -364,6 +377,12 @@ class PrintGcode implements ShouldQueue
     {
         $log = Log::channel( self::LOG_CHANNEL );
         $log->info( "Job started: printing \"{$this->filePath}\"" );
+        app(PluginHookDispatcher::class)->dispatch('print.job.started', [
+            'printerId' => $this->printer->_id,
+            'filePath' => $this->filePath,
+            'jobUid' => $this->uid,
+            'ownerId' => $this->owner->_id,
+        ]);
 
         $this->storage = Storage::disk('gcode');
 

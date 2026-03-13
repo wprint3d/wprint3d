@@ -3,6 +3,7 @@
 namespace App\Libraries;
 
 use App\Models\Configuration;
+use App\Plugins\PluginHookDispatcher;
 
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
@@ -31,6 +32,12 @@ class HardwareCamera {
     }
 
     public function takeSnapshot() {
+        app(PluginHookDispatcher::class)->dispatch('camera.snapshot.before_take', [
+            'index' => $this->index,
+            'node' => $this->node,
+            'requiresLibCamera' => $this->requiresLibCamera,
+        ]);
+
         $process = new Process([
             'fswebcam',
             '-d', $this->node,
@@ -44,7 +51,16 @@ class HardwareCamera {
             throw new ProcessFailedException($process);
         }
 
-        return trim( $process->getOutput() );
+        $snapshot = trim( $process->getOutput() );
+
+        app(PluginHookDispatcher::class)->dispatch('camera.snapshot.after_take', [
+            'index' => $this->index,
+            'node' => $this->node,
+            'requiresLibCamera' => $this->requiresLibCamera,
+            'snapshot' => $snapshot,
+        ]);
+
+        return $snapshot;
     }
 
     private function loadFormatsFromDiscreteUVC(Stringable $input, string $captureType): void {

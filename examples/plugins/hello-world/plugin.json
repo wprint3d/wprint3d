@@ -1,0 +1,74 @@
+{
+  "id": "wprint3d.hello-world",
+  "name": "Hello World",
+  "version": "0.1.0",
+  "sdkVersion": 1,
+  "minCoreVersion": "0.0.0",
+  "description": "A reference plugin that demonstrates the default declarative UI mode.",
+  "author": "WPrint 3D",
+  "icon": "hand-wave-outline",
+  "runtime": {
+    "type": "php",
+    "entry": "plugin.php"
+  },
+  "permissions": [
+    "printer.read",
+    "ui.settings_tab",
+    "ui.printer_panel"
+  ],
+  "hooks": {
+    "app.boot": {
+      "handler": "hooks/on_boot.php"
+    }
+  },
+  "actions": [
+    {
+      "id": "ping",
+      "label": "Ping",
+      "handler": "actions/ping.php"
+    }
+  ],
+  "uiExtensions": [
+    {
+      "id": "settings",
+      "surface": "settings_tab",
+      "mode": "declarative",
+      "title": "Hello World Settings",
+      "schema": {
+        "component": "section",
+        "title": "Lightweight declarative UI",
+        "subtitle": "Default template for low-memory hardware",
+        "children": [
+          {
+            "component": "text",
+            "text": "This plugin uses WPrint 3D's default host-rendered UI path."
+          },
+          {
+            "component": "button",
+            "label": "Ping plugin",
+            "actionId": "ping"
+          }
+        ]
+      }
+    },
+    {
+      "id": "panel",
+      "surface": "printer_panel",
+      "mode": "declarative",
+      "title": "Printer panel",
+      "schema": {
+        "component": "section",
+        "title": "Hello panel",
+        "children": [
+          {
+            "component": "text",
+            "text": "Plugins can add printer-specific panels without shipping a custom frontend bundle."
+          }
+        ]
+      }
+    }
+  ],
+  "signature": {
+    "algorithm": "none"
+  }
+}
