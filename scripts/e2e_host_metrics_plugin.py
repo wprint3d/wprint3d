@@ -1,10 +1,11 @@
 from pathlib import Path
+import os
 
 from playwright.sync_api import sync_playwright
 
 
-BASE_URL = "https://127.0.0.1"
-SCREENSHOT_DIR = Path("/home/facuarmo/wprint3d-core/examples/plugins/host-metrics/docs/assets")
+BASE_URL = os.environ.get("BASE_URL", "https://127.0.0.1")
+SCREENSHOT_DIR = Path(os.environ.get("SCREENSHOT_DIR", "/home/facuarmo/wprint3d-core/examples/plugins/host-metrics/docs/assets"))
 
 
 def save(page, name: str) -> None:

@@ -1,6 +1,6 @@
 # Plugin Showcase And E2E Walkthrough
 
-This document shows the current end-to-end plugin workflow in the local WPrint 3D stack, using the built-in sample plugin and the browser automation run captured on March 11, 2026.
+This document shows the current end-to-end plugin workflow in the local WPrint 3D stack, using the built-in sample plugin and the browser automation run captured on March 13, 2026.
 
 ## What Was Verified
 
@@ -23,6 +23,9 @@ Re-run the browser capture with:
 
 ```bash
 python3 scripts/e2e_plugin_showcase.py
+
+# optional when your local proxy uses a non-default port
+BASE_URL=https://127.0.0.1:8443 python3 scripts/e2e_plugin_showcase.py
 ```
 
 ## 1. Create A New Plugin Scaffold
@@ -98,10 +101,10 @@ From the top navigation, open `Settings`, then switch to the `Plugins` tab.
 
 What was present during the run:
 
-- install panel with upload, URL, and safe-mode controls
+- add-plugin and marketplace entry points
 - installed plugin card for `Hello World`
 - trust warning for unsigned sideloaded plugins
-- host-rendered plugin settings surface
+- dedicated plugin settings tab reachable from the card's `Settings` button
 
 Screenshot:
 
@@ -109,7 +112,7 @@ Screenshot:
 
 ## 5. Execute A Plugin Action
 
-The `Hello World` plugin exposes a declarative `Ping plugin` button. Clicking it triggered the backend action and produced the toast `pong from Hello World`.
+The `Hello World` plugin exposes a declarative `Ping plugin` button inside its dedicated `Hello World Settings` tab. Clicking it triggered the backend action and produced the toast `pong from Hello World`.
 
 Screenshot:
 
@@ -118,14 +121,14 @@ Screenshot:
 This validates the path:
 
 1. declarative UI registration
-2. host-rendered button wiring
+2. dedicated plugin settings-tab routing
 3. backend action dispatch
 4. plugin PHP runtime execution
 5. response surfaced back into the app
 
 ## 6. Disable And Re-Enable The Plugin
 
-The same browser run toggled the plugin off and then back on from the Installed plugins card.
+The same browser run toggled the plugin off and then back on from the Installed plugins card, including the confirmation prompts now shown for lifecycle changes.
 
 Disabled state:
 

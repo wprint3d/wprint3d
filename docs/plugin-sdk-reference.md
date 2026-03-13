@@ -11,6 +11,110 @@ Current SDK pair:
 
 `sdkRevision` is the contract revision within that API level. Revisions let WPrint 3D evolve the SDK without immediately forcing a full API-level jump.
 
+## Platform Communication Model
+
+WPrint 3D keeps the host in control of plugin discovery, execution, UI mounting, and hardware access. Plugins do not talk to serial devices, cameras, USB discovery, or host UI primitives directly. They communicate through host-owned APIs, actions, hooks, effects, and declared UI surfaces.
+
+### System Diagram
+
+```mermaid
+flowchart LR
+    User[User] --> FE[Frontend host shell<br/>Expo / React Native]
+    FE --> UIHost[PluginHostRenderer<br/>declarative / WebView / custom bundle]
+    FE --> API[Plugin API<br/>Laravel controllers]
+
+    API --> PM[PluginManagerService]
+    PM --> Registry[Plugin registry client]
+    PM --> Assets[Plugin asset resolver]
+    PM --> Actions[Action dispatcher]
+
+    Actions --> RuntimeRegistry[PluginRuntimeRegistry]
+    RuntimeRegistry --> PhpRuntime[PHP runtime adapter]
+    RuntimeRegistry --> BridgeRuntime[Bridge runtime adapter]
+    PhpRuntime --> PhpPlugin[PHP plugin package]
+    BridgeRuntime --> BridgePlugin[Bridge service plugin]
+
+    AppBoot[App boot] --> OneShot[PluginHookDispatcher]
+    PrintJob[Print job lifecycle] --> OneShot
+    Serial[Serial driver] --> HookCompiler[PluginHookCompiler]
+    Camera[Hardware camera driver] --> HookCompiler
+
+    HookCompiler --> CompiledHooks[Precompiled hook closures]
+    OneShot --> RuntimeRegistry
+    CompiledHooks --> RuntimeRegistry
+
+    RuntimeRegistry --> Effects[PluginEffectExecutor]
+    Effects --> Queue[Queue printer command]
+    Effects --> Toast[Toast / log / host feedback]
+
+    Queue --> Serial
+    Serial --> USB[USB serial device / printer firmware]
+    Camera --> Capture[fswebcam / libcamera / v4l2]
+    UIHost --> Assets
+    Assets --> UIBundle[Plugin assets and browser modules]
+```
+
+### Hook Execution Flow
+
+```mermaid
+sequenceDiagram
+    participant Driver as Serial / Camera / Print job
+    participant Compiler as PluginHookCompiler
+    participant Hook as Compiled hook closure
+    participant Registry as PluginRuntimeRegistry
+    participant Plugin as PHP or bridge plugin
+    participant Effects as PluginEffectExecutor
+    participant Host as Host runtime / hardware
+
+    Driver->>Compiler: compile hook set once at boundary
+    Compiler-->>Driver: hookName -> plain closure
+    Driver->>Hook: invoke(context)
+    Hook->>Registry: use captured runtime adapter
+    Registry->>Plugin: invoke hook payload
+    Plugin-->>Hook: result + effects
+    Hook->>Effects: execute allowed effects
+    Effects->>Host: queue command / toast / log
+```
+
+### Frontend Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant App as Frontend host shell
+    participant UI as PluginHostRenderer
+    participant API as Backend plugin API
+    participant Plugin as Plugin runtime
+
+    User->>App: Open Settings / navbar / printer page
+    App->>API: fetch plugin inventory + UI extensions
+    API-->>App: manifest-derived extension metadata
+    App->>UI: mount declared surface
+
+    alt declarative or remote_component
+        UI-->>User: host-rendered React Native surface
+    else webview or custom_bundle
+        UI->>API: resolve authenticated asset URL + theme metadata
+        API-->>UI: host asset endpoint
+        UI-->>User: isolated browser surface
+    end
+
+    User->>UI: trigger action
+    UI->>API: POST action payload
+    API->>Plugin: invoke action
+    Plugin-->>API: result + effects
+    API-->>UI: normalized payload
+    UI-->>User: updated UI / toast / queued behavior
+```
+
+### Hardware Boundaries
+
+- Printer communication stays inside the host serial driver.
+- Camera capture stays inside host camera tooling.
+- USB discovery stays inside the host mapper/runtime environment.
+- Plugins can observe and influence host behavior only through approved hooks, actions, and effects.
+- Bridge plugins can live outside the default host process, but they still receive host-shaped payloads rather than raw hardware access.
+
 ## Manifest Fields
 
 ### Required
@@ -133,6 +237,8 @@ Hook payload:
 - `print.job.started`
 - `print.job.failed`
 - `print.job.finished`
+
+Hot serial and camera hooks are compiled once into plain closures and reused inside their loops. One-shot lifecycle hooks such as `app.boot` still use the regular dispatcher path because they are not performance-sensitive.
 
 ## Supported Surfaces
 
@@ -288,6 +394,14 @@ Example:
 - `POST /api/plugins/{pluginId}/actions/{actionId}`
 - `GET /api/plugins/{pluginId}/assets/{assetPath}`
 
+Action calls are always host-mediated:
+
+1. frontend or host code requests an action
+2. the backend resolves the installed manifest
+3. the runtime adapter invokes the plugin
+4. the host executes any permitted returned effects
+5. the caller receives normalized result data
+
 ### Registry
 
 - `GET /api/plugins/registry`
@@ -340,6 +454,8 @@ The `theme` value is JSON and includes the current Paper theme color tokens such
 - `outline`
 - `outlineVariant`
 - `error`
+
+Elevated browser surfaces also receive the plugin API base URL and declared component metadata so they can call host actions and load manifest-declared browser modules without bypassing host control.
 
 ## Example Use Cases
 

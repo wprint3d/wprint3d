@@ -6,22 +6,19 @@ use App\Models\PersonalAccessToken;
 use App\Plugins\Contracts\PluginManager as PluginManagerContract;
 use App\Plugins\PluginArchiveService;
 use App\Plugins\PluginEffectExecutor;
+use App\Plugins\PluginHookCompiler;
 use App\Plugins\PluginHookDispatcher;
 use App\Plugins\PluginManagerService;
 use App\Plugins\PluginManifestValidator;
 use App\Plugins\PluginPackager;
 use App\Plugins\PluginRegistryClient;
-use App\Plugins\PluginSignatureService;
 use App\Plugins\PluginRuntimeRegistry;
+use App\Plugins\PluginSignatureService;
 use App\Plugins\Runtimes\BridgePluginRuntimeAdapter;
 use App\Plugins\Runtimes\PhpPluginRuntimeAdapter;
-
 use Illuminate\Support\Facades\Http;
-
 use Illuminate\Support\ServiceProvider;
-
 use Laravel\Sanctum\Sanctum;
-
 use MongoDB\Laravel\Eloquent\Model;
 
 class AppServiceProvider extends ServiceProvider
@@ -47,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
             ]);
         });
         $this->app->singleton(PluginEffectExecutor::class);
+        $this->app->singleton(PluginHookCompiler::class);
         $this->app->singleton(PluginManagerContract::class, PluginManagerService::class);
         $this->app->singleton(PluginHookDispatcher::class);
     }
@@ -58,13 +56,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        if (!class_exists(\Laravel\Sanctum\PersonalAccessToken::class, false)) {
+        if (! class_exists(\Laravel\Sanctum\PersonalAccessToken::class, false)) {
             class_alias(PersonalAccessToken::class, \Laravel\Sanctum\PersonalAccessToken::class);
         }
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
-        Model::preventSilentlyDiscardingAttributes( app()->isLocal( ) );
+        Model::preventSilentlyDiscardingAttributes(app()->isLocal());
 
         Http::macro('docker', function () {
             return
@@ -74,13 +72,13 @@ class AppServiceProvider extends ServiceProvider
 
         Http::macro('github', function () {
             return
-                Http::withHeader('Accept',               'application/vnd.github+json')
+                Http::withHeader('Accept', 'application/vnd.github+json')
                     ->withHeader('X-GitHub-Api-Version', '2022-11-28')
                     ->baseUrl('https://api.github.com');
         });
 
         $this->app->booted(function () {
-            if (app()->environment('testing') || !extension_loaded('mongodb')) {
+            if (app()->environment('testing') || ! extension_loaded('mongodb')) {
                 return;
             }
 
