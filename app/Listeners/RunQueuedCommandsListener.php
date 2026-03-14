@@ -14,26 +14,11 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
-class RunQeueuedCommands implements ShouldQueue
+class RunQueuedCommandsListener implements ShouldQueue
 {
     private const QUEUED_COMMAND_LOCK_TTL = 60 * 15;
 
-    /**
-     * Create the event listener.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        //
-    }
-
-    /**
-     * Handle the event.
-     *
-     * @return void
-     */
-    public function handle(CommandQueued $event)
+    public function handle(CommandQueued $event): void
     {
         $log = Log::channel('queued-commands-listener');
 

@@ -18,9 +18,60 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use MongoDB\BSON\ObjectId;
+use MongoDB\BSON\Regex;
 
 class MapSerialPrinters extends Command
 {
+    private function canonicalMachineUuid(array $machine, string $device, bool $isFakeSerial): string
+    {
+        if ($isFakeSerial) {
+            return $machine['uuid'].'/'.hash(
+                algo: 'crc32',
+                data: $device
+            );
+        }
+
+        return $machine['uuid'].'/'.hash(
+            algo: 'crc32',
+            data: json_encode($machine)
+        );
+    }
+
+    private function fakeSerialUuidRegex(string $baseUuid): Regex
+    {
+        return new Regex('^'.preg_quote($baseUuid, '/').'(/.*)?$', 'i');
+    }
+
+    private function findExistingPrinter(array $machine, string $device, bool $isFakeSerial): ?Printer
+    {
+        $printer = Printer::where('machine.uuid', $machine['uuid'])->first();
+
+        if ($printer || ! $isFakeSerial) {
+            return $printer;
+        }
+
+        return Printer::where('machine.connectionType', 'fakeSerial')
+            ->whereRaw([
+                'machine.uuid' => $this->fakeSerialUuidRegex(Str::before($machine['uuid'], '/')),
+            ])
+            ->orderBy('created_at')
+            ->first();
+    }
+
+    private function disconnectDuplicateFakePrinters(Printer $printer, string $baseUuid): void
+    {
+        foreach (
+            Printer::where('machine.connectionType', 'fakeSerial')
+                ->whereRaw([
+                    'machine.uuid' => $this->fakeSerialUuidRegex($baseUuid),
+                    '_id' => ['$ne' => new ObjectId($printer->_id)],
+                ])
+                ->cursor() as $duplicatePrinter
+        ) {
+            $duplicatePrinter->delete();
+        }
+    }
+
     /**
      * The name and signature of the console command.
      *
@@ -279,19 +330,15 @@ class MapSerialPrinters extends Command
                             break;
                         }
 
-                        $machine['uuid'] =
-                            $machine['uuid']
-                            .'/'.
-                            hash(
-                                algo: 'crc32',
-                                data: json_encode($machine)
-                            );
-                        $machine['connectionType'] = $fakeSerialManager->nodeExists($device) ? 'fakeSerial' : 'serial';
+                        $isFakeSerial = $fakeSerialManager->nodeExists($device);
+                        $baseUuid = $machine['uuid'];
+                        $machine['uuid'] = $this->canonicalMachineUuid($machine, $device, $isFakeSerial);
+                        $machine['connectionType'] = $isFakeSerial ? 'fakeSerial' : 'serial';
                         $machine['simulated'] = $machine['connectionType'] === 'fakeSerial';
 
                         $cameras = null;
 
-                        $printer = Printer::where('machine.uuid', $machine['uuid'])->first();
+                        $printer = $this->findExistingPrinter($machine, $device, $isFakeSerial);
 
                         if ($printer) {
                             $cameras = $printer->cameras;
@@ -352,6 +399,10 @@ class MapSerialPrinters extends Command
                         ) {
                             $matchingNodePrinter->node = null;
                             $matchingNodePrinter->save();
+                        }
+
+                        if ($isFakeSerial) {
+                            $this->disconnectDuplicateFakePrinters($printer, $baseUuid);
                         }
 
                         break;

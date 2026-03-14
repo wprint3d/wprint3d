@@ -34,13 +34,36 @@ class FakeSerialEmulatorTest extends TestCase
         $emulator = new FakeSerialEmulator;
 
         $result = $emulator->transact('M109 S210');
+        $busyLines = array_values(array_filter(
+            $result['lines'],
+            static fn (array $line): bool => str_contains($line['text'], 'busy: processing')
+        ));
 
         $this->assertGreaterThan(1, count($result['lines']));
-        $this->assertTrue(
-            collect($result['lines'])->contains(fn (array $line) => str_contains($line['text'], 'busy: processing'))
-        );
+        $this->assertNotEmpty($busyLines);
+        $this->assertTrue(collect($busyLines)->every(fn (array $line) => $line['delayMs'] === 2000));
         $this->assertStringContainsString('ok', $result['response']);
         $this->assertSame(210.0, $result['state']['hotend']['target']);
+    }
+
+    public function test_m113_changes_the_busy_keepalive_interval_for_waiting_commands(): void
+    {
+        $emulator = new FakeSerialEmulator;
+
+        $configured = $emulator->transact('M113 S5');
+        $result = $emulator->transact('G4 P11000', $configured['state']);
+
+        $busyLines = array_values(array_filter(
+            $result['lines'],
+            static fn (array $line): bool => str_contains($line['text'], 'busy: processing')
+        ));
+        $okLine = $result['lines'][count($result['lines']) - 1];
+
+        $this->assertCount(2, $busyLines);
+        $this->assertSame(5000, $busyLines[0]['delayMs']);
+        $this->assertSame(5000, $busyLines[1]['delayMs']);
+        $this->assertSame('ok', $okLine['text']);
+        $this->assertSame(1000, $okLine['delayMs']);
     }
 
     public function test_invalid_commands_emit_an_error_line(): void

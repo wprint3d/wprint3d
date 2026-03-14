@@ -3,6 +3,7 @@
 namespace App\Console\Services\Concurrent;
 
 use App\Console\Services\Concurrent\Dependencies\ConcurrentService;
+use App\Exceptions\InitializationException;
 use App\Libraries\Serial;
 use App\Models\Configuration;
 use App\Models\Printer;
@@ -102,6 +103,17 @@ class PollSerialConnections extends ConcurrentService
                             pluginHooks: $serialPluginHooks
                         );
                     } catch (Throwable $exception) {
+                        if (
+                            $exception instanceof InitializationException
+                            && str_contains($exception->getMessage(), 'already in use')
+                        ) {
+                            $this->log->debug(
+                                "{$printer->node}: serial connection is busy, skipping this poll cycle."
+                            );
+
+                            continue;
+                        }
+
                         $this->log->error(
                             "{$printer->node}: couldn't connect: {$exception->getMessage()}".PHP_EOL.
                             PHP_EOL.
