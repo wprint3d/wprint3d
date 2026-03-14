@@ -10,15 +10,42 @@
 ## Current SDK
 
 - `sdkVersion: 1`
-- `sdkRevision: 1`
+- `sdkRevision: 2`
 
 ## Version 1
+
+### Revision 2
+
+Status:
+
+- `current`
+
+Released:
+
+- `2026-03-13`
+
+Summary:
+
+- Heavyweight plugin runtime dependencies and interactive scaffolding.
+
+Changes:
+
+- Added manifest-declared `images` with optional `healthcheck` and `service` metadata.
+- Added advisory `requirements.memoryMb` and `requirements.cpuCores`.
+- Added host-managed bridge sidecar activation through `runtime.managedImageId`.
+- Added heavyweight/lightweight dependency metadata in plugin inventory and marketplace payloads.
+- Added interactive `plugin:make` scaffolding for runtime/UI shape combinations.
+
+Migration notes:
+
+- New plugins should target `sdkRevision: 2`.
+- Bridge plugins can keep using static `runtime.baseUrl`, but self-contained image-backed bridges should prefer `runtime.managedImageId`.
 
 ### Revision 1
 
 Status:
 
-- `current`
+- `supported`
 
 Released:
 

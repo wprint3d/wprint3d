@@ -7,6 +7,49 @@ import { useSnackbar } from "react-native-paper-snackbar-stack";
 import API from "../includes/API";
 import SimpleDialog from "./SimpleDialog";
 
+const buildDependencyBadges = (plugin, theme) => {
+  const badges = [];
+  const dependencies = plugin.dependencies || {};
+
+  badges.push(dependencies.classification === "heavyweight"
+    ? {
+        icon: "server-network",
+        label: "Heavyweight",
+        tooltip: dependencies.hint || "This plugin ships container image dependencies.",
+        style: { backgroundColor: theme.colors.secondaryContainer },
+        textStyle: { color: theme.colors.onSecondaryContainer },
+      }
+    : {
+        icon: "leaf",
+        label: "Lightweight",
+        tooltip: dependencies.hint || "This plugin does not declare extra container image dependencies.",
+        style: { backgroundColor: theme.colors.surfaceVariant },
+        textStyle: { color: theme.colors.onSurfaceVariant },
+      });
+
+  if ((dependencies.images || []).length) {
+    badges.push({
+      icon: "package-variant-closed",
+      label: `${dependencies.images.length} image${dependencies.images.length === 1 ? "" : "s"}`,
+      tooltip: "Container images that WPrint 3D will prepare for this plugin.",
+      style: { backgroundColor: theme.colors.primaryContainer },
+      textStyle: { color: theme.colors.onPrimaryContainer },
+    });
+  }
+
+  if (dependencies.host?.meetsRequirements === false) {
+    badges.push({
+      icon: "alert",
+      label: "Host shortfall",
+      tooltip: (dependencies.warnings || []).join(" ") || "This host is below the plugin's declared minimum requirements.",
+      style: { backgroundColor: theme.colors.errorContainer },
+      textStyle: { color: theme.colors.onErrorContainer },
+    });
+  }
+
+  return badges;
+};
+
 const buildPluginBadges = (plugin, theme) => {
   const badges = [];
 
@@ -89,7 +132,22 @@ const buildPluginBadges = (plugin, theme) => {
     });
   }
 
-  return badges;
+  return [ ...badges, ...buildDependencyBadges(plugin, theme) ];
+};
+
+const buildRequirementSummary = (plugin) => {
+  const requirements = plugin.dependencies?.requirements || {};
+  const parts = [];
+
+  if (requirements.cpuCores) {
+    parts.push(`${requirements.cpuCores} CPU core${requirements.cpuCores === 1 ? "" : "s"}`);
+  }
+
+  if (requirements.memoryMb) {
+    parts.push(`${requirements.memoryMb} MB RAM`);
+  }
+
+  return parts.length ? `Minimum host target: ${parts.join(" • ")}.` : null;
 };
 
 const buildRegistrySourceBadge = (source, theme) => {
@@ -509,6 +567,18 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                         ))}
                       </View>
 
+                      {!!plugin.dependencies?.hint && (
+                        <Text style={{ color: theme.colors.onSurfaceVariant, marginBottom: 10 }}>
+                          {plugin.dependencies.hint}
+                        </Text>
+                      )}
+
+                      {!!buildRequirementSummary(plugin) && (
+                        <Text style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12 }}>
+                          {buildRequirementSummary(plugin)}
+                        </Text>
+                      )}
+
                       {!!plugin.warnings?.length && (
                         <View
                           style={{
@@ -860,6 +930,13 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                               {sourceBadge.label}
                             </Chip>
                           </Tooltip>
+                          {buildDependencyBadges(plugin, theme).map((badge) => (
+                            <Tooltip key={`${plugin.registrySource?.id || "registry"}-${plugin.id}-${badge.label}`} title={badge.tooltip}>
+                              <Chip icon={badge.icon} style={badge.style} textStyle={badge.textStyle}>
+                                {badge.label}
+                              </Chip>
+                            </Tooltip>
+                          ))}
                           {(plugin.categories || []).slice(0, 3).map((category) => (
                             <Chip
                               key={`${plugin.registrySource?.id || "registry"}-${plugin.id}-${category}`}
@@ -872,6 +949,33 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                         </View>
 
                         {!!plugin.description && <Text>{plugin.description}</Text>}
+
+                        {!!plugin.dependencies?.hint && (
+                          <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                            {plugin.dependencies.hint}
+                          </Text>
+                        )}
+
+                        {!!buildRequirementSummary(plugin) && (
+                          <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                            {buildRequirementSummary(plugin)}
+                          </Text>
+                        )}
+
+                        {!!plugin.warnings?.length && (
+                          <View
+                            style={{
+                              gap: 6,
+                              padding: 12,
+                              borderRadius: 14,
+                              backgroundColor: theme.colors.tertiaryContainer,
+                            }}
+                          >
+                            <Text style={{ color: theme.colors.onTertiaryContainer }}>
+                              {plugin.warnings.join(" ")}
+                            </Text>
+                          </View>
+                        )}
 
                         {!plugin.registrySource?.official && (
                           <View

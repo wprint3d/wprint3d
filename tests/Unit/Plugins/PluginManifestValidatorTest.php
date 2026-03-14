@@ -296,6 +296,101 @@ class PluginManifestValidatorTest extends TestCase
         $this->assertSame('remote_component', $manifest['components'][0]['kind']);
     }
 
+    public function test_it_accepts_heavyweight_image_dependencies_and_requirements(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
+
+        $manifest = $validator->validate([
+            'id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'sdkRevision' => 1,
+            'runtime' => [
+                'type' => 'bridge',
+                'managedImageId' => 'metrics-service',
+            ],
+            'permissions' => [
+                'network.outbound',
+            ],
+            'images' => [
+                [
+                    'id' => 'metrics-service',
+                    'image' => 'ghcr.io/acme/metrics-service:1.2.3',
+                    'engine' => 'auto',
+                    'service' => [
+                        'port' => 9310,
+                        'networkAlias' => 'acme-metrics',
+                    ],
+                    'healthcheck' => [
+                        'command' => ['curl', '-f', 'http://127.0.0.1:9310/health'],
+                        'timeoutSecs' => 15,
+                    ],
+                ],
+            ],
+            'requirements' => [
+                'memoryMb' => 1024,
+                'cpuCores' => 2,
+            ],
+        ]);
+
+        $this->assertSame('metrics-service', $manifest['runtime']['managedImageId']);
+        $this->assertSame('ghcr.io/acme/metrics-service:1.2.3', $manifest['images'][0]['image']);
+        $this->assertSame(1024, $manifest['requirements']['memoryMb']);
+        $this->assertSame(2.0, $manifest['requirements']['cpuCores']);
+    }
+
+    public function test_it_rejects_bridge_managed_images_without_a_declared_service_port(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
+
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('must reference an image that declares service.port');
+
+        $validator->validate([
+            'id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'runtime' => [
+                'type' => 'bridge',
+                'managedImageId' => 'metrics-service',
+            ],
+            'permissions' => [
+                'network.outbound',
+            ],
+            'images' => [
+                [
+                    'id' => 'metrics-service',
+                    'image' => 'ghcr.io/acme/metrics-service:1.2.3',
+                ],
+            ],
+        ]);
+    }
+
+    public function test_it_rejects_invalid_minimum_resource_requirements(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
+
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('Plugin requirements.memoryMb must be greater than zero');
+
+        $validator->validate([
+            'id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'runtime' => [
+                'type' => 'php',
+                'entry' => 'plugin.php',
+            ],
+            'permissions' => [],
+            'requirements' => [
+                'memoryMb' => 0,
+            ],
+        ]);
+    }
+
     public function test_it_rejects_unknown_permissions(): void
     {
         $validator = new PluginManifestValidator(null, null, null, null, 1, 1);

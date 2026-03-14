@@ -17,13 +17,20 @@ import { useCache } from "../hooks/useCache";
 import uuid from 'react-native-uuid';
 
 import { useSnackbar } from "react-native-paper-snackbar-stack";
-import { useLastTerminalMessage } from "../hooks/useLastTerminalMessage";
+import { useTerminalMessages } from "../hooks/useTerminalMessages";
+import {
+    filterTerminalEntries,
+    mergeTerminalEntries,
+    parseTerminalEvent,
+    parseTerminalHistory,
+} from "../utils/terminalLog";
 
 export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId = null, isSmallTablet = false }) {
     const { enqueueSnackbar } = useSnackbar();
     const { bottom }          = useSafeAreaInsets();
 
-    const lastTerminalMessage = useLastTerminalMessage({ printerId });
+    const queuedTerminalMessages = useTerminalMessages({ printerId });
+    const lastProcessedMessageId = useRef(0);
 
     const BOTTOM_APPBAR_HEIGHT_BASE = 48;
     const BOTTOM_APPBAR_HEIGHT = (
@@ -40,7 +47,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
 
     const { colors } = useTheme();
 
-    const [ log,            setLog           ] = useState([]);
+    const [ logEntries,     setLogEntries    ] = useState([]);
     const [ customCommand,  setCustomCommand ] = useState('');
 
     const [ autoScrollToBottom,     _setAutoScrollToBottom   ] = useState(null);
@@ -64,6 +71,10 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
     useEffect(() => {
         console.debug('showInputCommands:',  showInputCommands);
     }, [ showInputCommands ]);
+
+    useEffect(() => {
+        lastProcessedMessageId.current = 0;
+    }, [ printerId ]);
 
     const setAutoScrollToBottom = async newValue => {
         await cache.set('autoScrollToBottom', newValue);
@@ -232,12 +243,10 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
             !terminalLastLog.data.data
         ) { return; }
 
-        let nextLog = [];
+        let nextLogEntries = [];
 
-        terminalLastLog.data.data.split('\n').forEach(splitLine => {
-            if (!splitLine.length) { return; }
-
-            const [ date, line ] = splitLine.split(': ');
+        parseTerminalHistory(terminalLastLog.data.data).forEach(({ date, line }) => {
+            if (!line.length) { return; }
 
             if (line.indexOf('> ') > -1) {
                 setInputLines(prevInputLines => prevInputLines + 1);
@@ -245,19 +254,14 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                 setInputLines(0);
             }
 
-            if (isMessageBlocked(line)) { return; }
-
-            nextLog.push(
-                buildLogLine({
-                    key:  uuid.v4(),
-                    date: date,
-                    line: line
-                })
-            );
+            nextLogEntries.push({ date, line });
         });
 
-        setLog(
-            nextLog.filter(element => element !== null)
+        setLogEntries(
+            filterTerminalEntries(nextLogEntries, isMessageBlocked).map(entry => ({
+                ...entry,
+                key: uuid.v4()
+            }))
         );
     }, [ terminalLastLog.isFetching, terminalLastLog.isFetched ]);
 
@@ -288,43 +292,33 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
             return;
         }
 
-        console.debug('UserPrinterTerminal: lastTerminalMessage:', lastTerminalMessage);
+        console.debug('UserPrinterTerminal: queuedTerminalMessages:', queuedTerminalMessages);
 
-        let nextLog = [];
+        const unprocessedMessages = queuedTerminalMessages.filter(
+            ({ id }) => id > lastProcessedMessageId.current
+        );
 
-        const command = lastTerminalMessage?.command;
+        if (!unprocessedMessages.length) { return; }
 
-        if (!command || !command.length) { return; }
+        lastProcessedMessageId.current = unprocessedMessages[unprocessedMessages.length - 1].id;
 
-        console.debug('UserPrinterTerminal: command:', command);
+        const nextLogEntries = filterTerminalEntries(
+            unprocessedMessages.flatMap(({ event }) => parseTerminalEvent(event)),
+            isMessageBlocked
+        );
 
-        command.split('\n').forEach(line => {
-            if (
-                !line.trim().length
-                ||
-                isMessageBlocked(line)
-            ) { return; }
+        if (!nextLogEntries.length) { return; }
 
-            nextLog.push(
-                buildLogLine({
-                    key:  uuid.v4(),
-                    date: lastTerminalMessage?.dateString,
-                    line: line
-                })
-            );
-        });
+        console.debug('setLogEntries:', nextLogEntries);
 
-        console.debug('setLog:', nextLog);
-
-        setLog(prevLog => {
-            if (terminalMaxLines === 0) { return []; }
-
-            let newLog = [...prevLog, ...nextLog];
-
-            while (newLog.length > terminalMaxLines) { newLog.shift(); }
-
-            return newLog;
-        });
+        setLogEntries(previousEntries => mergeTerminalEntries(
+            previousEntries,
+            nextLogEntries.map(entry => ({
+                ...entry,
+                key: uuid.v4()
+            })),
+            terminalMaxLines
+        ));
 
         if (!autoScrollToBottom) { return; }
 
@@ -335,7 +329,14 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
         }
 
         terminalView.current.scrollToEnd({ animated: true });
-    }, [ lastTerminalMessage ]);
+    }, [
+        autoScrollToBottom,
+        isLoadingPrinter,
+        queuedTerminalMessages,
+        terminalLastLog.isFetched,
+        terminalMaxLines,
+        terminalMaxLinesConfig.isFetched
+    ]);
 
     let loaderMessage = null;
 
@@ -389,8 +390,12 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                                 }}
                             >
                                 <Text style={{ width: '100%', whiteSpace: 'nowrap' }}>
-                                    {log.length > 0
-                                        ? log
+                                    {logEntries.length > 0
+                                        ? logEntries.map(({ key, date, line }) => buildLogLine({
+                                            key: key,
+                                            date: date,
+                                            line: line
+                                        }))
                                         : buildLogLine({
                                             key:  null,
                                             line: 'Nothing here!'

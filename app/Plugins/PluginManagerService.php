@@ -16,6 +16,7 @@ class PluginManagerService implements PluginManager
         private PluginArchiveService $archiveService,
         private PluginRegistryClient $registryClient,
         private PluginRuntimeRegistry $runtimeRegistry,
+        private PluginDependencyService $dependencyService,
     ) {}
 
     public function sdkMetadata(): array
@@ -36,7 +37,9 @@ class PluginManagerService implements PluginManager
 
     public function listRegistry(): array
     {
-        return $this->registryClient->listPackages();
+        return collect($this->registryClient->listPackages())
+            ->map(fn (array $package) => $this->serializeRegistryPackage($package))
+            ->all();
     }
 
     public function listRegistrySources(): array
@@ -63,6 +66,7 @@ class PluginManagerService implements PluginManager
         $storagePath = config('plugins.paths.runtime').DIRECTORY_SEPARATOR.$package->manifest['id'];
         @mkdir($storagePath, 0777, true);
         $plugin = Plugin::firstOrNew(['plugin_id' => $package->manifest['id']]);
+        $dependencyState = $this->dependencyService->prepare($package->manifest);
 
         $versions = $plugin->versions ?? [];
         $versions[$package->manifest['version']] = [
@@ -88,7 +92,8 @@ class PluginManagerService implements PluginManager
             'actions' => $package->manifest['actions'] ?? [],
             'ui_extensions' => $package->manifest['uiExtensions'] ?? [],
             'versions' => $versions,
-            'warnings' => $package->warnings,
+            'warnings' => $this->mergeWarnings($package->warnings, $dependencyState['warnings'] ?? []),
+            'dependency_state' => $dependencyState,
         ]);
         $plugin->save();
 
@@ -134,6 +139,7 @@ class PluginManagerService implements PluginManager
         $plugin = Plugin::firstOrNew(['plugin_id' => $package->manifest['id']]);
         $storagePath = config('plugins.paths.runtime').DIRECTORY_SEPARATOR.$package->manifest['id'];
         @mkdir($storagePath, 0777, true);
+        $dependencyState = $this->dependencyService->prepare($package->manifest);
 
         $source = [
             'type' => 'development_mount',
@@ -167,7 +173,8 @@ class PluginManagerService implements PluginManager
             'actions' => $package->manifest['actions'] ?? [],
             'ui_extensions' => $package->manifest['uiExtensions'] ?? [],
             'versions' => $versions,
-            'warnings' => $package->warnings,
+            'warnings' => $this->mergeWarnings($package->warnings, $dependencyState['warnings'] ?? []),
+            'dependency_state' => $dependencyState,
             'last_error' => null,
         ]);
         $plugin->save();
@@ -179,6 +186,11 @@ class PluginManagerService implements PluginManager
     {
         $plugin = $this->requireModel($pluginId);
         $payload = $this->serializePlugin($plugin);
+        $dependencyState = $this->dependencyService->activate($payload, $plugin->dependency_state ?? []);
+        $plugin->dependency_state = $dependencyState;
+        $plugin->warnings = $this->mergeWarnings($plugin->warnings ?? [], $dependencyState['warnings'] ?? []);
+        $plugin->save();
+        $payload = $this->serializePlugin($plugin->fresh() ?? $plugin);
 
         if (($payload['manifest']['runtime']['type'] ?? null) === 'bridge') {
             $adapter = $this->runtimeRegistry->resolve('bridge');
@@ -198,6 +210,7 @@ class PluginManagerService implements PluginManager
     public function disable(string $pluginId): array
     {
         $plugin = $this->requireModel($pluginId);
+        $this->dependencyService->deactivate($this->serializePlugin($plugin));
         $plugin->enabled = false;
         $plugin->save();
 
@@ -207,6 +220,7 @@ class PluginManagerService implements PluginManager
     public function uninstall(string $pluginId): void
     {
         $plugin = $this->requireModel($pluginId);
+        $this->dependencyService->deactivate($this->serializePlugin($plugin));
 
         foreach (($plugin->versions ?? []) as $version) {
             if (($version['source']['type'] ?? null) === 'development_mount') {
@@ -304,14 +318,21 @@ class PluginManagerService implements PluginManager
                 'runtimePathExists' => is_dir($payload['runtimePath'] ?? ''),
                 'trustLevel' => $payload['trustLevel'],
                 'warnings' => $payload['warnings'],
+                'classification' => $payload['classification'] ?? 'lightweight',
             ];
         })->all();
     }
 
     public function safeModeDisableAll(): int
     {
-        $count = Plugin::enabled()->count();
-        Plugin::enabled()->update(['enabled' => false]);
+        $enabledPlugins = Plugin::enabled()->get();
+        $count = $enabledPlugins->count();
+
+        foreach ($enabledPlugins as $plugin) {
+            $this->dependencyService->deactivate($this->serializePlugin($plugin));
+            $plugin->enabled = false;
+            $plugin->save();
+        }
 
         return $count;
     }
@@ -366,6 +387,8 @@ class PluginManagerService implements PluginManager
                 continue;
             }
 
+            $dependencies = $this->dependencyService->summarize($package->manifest);
+
             $plugins[] = [
                 'id' => $package->manifest['id'],
                 'name' => $package->manifest['name'],
@@ -374,7 +397,9 @@ class PluginManagerService implements PluginManager
                 'path' => $directory,
                 'relativePath' => $entry,
                 'trustLevel' => $package->trustLevel,
-                'warnings' => $package->warnings,
+                'warnings' => $this->mergeWarnings($package->warnings, $dependencies['warnings'] ?? []),
+                'classification' => $dependencies['classification'] ?? 'lightweight',
+                'dependencies' => $dependencies,
             ];
         }
 
@@ -462,6 +487,8 @@ class PluginManagerService implements PluginManager
         $uiExtensions = $this->normalizeExtensionAssetUrls($plugin->plugin_id, $plugin->ui_extensions ?? []);
         $manifest['uiExtensions'] = $this->normalizeExtensionAssetUrls($plugin->plugin_id, $manifest['uiExtensions'] ?? []);
         $manifest['components'] = $this->normalizeManifestComponents($plugin->plugin_id, $manifest['components'] ?? []);
+        $dependencies = $this->dependencyService->summarize($manifest, $plugin->dependency_state ?? []);
+        $manifest['runtime'] = $this->resolveManagedRuntime($manifest['runtime'] ?? [], $dependencies);
 
         return [
             'id' => $plugin->plugin_id,
@@ -477,7 +504,9 @@ class PluginManagerService implements PluginManager
             'hooks' => $plugin->hooks ?? [],
             'actions' => $plugin->actions ?? [],
             'uiExtensions' => $uiExtensions,
-            'warnings' => $plugin->warnings ?? [],
+            'warnings' => $this->mergeWarnings($plugin->warnings ?? [], $dependencies['warnings'] ?? []),
+            'classification' => $dependencies['classification'] ?? 'lightweight',
+            'dependencies' => $dependencies,
             'runtimePath' => $plugin->getCurrentRuntimePath(),
             'runtime_path' => $plugin->getCurrentRuntimePath(),
             'versions' => $plugin->versions ?? [],
@@ -515,6 +544,7 @@ class PluginManagerService implements PluginManager
         try {
             $package = $this->archiveService->inspectDirectory($runtimePath, 'development_mount');
             $this->assertCoreCompatibility($package->manifest);
+            $dependencyState = $this->dependencyService->summarize($package->manifest, $plugin->dependency_state ?? []);
             $source = array_merge($plugin->install_source ?? [], [
                 'type' => 'development_mount',
                 'mount_path' => config('plugins.development.mount_path'),
@@ -545,7 +575,8 @@ class PluginManagerService implements PluginManager
                 'actions' => $package->manifest['actions'] ?? [],
                 'ui_extensions' => $package->manifest['uiExtensions'] ?? [],
                 'versions' => $versions,
-                'warnings' => $package->warnings,
+                'warnings' => $this->mergeWarnings($package->warnings, $dependencyState['warnings'] ?? []),
+                'dependency_state' => $dependencyState,
                 'last_error' => null,
             ]);
 
@@ -593,6 +624,37 @@ class PluginManagerService implements PluginManager
         $assetPath = ltrim(substr($reference, strlen('asset://')), DIRECTORY_SEPARATOR);
 
         return '/backend/api/plugins/'.rawurlencode($pluginId).'/assets/'.implode('/', array_map('rawurlencode', explode('/', $assetPath)));
+    }
+
+    private function resolveManagedRuntime(array $runtime, array $dependencies): array
+    {
+        if (! empty($dependencies['runtime']['baseUrl'])) {
+            $runtime['baseUrl'] = $dependencies['runtime']['baseUrl'];
+        }
+
+        return $runtime;
+    }
+
+    private function mergeWarnings(array ...$warningSets): array
+    {
+        return collect($warningSets)
+            ->flatten(1)
+            ->filter(fn ($warning) => is_string($warning) && trim($warning) !== '')
+            ->map(fn (string $warning) => trim($warning))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function serializeRegistryPackage(array $package): array
+    {
+        $dependencies = $this->dependencyService->summarize($package['manifest'] ?? $package);
+
+        return array_merge($package, [
+            'classification' => $dependencies['classification'] ?? 'lightweight',
+            'dependencies' => $dependencies,
+            'warnings' => $this->mergeWarnings($package['warnings'] ?? [], $dependencies['warnings'] ?? []),
+        ]);
     }
 
     private function normalizeManifestComponents(string $pluginId, array $components): array

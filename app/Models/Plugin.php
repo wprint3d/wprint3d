@@ -25,6 +25,7 @@ class Plugin extends Model
         'ui_extensions',
         'versions',
         'warnings',
+        'dependency_state',
         'last_error',
         'last_healthcheck_at',
     ];

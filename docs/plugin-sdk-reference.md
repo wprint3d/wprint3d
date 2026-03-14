@@ -5,7 +5,7 @@
 Current SDK pair:
 
 - `sdkVersion: 1`
-- `sdkRevision: 1`
+- `sdkRevision: 2`
 
 `sdkVersion` is the API level.
 
@@ -25,6 +25,7 @@ flowchart LR
 
     API --> PM[PluginManagerService]
     PM --> Registry[Plugin registry client]
+    PM --> Dependencies[Plugin dependency service<br/>images / requirements / managed services]
     PM --> Assets[Plugin asset resolver]
     PM --> Actions[Action dispatcher]
 
@@ -46,6 +47,7 @@ flowchart LR
     RuntimeRegistry --> Effects[PluginEffectExecutor]
     Effects --> Queue[Queue printer command]
     Effects --> Toast[Toast / log / host feedback]
+    Dependencies --> ContainerRuntime[Docker / Podman host runtime]
 
     Queue --> Serial
     Serial --> USB[USB serial device / printer firmware]
@@ -139,6 +141,8 @@ sequenceDiagram
 - `assets`
 - `components`
 - `updateSource`
+- `requirements`
+- `images`
 
 ## Runtime Contracts
 
@@ -179,10 +183,21 @@ Manifest:
 }
 ```
 
+Or, for a host-managed bridge service:
+
+```json
+"runtime": {
+  "type": "bridge",
+  "managedImageId": "metrics-service",
+  "healthcheck": "/health"
+}
+```
+
 The host performs:
 
 - `GET /health` when enabling the plugin
 - `POST` to hook/action paths for runtime work
+- starts the managed service container automatically when `managedImageId` is declared
 
 Action payload:
 
@@ -207,6 +222,41 @@ Hook payload:
   "context": {}
 }
 ```
+
+### Heavyweight Dependencies
+
+Manifest:
+
+```json
+"requirements": {
+  "memoryMb": 1024,
+  "cpuCores": 2
+},
+"images": [
+  {
+    "id": "metrics-service",
+    "image": "ghcr.io/acme/metrics-service:1.2.3",
+    "engine": "auto",
+    "healthcheck": {
+      "command": ["curl", "-f", "http://127.0.0.1:9310/health"],
+      "timeoutSecs": 15
+    },
+    "service": {
+      "port": 9310,
+      "networkAlias": "acme-metrics"
+    }
+  }
+]
+```
+
+Rules:
+
+- No `images` means the plugin is `lightweight`.
+- Any declared image makes the plugin `heavyweight`.
+- Install/update pulls declared images automatically.
+- `healthcheck.command` is optional.
+- `requirements.memoryMb` and `requirements.cpuCores` are advisory host checks that surface warnings in the UI when the current system is below the plugin's declared minimum target.
+- `runtime.managedImageId` can point at an image with `service.port` so WPrint 3D can run a self-contained bridge sidecar.
 
 ## Supported Permissions
 
@@ -418,6 +468,10 @@ Action calls are always host-mediated:
 - `php artisan plugin:make`
 - `php artisan plugin:pack`
 - `php artisan plugin:publish`
+- `php artisan plugin:install`
+- `php artisan plugin:search`
+
+`plugin:make` is now interactive and can scaffold any runtime/UI shape plus optional heavyweight image metadata. Use `--shape`, `--image`, `--memory`, and `--cpu` when you want a fully non-interactive generator.
 - `php artisan plugin:search`
 - `php artisan plugin:install`
 - `php artisan plugin:list`

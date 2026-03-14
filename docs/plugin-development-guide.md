@@ -6,9 +6,27 @@ WPrint 3D plugins are host-controlled extensions packaged as `.w3dp` archives or
 
 - a runtime shape: `php` or `bridge`
 - a UI shape: `declarative`, `webview`, or `custom_bundle`
+- a dependency footprint: `lightweight` or `heavyweight`
 - one or more surfaces: `settings_tab`, `navbar_widget`, `printer_panel`, `printer_action`, `modal`, `page`
 
 Use the lightest shape that fits the job. The platform is intentionally biased toward host-rendered UI and short-lived runtime handlers because many WPrint 3D installs run on low-memory SBCs.
+
+## Lightweight vs Heavyweight
+
+`lightweight`
+
+- Declares no container images in the manifest.
+- Installs without extra runtime dependencies.
+- Best for host-rendered UI, PHP hooks, and small bridge adapters that already exist elsewhere.
+
+`heavyweight`
+
+- Declares one or more images in `plugin.json -> images`.
+- WPrint 3D will pull those images during install/update.
+- Optional healthcheck commands can be executed to prove the image is usable.
+- Optional `requirements.memoryMb` and `requirements.cpuCores` let the host warn when the system is below the plugin's minimum target.
+
+This is intentionally close to the host-managed add-on model used by systems like Home Assistant: the plugin declares its container dependencies, but WPrint 3D owns the pull, readiness, and trust UX.
 
 ## Choose A Shape
 
@@ -69,7 +87,7 @@ That gives us a real cross-platform remote component API without allowing unboun
   "name": "Hello World",
   "version": "0.1.0",
   "sdkVersion": 1,
-  "sdkRevision": 1,
+  "sdkRevision": 2,
   "runtime": {
     "type": "php",
     "entry": "plugin.php"
@@ -102,6 +120,21 @@ That gives us a real cross-platform remote component API without allowing unboun
       }
     }
   ],
+  "requirements": {
+    "memoryMb": 1024,
+    "cpuCores": 2
+  },
+  "images": [
+    {
+      "id": "metrics-service",
+      "image": "ghcr.io/acme/metrics-service:1.2.3",
+      "engine": "auto",
+      "healthcheck": {
+        "command": ["php", "-v"],
+        "timeoutSecs": 15
+      }
+    }
+  ],
   "signature": {
     "algorithm": "none"
   }
@@ -113,13 +146,36 @@ That gives us a real cross-platform remote component API without allowing unboun
 ### 1. Scaffold It
 
 ```bash
-php artisan plugin:make acme.hello-world "Hello World"
+php artisan plugin:make
 ```
 
-The scaffold now emits the current SDK pair:
+The scaffold is now interactive by default. It prompts for:
+
+- plugin identifier and display name
+- shape: `php` / `bridge` plus `declarative` / `webview` / `custom_bundle`
+- optional required image reference
+- optional managed bridge service wiring
+- optional minimum memory and CPU targets
+
+You can still use it non-interactively:
+
+```bash
+php artisan plugin:make acme.hello-world "Hello World" --shape=bridge-custom-bundle --image=ghcr.io/acme/hello-world-service:latest --memory=1024 --cpu=2
+```
+
+The scaffold emits the current SDK pair:
 
 - `sdkVersion`
 - `sdkRevision`
+
+### Shape values
+
+- `php-declarative`
+- `php-webview`
+- `php-custom-bundle`
+- `bridge-declarative`
+- `bridge-webview`
+- `bridge-custom-bundle`
 
 ### 2. Pick The Runtime
 
@@ -141,11 +197,28 @@ For `bridge`:
 }
 ```
 
+Or, for a host-managed bridge image:
+
+```json
+"runtime": {
+  "type": "bridge",
+  "managedImageId": "metrics-service",
+  "healthcheck": "/health"
+}
+```
+
 Bridge plugins should expose:
 
 - `GET /health`
 - action endpoints such as `POST /actions/host_metrics`
 - optional hook endpoints such as `POST /hooks/app.boot`
+
+If `runtime.managedImageId` is used, the referenced image must declare `service.port`, and WPrint 3D will:
+
+- pull the image during install/update
+- start the container when the plugin is enabled
+- attach it to the current WPrint 3D container network
+- resolve the bridge `baseUrl` automatically from the managed service alias and port
 
 ### 3. Add Actions
 
@@ -194,6 +267,46 @@ Or, in development mode:
 - enable `developerMode`
 - open `Settings -> Plugins -> Add a plugin -> Install unpacked`
 - install the source directory directly from the mounted development path
+
+## Container Images And Resource Requirements
+
+Heavyweight plugins declare image dependencies in the manifest:
+
+```json
+"requirements": {
+  "memoryMb": 1024,
+  "cpuCores": 2
+},
+"images": [
+  {
+    "id": "metrics-service",
+    "image": "ghcr.io/acme/metrics-service:1.2.3",
+    "engine": "auto",
+    "healthcheck": {
+      "command": ["curl", "-f", "http://127.0.0.1:9310/health"],
+      "timeoutSecs": 15
+    },
+    "service": {
+      "port": 9310,
+      "networkAlias": "acme-metrics"
+    }
+  }
+]
+```
+
+Notes:
+
+- `images` is optional. No images means the plugin is `lightweight`.
+- `engine` can be `auto`, `docker`, or `podman`.
+- `healthcheck.command` is optional but recommended for heavyweight plugins.
+- `requirements` is optional. If omitted, WPrint 3D will still install the plugin and try to run it.
+- If requirements are declared and the host falls short, install still succeeds, but the UI shows warnings so the user can make an informed decision.
+
+### Managed bridge services
+
+If a bridge plugin declares `runtime.managedImageId`, the matching image entry must also declare `service.port`.
+
+WPrint 3D uses that to create a host-managed sidecar container named after the plugin and image ID. This is the recommended way to ship self-contained bridge plugins with their own API server or large runtime dependencies.
 
 ## Asset-Backed Elevated UI
 

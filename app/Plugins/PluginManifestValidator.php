@@ -90,8 +90,25 @@ class PluginManifestValidator
             throw new InvalidPluginManifestException('PHP plugins must declare runtime.entry.');
         }
 
-        if ($runtimeType === 'bridge' && empty($manifest['runtime']['baseUrl']) && empty($manifest['runtime']['socketPath'])) {
-            throw new InvalidPluginManifestException('Bridge plugins must declare runtime.baseUrl or runtime.socketPath.');
+        $manifest['images'] = $this->normalizeImages($manifest['images'] ?? []);
+        $manifest['requirements'] = $this->normalizeRequirements($manifest['requirements'] ?? []);
+
+        if (
+            $runtimeType === 'bridge'
+            && empty($manifest['runtime']['baseUrl'])
+            && empty($manifest['runtime']['socketPath'])
+            && empty($manifest['runtime']['managedImageId'])
+        ) {
+            throw new InvalidPluginManifestException('Bridge plugins must declare runtime.baseUrl, runtime.socketPath, or runtime.managedImageId.');
+        }
+
+        if ($runtimeType === 'bridge' && ! empty($manifest['runtime']['managedImageId'])) {
+            $managedImage = collect($manifest['images'])
+                ->firstWhere('id', (string) $manifest['runtime']['managedImageId']);
+
+            if (! $managedImage || empty($managedImage['service']['port'])) {
+                throw new InvalidPluginManifestException('Bridge runtime.managedImageId must reference an image that declares service.port.');
+            }
         }
 
         $manifest['permissions'] = array_values(array_unique($manifest['permissions'] ?? []));
@@ -257,6 +274,112 @@ class PluginManifestValidator
         }
 
         return $normalizedAssets;
+    }
+
+    private function normalizeImages(array $images): array
+    {
+        $normalizedImages = [];
+        $seenIds = [];
+
+        foreach (array_values($images) as $index => $image) {
+            if (! is_array($image) || empty($image['id']) || empty($image['image'])) {
+                throw new InvalidPluginManifestException("Plugin image at index {$index} must declare id and image.");
+            }
+
+            $id = trim((string) $image['id']);
+            $reference = trim((string) $image['image']);
+
+            if ($id === '' || $reference === '') {
+                throw new InvalidPluginManifestException("Plugin image at index {$index} must declare id and image.");
+            }
+
+            if (in_array($id, $seenIds, true)) {
+                throw new InvalidPluginManifestException("Plugin image IDs must be unique: {$id}");
+            }
+
+            $seenIds[] = $id;
+            $image['engine'] = $image['engine'] ?? 'auto';
+
+            if (! in_array($image['engine'], ['auto', 'docker', 'podman'], true)) {
+                throw new InvalidPluginManifestException("Plugin image {$id} declares an unsupported engine.");
+            }
+
+            if (isset($image['healthcheck'])) {
+                if (! is_array($image['healthcheck']) || empty($image['healthcheck']['command'])) {
+                    throw new InvalidPluginManifestException("Plugin image {$id} healthcheck must declare command.");
+                }
+
+                $image['healthcheck']['timeoutSecs'] = max(1, (int) ($image['healthcheck']['timeoutSecs'] ?? 15));
+            }
+
+            if (isset($image['service'])) {
+                if (! is_array($image['service']) || empty($image['service']['port'])) {
+                    throw new InvalidPluginManifestException("Plugin image {$id} service must declare port.");
+                }
+
+                $image['service']['port'] = (int) $image['service']['port'];
+
+                if ($image['service']['port'] <= 0) {
+                    throw new InvalidPluginManifestException("Plugin image {$id} service.port must be greater than zero.");
+                }
+
+                $image['service']['networkAlias'] = trim((string) ($image['service']['networkAlias'] ?? ''));
+                $image['service']['environment'] = is_array($image['service']['environment'] ?? null)
+                    ? $image['service']['environment']
+                    : [];
+                $image['service']['args'] = $this->normalizeCommand($image['service']['args'] ?? []);
+            }
+
+            $normalizedImages[] = array_merge($image, [
+                'id' => $id,
+                'image' => $reference,
+            ]);
+        }
+
+        return $normalizedImages;
+    }
+
+    private function normalizeRequirements(array $requirements): array
+    {
+        if ($requirements === []) {
+            return [];
+        }
+
+        $normalized = [];
+
+        if (array_key_exists('memoryMb', $requirements)) {
+            $normalized['memoryMb'] = (int) $requirements['memoryMb'];
+
+            if ($normalized['memoryMb'] <= 0) {
+                throw new InvalidPluginManifestException('Plugin requirements.memoryMb must be greater than zero.');
+            }
+        }
+
+        if (array_key_exists('cpuCores', $requirements)) {
+            $normalized['cpuCores'] = (float) $requirements['cpuCores'];
+
+            if ($normalized['cpuCores'] <= 0) {
+                throw new InvalidPluginManifestException('Plugin requirements.cpuCores must be greater than zero.');
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeCommand(mixed $command): array
+    {
+        if (is_string($command)) {
+            $command = preg_split('/\s+/', trim($command)) ?: [];
+        }
+
+        if (! is_array($command)) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn ($part) => trim((string) $part),
+            array_filter($command, fn ($part) => trim((string) $part) !== '')
+        ));
     }
 
     private function normalizeComponents(array $components, array $declaredAssets): array
