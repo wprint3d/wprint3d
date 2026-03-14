@@ -5,16 +5,13 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 use App\Contracts\Auth\AuthenticatableUser;
-
 use App\Traits\Notifiable;
-
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
-
+use MongoDB\BSON\Regex;
 use MongoDB\Laravel\Relations\HasMany;
 
 class User extends AuthenticatableUser
@@ -22,9 +19,10 @@ class User extends AuthenticatableUser
     use HasApiTokens, HasFactory, Notifiable;
 
     const CACHE_CURRENT_DIRECTORY_SUFFIX = '_cdir';
-    const CACHE_ACTIVE_PRINTER_SUFFIX    = '_aprinter';
 
-    const HASH_KEY                       = '_uhash';
+    const CACHE_ACTIVE_PRINTER_SUFFIX = '_aprinter';
+
+    const HASH_KEY = '_uhash';
 
     /**
      * The attributes that are mass assignable.
@@ -58,39 +56,84 @@ class User extends AuthenticatableUser
         'email_verified_at' => 'datetime',
     ];
 
-    public function videos(): HasMany {
+    public function videos(): HasMany
+    {
         return $this->hasMany(Video::class);
     }
 
-    public function getCurrentFolder() {
+    public function getCurrentFolder()
+    {
         return Cache::get(
-            key:     session()->getId() . self::CACHE_CURRENT_DIRECTORY_SUFFIX,
+            key: session()->getId().self::CACHE_CURRENT_DIRECTORY_SUFFIX,
             default: env('BASE_FILES_DIR')
         );
     }
 
-    public function setCurrentFolder($path) {
+    public function setCurrentFolder($path)
+    {
         if ($path === null) {
-            return Cache::forget( session()->getId() . self::CACHE_CURRENT_DIRECTORY_SUFFIX );
+            return Cache::forget(session()->getId().self::CACHE_CURRENT_DIRECTORY_SUFFIX);
         }
 
         return Cache::put(
-            key:     session()->getId() . self::CACHE_CURRENT_DIRECTORY_SUFFIX,
-            value:   env('BASE_FILES_DIR') . $path
+            key: session()->getId().self::CACHE_CURRENT_DIRECTORY_SUFFIX,
+            value: env('BASE_FILES_DIR').$path
         );
     }
 
-    public function getActivePrinterId() {
+    public function getActivePrinterId()
+    {
         return Cache::get(
-            session()->getId() . self::CACHE_ACTIVE_PRINTER_SUFFIX
+            session()->getId().self::CACHE_ACTIVE_PRINTER_SUFFIX
         );
     }
 
-    public function getActivePrinter(...$withFields): Printer|null {
+    public function getActivePrinter(...$withFields): ?Printer
+    {
         $printerId = $this->getActivePrinterId();
 
         if ($printerId) {
-            return Printer::select($withFields)->find($printerId);
+            $query = Printer::query();
+
+            if ($withFields !== []) {
+                $query->select($withFields);
+            }
+
+            $printer = $query->find($printerId);
+
+            if ($printer === null) {
+                return null;
+            }
+
+            if (
+                ($printer->connected ?? false)
+                || ($printer->machine['connectionType'] ?? null) !== 'fakeSerial'
+                || ! isset($printer->machine['uuid'])
+            ) {
+                return $printer;
+            }
+
+            $baseUuid = Str::before($printer->machine['uuid'], '/');
+            $replacementQuery = Printer::where('connected', true)
+                ->where('machine.connectionType', 'fakeSerial')
+                ->whereRaw([
+                    'machine.uuid' => new Regex('^'.preg_quote($baseUuid, '/').'(/.*)?$', 'i'),
+                ])
+                ->orderByDesc('updated_at');
+
+            if ($withFields !== []) {
+                $replacementQuery->select($withFields);
+            }
+
+            $replacement = $replacementQuery->first();
+
+            if ($replacement) {
+                $this->setActivePrinterId((string) $replacement->_id);
+
+                return $replacement;
+            }
+
+            return $printer;
         }
 
         return null;
@@ -99,11 +142,11 @@ class User extends AuthenticatableUser
     /**
      * setActivePrinterId
      *
-     * @param  ?string $printerId
-     * 
-     * @return  bool Whether the user successfully set their printer
+     *
+     * @return bool Whether the user successfully set their printer
      */
-    public function setActivePrinterId(?string $printerId): bool {
+    public function setActivePrinterId(?string $printerId): bool
+    {
         if ($printerId === null) {
             return true;
         }
@@ -114,19 +157,19 @@ class User extends AuthenticatableUser
          * modules willing to handle the request to execute a redirection to
          * /login.
          */
-        if (!Printer::find( $printerId )) {
+        if (! Printer::find($printerId)) {
             session()->invalidate();
 
             return false;
         }
 
         Log::debug(
-            __METHOD__ . ': ' . session()->getId() . self::CACHE_ACTIVE_PRINTER_SUFFIX . ' => ' . $printerId
+            __METHOD__.': '.session()->getId().self::CACHE_ACTIVE_PRINTER_SUFFIX.' => '.$printerId
         );
 
         return Cache::put(
-            key:     session()->getId() . self::CACHE_ACTIVE_PRINTER_SUFFIX,
-            value:   $printerId
+            key: session()->getId().self::CACHE_ACTIVE_PRINTER_SUFFIX,
+            value: $printerId
         );
     }
 
@@ -135,7 +178,8 @@ class User extends AuthenticatableUser
      *
      * @return string The generated hash
      */
-    public function refreshHash() {
+    public function refreshHash()
+    {
         $hash = sha1(
             serialize(
                 $this->toArray()
@@ -143,8 +187,8 @@ class User extends AuthenticatableUser
         );
 
         Cache::put(
-            key:    (string) $this->_id . self::HASH_KEY,
-            value:  $hash
+            key: (string) $this->_id.self::HASH_KEY,
+            value: $hash
         );
 
         return $hash;
@@ -155,36 +199,38 @@ class User extends AuthenticatableUser
      *
      * @return string
      */
-    public function getCachedHash() {
+    public function getCachedHash()
+    {
         $hash = Cache::get(
-            (string) $this->_id . self::HASH_KEY
+            (string) $this->_id.self::HASH_KEY
         );
 
-        if (!$hash) {
+        if (! $hash) {
             return $this->refreshHash();
         }
 
         return $hash;
     }
-    
+
     /**
      * getSessionHash
-     * 
+     *
      * Get the hash related to this user as stored in the session.
      *
      * @return string
      */
-    public function getSessionHash() {
+    public function getSessionHash()
+    {
         $hash = session()->get(
-            (string) $this->_id . self::HASH_KEY
+            (string) $this->_id.self::HASH_KEY
         );
 
-        if (!$hash) {
+        if (! $hash) {
             $hash = $this->getCachedHash();
 
             session()->put(
-                key:    (string) $this->_id . self::HASH_KEY,
-                value:  $hash
+                key: (string) $this->_id.self::HASH_KEY,
+                value: $hash
             );
 
             return $hash;
@@ -193,7 +239,8 @@ class User extends AuthenticatableUser
         return $hash;
     }
 
-    public function materials() {
-        return $this->hasMany( Material::class );
+    public function materials()
+    {
+        return $this->hasMany(Material::class);
     }
 }

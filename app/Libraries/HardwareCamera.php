@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
 use Symfony\Component\Process\Exception\ProcessFailedException;
+use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 
 class HardwareCamera
@@ -126,6 +127,10 @@ class HardwareCamera
 
     private function loadDiscreteUVCFormats(): void
     {
+        if ((new ExecutableFinder)->find('v4l2-ctl') === null) {
+            return;
+        }
+
         $process = new Process([
             'v4l2-ctl',
             '-d', $this->node,

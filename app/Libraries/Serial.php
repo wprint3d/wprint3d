@@ -905,8 +905,12 @@ class Serial
         }
     }
 
-    public static function nodeExists(string $fileName): bool
+    public static function nodeExists(?string $fileName): bool
     {
+        if (! is_string($fileName) || trim($fileName) === '') {
+            return false;
+        }
+
         return
             file_exists(
                 self::TERMINAL_PATH.'/'.self::TERMINAL_PREFIX.$fileName

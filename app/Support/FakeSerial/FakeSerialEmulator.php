@@ -194,10 +194,8 @@ class FakeSerialEmulator
 
             case 'G4':
                 $delayMs = $this->dwellDelayMs($command);
-                if ($delayMs > 0) {
-                    $lines[] = $this->line('busy: processing', $delayMs);
-                }
-                $lines[] = $this->line('ok');
+                $lines = array_merge($lines, $this->busyLinesForDuration($delayMs, (int) $state['keepaliveIntervalSecs']));
+                $lines[] = $this->line('ok', $this->remainingWaitDelayMs($delayMs, (int) $state['keepaliveIntervalSecs']));
                 break;
 
             case 'G20':
@@ -417,7 +415,13 @@ class FakeSerialEmulator
                 break;
 
             case 'M113':
-                $state['keepaliveIntervalSecs'] = max(0, (int) ($this->parameterValue($command, 'S') ?? $state['keepaliveIntervalSecs']));
+                $parameterValue = $this->parameterValue($command, 'S');
+
+                if ($parameterValue !== null) {
+                    $state['keepaliveIntervalSecs'] = max(0, (int) $parameterValue);
+                }
+
+                $lines[] = $this->line(sprintf('echo:busy interval %ds', (int) $state['keepaliveIntervalSecs']));
                 $lines[] = $this->line('ok');
                 break;
 
@@ -555,8 +559,9 @@ class FakeSerialEmulator
                 break;
 
             case 'M400':
-                $lines[] = $this->line('busy: processing', 150);
-                $lines[] = $this->line('ok');
+                $m400DelayMs = $this->busyIntervalMs((int) $state['keepaliveIntervalSecs']);
+                $lines = array_merge($lines, $this->busyLinesForDuration($m400DelayMs, (int) $state['keepaliveIntervalSecs']));
+                $lines[] = $this->line('ok', $this->remainingWaitDelayMs($m400DelayMs, (int) $state['keepaliveIntervalSecs']));
                 break;
 
             case 'M500':
@@ -1539,9 +1544,13 @@ class FakeSerialEmulator
             return [$this->line($this->temperatureReport($state))];
         }
 
-        $lines = $this->busySequence((int) $state['keepaliveIntervalSecs'], 2);
+        $totalDelayMs = $this->estimatedTemperatureWaitDelayMs($current, $target, (int) $state['keepaliveIntervalSecs']);
+        $lines = $this->busyLinesForDuration($totalDelayMs, (int) $state['keepaliveIntervalSecs']);
         $state[$device]['temperature'] = $current + (($target - $current) / 2);
-        $lines[] = $this->line($this->temperatureReport($state), 200);
+        $lines[] = $this->line(
+            $this->temperatureReport($state),
+            $this->remainingWaitDelayMs($totalDelayMs, (int) $state['keepaliveIntervalSecs'])
+        );
         $state[$device]['temperature'] = $target;
         $lines[] = $this->line($this->temperatureReport($state));
 
@@ -1586,7 +1595,7 @@ class FakeSerialEmulator
 
     private function busySequence(int $keepaliveIntervalSecs, int $count = 2): array
     {
-        $delayMs = max(250, $keepaliveIntervalSecs * 250);
+        $delayMs = $this->busyIntervalMs($keepaliveIntervalSecs);
         $lines = [];
 
         for ($index = 0; $index < $count; $index++) {
@@ -1594,6 +1603,49 @@ class FakeSerialEmulator
         }
 
         return $lines;
+    }
+
+    private function busyLinesForDuration(int $totalDelayMs, int $keepaliveIntervalSecs): array
+    {
+        $intervalMs = $this->busyIntervalMs($keepaliveIntervalSecs);
+
+        if ($intervalMs <= 0 || $totalDelayMs < $intervalMs) {
+            return [];
+        }
+
+        $lines = [];
+        $count = intdiv($totalDelayMs, $intervalMs);
+
+        for ($index = 0; $index < $count; $index++) {
+            $lines[] = $this->line('busy: processing', $intervalMs);
+        }
+
+        return $lines;
+    }
+
+    private function remainingWaitDelayMs(int $totalDelayMs, int $keepaliveIntervalSecs): int
+    {
+        $intervalMs = $this->busyIntervalMs($keepaliveIntervalSecs);
+
+        if ($intervalMs <= 0 || $totalDelayMs < $intervalMs) {
+            return max(0, $totalDelayMs);
+        }
+
+        return $totalDelayMs % $intervalMs;
+    }
+
+    private function estimatedTemperatureWaitDelayMs(float $current, float $target, int $keepaliveIntervalSecs): int
+    {
+        $intervalMs = $this->busyIntervalMs($keepaliveIntervalSecs);
+
+        if ($intervalMs <= 0) {
+            return 0;
+        }
+
+        $delta = abs($target - $current);
+        $intervalCount = max(1, min(3, (int) ceil($delta / 80)));
+
+        return $intervalCount * $intervalMs;
     }
 
     private function firmwareInformationLines(): array
@@ -1757,6 +1809,11 @@ class FakeSerialEmulator
     private function normalizeSpeedPerSecond(float $value, string $unit): float
     {
         return $unit === 'in' ? $value * 25.4 : $value;
+    }
+
+    private function busyIntervalMs(int $keepaliveIntervalSecs): int
+    {
+        return $keepaliveIntervalSecs <= 0 ? 0 : $keepaliveIntervalSecs * 1000;
     }
 
     private function isKnownMarlinCommand(string $commandName): bool
