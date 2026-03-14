@@ -12,7 +12,7 @@ WPrint 3D's plugin platform supports:
 Current SDK target:
 
 - `sdkVersion: 1`
-- `sdkRevision: 1`
+- `sdkRevision: 2`
 
 ## Read This First
 
@@ -40,7 +40,7 @@ Bridge examples use the companion service in [examples/plugins/host-metrics-brid
 ## Quick Commands
 
 ```bash
-php artisan plugin:make acme.hello-world "Hello World"
+php artisan plugin:make
 php artisan plugin:pack plugins/acme-hello-world
 php artisan plugin:install plugins/acme-hello-world.w3dp
 php artisan plugin:list
@@ -68,6 +68,9 @@ Production backend images do not bundle `examples/plugins`. That keeps the shipp
 
 - `sdkVersion` selects the API level.
 - `sdkRevision` selects the contract revision within that API level.
+- `images` makes a plugin `heavyweight`; no declared images means it stays `lightweight`.
+- `requirements.memoryMb` and `requirements.cpuCores` are advisory install-time host checks.
+- `runtime.managedImageId` lets a bridge plugin ask WPrint 3D to start one of its declared service images automatically.
 - WebView and custom-bundle assets should be declared under `assets` and referenced with `asset://...`.
 - Declarative UI can mount `remote_component` definitions from `components`, and elevated browser surfaces can load `browser_module` components from `assets`.
 - Plugins with a `settings_tab` surface get their own Settings tab and a `Settings` button on the plugin inventory card.

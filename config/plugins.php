@@ -2,18 +2,18 @@
 
 return [
     'sdk_version' => 1,
-    'sdk_revision' => 1,
+    'sdk_revision' => 2,
 
     'sdk' => [
         'current' => [
             'version' => 1,
-            'revision' => 1,
+            'revision' => 2,
         ],
         'versions' => [
             1 => [
                 'label' => 'WPrint3D Plugin SDK 1',
                 'status' => 'active',
-                'defaultRevision' => 1,
+                'defaultRevision' => 2,
                 'deprecatedAfter' => null,
                 'revisions' => [
                     0 => [
@@ -28,12 +28,22 @@ return [
                     ],
                     1 => [
                         'releasedAt' => '2026-03-12',
-                        'status' => 'current',
+                        'status' => 'supported',
                         'summary' => 'Asset-backed elevated UI revisions and settings-tab parity release.',
                         'changes' => [
                             'Added revisioned SDK metadata with compatibility validation.',
                             'Added host-served plugin assets for WebView and custom bundle extensions.',
                             'Standardized dedicated plugin settings tabs and elevated UI warnings.',
+                        ],
+                    ],
+                    2 => [
+                        'releasedAt' => '2026-03-13',
+                        'status' => 'current',
+                        'summary' => 'Heavyweight plugin runtime dependencies and interactive scaffolding.',
+                        'changes' => [
+                            'Added manifest-declared container images with optional service and healthcheck metadata.',
+                            'Added host CPU and memory requirement declarations plus install-time warnings.',
+                            'Added host-managed bridge service image activation and interactive shape-aware plugin scaffolding.',
                         ],
                     ],
                 ],
@@ -55,6 +65,11 @@ return [
         'timeout_secs' => (int) env('PLUGIN_RUNTIME_TIMEOUT_SECS', 10),
         'bridge_timeout_secs' => (int) env('PLUGIN_BRIDGE_TIMEOUT_SECS', 5),
         'max_payload_bytes' => (int) env('PLUGIN_RUNTIME_MAX_PAYLOAD_BYTES', 262144),
+    ],
+
+    'container' => [
+        'cli' => env('CONTAINER_CLI', 'podman'),
+        'command_timeout_secs' => (int) env('PLUGIN_CONTAINER_COMMAND_TIMEOUT_SECS', 60),
     ],
 
     'registry' => [
