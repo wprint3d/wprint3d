@@ -70,6 +70,8 @@ class PrinterController extends Controller
             'node',
             'cameras',
             'machine.machineType',
+            'machine.connectionType',
+            'machine.simulated',
             'machine.uuid',
             'machine.extruderCount',
             'machine.firmwareName',

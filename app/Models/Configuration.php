@@ -16,6 +16,31 @@ class Configuration extends Model
 
     protected $fillable = [ 'key', 'value' ];
 
+    private static function createFromDefaults(string $key): ?self
+    {
+        $defaults = config('system.defaults', []);
+        $default = $defaults[$key] ?? null;
+
+        if ($default === null) {
+            return null;
+        }
+
+        $configuration = new self();
+        $configuration->key         = $key;
+        $configuration->value       = $default['value'];
+        $configuration->default     = $default['value'];
+        $configuration->hint        = $default['hint'];
+        $configuration->type        = $default['type'];
+        $configuration->section     = $default['section'];
+        $configuration->description = $default['description'];
+        $configuration->visible     = $default['visible'] ?? true;
+        $configuration->writeable   = $default['writeable'] ?? true;
+        $configuration->enum        = $default['enum'] ?? null;
+        $configuration->save();
+
+        return $configuration;
+    }
+
     public static function get($key, $default = null) {
         $config = self::where('key', $key)->first();
 
@@ -26,6 +51,10 @@ class Configuration extends Model
 
     public static function set($key, $value, $overrideWriteable = false): bool {
         $config = self::where('key', $key)->first();
+
+        if (!$config) {
+            $config = self::createFromDefaults($key);
+        }
 
         if (!$config) {
             throw new InitializationException("No such configuration");

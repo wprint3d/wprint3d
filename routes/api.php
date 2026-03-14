@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\CameraController;
 use App\Http\Controllers\ConfigurationController;
+use App\Http\Controllers\DeveloperFakeSerialController;
 use App\Http\Controllers\FilesController;
 use App\Http\Controllers\LoggingController;
 use App\Http\Controllers\PluginController;
@@ -84,6 +85,11 @@ Route::middleware(['auth:sanctum', 'password.ensure_changed'])->group(function (
 
     Route::middleware(['auth.ensure_admin'])->group(function () {
         Route::prefix('/developer')->group(function () {
+            Route::prefix('/fake-serial')->group(function () {
+                Route::get('/', [DeveloperFakeSerialController::class, 'show']);
+                Route::put('/', [DeveloperFakeSerialController::class, 'update']);
+            });
+
             Route::prefix('/logs')->group(function () {
                 Route::get('/zip', [LoggingController::class, 'zip']);
 

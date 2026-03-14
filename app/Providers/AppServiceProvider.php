@@ -16,7 +16,9 @@ use App\Plugins\PluginRuntimeRegistry;
 use App\Plugins\PluginSignatureService;
 use App\Plugins\Runtimes\BridgePluginRuntimeAdapter;
 use App\Plugins\Runtimes\PhpPluginRuntimeAdapter;
+use App\Support\FakeSerial\FakeSerialManager;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
 use MongoDB\Laravel\Eloquent\Model;
@@ -47,6 +49,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PluginHookCompiler::class);
         $this->app->singleton(PluginManagerContract::class, PluginManagerService::class);
         $this->app->singleton(PluginHookDispatcher::class);
+        $this->app->bind(FakeSerialManager::class, fn () => new FakeSerialManager(Cache::store()));
     }
 
     /**

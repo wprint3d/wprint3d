@@ -1,38 +1,48 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { StyleSheet, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 
-import { Icon, Text, TextInput, useTheme } from "react-native-paper";
-
-import DropDown from "react-native-paper-dropdown";
+import { Icon, Menu, Text, TextInput } from "react-native-paper";
 
 import API from "../includes/API";
 import { useEcho } from "../hooks/useEcho";
 
-export default function UserPrinterPicker({ printerId, printersList }) {
-    const [ showDropDown, setShowDropDown ] = useState(false);
-    const [ options,      setOptions      ] = useState([]);
+const buildPrinterOption = (printer) => {
+    const simulated = printer?.machine?.connectionType === "fakeSerial" || printer?.machine?.simulated === true;
+
+    return {
+        label: `${printer?.machine?.machineType ?? "Unknown printer"} (${printer?.machine?.uuid})`,
+        value: printer._id,
+        icon: simulated ? "monitor" : "printer-3d-nozzle-outline",
+        simulated,
+    };
+};
+
+export default function UserPrinterPicker({ printerId }) {
+    const [ showMenu, setShowMenu ] = useState(false);
+    const [ options,  setOptions  ] = useState([]);
 
     const echo = useEcho();
-
     const queryClient = useQueryClient();
 
     const selectPrinterMutation = useMutation({
-        mutationFn: newPrinterId => API.post('/user/printer/selected', { id: newPrinterId }),
-        onSuccess:  ()           => queryClient.invalidateQueries({ queryKey: ['selectedPrinter'] })
+        mutationFn: newPrinterId => API.post("/user/printer/selected", { id: newPrinterId }),
+        onSuccess:  () => queryClient.invalidateQueries({ queryKey: ["selectedPrinter"] }),
     });
 
     const printersListQuery = useQuery({
-        queryKey: ['printersList'],
-        queryFn:  () => API.get('/printers')
+        queryKey: ["printersList"],
+        queryFn:  () => API.get("/printers"),
     });
 
     useEffect(() => {
         if (printersListQuery.isFetching) {
             setOptions([{
-                label: 'Loading...',
-                value: null
+                label: "Loading...",
+                value: null,
+                icon: "progress-clock",
+                disabled: true,
             }]);
 
             return;
@@ -40,8 +50,10 @@ export default function UserPrinterPicker({ printerId, printersList }) {
 
         if (printersListQuery.isError) {
             setOptions([{
-                label: 'Something went wrong',
-                value: null
+                label: "Something went wrong",
+                value: null,
+                icon: "alert-circle-outline",
+                disabled: true,
             }]);
 
             return;
@@ -49,99 +61,104 @@ export default function UserPrinterPicker({ printerId, printersList }) {
 
         const printersList = printersListQuery?.data?.data ?? [];
 
-        console.debug('UserPrinterPicker: printersList', printersList);
-
-        if (!printersList || !printersList.length) {
+        if (!printersList.length) {
             setOptions([{
-                label: 'No printers available',
-                value: null
+                label: "No printers available",
+                value: null,
+                icon: "usb-port",
+                disabled: true,
             }]);
 
             return;
         }
 
-        setOptions(
-            printersList.map(printer => {
-                return {
-                    label: `${printer?.machine?.machineType ?? 'Unknown printer'} (${printer?.machine?.uuid})`,
-                    value: printer._id
-                };
-            })
-        );
-    }, [ printersListQuery.data ]);
+        setOptions(printersList.map(buildPrinterOption));
+    }, [ printersListQuery.data, printersListQuery.isError, printersListQuery.isFetching ]);
 
     useEffect(() => {
-        console.debug('UserPrinterPicker: options', options);
-
-        if (!options.length || (printerId && options.length) || options[0].value === null) {
+        if (!options.length || printerId || options[0]?.value === null) {
             return;
         }
 
-        console.debug('UserPrinterPicker: selecting first printer:', options[0].value);
-
         selectPrinterMutation.mutate(options[0].value);
-    }, [ options ]);
+    }, [ options, printerId ]);
 
     useEffect(() => {
         if (!echo) {
-            console.warn('UserPrinterPicker: Echo is not available');
-
             return;
         }
 
-        const channel = echo?.channel('printers-map-updated');
+        const channel = echo.channel("printers-map-updated");
 
         if (!channel) {
-            console.warn('UserPrinterPicker: the channel is not available');
-
             return;
         }
 
-        channel.listen('PrintersMapUpdated', event => {
-            console.debug('UserPrinterPicker: printers-map-updated', event);
-
-            queryClient.invalidateQueries({ queryKey: ['printersList'] });
+        channel.listen("PrintersMapUpdated", () => {
+            queryClient.invalidateQueries({ queryKey: ["printersList"] });
         });
 
-        return () => { channel.stopListening('PrintersMapUpdated'); };
-    }, [ echo ]);
+        return () => { channel.stopListening("PrintersMapUpdated"); };
+    }, [ echo, queryClient ]);
+
+    const selectedOption = useMemo(
+        () => options.find(option => option.value === printerId) ?? options[0] ?? null,
+        [ options, printerId ]
+    );
+
+    const selectedLabel = selectedOption?.label ?? "Select a printer";
+    const selectedIcon = selectedOption?.icon ?? "printer-3d-nozzle-outline";
 
     return (
         <>
-            <DropDown
-                label="Printer"
-                mode="outlined"
-                visible={showDropDown}
-                showDropDown={() => setShowDropDown(true)}
-                onDismiss={()    => setShowDropDown(false)}
-                value={printerId ?? null}
-                list={options}
-                setValue={newPrinterId => {
-                    if (newPrinterId == printerId) { return; }
+            <Menu
+                visible={showMenu}
+                onDismiss={() => setShowMenu(false)}
+                anchor={(
+                    <TouchableOpacity onPress={() => setShowMenu(true)} activeOpacity={0.9}>
+                        <View pointerEvents="none">
+                            <TextInput
+                                label="Printer"
+                                mode="outlined"
+                                editable={false}
+                                value={selectedLabel}
+                                left={<TextInput.Icon icon={selectedIcon} />}
+                                right={<TextInput.Icon icon={showMenu ? "menu-up" : "menu-down"} />}
+                            />
+                        </View>
+                    </TouchableOpacity>
+                )}
+            >
+                {options.map(option => (
+                    <Menu.Item
+                        key={option.value ?? option.label}
+                        leadingIcon={option.icon}
+                        title={option.label}
+                        disabled={option.disabled === true}
+                        onPress={() => {
+                            setShowMenu(false);
 
-                    selectPrinterMutation.mutate(newPrinterId);
-                }}
-                inputProps={{
-                    right: (
-                        <TextInput.Icon
-                            icon={showDropDown ? 'menu-up' : 'menu-down'}
-                            onPress={() => setShowDropDown(true)}
-                        />
-                    )
-                }}
-            />
-            {
-                (!printersListQuery.isError && !printerId) &&
-                    <View style={{ alignItems: 'center', flexGrow: 1, justifyContent: 'center', paddingVertical: 80 }}>
-                        <Icon source="connection" size={48} />
-                        <Text style={{ paddingTop: 20, textAlign: 'center' }}>
-                            To get started, plug a compatible printer and wait for a few seconds.
-                            {'\n'}
-                            {'\n'}
-                            Once the printer is ready to go, it'll be selected automatically.
-                        </Text>
-                    </View>
-            }
+                            if (option.value === null || option.value === printerId) {
+                                return;
+                            }
+
+                            selectPrinterMutation.mutate(option.value);
+                        }}
+                    />
+                ))}
+            </Menu>
+
+            {(!printersListQuery.isError && !printerId) && (
+                <View style={{ alignItems: "center", flexGrow: 1, justifyContent: "center", paddingVertical: 80 }}>
+                    <Icon source="connection" size={48} />
+                    <Text style={{ paddingTop: 20, textAlign: "center" }}>
+                        To get started, plug a compatible printer and wait for a few seconds.
+                        {"\n"}
+                        {"\n"}
+                        Once the printer is ready to go, it'll be selected automatically.
+                    </Text>
+                </View>
+            )}
         </>
     );
 }
