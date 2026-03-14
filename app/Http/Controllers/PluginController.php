@@ -53,12 +53,20 @@ class PluginController extends Controller
 
     public function development(): array
     {
-        $enabled = (bool) config('plugins.development.enabled', false);
+        $enabled = $this->developmentModeEnabled();
+        $mountPaths = $this->developmentMountPaths($enabled);
+        $mountPath = $mountPaths[0] ?? null;
+        $plugins = $enabled ? $this->pluginManager->listDevelopmentPlugins() : [];
+        $available = $enabled && ($mountPath !== null || count($plugins) > 0);
 
         return [
             'enabled' => $enabled,
-            'mountPath' => config('plugins.development.mount_path'),
-            'plugins' => $enabled ? $this->pluginManager->listDevelopmentPlugins() : [],
+            'available' => $available,
+            'mountPath' => $mountPath,
+            'mountPaths' => $mountPaths,
+            'configuredMountPath' => (string) config('plugins.development.mount_path'),
+            'configuredMountPaths' => $this->configuredDevelopmentMountPaths(),
+            'plugins' => $plugins,
         ];
     }
 
@@ -81,7 +89,7 @@ class PluginController extends Controller
         }
 
         if ($request->filled('unpackedPath')) {
-            if (! config('plugins.development.enabled', false)) {
+            if (! $this->developmentModeEnabled()) {
                 throw new AuthorizationException('Unpacked plugin installs are only available in the development environment.');
             }
 
@@ -167,5 +175,97 @@ class PluginController extends Controller
         return [
             'disabledCount' => $this->pluginManager->safeModeDisableAll(),
         ];
+    }
+
+    private function developmentMountPath(bool $includeImplicitRoots = true): ?string
+    {
+        return $this->developmentMountPaths($includeImplicitRoots)[0] ?? null;
+    }
+
+    private function developmentModeEnabled(): bool
+    {
+        if ($this->developmentModeExplicitlyEnabled()) {
+            return true;
+        }
+
+        return $this->developmentMountPath(false) !== null;
+    }
+
+    private function developmentModeExplicitlyEnabled(): bool
+    {
+        if ((bool) config('plugins.development.enabled', false)) {
+            return true;
+        }
+
+        $envValue = env('DEVELOPER_MODE');
+
+        if ($envValue !== null && filter_var($envValue, FILTER_VALIDATE_BOOL)) {
+            return true;
+        }
+
+        $serverValue = $_SERVER['DEVELOPER_MODE'] ?? $_ENV['DEVELOPER_MODE'] ?? getenv('DEVELOPER_MODE');
+
+        return filter_var($serverValue, FILTER_VALIDATE_BOOL);
+    }
+
+    private function developmentMountPaths(bool $includeImplicitRoots = true): array
+    {
+        $paths = [];
+
+        if ($includeImplicitRoots) {
+            $localPluginsPath = $this->resolveDevelopmentMountCandidate(base_path('plugins'));
+
+            if ($localPluginsPath !== null) {
+                $paths[] = $localPluginsPath;
+            }
+        }
+
+        foreach ($this->configuredDevelopmentMountPaths() as $candidate) {
+            $resolvedPath = $this->resolveDevelopmentMountCandidate($candidate);
+
+            if ($resolvedPath !== null) {
+                $paths[] = $resolvedPath;
+            }
+        }
+
+        return array_values(array_unique($paths));
+    }
+
+    private function configuredDevelopmentMountPaths(): array
+    {
+        $configured = config('plugins.development.mount_paths', []);
+
+        if (! is_array($configured)) {
+            $configured = array_map('trim', explode(',', (string) $configured));
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            fn ($path) => rtrim((string) $path, DIRECTORY_SEPARATOR),
+            [
+                (string) config('plugins.development.mount_path', ''),
+                ...$configured,
+            ]
+        ))));
+    }
+
+    private function resolveDevelopmentMountCandidate(string $candidate): ?string
+    {
+        $candidate = rtrim($candidate, DIRECTORY_SEPARATOR);
+
+        if ($candidate === '') {
+            return null;
+        }
+
+        $resolvedPath = realpath($candidate);
+
+        if ($resolvedPath && is_dir($resolvedPath)) {
+            return rtrim($resolvedPath, DIRECTORY_SEPARATOR);
+        }
+
+        if (is_dir($candidate)) {
+            return $candidate;
+        }
+
+        return null;
     }
 }

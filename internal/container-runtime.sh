@@ -84,7 +84,6 @@ wait_for_apt_lock() {
 
 run_with_elevation() {
     local askpass_program;
-    local env_bin;
 
     if [[ "${EUID:-1}" -eq 0 ]]; then
         "$@";
@@ -127,20 +126,6 @@ run_with_elevation() {
             return $?;
         fi;
 
-        if has_graphical_session && command -v pkexec > /dev/null 2>&1; then
-            env_bin="$(command -v env || true)";
-
-            echo 'No interactive terminal is available. Requesting administrator privileges through pkexec...' >&2;
-
-            if [[ -n "$env_bin" ]]; then
-                pkexec "$env_bin" "PATH=$PATH" "$@";
-            else
-                pkexec "$@";
-            fi;
-
-            return $?;
-        fi;
-
         echo 'Automatic Podman setup needs sudo access, but no interactive terminal is available for a password prompt.' >&2;
 
         return 1;
@@ -152,13 +137,7 @@ run_with_elevation() {
         return $?;
     fi;
 
-    if command -v pkexec > /dev/null 2>&1; then
-        pkexec "$@";
-
-        return $?;
-    fi;
-
-    echo 'Podman installation requires root privileges or a working sudo, doas, or pkexec command.' >&2;
+    echo 'Podman installation requires root privileges or a working sudo or doas command.' >&2;
 
     return 1;
 }
@@ -200,14 +179,6 @@ prime_elevated_access() {
         echo 'Administrator privileges will be required during startup. Authenticating now so the script can continue unattended.' >&2;
 
         doas true;
-
-        return $?;
-    fi;
-
-    if has_graphical_session && command -v pkexec > /dev/null 2>&1; then
-        echo 'Requesting administrator privileges through pkexec before startup continues...' >&2;
-
-        pkexec true;
 
         return $?;
     fi;

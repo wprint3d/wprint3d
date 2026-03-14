@@ -465,21 +465,20 @@ Action calls are always host-mediated:
 
 ## CLI
 
+- From the host checkout, prefer `./plugin.sh <command>` so the plugin Artisan commands run inside the backend container.
 - `php artisan plugin:make`
 - `php artisan plugin:pack`
 - `php artisan plugin:publish`
 - `php artisan plugin:install`
 - `php artisan plugin:search`
-
-`plugin:make` is now interactive and can scaffold any runtime/UI shape plus optional heavyweight image metadata. Use `--shape`, `--image`, `--memory`, and `--cpu` when you want a fully non-interactive generator.
-- `php artisan plugin:search`
-- `php artisan plugin:install`
 - `php artisan plugin:list`
 - `php artisan plugin:enable`
 - `php artisan plugin:disable`
 - `php artisan plugin:remove`
 - `php artisan plugin:update`
 - `php artisan plugin:doctor`
+
+`plugin:make` is now interactive and can scaffold any runtime/UI shape plus optional heavyweight image metadata. Use `--shape`, `--image`, `--memory`, and `--cpu` when you want a fully non-interactive generator.
 
 ## Host Theme Metadata For Elevated UI
 

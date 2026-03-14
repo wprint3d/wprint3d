@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Platform, ScrollView, View, useWindowDimensions } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -301,8 +301,14 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
     enabled: isAdministrator && developerModeEnabled && installModalVisible && installModalTab === "development",
     retry: false,
     refetchOnWindowFocus: false,
-    staleTime: 30000,
+    staleTime: 0,
   });
+
+  useEffect(() => {
+    if (isAdministrator && developerModeEnabled && installModalVisible && installModalTab === "development") {
+      developmentPluginsQuery.refetch();
+    }
+  }, [ isAdministrator, developerModeEnabled, installModalVisible, installModalTab ]);
 
   const settingsPageMap = useMemo(() => buildSettingsPageMap(pluginSettingsPages), [ pluginSettingsPages ]);
 
@@ -811,57 +817,108 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
 
                 {!developmentPluginsQuery.isPending && !developmentPluginsQuery.isError && (
                   <>
-                    <Text style={{ textAlign: "center" }}>
-                      Source mount: <Text style={{ fontWeight: "700" }}>{developmentPluginsQuery?.data?.data?.mountPath}</Text>
-                    </Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
-                      {(developmentPluginsQuery?.data?.data?.plugins || []).map((plugin) => (
-                        <Card
-                          key={`development-${plugin.path}`}
+                    {developmentPluginsQuery?.data?.data?.available ? (
+                      <>
+                        <View style={{ flexDirection: "row", justifyContent: "center" }}>
+                          <Button mode="text" icon="refresh" onPress={() => developmentPluginsQuery.refetch()}>
+                            Refresh
+                          </Button>
+                        </View>
+                        <View style={{ gap: 8 }}>
+                          <Text style={{ textAlign: "center" }}>
+                            Source mounts
+                          </Text>
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+                            {(developmentPluginsQuery?.data?.data?.mountPaths || []).map((mountPath) => (
+                              <Chip key={mountPath} icon="folder-multiple" compact>
+                                {mountPath}
+                              </Chip>
+                            ))}
+                          </View>
+                        </View>
+                        <ScrollView
                           style={{
-                            width: "100%",
-                            maxWidth: 360,
-                            borderRadius: 18,
-                            borderWidth: 1,
-                            borderColor: theme.colors.outlineVariant,
-                            backgroundColor: theme.colors.elevation.level1,
+                            maxHeight: Math.min(window.height * 0.48, 520),
+                          }}
+                          contentContainerStyle={{
+                            paddingBottom: 8,
                           }}
                         >
-                          <Card.Content style={{ gap: 10 }}>
-                            <View>
-                              <Text variant="titleMedium">{plugin.name}</Text>
-                              <Text>{plugin.id} • {plugin.version}</Text>
-                            </View>
-                            {!!plugin.description && <Text>{plugin.description}</Text>}
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
+                            {(developmentPluginsQuery?.data?.data?.plugins || []).map((plugin) => (
+                              <Card
+                                key={`development-${plugin.path}`}
+                                style={{
+                                  width: "100%",
+                                  maxWidth: 336,
+                                  borderRadius: 18,
+                                  borderWidth: 1,
+                                  borderColor: theme.colors.outlineVariant,
+                                  backgroundColor: theme.colors.elevation.level1,
+                                }}
+                              >
+                                <Card.Content style={{ gap: 10 }}>
+                                  <View style={{ gap: 6 }}>
+                                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                      <Text variant="titleMedium" style={{ flexShrink: 1 }}>{plugin.name}</Text>
+                                      {!!plugin.mountLabel && (
+                                        <Chip compact icon={plugin.mountLabel === "Local plugins" ? "folder-home-outline" : "flask-outline"}>
+                                          {plugin.mountLabel}
+                                        </Chip>
+                                      )}
+                                    </View>
+                                    <Text>{plugin.id} • {plugin.version}</Text>
+                                  </View>
+                                  {!!plugin.description && <Text>{plugin.description}</Text>}
+                                  <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                                    Mounted path: {plugin.relativePath || plugin.path}
+                                  </Text>
+                                  {!!plugin.warning && (
+                                    <Text style={{ color: theme.colors.error }}>
+                                      {plugin.warning}
+                                    </Text>
+                                  )}
+                                  {!!plugin.warnings?.length && (
+                                    <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                                      {plugin.warnings.join(" ")}
+                                    </Text>
+                                  )}
+                                  <Button
+                                    mode="contained"
+                                    icon="rocket-launch-outline"
+                                    onPress={() => installFromDevelopmentPath(plugin.path)}
+                                    disabled={!!plugin.warning}
+                                  >
+                                    Install unpacked plugin
+                                  </Button>
+                                </Card.Content>
+                              </Card>
+                            ))}
+                            {!developmentPluginsQuery?.data?.data?.plugins?.length && (
+                              <Text style={{ textAlign: "center", color: theme.colors.onSurfaceVariant, width: "100%" }}>
+                                No unpacked plugins were found in the live development mounts yet.
+                              </Text>
+                            )}
+                          </View>
+                        </ScrollView>
+                      </>
+                    ) : (
+                      <Card style={{ borderRadius: 18, backgroundColor: theme.colors.elevation.level1 }}>
+                        <Card.Content style={{ gap: 10 }}>
+                          <Text variant="titleMedium">Live development mount unavailable</Text>
+                          <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                            This instance is not running from `./run.sh -e dev`, so unpacked plugins cannot be installed live.
+                          </Text>
+                          {!!developmentPluginsQuery?.data?.data?.configuredMountPath && (
                             <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                              Mounted path: {plugin.relativePath || plugin.path}
+                              Configured mount path: {developmentPluginsQuery?.data?.data?.configuredMountPath}
                             </Text>
-                            {!!plugin.warning && (
-                              <Text style={{ color: theme.colors.error }}>
-                                {plugin.warning}
-                              </Text>
-                            )}
-                            {!!plugin.warnings?.length && (
-                              <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                                {plugin.warnings.join(" ")}
-                              </Text>
-                            )}
-                            <Button
-                              mode="contained"
-                              icon="rocket-launch-outline"
-                              onPress={() => installFromDevelopmentPath(plugin.path)}
-                              disabled={!!plugin.warning}
-                            >
-                              Install unpacked plugin
-                            </Button>
-                          </Card.Content>
-                        </Card>
-                      ))}
-                    </View>
-                    {!developmentPluginsQuery?.data?.data?.plugins?.length && (
-                      <Text style={{ textAlign: "center", color: theme.colors.onSurfaceVariant }}>
-                        No unpacked plugins were found in the development mount yet.
-                      </Text>
+                          )}
+                          <Button mode="outlined" icon="refresh" onPress={() => developmentPluginsQuery.refetch()}>
+                            Refresh
+                          </Button>
+                        </Card.Content>
+                      </Card>
                     )}
                   </>
                 )}

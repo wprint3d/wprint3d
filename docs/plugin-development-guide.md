@@ -146,7 +146,7 @@ That gives us a real cross-platform remote component API without allowing unboun
 ### 1. Scaffold It
 
 ```bash
-php artisan plugin:make
+./plugin.sh make
 ```
 
 The scaffold is now interactive by default. It prompts for:
@@ -160,13 +160,19 @@ The scaffold is now interactive by default. It prompts for:
 You can still use it non-interactively:
 
 ```bash
-php artisan plugin:make acme.hello-world "Hello World" --shape=bridge-custom-bundle --image=ghcr.io/acme/hello-world-service:latest --memory=1024 --cpu=2
+./plugin.sh make acme.hello-world "Hello World" --shape=bridge-custom-bundle --image=ghcr.io/acme/hello-world-service:latest --memory=1024 --cpu=2
 ```
 
 The scaffold emits the current SDK pair:
 
 - `sdkVersion`
 - `sdkRevision`
+
+It also creates a local `AGENTS.md` file inside the plugin directory so contributors have a plugin-scoped working guide next to the manifest, runtime files, and assets.
+
+Use `./plugin.sh` from the host checkout when possible. It enters the running backend container and executes `php artisan plugin:*` there, which avoids requiring the host machine to have the same PHP runtime as the stack.
+
+Scaffolds created with `./plugin.sh make` land in repo [plugins](/home/facuarmo/wprint3d-core/plugins) by default. In the development stack, the unpacked install flow discovers both your local `plugins/` directory and the bundled reference plugins under [examples/plugins](/home/facuarmo/wprint3d-core/examples/plugins), so new plugins show up next to the samples in `Settings -> Plugins -> Add a plugin -> Install unpacked`.
 
 ### Shape values
 
@@ -258,7 +264,7 @@ That keeps the plugin inventory clean and avoids embedding arbitrary settings UI
 Package for distribution:
 
 ```bash
-php artisan plugin:pack examples/plugins/host-metrics
+./plugin.sh pack examples/plugins/host-metrics
 ```
 
 Or, in development mode:

@@ -90,7 +90,24 @@ WPrint 3D now includes a plugin platform with:
 - unpacked live-source installs in the development stack
 - an Artisan CLI for scaffold, package, install, search, and diagnostics
 
-When running `./run.sh -e dev`, unpacked plugins can be installed directly from the live development mount exposed at `/var/www/plugins-dev` inside the containers. Start with the developer guide at [docs/plugins.md](/home/facuarmo/wprint3d-core/docs/plugins.md) and the sample plugin at [examples/plugins/hello-world](/home/facuarmo/wprint3d-core/examples/plugins/hello-world).
+If you want to build plugins, use this path:
+
+1. Read the plugin entrypoint docs in [docs/plugins.md](/home/facuarmo/wprint3d-core/docs/plugins.md).
+2. Follow the full authoring walkthrough in [docs/plugin-development-guide.md](/home/facuarmo/wprint3d-core/docs/plugin-development-guide.md).
+3. Use the scaffold command to start a new plugin:
+
+   `./plugin.sh make`
+
+4. Study the reference examples:
+   - [examples/plugins/hello-world](/home/facuarmo/wprint3d-core/examples/plugins/hello-world): smallest PHP + declarative starter
+   - [examples/plugins/host-metrics](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics): baseline host-rendered plugin
+   - [docs/plugin-shape-matrix-e2e.md](/home/facuarmo/wprint3d-core/docs/plugin-shape-matrix-e2e.md): every supported runtime/UI shape
+5. Use the plugin-local `AGENTS.md` files inside each example directory when modifying or extending those examples.
+
+When running `./run.sh -e dev`, unpacked plugins can be installed directly from the live development sources exposed inside the containers. New plugins scaffold into repo [plugins](/home/facuarmo/wprint3d-core/plugins), while the bundled samples live in [examples/plugins](/home/facuarmo/wprint3d-core/examples/plugins). The `Install unpacked` flow shows both sources so you can iterate on your own plugin without packaging it first.
+
+Use `./plugin.sh` for host-side plugin commands when you do not have a matching PHP runtime installed locally. The wrapper reuses WPrint 3D's Podman/Docker detection and runs `php artisan plugin:*` inside the backend container.
+Use `./plugin.sh status` when you need to confirm which backend container it found, whether developer mode is effectively enabled, and whether the live unpacked plugin mount is visible from that container.
 
 Production backend images intentionally exclude `examples/plugins` so sample plugins do not ship in the runtime image. Use the development stack or a source checkout when you need the example plugins for testing, packaging, or demos.
 
