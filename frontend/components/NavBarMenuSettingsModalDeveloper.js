@@ -1,6 +1,7 @@
-import { Text, useTheme } from "react-native-paper"
-import { Tabs, TabScreen, TabsProvider } from "react-native-paper-tabs"
-import NavBarMenuSettingsModalDeveloperLogging from "./NavBarMenuSettingsModalDeveloperLogging"
+import { Text, useTheme } from "react-native-paper";
+import { Tabs, TabScreen, TabsProvider } from "react-native-paper-tabs";
+import NavBarMenuSettingsModalDeveloperLogging from "./NavBarMenuSettingsModalDeveloperLogging";
+import NavBarMenuSettingsModalDeveloperFakeSerial from "./NavBarMenuSettingsModalDeveloperFakeSerial";
 
 const NavBarMenuSettingsModalDeveloper = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
     const { colors } = useTheme();
@@ -27,9 +28,14 @@ const NavBarMenuSettingsModalDeveloper = ({ isSmallTablet, isSmallLaptop, enqueu
                         enqueueSnackbar={enqueueSnackbar}
                     />
                 </TabScreen>
+                <TabScreen label="Fake serial" icon="monitor">
+                    <NavBarMenuSettingsModalDeveloperFakeSerial
+                        enqueueSnackbar={enqueueSnackbar}
+                    />
+                </TabScreen>
             </Tabs>
         </TabsProvider>
     );
-}
+};
 
-export default NavBarMenuSettingsModalDeveloper
+export default NavBarMenuSettingsModalDeveloper;

@@ -8,6 +8,7 @@ use App\Exceptions\TimedOutException;
 use App\Models\Configuration;
 use App\Models\Printer;
 use App\Plugins\PluginHookCompiler;
+use App\Support\FakeSerial\FakeSerialManager;
 use Closure;
 use Error;
 use Illuminate\Cache\Repository;
@@ -55,6 +56,10 @@ class Serial
 
     private array $pendingPluginLineHookContext = [];
 
+    private FakeSerialManager $fakeSerialManager;
+
+    private ?string $fakeSerialConnectionToken = null;
+
     const TERMINAL_PATH = '/dev';
 
     const TERMINAL_PREFIX = 'tty';
@@ -88,6 +93,7 @@ class Serial
         $this->printerId = $printerId;
 
         $this->lockCache = Cache::store();
+        $this->fakeSerialManager = app(FakeSerialManager::class);
 
         $this->lockKey = $this->fileName.self::CACHE_LOCK_SUFFIX;
 
@@ -105,7 +111,7 @@ class Serial
             $this->timeout = Configuration::get('commandTimeoutSecs');
         }
 
-        if (! $this->fd) {
+        if (! $this->fd && $this->fakeSerialConnectionToken === null) {
             throw new InitializationException('Failed to open connection.');
         }
 
@@ -169,8 +175,19 @@ class Serial
             $this->tryToAppendNow();
         }
 
+        $this->close();
+    }
+
+    public function close(): void
+    {
+        if ($this->fakeSerialConnectionToken !== null) {
+            $this->fakeSerialManager->disconnect($this->fileName, $this->fakeSerialConnectionToken);
+            $this->fakeSerialConnectionToken = null;
+        }
+
         if ($this->fd) {
             dio_close($this->fd);
+            $this->fd = null;
         }
     }
 
@@ -319,6 +336,12 @@ class Serial
         $lock = $this->blockWhileLocking();
 
         try {
+            if ($this->fakeSerialManager->nodeExists($this->fileName)) {
+                $this->fakeSerialConnectionToken = $this->fakeSerialManager->connect($this->fileName, $this->baudRate);
+
+                return;
+            }
+
             $this->fd = dio_open(
                 self::TERMINAL_PATH.'/'.self::TERMINAL_PREFIX.$this->fileName, // filename
                 O_RDWR | O_NONBLOCK | O_ASYNC                                        // flags
@@ -418,11 +441,142 @@ class Serial
             }
         }
 
-        dio_write($this->fd, $command.PHP_EOL);
+        if ($this->fakeSerialConnectionToken === null) {
+            dio_write($this->fd, $command.PHP_EOL);
+        }
 
         if ($this->log) {
             $this->log->debug('SENT');
         }
+    }
+
+    private function isTemperatureMessage(string $message): bool
+    {
+        return strpos($message, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false;
+    }
+
+    private function appendIncomingLine(string $message, ?string $command = null, ?int $lineNumber = null, ?int $maxLine = null): void
+    {
+        $message = trim($message);
+
+        if ($message === '' || ! $this->printerId) {
+            return;
+        }
+
+        if ($this->isTemperatureMessage($message)) {
+            $extruderIndex = 0;
+
+            if ($command !== null && strpos($command, 'M105 T') !== false) {
+                $extruderIndex = (int) str_replace(
+                    search: 'M105 T',
+                    replace: '',
+                    subject: $command
+                );
+            }
+
+            Printer::setStatisticsOf(
+                printerId: $this->printerId,
+                lines: $message,
+                extruderIndex: $extruderIndex
+            );
+        }
+
+        $this->terminalBuffer .= $message.PHP_EOL;
+
+        if (
+            $this->terminalAutoAppend
+            ||
+            strpos($message, 'busy') !== false
+            ||
+            $this->isTemperatureMessage($message)
+        ) {
+            $this->appendLog(
+                message: $this->terminalBuffer,
+                lineNumber: $lineNumber,
+                maxLine: $maxLine
+            );
+        }
+
+        $this->pendingPluginLineHookContext = [
+            'printerId' => $this->printerId,
+            'command' => $command,
+            'line' => $message,
+            'lineNumber' => $lineNumber,
+            'maxLine' => $maxLine,
+        ];
+
+        foreach ($this->onNewLineActions as $callable) {
+            try {
+                $callable();
+            } catch (Throwable $throwable) {
+                if ($this->log) {
+                    $this->log->error(
+                        __METHOD__.': onNewLineActions: couldn\'t run queued callable: '.$throwable->getMessage().PHP_EOL.
+                        $throwable->getTraceAsString()
+                    );
+                }
+            }
+        }
+
+        $this->pendingPluginLineHookContext = [];
+    }
+
+    private function queryFakeSerial(?string $command = null, ?int $lineNumber = null, ?int $maxLine = null, ?int $timeout = null): string
+    {
+        if ($this->fakeSerialConnectionToken === null) {
+            throw new InitializationException('The fake serial printer is not connected.');
+        }
+
+        $startedAt = microtime(true);
+
+        $result = $this->fakeSerialManager->transact(
+            node: $this->fileName,
+            baudRate: $this->baudRate,
+            token: $this->fakeSerialConnectionToken,
+            command: $command ?? '',
+            timeout: $timeout
+        );
+
+        $response = [];
+
+        foreach ($result['lines'] as $line) {
+            $delayMs = (int) ($line['delayMs'] ?? 0);
+
+            if ($delayMs > 0) {
+                time_nanosleep(
+                    seconds: intdiv($delayMs, 1000),
+                    nanoseconds: ($delayMs % 1000) * 1000 * 1000
+                );
+            }
+
+            $this->tickClocks();
+
+            if ($timeout && (microtime(true) - $startedAt) >= $timeout) {
+                throw new TimedOutException("timed out while waiting for a newline after {$timeout} seconds were spent trying to get a response.");
+            }
+
+            $message = $line['text'] ?? '';
+
+            $response[] = $message;
+            $this->appendIncomingLine(
+                message: $message,
+                command: $command,
+                lineNumber: $lineNumber,
+                maxLine: $maxLine
+            );
+        }
+
+        $fullResponse = trim(implode(PHP_EOL, $response));
+
+        $this->dispatchPluginHook('serial.command.response_received', [
+            'printerId' => $this->printerId,
+            'command' => $command,
+            'response' => $fullResponse,
+            'lineNumber' => $lineNumber,
+            'maxLine' => $maxLine,
+        ]);
+
+        return $fullResponse;
     }
 
     /**
@@ -701,12 +855,20 @@ class Serial
                 $this->sendCommand($command, $lineNumber, $maxLine);
             }
 
-            $result = $this->readUntilBlank(
-                command: $command,
-                timeout: $timeout,
-                lineNumber: $lineNumber,
-                maxLine: $maxLine
-            );
+            $result =
+                $this->fakeSerialConnectionToken !== null
+                    ? $this->queryFakeSerial(
+                        command: $command,
+                        timeout: $timeout,
+                        lineNumber: $lineNumber,
+                        maxLine: $maxLine
+                    )
+                    : $this->readUntilBlank(
+                        command: $command,
+                        timeout: $timeout,
+                        lineNumber: $lineNumber,
+                        maxLine: $maxLine
+                    );
         } catch (Throwable $throwable) {
         }
 
@@ -745,8 +907,11 @@ class Serial
 
     public static function nodeExists(string $fileName): bool
     {
-        return file_exists(
-            self::TERMINAL_PATH.'/'.self::TERMINAL_PREFIX.$fileName
-        );
+        return
+            file_exists(
+                self::TERMINAL_PATH.'/'.self::TERMINAL_PREFIX.$fileName
+            )
+            ||
+            app(FakeSerialManager::class)->nodeExists($fileName);
     }
 }

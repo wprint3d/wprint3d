@@ -9,6 +9,7 @@ use App\Libraries\Serial;
 use App\Models\Configuration;
 use App\Models\Printer;
 use App\Plugins\PluginHookCompiler;
+use App\Support\FakeSerial\FakeSerialManager;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Log\Logger;
@@ -141,16 +142,23 @@ class MapSerialPrinters extends Command
 
         $baudRates = config('app.common_baud_rates');
         $cacheMapperBusyKey = config('cache.mapper_busy_key');
+        $fakeSerialManager = app(FakeSerialManager::class);
 
-        $devices = Arr::where(
-            scandir(Serial::TERMINAL_PATH),
-            function ($node) {
-                return
-                    Str::startsWith($node, Serial::TERMINAL_PREFIX.'ACM')
-                    ||
-                    Str::startsWith($node, Serial::TERMINAL_PREFIX.'USB');
-            }
-        );
+        $devices = array_values(array_unique(array_merge(
+            Arr::where(
+                scandir(Serial::TERMINAL_PATH),
+                function ($node) {
+                    return
+                        Str::startsWith($node, Serial::TERMINAL_PREFIX.'ACM')
+                        ||
+                        Str::startsWith($node, Serial::TERMINAL_PREFIX.'USB');
+                }
+            ),
+            Arr::map(
+                $fakeSerialManager->listVirtualNodes(),
+                fn ($node) => Serial::TERMINAL_PREFIX.$node
+            )
+        )));
 
         if (filled($target)) {
             $log->debug("The node \"{$target}\" was selected for this mapper instance.");
@@ -201,148 +209,155 @@ class MapSerialPrinters extends Command
             foreach ($baudRates as $baudRate) {
                 while (true) {
                     $response = '';
+                    $serial = null;
 
                     try {
-                        $serial = new Serial(
-                            fileName: $device,
-                            baudRate: $baudRate,
-                            timeout: $negotiationTimeoutSecs,
-                            pluginHooks: $serialPluginHooks
-                        );
+                        try {
+                            $serial = new Serial(
+                                fileName: $device,
+                                baudRate: $baudRate,
+                                timeout: $negotiationTimeoutSecs,
+                                pluginHooks: $serialPluginHooks
+                            );
 
-                        $response = $serial->query('M105');
-                    } catch (TimedOutException $timedOutException) {
-                        $errorMessage = "  - No response at {$baudRate} bps: {$timedOutException->getMessage()}";
+                            $response = $serial->query('M105');
+                        } catch (TimedOutException $timedOutException) {
+                            $errorMessage = "  - No response at {$baudRate} bps: {$timedOutException->getMessage()}";
 
-                        $this->info($errorMessage);
-                        $log->info($errorMessage);
+                            $this->info($errorMessage);
+                            $log->info($errorMessage);
 
-                        break;
-                    } catch (Exception $exception) {
-                        $errorMessage = "  - Negotiation error from serial port at node {$device} while trying with a baud rate of {$baudRate} bps: {$exception->getMessage()}";
+                            break;
+                        } catch (Exception $exception) {
+                            $errorMessage = "  - Negotiation error from serial port at node {$device} while trying with a baud rate of {$baudRate} bps: {$exception->getMessage()}";
 
-                        $this->info($errorMessage);
-                        $log->info($errorMessage);
+                            $this->info($errorMessage);
+                            $log->info($errorMessage);
 
-                        break;
-                    }
-
-                    if (! Str::contains($response, 'ok') && ! containsNonUTF8($response)) {
-                        $warnMessage = "  - At {$baudRate}, this looks like a printer but it didn't expose a proper reply, let's wait a few seconds and try again. Got: {$response}";
-
-                        $this->warn($warnMessage);
-                        $log->warning($warnMessage);
-
-                        sleep($negotiationTimeoutSecs);
-
-                        if ($retryCount >= $negotiatonMaxRetries) {
                             break;
                         }
 
-                        $retryCount++;
+                        if (! Str::contains($response, 'ok') && ! containsNonUTF8($response)) {
+                            $warnMessage = "  - At {$baudRate}, this looks like a printer but it didn't expose a proper reply, let's wait a few seconds and try again. Got: {$response}";
 
-                        continue;
-                    }
+                            $this->warn($warnMessage);
+                            $log->warning($warnMessage);
 
-                    $log->debug('Mapping extruders...');
+                            sleep($negotiationTimeoutSecs);
 
-                    try {
-                        $machine = $this->parseFirmwareInformation(
-                            log: $log,
-                            information: $serial->query('M115')
-                        );
-                    } catch (Exception $exception) {
-                        $infoMessage = "  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}";
+                            if ($retryCount >= $negotiatonMaxRetries) {
+                                break;
+                            }
 
-                        $this->info($infoMessage);
-                        $log->info($infoMessage);
+                            $retryCount++;
 
-                        continue;
-                    }
+                            continue;
+                        }
 
-                    if (! isset($machine['uuid'])) {
-                        $infoMessage = '  -> Invalid printer (no UUID available).';
+                        $log->debug('Mapping extruders...');
 
-                        $this->info($infoMessage);
-                        $log->info($infoMessage);
+                        try {
+                            $machine = $this->parseFirmwareInformation(
+                                log: $log,
+                                information: $serial->query('M115')
+                            );
+                        } catch (Exception $exception) {
+                            $infoMessage = "  -> Something went wrong while trying to gather information about the machine: {$exception->getMessage()}";
 
-                        break;
-                    }
+                            $this->info($infoMessage);
+                            $log->info($infoMessage);
 
-                    $machine['uuid'] =
-                        $machine['uuid']
-                        .'/'.
-                        hash(
-                            algo: 'crc32',
-                            data: json_encode($machine)
-                        );
+                            continue;
+                        }
 
-                    $cameras = null;
+                        if (! isset($machine['uuid'])) {
+                            $infoMessage = '  -> Invalid printer (no UUID available).';
 
-                    $printer = Printer::where('machine.uuid', $machine['uuid'])->first();
+                            $this->info($infoMessage);
+                            $log->info($infoMessage);
 
-                    if ($printer) {
-                        $cameras = $printer->cameras;
-                    }
-
-                    if (! $cameras) {
-                        $cameras = [];
-                    }
-
-                    $this->info('Printer found! Node name is "'.$device.'", baud rate is '.$baudRate.' bps. Response was: '.$response);
-                    $log->info('Printer found! Node name is "'.$device.'", baud rate is '.$baudRate.' bps. Response was: '.$response);
-
-                    if (! $printer) {
-                        $printer = new Printer;
-
-                        $changeCount++;
-                    }
-
-                    $printer->node = $device;
-                    $printer->baudRate = $baudRate;
-                    $printer->machine = $machine;
-                    $printer->cameras = $cameras;
-                    $printer->connected = true;
-
-                    if (! isset($printer->recordableCameras)) {
-                        $printer->recordableCameras = [];
-                    }
-
-                    $printer->save();
-                    $printer->updateLastSeen();
-
-                    $changes = $printer->getChanges();
-
-                    unset($changes['created_at']);
-                    unset($changes['updated_at']);
-
-                    if ($changes) {
-                        $changeCount++;
-                    }
-
-                    for ($extruderIndex = 0; $extruderIndex < $machine['extruderCount']; $extruderIndex++) {
-                        $response = $serial->query('M105 T'.$extruderIndex);
-
-                        if (! Str::contains($response, 'ok')) {
                             break;
                         }
 
-                        $printer->setStatistics($response, $extruderIndex);
+                        $machine['uuid'] =
+                            $machine['uuid']
+                            .'/'.
+                            hash(
+                                algo: 'crc32',
+                                data: json_encode($machine)
+                            );
+                        $machine['connectionType'] = $fakeSerialManager->nodeExists($device) ? 'fakeSerial' : 'serial';
+                        $machine['simulated'] = $machine['connectionType'] === 'fakeSerial';
+
+                        $cameras = null;
+
+                        $printer = Printer::where('machine.uuid', $machine['uuid'])->first();
+
+                        if ($printer) {
+                            $cameras = $printer->cameras;
+                        }
+
+                        if (! $cameras) {
+                            $cameras = [];
+                        }
+
+                        $this->info('Printer found! Node name is "'.$device.'", baud rate is '.$baudRate.' bps. Response was: '.$response);
+                        $log->info('Printer found! Node name is "'.$device.'", baud rate is '.$baudRate.' bps. Response was: '.$response);
+
+                        if (! $printer) {
+                            $printer = new Printer;
+
+                            $changeCount++;
+                        }
+
+                        $printer->node = $device;
+                        $printer->baudRate = $baudRate;
+                        $printer->machine = $machine;
+                        $printer->cameras = $cameras;
+                        $printer->connected = true;
+
+                        if (! isset($printer->recordableCameras)) {
+                            $printer->recordableCameras = [];
+                        }
+
+                        $printer->save();
+                        $printer->updateLastSeen();
+
+                        $changes = $printer->getChanges();
+
+                        unset($changes['created_at']);
+                        unset($changes['updated_at']);
+
+                        if ($changes) {
+                            $changeCount++;
+                        }
+
+                        for ($extruderIndex = 0; $extruderIndex < $machine['extruderCount']; $extruderIndex++) {
+                            $response = $serial->query('M105 T'.$extruderIndex);
+
+                            if (! Str::contains($response, 'ok')) {
+                                break;
+                            }
+
+                            $printer->setStatistics($response, $extruderIndex);
+                        }
+
+                        $found = true;
+
+                        foreach (
+                            Printer::select('node')
+                                ->where('node', $printer->node)
+                                ->whereRaw(['_id' => ['$ne' => new ObjectId($printer->_id)]])
+                                ->cursor() as $matchingNodePrinter
+                        ) {
+                            $matchingNodePrinter->node = null;
+                            $matchingNodePrinter->save();
+                        }
+
+                        break;
+                    } finally {
+                        $serial?->close();
                     }
-
-                    $found = true;
-
-                    foreach (
-                        Printer::select('node')
-                            ->where('node', $printer->node)
-                            ->whereRaw(['_id' => ['$ne' => new ObjectId($printer->_id)]])
-                            ->cursor() as $matchingNodePrinter
-                    ) {
-                        $matchingNodePrinter->node = null;
-                        $matchingNodePrinter->save();
-                    }
-
-                    break;
                 }
 
                 if ($found) {
@@ -353,7 +368,7 @@ class MapSerialPrinters extends Command
 
         foreach (Printer::all() as $printer) {
             if (
-                ! file_exists(Serial::TERMINAL_PATH.'/'.Serial::TERMINAL_PREFIX.$printer->node)
+                ! Serial::nodeExists($printer->node)
                 &&
                 $printer->connected
             ) {

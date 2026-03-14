@@ -56,6 +56,8 @@ class Printer extends Model
         'machine.sourceCodeUrl',
         'machine.protocolVersion',
         'machine.machineType',
+        'machine.connectionType',
+        'machine.simulated',
         'machine.extruderCount',
         'machine.axisCount',
         'machine.uuid',

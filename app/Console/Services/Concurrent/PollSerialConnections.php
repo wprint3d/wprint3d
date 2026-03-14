@@ -91,6 +91,8 @@ class PollSerialConnections extends ConcurrentService
                         continue;
                     }
 
+                    $serial = null;
+
                     try {
                         $serial = new Serial(
                             fileName: $printer->node,
@@ -183,6 +185,8 @@ class PollSerialConnections extends ConcurrentService
                         }
 
                         continue;
+                    } finally {
+                        $serial?->close();
                     }
                 }
             } catch (Throwable $exception) {
