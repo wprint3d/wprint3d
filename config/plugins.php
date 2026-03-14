@@ -1,5 +1,12 @@
 <?php
 
+$defaultDevelopmentMountPath = is_dir('/var/www/plugins-dev')
+    ? '/var/www/plugins-dev'
+    : base_path('examples/plugins');
+$defaultDevelopmentMountPaths = array_values(array_unique(array_filter([
+    $defaultDevelopmentMountPath,
+])));
+
 return [
     'sdk_version' => 1,
     'sdk_revision' => 2,
@@ -86,7 +93,11 @@ return [
 
     'development' => [
         'enabled' => filter_var(env('DEVELOPER_MODE', false), FILTER_VALIDATE_BOOL),
-        'mount_path' => env('PLUGIN_DEVELOPMENT_MOUNT_PATH', base_path('examples/plugins')),
+        'mount_path' => env('PLUGIN_DEVELOPMENT_MOUNT_PATH', $defaultDevelopmentMountPath),
+        'mount_paths' => array_values(array_unique(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('PLUGIN_DEVELOPMENT_MOUNT_PATHS', implode(',', $defaultDevelopmentMountPaths)))
+        )))),
     ],
 
     'permissions' => [

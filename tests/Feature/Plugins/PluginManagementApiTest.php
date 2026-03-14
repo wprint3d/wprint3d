@@ -64,19 +64,137 @@ class PluginManagementApiTest extends TestCase
 
     public function test_it_reports_development_plugin_capabilities(): void
     {
+        $mountPath = sys_get_temp_dir().'/wprint3d-test-plugins-dev';
+        File::ensureDirectoryExists($mountPath);
+
+        try {
+            config()->set('plugins.development.enabled', true);
+            config()->set('plugins.development.mount_path', $mountPath);
+
+            $manager = Mockery::mock(PluginManager::class);
+            $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+            $manager->shouldReceive('listDevelopmentPlugins')
+                ->once()
+                ->andReturn([
+                    [
+                        'id' => 'acme.demo',
+                        'path' => $mountPath.'/acme-demo',
+                    ],
+                ]);
+
+            $this->app->instance(PluginManager::class, $manager);
+
+            $response = $this->withoutMiddleware()->getJson('/api/plugins/development');
+
+            $response
+                ->assertOk()
+                ->assertJsonPath('enabled', true)
+                ->assertJsonPath('available', true)
+                ->assertJsonPath('mountPath', base_path('plugins'))
+                ->assertJsonPath('configuredMountPath', $mountPath)
+                ->assertJsonPath('mountPaths.0', base_path('plugins'))
+                ->assertJsonPath('mountPaths.1', $mountPath)
+                ->assertJsonPath('plugins.0.id', 'acme.demo');
+        } finally {
+            File::deleteDirectory($mountPath);
+        }
+    }
+
+    public function test_it_uses_the_live_developer_mode_env_when_config_is_stale(): void
+    {
+        $previousEnv = getenv('DEVELOPER_MODE');
+
+        putenv('DEVELOPER_MODE=true');
+        $_ENV['DEVELOPER_MODE'] = 'true';
+        $_SERVER['DEVELOPER_MODE'] = 'true';
+
+        try {
+            config()->set('plugins.development.enabled', false);
+            config()->set('plugins.development.mount_path', '/var/www/plugins-dev');
+
+            $manager = Mockery::mock(PluginManager::class);
+            $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+            $manager->shouldReceive('listDevelopmentPlugins')
+                ->once()
+                ->andReturn([]);
+
+            $this->app->instance(PluginManager::class, $manager);
+
+            $response = $this->withoutMiddleware()->getJson('/api/plugins/development');
+
+            $response
+                ->assertOk()
+                ->assertJsonPath('enabled', true)
+                ->assertJsonPath('available', true)
+                ->assertJsonPath('mountPath', base_path('plugins'))
+                ->assertJsonPath('configuredMountPath', '/var/www/plugins-dev');
+        } finally {
+            if ($previousEnv === false) {
+                putenv('DEVELOPER_MODE');
+                unset($_ENV['DEVELOPER_MODE'], $_SERVER['DEVELOPER_MODE']);
+            } else {
+                putenv("DEVELOPER_MODE={$previousEnv}");
+                $_ENV['DEVELOPER_MODE'] = $previousEnv;
+                $_SERVER['DEVELOPER_MODE'] = $previousEnv;
+            }
+        }
+    }
+
+    public function test_it_uses_the_live_development_mount_as_a_fallback_signal_when_config_and_env_look_disabled(): void
+    {
+        $mountPath = sys_get_temp_dir().'/wprint3d-test-plugins-dev-fallback';
+        File::ensureDirectoryExists($mountPath);
+
+        $previousEnv = getenv('DEVELOPER_MODE');
+        putenv('DEVELOPER_MODE=false');
+        $_ENV['DEVELOPER_MODE'] = 'false';
+        $_SERVER['DEVELOPER_MODE'] = 'false';
+
+        try {
+            config()->set('plugins.development.enabled', false);
+            config()->set('plugins.development.mount_path', $mountPath);
+
+            $manager = Mockery::mock(PluginManager::class);
+            $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+            $manager->shouldReceive('listDevelopmentPlugins')
+                ->once()
+                ->andReturn([]);
+
+            $this->app->instance(PluginManager::class, $manager);
+
+            $response = $this->withoutMiddleware()->getJson('/api/plugins/development');
+
+            $response
+                ->assertOk()
+                ->assertJsonPath('enabled', true)
+                ->assertJsonPath('available', true)
+                ->assertJsonPath('mountPath', base_path('plugins'))
+                ->assertJsonPath('mountPaths.0', base_path('plugins'))
+                ->assertJsonPath('mountPaths.1', $mountPath);
+        } finally {
+            File::deleteDirectory($mountPath);
+
+            if ($previousEnv === false) {
+                putenv('DEVELOPER_MODE');
+                unset($_ENV['DEVELOPER_MODE'], $_SERVER['DEVELOPER_MODE']);
+            } else {
+                putenv("DEVELOPER_MODE={$previousEnv}");
+                $_ENV['DEVELOPER_MODE'] = $previousEnv;
+                $_SERVER['DEVELOPER_MODE'] = $previousEnv;
+            }
+        }
+    }
+
+    public function test_it_ignores_the_source_tree_fallback_when_the_configured_development_mount_is_missing(): void
+    {
         config()->set('plugins.development.enabled', true);
-        config()->set('plugins.development.mount_path', '/var/www/plugins-dev');
+        config()->set('plugins.development.mount_path', '/path/that/does/not/exist');
 
         $manager = Mockery::mock(PluginManager::class);
         $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
         $manager->shouldReceive('listDevelopmentPlugins')
             ->once()
-            ->andReturn([
-                [
-                    'id' => 'acme.demo',
-                    'path' => '/var/www/plugins-dev/acme-demo',
-                ],
-            ]);
+            ->andReturn([]);
 
         $this->app->instance(PluginManager::class, $manager);
 
@@ -85,8 +203,11 @@ class PluginManagementApiTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('enabled', true)
-            ->assertJsonPath('mountPath', '/var/www/plugins-dev')
-            ->assertJsonPath('plugins.0.id', 'acme.demo');
+            ->assertJsonPath('available', true)
+            ->assertJsonPath('mountPath', base_path('plugins'))
+            ->assertJsonPath('configuredMountPath', '/path/that/does/not/exist')
+            ->assertJsonPath('mountPaths.0', base_path('plugins'))
+            ->assertJsonPath('configuredMountPaths.0', '/path/that/does/not/exist');
     }
 
     public function test_it_lists_registry_sources(): void
@@ -216,6 +337,8 @@ class PluginManagementApiTest extends TestCase
     public function test_it_rejects_unpacked_plugin_installs_when_development_mount_support_is_disabled(): void
     {
         config()->set('plugins.development.enabled', false);
+        config()->set('plugins.development.mount_path', '/path/that/does/not/exist');
+        config()->set('plugins.development.mount_paths', []);
 
         $manager = Mockery::mock(PluginManager::class);
         $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();

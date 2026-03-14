@@ -40,17 +40,23 @@ Bridge examples use the companion service in [examples/plugins/host-metrics-brid
 ## Quick Commands
 
 ```bash
-php artisan plugin:make
-php artisan plugin:pack plugins/acme-hello-world
-php artisan plugin:install plugins/acme-hello-world.w3dp
-php artisan plugin:list
-php artisan plugin:doctor
+./plugin.sh make
+./plugin.sh pack plugins/acme-hello-world
+./plugin.sh install plugins/acme-hello-world.w3dp
+./plugin.sh list
+./plugin.sh doctor
+./plugin.sh status
 ```
+
+`./plugin.sh` is the recommended host entrypoint because it runs the plugin Artisan commands inside the backend container. Use raw `php artisan plugin:*` only when you are already inside that container or a matching PHP environment.
+`./plugin.sh status` is the quickest way to verify which backend container was resolved, whether developer mode is live, and whether the unpacked-plugin source roots are actually visible for live installs.
 
 ## Development Mount
 
-When WPrint 3D runs through `./run.sh -e dev`, unpacked source plugins are mounted from:
+When WPrint 3D runs through `./run.sh -e dev`, unpacked source plugins are discovered from:
 
+- host path: `./plugins`
+- container path: `/var/www/plugins`
 - host path: `./examples/plugins`
 - container path: `/var/www/plugins-dev`
 

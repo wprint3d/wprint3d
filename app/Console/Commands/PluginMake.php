@@ -34,7 +34,7 @@ class PluginMake extends Command
         }
 
         $imageReference = trim((string) ($this->option('image') ?: ''));
-        $includeImage = $imageReference !== '' || $this->confirm('Does this plugin depend on a Docker/Podman image?', false);
+        $includeImage = $imageReference !== '' || ($this->isInteractiveShell() && $this->confirm('Does this plugin depend on a Docker/Podman image?', false));
 
         if ($includeImage && $imageReference === '') {
             $imageReference = trim((string) $this->ask(
@@ -435,6 +435,7 @@ HTML);
         }
 
         file_put_contents($targetPath.'/README.md', $this->readmeForScaffold($manifest, $shapeConfig, $managedBridgeService, $servicePort));
+        file_put_contents($targetPath.'/AGENTS.md', $this->agentsForScaffold($manifest, $shapeConfig));
     }
 
     private function readmeForScaffold(array $manifest, array $shapeConfig, bool $managedBridgeService, ?int $servicePort): string
@@ -468,6 +469,49 @@ HTML);
             $lines[] = 'This scaffold declared a managed service image. Build and publish the `bridge/Dockerfile`, then update `plugin.json -> images[0].image` to the final registry URL.';
             $lines[] = "The generated bridge image expects port `{$servicePort}`.";
         }
+
+        return implode("\n", $lines)."\n";
+    }
+
+    private function agentsForScaffold(array $manifest, array $shapeConfig): string
+    {
+        $runtimeType = $shapeConfig['runtimeType'] ?? 'php';
+        $uiMode = $shapeConfig['uiMode'] ?? 'declarative';
+        $footprint = ! empty($manifest['images']) ? 'heavyweight' : 'lightweight';
+        $lines = [
+            '# AGENTS.md',
+            '',
+            '## Purpose',
+            '',
+            "This directory is the `{$manifest['name']}` plugin scaffold generated for WPrint 3D.",
+            '',
+            '## Shape',
+            '',
+            "- Runtime: `{$runtimeType}`",
+            "- UI mode: `{$uiMode}`",
+            "- Footprint: `{$footprint}`",
+            '',
+            '## Important files',
+            '',
+            '- `plugin.json`: plugin manifest and declared surfaces.',
+            $runtimeType === 'php'
+                ? '- `plugin.php`, `hooks/`, and `actions/`: PHP runtime entrypoints.'
+                : '- `bridge/server.mjs`: example bridge service entrypoint.',
+            $uiMode === 'declarative'
+                ? '- Declarative UI lives directly in `plugin.json -> uiExtensions[*].schema`.'
+                : '- `ui/settings.html`: elevated settings UI asset.',
+            '',
+            '## Working rules',
+            '',
+            '- Keep this example aligned with `docs/plugin-development-guide.md` and `docs/plugin-sdk-reference.md`.',
+            '- Prefer minimal sample logic over production-only complexity.',
+            '- If you change the runtime shape, UI mode, or manifest contract, update the example README and any docs that point at this scaffold.',
+            '',
+            '## Verification',
+            '',
+            '- `php artisan plugin:pack <plugin-path>`',
+            '- Install it through the Plugins UI, `php artisan plugin:install`, or the development mount when working locally.',
+        ];
 
         return implode("\n", $lines)."\n";
     }

@@ -133,6 +133,7 @@ class PluginManagerService implements PluginManager
     public function installFromDevelopmentPath(string $path): array
     {
         $resolvedPath = $this->resolveDevelopmentPath($path);
+        $mountContext = $this->developmentMountContextForPath($resolvedPath);
         $package = $this->archiveService->inspectDirectory($resolvedPath, 'development_mount');
         $this->assertCoreCompatibility($package->manifest);
 
@@ -143,9 +144,9 @@ class PluginManagerService implements PluginManager
 
         $source = [
             'type' => 'development_mount',
-            'mount_path' => config('plugins.development.mount_path'),
+            'mount_path' => $mountContext['path'],
             'path' => $resolvedPath,
-            'relative_path' => ltrim(str_replace($this->developmentMountRoot() ?: '', '', $resolvedPath), DIRECTORY_SEPARATOR),
+            'relative_path' => $mountContext['relativePath'],
             'live' => true,
         ];
 
@@ -344,66 +345,92 @@ class PluginManagerService implements PluginManager
 
     public function listDevelopmentPlugins(): array
     {
-        if (! config('plugins.development.enabled', false)) {
+        if (! $this->developmentModeEnabled()) {
             return [];
         }
 
-        $root = $this->developmentMountRoot();
+        $mounts = $this->developmentMountRoots();
 
-        if (! $root || ! is_dir($root)) {
+        if ($mounts === []) {
             return [];
         }
 
         $plugins = [];
+        $seenPluginIds = [];
 
-        foreach (scandir($root) ?: [] as $entry) {
-            if (in_array($entry, ['.', '..'], true)) {
+        foreach ($mounts as $mount) {
+            $root = $mount['path'];
+            $entries = @scandir($root);
+
+            if ($entries === false) {
                 continue;
             }
 
-            $directory = $root.DIRECTORY_SEPARATOR.$entry;
+            foreach ($entries as $entry) {
+                if (in_array($entry, ['.', '..'], true)) {
+                    continue;
+                }
 
-            if (! is_dir($directory)) {
-                continue;
-            }
+                $directory = $root.DIRECTORY_SEPARATOR.$entry;
 
-            $manifestPath = $directory.DIRECTORY_SEPARATOR.'plugin.json';
+                if (! is_dir($directory)) {
+                    continue;
+                }
 
-            if (! is_file($manifestPath)) {
-                continue;
-            }
+                $manifestPath = $directory.DIRECTORY_SEPARATOR.'plugin.json';
 
-            try {
-                $package = $this->archiveService->inspectDirectory($directory, 'development_mount');
-            } catch (\Throwable $exception) {
+                if (! is_file($manifestPath)) {
+                    continue;
+                }
+
+                try {
+                    $package = $this->archiveService->inspectDirectory($directory, 'development_mount');
+                } catch (\Throwable $exception) {
+                    $plugins[] = [
+                        'id' => $entry,
+                        'name' => $entry,
+                        'path' => $directory,
+                        'relativePath' => $entry,
+                        'mountPath' => $root,
+                        'mountLabel' => $mount['label'],
+                        'warning' => $exception->getMessage(),
+                    ];
+
+                    continue;
+                }
+
+                if (isset($seenPluginIds[$package->manifest['id']])) {
+                    continue;
+                }
+
+                $dependencies = $this->dependencyService->summarize($package->manifest);
+
                 $plugins[] = [
-                    'id' => $entry,
-                    'name' => $entry,
+                    'id' => $package->manifest['id'],
+                    'name' => $package->manifest['name'],
+                    'description' => $package->manifest['description'] ?? null,
+                    'version' => $package->manifest['version'],
                     'path' => $directory,
                     'relativePath' => $entry,
-                    'warning' => $exception->getMessage(),
+                    'mountPath' => $root,
+                    'mountLabel' => $mount['label'],
+                    'trustLevel' => $package->trustLevel,
+                    'warnings' => $this->mergeWarnings($package->warnings, $dependencies['warnings'] ?? []),
+                    'classification' => $dependencies['classification'] ?? 'lightweight',
+                    'dependencies' => $dependencies,
                 ];
-
-                continue;
+                $seenPluginIds[$package->manifest['id']] = true;
             }
-
-            $dependencies = $this->dependencyService->summarize($package->manifest);
-
-            $plugins[] = [
-                'id' => $package->manifest['id'],
-                'name' => $package->manifest['name'],
-                'description' => $package->manifest['description'] ?? null,
-                'version' => $package->manifest['version'],
-                'path' => $directory,
-                'relativePath' => $entry,
-                'trustLevel' => $package->trustLevel,
-                'warnings' => $this->mergeWarnings($package->warnings, $dependencies['warnings'] ?? []),
-                'classification' => $dependencies['classification'] ?? 'lightweight',
-                'dependencies' => $dependencies,
-            ];
         }
 
-        return collect($plugins)->sortBy('name')->values()->all();
+        return collect($plugins)
+            ->sortBy(fn (array $plugin) => sprintf(
+                '%d-%s',
+                ($plugin['mountLabel'] ?? null) === 'Local plugins' ? 0 : 1,
+                strtolower((string) ($plugin['name'] ?? $plugin['id'] ?? ''))
+            ))
+            ->values()
+            ->all();
     }
 
     public function installFromUploadedFile(UploadedFile $file): array
@@ -545,11 +572,16 @@ class PluginManagerService implements PluginManager
             $package = $this->archiveService->inspectDirectory($runtimePath, 'development_mount');
             $this->assertCoreCompatibility($package->manifest);
             $dependencyState = $this->dependencyService->summarize($package->manifest, $plugin->dependency_state ?? []);
+            $mountContext = $this->developmentMountContextForPath($runtimePath) ?? [
+                'path' => (string) ($plugin->install_source['mount_path'] ?? ''),
+                'label' => 'Development source',
+                'relativePath' => (string) ($plugin->install_source['relative_path'] ?? basename($runtimePath)),
+            ];
             $source = array_merge($plugin->install_source ?? [], [
                 'type' => 'development_mount',
-                'mount_path' => config('plugins.development.mount_path'),
+                'mount_path' => $mountContext['path'],
                 'path' => $runtimePath,
-                'relative_path' => ltrim(str_replace($this->developmentMountRoot() ?: '', '', $runtimePath), DIRECTORY_SEPARATOR),
+                'relative_path' => $mountContext['relativePath'],
                 'live' => true,
             ]);
 
@@ -681,46 +713,176 @@ class PluginManagerService implements PluginManager
 
     private function resolveDevelopmentPath(string $path): string
     {
-        if (! config('plugins.development.enabled', false)) {
+        if (! $this->developmentModeEnabled()) {
             throw new PluginRuntimeException('Development mount support is disabled.');
         }
 
-        $root = $this->developmentMountRoot();
+        $mounts = $this->developmentMountRoots();
 
-        if (! $root) {
-            throw new PluginRuntimeException('The development plugin mount path is not configured.');
+        if ($mounts === []) {
+            throw new PluginRuntimeException('The live development plugin mount is unavailable. Start WPrint 3D with ./run.sh -e dev.');
         }
 
-        $candidate = str_starts_with($path, DIRECTORY_SEPARATOR)
-            ? $path
-            : $root.DIRECTORY_SEPARATOR.ltrim($path, DIRECTORY_SEPARATOR);
-        $resolvedPath = realpath($candidate);
+        if (str_starts_with($path, DIRECTORY_SEPARATOR)) {
+            $resolvedPath = realpath($path);
 
-        if (! $resolvedPath || ! is_dir($resolvedPath)) {
-            throw new PluginRuntimeException("Development plugin directory not found: {$path}");
+            if (! $resolvedPath || ! is_dir($resolvedPath)) {
+                throw new PluginRuntimeException("Development plugin directory not found: {$path}");
+            }
+
+            $mountContext = $this->developmentMountContextForPath($resolvedPath);
+
+            if ($mountContext === null) {
+                throw new PluginRuntimeException('Development plugins must live inside the configured development mount paths.');
+            }
+
+            return rtrim($resolvedPath, DIRECTORY_SEPARATOR);
         }
 
-        $normalizedRoot = rtrim($root, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
-        $normalizedResolvedPath = rtrim($resolvedPath, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+        foreach ($mounts as $mount) {
+            $candidate = $mount['path'].DIRECTORY_SEPARATOR.ltrim($path, DIRECTORY_SEPARATOR);
+            $resolvedPath = realpath($candidate);
 
-        if (! str_starts_with($normalizedResolvedPath, $normalizedRoot)) {
-            throw new PluginRuntimeException('Development plugins must live inside the configured development mount path.');
+            if ($resolvedPath && is_dir($resolvedPath)) {
+                return rtrim($resolvedPath, DIRECTORY_SEPARATOR);
+            }
         }
 
-        return rtrim($resolvedPath, DIRECTORY_SEPARATOR);
+        throw new PluginRuntimeException("Development plugin directory not found: {$path}");
     }
 
-    private function developmentMountRoot(): ?string
+    private function developmentMountRoot(bool $includeImplicitRoots = true): ?string
     {
-        $mountPath = (string) config('plugins.development.mount_path', '');
+        return $this->developmentMountRoots($includeImplicitRoots)[0]['path'] ?? null;
+    }
 
-        if ($mountPath === '') {
+    private function developmentModeEnabled(): bool
+    {
+        if ($this->developmentModeExplicitlyEnabled()) {
+            return true;
+        }
+
+        return $this->developmentMountRoot(false) !== null;
+    }
+
+    private function developmentModeExplicitlyEnabled(): bool
+    {
+        if ((bool) config('plugins.development.enabled', false)) {
+            return true;
+        }
+
+        $envValue = env('DEVELOPER_MODE');
+
+        if ($envValue !== null && filter_var($envValue, FILTER_VALIDATE_BOOL)) {
+            return true;
+        }
+
+        $serverValue = $_SERVER['DEVELOPER_MODE'] ?? $_ENV['DEVELOPER_MODE'] ?? getenv('DEVELOPER_MODE');
+
+        return filter_var($serverValue, FILTER_VALIDATE_BOOL);
+    }
+
+    private function developmentMountRoots(bool $includeImplicitRoots = true): array
+    {
+        $candidates = [];
+
+        if ($includeImplicitRoots) {
+            $candidates[] = base_path('plugins');
+        }
+
+        foreach ($this->configuredDevelopmentMountPaths() as $path) {
+            $candidates[] = $path;
+        }
+
+        $mounts = [];
+        $seenPaths = [];
+
+        foreach ($candidates as $candidate) {
+            $normalizedPath = $this->resolveDevelopmentMountCandidate($candidate);
+
+            if ($normalizedPath === null || isset($seenPaths[$normalizedPath])) {
+                continue;
+            }
+
+            $mounts[] = [
+                'path' => $normalizedPath,
+                'label' => $this->developmentMountLabel($normalizedPath),
+            ];
+            $seenPaths[$normalizedPath] = true;
+        }
+
+        return $mounts;
+    }
+
+    private function configuredDevelopmentMountPaths(): array
+    {
+        $configured = config('plugins.development.mount_paths', []);
+
+        if (! is_array($configured)) {
+            $configured = array_map('trim', explode(',', (string) $configured));
+        }
+
+        $paths = [
+            (string) config('plugins.development.mount_path', ''),
+            ...$configured,
+        ];
+
+        return array_values(array_unique(array_filter(array_map(
+            fn ($path) => rtrim((string) $path, DIRECTORY_SEPARATOR),
+            $paths
+        ))));
+    }
+
+    private function resolveDevelopmentMountCandidate(string $candidate): ?string
+    {
+        $candidate = rtrim($candidate, DIRECTORY_SEPARATOR);
+
+        if ($candidate === '') {
             return null;
         }
 
-        $resolvedPath = realpath($mountPath);
+        $resolvedPath = realpath($candidate);
 
-        return $resolvedPath ? rtrim($resolvedPath, DIRECTORY_SEPARATOR) : rtrim($mountPath, DIRECTORY_SEPARATOR);
+        if ($resolvedPath && is_dir($resolvedPath)) {
+            return rtrim($resolvedPath, DIRECTORY_SEPARATOR);
+        }
+
+        if (is_dir($candidate)) {
+            return $candidate;
+        }
+
+        return null;
+    }
+
+    private function developmentMountContextForPath(string $path): ?array
+    {
+        $normalizedPath = rtrim($path, DIRECTORY_SEPARATOR);
+
+        foreach ($this->developmentMountRoots() as $mount) {
+            $normalizedRoot = rtrim($mount['path'], DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+            $normalizedResolvedPath = $normalizedPath.DIRECTORY_SEPARATOR;
+
+            if (str_starts_with($normalizedResolvedPath, $normalizedRoot)) {
+                return [
+                    'path' => $mount['path'],
+                    'label' => $mount['label'],
+                    'relativePath' => ltrim(substr($normalizedPath, strlen($mount['path'])), DIRECTORY_SEPARATOR),
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    private function developmentMountLabel(string $path): string
+    {
+        $normalizedPath = rtrim($path, DIRECTORY_SEPARATOR);
+
+        if ($normalizedPath === rtrim(base_path('plugins'), DIRECTORY_SEPARATOR)) {
+            return 'Local plugins';
+        }
+
+        return 'Example plugins';
     }
 
     private function deleteDirectory(string $path): void

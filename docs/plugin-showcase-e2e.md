@@ -4,9 +4,9 @@ This document shows the current end-to-end plugin workflow in the local WPrint 3
 
 ## What Was Verified
 
-- CLI scaffold generation with `plugin:make`
-- CLI packaging with `plugin:pack`
-- CLI install and enable with `plugin:install` and `plugin:enable`
+- CLI scaffold generation with `./plugin.sh make`
+- CLI packaging with `./plugin.sh pack`
+- CLI install and enable with `./plugin.sh install` and `./plugin.sh enable`
 - Browser login into the running WPrint 3D instance
 - In-app plugin management from `Settings -> Plugins`
 - Declarative plugin UI rendering inside the app
@@ -17,6 +17,7 @@ This document shows the current end-to-end plugin workflow in the local WPrint 3
 ## Automation Artifacts
 
 - Browser E2E script: [scripts/e2e_plugin_showcase.py](/home/facuarmo/wprint3d-core/scripts/e2e_plugin_showcase.py)
+- Unpacked install E2E script: [scripts/e2e_unpacked_plugin_install.py](/home/facuarmo/wprint3d-core/scripts/e2e_unpacked_plugin_install.py)
 - Generated screenshots: [docs/assets/plugins](/home/facuarmo/wprint3d-core/docs/assets/plugins)
 
 Re-run the browser capture with:
@@ -26,6 +27,9 @@ python3 scripts/e2e_plugin_showcase.py
 
 # optional when your local proxy uses a non-default port
 BASE_URL=https://127.0.0.1:8443 python3 scripts/e2e_plugin_showcase.py
+
+# unpacked live-source install flow from the development mount
+python3 scripts/e2e_unpacked_plugin_install.py
 ```
 
 ## 1. Create A New Plugin Scaffold
@@ -33,7 +37,7 @@ BASE_URL=https://127.0.0.1:8443 python3 scripts/e2e_plugin_showcase.py
 Verified command:
 
 ```bash
-CACHE_DRIVER=array LOG_CHANNEL=stderr php artisan plugin:make acme.showcase "Showcase Plugin" --path=/tmp/showcase-plugin
+./plugin.sh make acme.showcase "Showcase Plugin" --path=/tmp/showcase-plugin
 ```
 
 Observed generated files:
@@ -147,6 +151,27 @@ The website route at `http://127.0.0.1:8082/plugins` rendered the plugin marketp
 Screenshot:
 
 ![Marketplace page](assets/plugins/07-marketplace-page.png)
+
+## 8. Unpacked Plugin Install Flow
+
+The live development mount flow is now covered by a dedicated browser run that:
+
+- logs into the running stack
+- opens `Settings -> Plugins -> Add a plugin -> Install unpacked`
+- verifies both live source roots:
+  - local scaffolds at `/var/www/plugins`
+  - bundled examples at `/var/www/plugins-dev`
+- confirms the scaffolded plugin `acme.hello-world` appears ahead of the examples in the modal
+- installs `acme.hello-world` directly from source
+- confirms the installed plugin card renders in the list UI
+
+Screenshots:
+
+![Unpacked plugin list](assets/plugins/08-unpacked-plugin-list.png)
+
+![Unpacked plugin installed](assets/plugins/09-unpacked-plugin-installed.png)
+
+![Installed unpacked plugin card](assets/plugins/10-unpacked-plugin-card.png)
 
 Note:
 
