@@ -35,6 +35,7 @@ class PluginPackageCommandsTest extends TestCase
             ->with($packagePath, 'verify')
             ->andReturn(new PluginPackage(
                 manifest: $manifest,
+                rawManifest: $manifest,
                 archivePath: $packagePath,
                 archiveSha256: 'abc',
                 sourceType: 'verify',
@@ -82,6 +83,7 @@ class PluginPackageCommandsTest extends TestCase
             ->with($packagePath, 'restore')
             ->andReturn(new PluginPackage(
                 manifest: $manifest,
+                rawManifest: $manifest,
                 archivePath: $packagePath,
                 archiveSha256: 'abc',
                 sourceType: 'restore',

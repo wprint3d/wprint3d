@@ -614,4 +614,29 @@ class PluginManagementApiTest extends TestCase
             ->assertHeader('Content-Type', 'text/javascript; charset=UTF-8')
             ->assertSee('WPrint3DOctoPrintCompat', false);
     }
+
+    public function test_it_returns_plugin_update_status_metadata(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('update')
+            ->once()
+            ->with('octoprint.navbartemp-port')
+            ->andReturn([
+                'id' => 'octoprint.navbartemp-port',
+                'version' => '0.1.0',
+                'updateStatus' => 'noop',
+                'latestVersion' => '0.1.0',
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->postJson('/api/plugins/octoprint.navbartemp-port/update');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('id', 'octoprint.navbartemp-port')
+            ->assertJsonPath('updateStatus', 'noop')
+            ->assertJsonPath('latestVersion', '0.1.0');
+    }
 }

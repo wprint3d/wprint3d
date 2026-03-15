@@ -20,16 +20,17 @@ class PluginVerify extends Command
         $packagePath = (string) $this->argument('package');
         $package = $archiveService->inspect($packagePath, 'verify');
         $manifest = $package->manifest;
-        $signature = $manifest['signature'] ?? [];
+        $signedManifest = $package->rawManifest ?? $manifest;
+        $signature = $signedManifest['signature'] ?? [];
         $algorithm = $signature['algorithm'] ?? 'none';
-        $embeddedPublicKey = $signatureService->embeddedPublicKey($manifest);
+        $embeddedPublicKey = $signatureService->embeddedPublicKey($signedManifest);
 
         $embeddedStatus = 'unsigned';
         $embeddedValid = true;
 
         if ($algorithm !== 'none') {
             $embeddedValid = $embeddedPublicKey !== null
-                && $signatureService->verifyManifestWithPublicKeyContents($manifest, $embeddedPublicKey);
+                && $signatureService->verifyManifestWithPublicKeyContents($signedManifest, $embeddedPublicKey);
             $embeddedStatus = $embeddedValid ? 'valid' : 'invalid';
         }
 

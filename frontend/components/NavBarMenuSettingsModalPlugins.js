@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useState } from "react";
 import { Platform, ScrollView, View, useWindowDimensions } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Chip, Icon, IconButton, Searchbar, Text, TextInput, Tooltip, useTheme } from "react-native-paper";
+import { Button, Card, Chip, Icon, IconButton, Menu, Searchbar, Text, TextInput, Tooltip, useTheme } from "react-native-paper";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 import API from "../includes/API";
 import SimpleDialog from "./SimpleDialog";
@@ -98,8 +98,8 @@ const buildPluginBadges = (plugin, theme) => {
       icon: "certificate",
       label: "Signed",
       tooltip: "The plugin signature matched a trusted key on this WPrint 3D instance.",
-      style: { backgroundColor: theme.colors.tertiaryContainer },
-      textStyle: { color: theme.colors.onTertiaryContainer },
+      style: { backgroundColor: theme.colors.success || "#0a9900" },
+      textStyle: { color: "#ffffff" },
     },
     trusted: {
       icon: "shield-check",
@@ -180,9 +180,86 @@ const buildRegistrySourceBadge = (source, theme) => {
   };
 };
 
+const buildMutationFeedback = (response, variables = {}) => {
+  const pluginId = response?.data?.id;
+  const loadStatus = response?.data?.loadStatus;
+  const lastError = response?.data?.lastError;
+  const updateStatus = response?.data?.updateStatus;
+  const latestVersion = response?.data?.latestVersion || response?.data?.version;
+
+  if (loadStatus === "failed" && lastError) {
+    return {
+      message: `${pluginId} failed to load: ${lastError}`,
+      variant: "warning",
+    };
+  }
+
+  if (variables.intent === "update") {
+    if (updateStatus === "noop") {
+      return {
+        message: pluginId
+          ? `No updates found for ${pluginId}${latestVersion ? ` (${latestVersion})` : ""}.`
+          : "No updates found.",
+        variant: "info",
+      };
+    }
+
+    if (updateStatus === "unsupported") {
+      return {
+        message: pluginId
+          ? `No automatic update source is configured for ${pluginId}.`
+          : "No automatic update source is configured for this plugin.",
+        variant: "info",
+      };
+    }
+
+    if (updateStatus === "refreshed") {
+      return {
+        message: pluginId
+          ? `Refreshed ${pluginId} from the live source mount.`
+          : "Plugin refreshed from the live source mount.",
+        variant: "success",
+      };
+    }
+
+    return {
+      message: pluginId ? `Updated ${pluginId}.` : "Plugin updated.",
+      variant: "success",
+    };
+  }
+
+  if (variables.intent === "toggle") {
+    return {
+      message: pluginId
+        ? `${response?.data?.enabled ? "Enabled" : "Disabled"} ${pluginId}.`
+        : "Plugin state updated.",
+      variant: "success",
+    };
+  }
+
+  if (variables.intent === "install") {
+    return {
+      message: pluginId ? `Installed ${pluginId}.` : "Plugin installed.",
+      variant: "success",
+    };
+  }
+
+  if (variables.intent === "safe-mode") {
+    return {
+      message: `Safe mode enabled. Disabled ${response?.data?.disabledCount ?? 0} plugin${response?.data?.disabledCount === 1 ? "" : "s"}.`,
+      variant: "info",
+    };
+  }
+
+  return {
+    message: pluginId ? `Updated ${pluginId}.` : "Plugin operation completed.",
+    variant: "success",
+  };
+};
+
 const gridCardStyle = (theme, cardWidth, isWideLayout) => ({
   width: cardWidth,
-  minWidth: isWideLayout ? 360 : undefined,
+  minWidth: isWideLayout ? 620 : undefined,
   borderRadius: 18,
   borderWidth: 1,
   borderColor: theme.colors.outlineVariant,
@@ -221,6 +298,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
   const [ registrySourceIndexUrl, setRegistrySourceIndexUrl ] = useState("");
   const [ registrySourceWebsiteUrl, setRegistrySourceWebsiteUrl ] = useState("");
   const [ overlayState, setOverlayStateState ] = useState(() => ({ ...persistedOverlayState }));
+  const [ pluginActionsMenuId, setPluginActionsMenuId ] = useState(null);
 
   const updateOverlayState = (updates) => {
     const nextState = typeof updates === "function"
@@ -263,7 +341,8 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
   });
 
   const isWideLayout = window.width >= 1200;
-  const cardWidth = isWideLayout ? 440 : "100%";
+  const isCompactActionLayout = window.width < 720;
+  const cardWidth = isWideLayout ? 760 : (window.width >= 840 ? 620 : "100%");
 
   const userQuery = useQuery({
     queryKey: ["currentUser"],
@@ -346,7 +425,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
 
   const mutateAndRefresh = useMutation({
     mutationFn: ({ url, body = {} }) => API.post(url, body),
-    onSuccess: (response) => {
+    onSuccess: (response, variables) => {
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["pluginRegistry"] });
       queryClient.invalidateQueries({ queryKey: ["pluginRegistrySources"] });
@@ -354,15 +433,11 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       queryClient.invalidateQueries({ queryKey: ["pluginExtensions"] });
       queryClient.invalidateQueries({ queryKey: ["pluginLogs"] });
 
-      const pluginId = response?.data?.id;
-      const loadStatus = response?.data?.loadStatus;
-      const lastError = response?.data?.lastError;
+      const feedback = buildMutationFeedback(response, variables);
 
       enqueueSnackbar({
-        message: loadStatus === "failed" && lastError
-          ? `${pluginId} failed to load: ${lastError}`
-          : (pluginId ? `Updated ${pluginId}.` : "Plugin operation completed."),
-        variant: loadStatus === "failed" ? "warning" : "success",
+        message: feedback.message,
+        variant: feedback.variant,
         action: { label: "Got it" },
       });
     },
@@ -427,6 +502,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
     mutateAndRefresh.mutate({
       url: "/plugins/install",
       body: { package: file },
+      intent: "install",
     });
     setInstallModalVisible(false);
   };
@@ -460,7 +536,10 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
     if (!confirmationDialog) { return; }
 
     if (confirmationDialog.kind === "toggle") {
-      mutateAndRefresh.mutate({ url: `/plugins/${confirmationDialog.plugin.id}/${confirmationDialog.plugin.enabled ? "disable" : "enable"}` });
+      mutateAndRefresh.mutate({
+        url: `/plugins/${confirmationDialog.plugin.id}/${confirmationDialog.plugin.enabled ? "disable" : "enable"}`,
+        intent: "toggle",
+      });
     }
 
     if (confirmationDialog.kind === "remove") {
@@ -468,7 +547,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
     }
 
     if (confirmationDialog.kind === "safe-mode") {
-      mutateAndRefresh.mutate({ url: "/plugins/safe-mode", body: {} });
+      mutateAndRefresh.mutate({ url: "/plugins/safe-mode", body: {}, intent: "safe-mode" });
     }
 
     if (confirmationDialog.kind === "remove-registry-source") {
@@ -490,6 +569,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
     mutateAndRefresh.mutate({
       url: "/plugins/install",
       body: { url: installUrl },
+      intent: "install",
     });
 
     setInstallModalVisible(false);
@@ -504,6 +584,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
         version: plugin.version || plugin.latestVersion,
         sourceId: plugin.registrySource?.id,
       },
+      intent: "install",
     });
   };
 
@@ -511,6 +592,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
     mutateAndRefresh.mutate({
       url: "/plugins/install",
       body: { unpackedPath: path },
+      intent: "install",
     });
     setInstallModalVisible(false);
   };
@@ -597,120 +679,217 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
 
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
                 {(installedPluginsQuery?.data?.data || []).map((plugin) => (
-                  <Card key={plugin.id} style={gridCardStyle(theme, cardWidth, isWideLayout)}>
-                    <Card.Title title={plugin.name} subtitle={`${plugin.id} • ${plugin.version}`} />
-                    <Card.Content>
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-                        {buildPluginBadges(plugin, theme).map((badge) => (
-                          <Tooltip key={`${plugin.id}-${badge.label}`} title={badge.tooltip}>
-                            <Chip icon={badge.icon} style={badge.style} textStyle={badge.textStyle}>
-                              {badge.label}
-                            </Chip>
-                          </Tooltip>
-                        ))}
-                      </View>
+                  (() => {
+                    const toggleActionLabel = plugin.enabled ? "Disable" : (plugin.loadStatus === "failed" ? "Retry" : "Enable");
+                    const toggleActionIcon = plugin.enabled ? "pause-circle-outline" : (plugin.loadStatus === "failed" ? "restart" : "power");
+                    const updateActionLabel = plugin.installSource?.type === "development_mount" ? "Refresh" : "Update";
+                    const updateActionIcon = plugin.installSource?.type === "development_mount" ? "refresh" : "update";
+                    const hasSettingsPage = !!settingsPageMap[plugin.id];
 
-                      {!!plugin.dependencies?.hint && (
-                        <Text style={{ color: theme.colors.onSurfaceVariant, marginBottom: 10 }}>
-                          {plugin.dependencies.hint}
-                        </Text>
-                      )}
+                    const openToggleDialog = () => openConfirmationDialog({
+                      kind: "toggle",
+                      plugin,
+                      title: plugin.enabled ? `Disable ${plugin.name}?` : `${plugin.loadStatus === "failed" ? "Retry" : "Enable"} ${plugin.name}?`,
+                      body: plugin.enabled
+                        ? "Its UI surfaces and actions will stop running until you enable it again."
+                        : (plugin.loadStatus === "failed"
+                          ? "WPrint 3D will try to start the plugin again and record fresh startup logs."
+                          : "Its registered UI surfaces and actions will become active again."),
+                      confirmLabel: plugin.enabled ? "Disable plugin" : (plugin.loadStatus === "failed" ? "Retry plugin" : "Enable plugin"),
+                    });
 
-                      {!!buildRequirementSummary(plugin) && (
-                        <Text style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12 }}>
-                          {buildRequirementSummary(plugin)}
-                        </Text>
-                      )}
+                    const openRemoveDialog = () => openConfirmationDialog({
+                      kind: "remove",
+                      plugin,
+                      title: `Remove ${plugin.name}?`,
+                      body: "This uninstalls the plugin from the current WPrint 3D instance.",
+                      confirmLabel: "Remove plugin",
+                    });
 
-                      {plugin.loadStatus === "failed" && !!plugin.lastError && (
-                        <View
-                          style={{
-                            marginBottom: 12,
-                            padding: 12,
-                            borderRadius: 14,
-                            backgroundColor: theme.colors.errorContainer,
-                          }}
-                        >
-                          <Text style={{ color: theme.colors.onErrorContainer, fontWeight: "700", marginBottom: 4 }}>
-                            Plugin failed to load
-                          </Text>
-                          <Text style={{ color: theme.colors.onErrorContainer }}>
-                            {plugin.lastError}
-                          </Text>
-                        </View>
-                      )}
+                    const secondaryActions = [
+                      {
+                        key: "logs",
+                        icon: "text-box-search-outline",
+                        label: "Logs",
+                        onPress: () => setLogsDialogPlugin({
+                          id: plugin.id,
+                          name: plugin.name,
+                        }),
+                      },
+                      {
+                        key: "update",
+                        icon: plugin.installSource?.type === "development_mount" ? "refresh" : "update",
+                        label: updateActionLabel,
+                        onPress: () => mutateAndRefresh.mutate({ url: `/plugins/${plugin.id}/update`, intent: "update" }),
+                      },
+                      {
+                        key: "remove",
+                        icon: "trash-can-outline",
+                        label: "Remove",
+                        titleStyle: { color: theme.colors.error },
+                        onPress: openRemoveDialog,
+                      },
+                    ];
 
-                      {!!plugin.warnings?.length && (
-                        <View
-                          style={{
-                            marginBottom: 12,
-                            padding: 12,
-                            borderRadius: 14,
-                            backgroundColor: theme.colors.tertiaryContainer,
-                          }}
-                        >
-                          <Text style={{ color: theme.colors.onTertiaryContainer }}>
-                            {plugin.warnings.join(" ")}
-                          </Text>
-                        </View>
-                      )}
+                    return (
+                      <Card key={plugin.id} style={gridCardStyle(theme, cardWidth, isWideLayout)}>
+                        <Card.Title title={plugin.name} subtitle={`${plugin.id} • ${plugin.version}`} />
+                        <Card.Content>
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                            {buildPluginBadges(plugin, theme).map((badge) => (
+                              <Tooltip key={`${plugin.id}-${badge.label}`} title={badge.tooltip}>
+                                <Chip icon={badge.icon} style={badge.style} textStyle={badge.textStyle}>
+                                  {badge.label}
+                                </Chip>
+                              </Tooltip>
+                            ))}
+                          </View>
 
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                        {!!settingsPageMap[plugin.id] && (
-                          <Button
-                            mode="contained-tonal"
-                            icon="cog-outline"
-                            onPress={() => onOpenSettingsPage(settingsPageMap[plugin.id].key)}
-                          >
-                            Settings
-                          </Button>
-                        )}
-                        <Button
-                          mode="outlined"
-                          icon="text-box-search-outline"
-                          onPress={() => setLogsDialogPlugin({
-                            id: plugin.id,
-                            name: plugin.name,
-                          })}
-                        >
-                          Logs
-                        </Button>
-                        <Button
-                          mode={plugin.enabled ? "outlined" : "contained-tonal"}
-                          onPress={() => openConfirmationDialog({
-                            kind: "toggle",
-                            plugin,
-                            title: plugin.enabled ? `Disable ${plugin.name}?` : `${plugin.loadStatus === "failed" ? "Retry" : "Enable"} ${plugin.name}?`,
-                            body: plugin.enabled
-                              ? "Its UI surfaces and actions will stop running until you enable it again."
-                              : (plugin.loadStatus === "failed"
-                                ? "WPrint 3D will try to start the plugin again and record fresh startup logs."
-                                : "Its registered UI surfaces and actions will become active again."),
-                            confirmLabel: plugin.enabled ? "Disable plugin" : (plugin.loadStatus === "failed" ? "Retry plugin" : "Enable plugin"),
-                          })}
-                        >
-                          {plugin.enabled ? "Disable" : (plugin.loadStatus === "failed" ? "Retry" : "Enable")}
-                        </Button>
-                        <Button mode="outlined" onPress={() => mutateAndRefresh.mutate({ url: `/plugins/${plugin.id}/update` })}>
-                          {plugin.installSource?.type === "development_mount" ? "Refresh" : "Update"}
-                        </Button>
-                        <Button
-                          mode="outlined"
-                          buttonColor={theme.colors.errorContainer}
-                          textColor={theme.colors.onErrorContainer}
-                          onPress={() => openConfirmationDialog({
-                            kind: "remove",
-                            plugin,
-                            title: `Remove ${plugin.name}?`,
-                            body: "This uninstalls the plugin from the current WPrint 3D instance.",
-                            confirmLabel: "Remove plugin",
-                          })}
-                        >
-                          Remove
-                        </Button>
-                      </View>
-                    </Card.Content>
-                  </Card>
+                          {!!plugin.dependencies?.hint && (
+                            <Text style={{ color: theme.colors.onSurfaceVariant, marginBottom: 10 }}>
+                              {plugin.dependencies.hint}
+                            </Text>
+                          )}
+
+                          {!!buildRequirementSummary(plugin) && (
+                            <Text style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12 }}>
+                              {buildRequirementSummary(plugin)}
+                            </Text>
+                          )}
+
+                          {plugin.loadStatus === "failed" && !!plugin.lastError && (
+                            <View
+                              style={{
+                                marginBottom: 12,
+                                padding: 12,
+                                borderRadius: 14,
+                                backgroundColor: theme.colors.errorContainer,
+                              }}
+                            >
+                              <Text style={{ color: theme.colors.onErrorContainer, fontWeight: "700", marginBottom: 4 }}>
+                                Plugin failed to load
+                              </Text>
+                              <Text style={{ color: theme.colors.onErrorContainer }}>
+                                {plugin.lastError}
+                              </Text>
+                            </View>
+                          )}
+
+                          {!!plugin.warnings?.length && (
+                            <View
+                              style={{
+                                marginBottom: 12,
+                                padding: 12,
+                                borderRadius: 14,
+                                backgroundColor: theme.colors.tertiaryContainer,
+                              }}
+                            >
+                              <Text style={{ color: theme.colors.onTertiaryContainer }}>
+                                {plugin.warnings.join(" ")}
+                              </Text>
+                            </View>
+                          )}
+
+                          {isCompactActionLayout ? (
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                              {hasSettingsPage && (
+                                <Button
+                                  mode="contained-tonal"
+                                  icon="cog-outline"
+                                  style={{ flex: 1 }}
+                                  contentStyle={{ minHeight: 44 }}
+                                  onPress={() => onOpenSettingsPage(settingsPageMap[plugin.id].key)}
+                                >
+                                  Settings
+                                </Button>
+                              )}
+                              <Button
+                                mode={plugin.enabled ? "outlined" : "contained-tonal"}
+                                icon={toggleActionIcon}
+                                style={{ flex: hasSettingsPage ? 1 : undefined }}
+                                contentStyle={{ minHeight: 44 }}
+                                onPress={openToggleDialog}
+                              >
+                                {toggleActionLabel}
+                              </Button>
+                              <Menu
+                                visible={pluginActionsMenuId === plugin.id}
+                                onDismiss={() => setPluginActionsMenuId(null)}
+                                anchor={(
+                                  <IconButton
+                                    icon="dots-vertical"
+                                    mode="outlined"
+                                    size={20}
+                                    containerColor={theme.colors.elevation.level1}
+                                    onPress={() => setPluginActionsMenuId(plugin.id)}
+                                  />
+                                )}
+                              >
+                                {secondaryActions.map((action) => (
+                                  <Menu.Item
+                                    key={`${plugin.id}-${action.key}`}
+                                    leadingIcon={action.icon}
+                                    title={action.label}
+                                    titleStyle={action.titleStyle}
+                                    onPress={() => {
+                                      setPluginActionsMenuId(null);
+                                      action.onPress();
+                                    }}
+                                  />
+                                ))}
+                              </Menu>
+                            </View>
+                          ) : (
+                            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                              {hasSettingsPage && (
+                                <Button
+                                  mode="contained-tonal"
+                                  icon="cog-outline"
+                                  onPress={() => onOpenSettingsPage(settingsPageMap[plugin.id].key)}
+                                >
+                                  Settings
+                                </Button>
+                              )}
+                              <Button
+                                mode="outlined"
+                                icon="text-box-search-outline"
+                                onPress={() => setLogsDialogPlugin({
+                                  id: plugin.id,
+                                  name: plugin.name,
+                                })}
+                              >
+                                Logs
+                              </Button>
+                              <Button
+                                mode={plugin.enabled ? "outlined" : "contained-tonal"}
+                                icon={toggleActionIcon}
+                                onPress={openToggleDialog}
+                              >
+                                {toggleActionLabel}
+                              </Button>
+                              <Button
+                                mode="outlined"
+                                icon={updateActionIcon}
+                                onPress={() => mutateAndRefresh.mutate({ url: `/plugins/${plugin.id}/update`, intent: "update" })}
+                              >
+                                {updateActionLabel}
+                              </Button>
+                              <Button
+                                mode="contained"
+                                icon="trash-can-outline"
+                                buttonColor={theme.colors.error}
+                                textColor={theme.colors.white || "#ffffff"}
+                                iconColor={theme.colors.white || "#ffffff"}
+                                onPress={openRemoveDialog}
+                              >
+                                Remove
+                              </Button>
+                            </View>
+                          )}
+                        </Card.Content>
+                      </Card>
+                    );
+                  })()
                 ))}
               </View>
 
