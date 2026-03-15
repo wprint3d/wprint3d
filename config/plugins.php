@@ -107,12 +107,14 @@ return [
         'index_url' => env('PLUGIN_REGISTRY_INDEX_URL', 'https://raw.githubusercontent.com/wprint3d/plugin-registry/main/index.json'),
         'website_url' => env('PLUGIN_REGISTRY_WEBSITE_URL', 'https://github.com/wprint3d/plugin-registry'),
         'github_repo' => env('PLUGIN_REGISTRY_GITHUB_REPO', 'wprint3d/plugin-registry'),
+        'trusted_keys_index_path' => env('PLUGIN_REGISTRY_TRUSTED_KEYS_INDEX_PATH', 'signers/index.json'),
     ],
 
     'signature' => [
         'private_key_path' => env('PLUGIN_SIGNING_PRIVATE_KEY'),
         'private_key_passphrase' => env('PLUGIN_SIGNING_PRIVATE_KEY_PASSPHRASE'),
         'trusted_public_keys' => array_filter(array_map('trim', explode(',', (string) env('PLUGIN_TRUSTED_PUBLIC_KEYS', '')))),
+        'synced_trusted_keys_path' => env('PLUGIN_SYNCED_TRUSTED_KEYS_PATH', storage_path('app/plugins/trusted-keys')),
     ],
 
     'development' => [

@@ -173,7 +173,7 @@ Notes:
 
 - `plugin:pack --signing-key=...` signs the canonical manifest payload with SHA-256.
 - The embedded `publicKey` is there for transparency and offline verification.
-- Host trust still depends on configured trusted keys, not on blindly trusting the package’s embedded key.
+- Host trust still depends on configured or synced trusted keys, not on blindly trusting the package’s embedded key.
 
 ### Canonical Plugin URLs
 
