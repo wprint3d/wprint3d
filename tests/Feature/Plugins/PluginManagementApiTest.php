@@ -62,6 +62,111 @@ class PluginManagementApiTest extends TestCase
             ->assertJsonPath('enabled', true);
     }
 
+    public function test_it_reads_plugin_settings(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('getSettings')
+            ->once()
+            ->with('acme.demo')
+            ->andReturn([
+                'displayRaspiTemp' => true,
+                'soc_name' => 'SoC',
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->getJson('/api/plugins/acme.demo/settings');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('displayRaspiTemp', true)
+            ->assertJsonPath('soc_name', 'SoC');
+    }
+
+    public function test_it_updates_plugin_settings(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('updateSettings')
+            ->once()
+            ->with('acme.demo', [
+                'displayRaspiTemp' => false,
+                'soc_name' => 'Host',
+            ])
+            ->andReturn([
+                'displayRaspiTemp' => false,
+                'soc_name' => 'Host',
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->putJson('/api/plugins/acme.demo/settings', [
+            'settings' => [
+                'displayRaspiTemp' => false,
+                'soc_name' => 'Host',
+            ],
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('displayRaspiTemp', false)
+            ->assertJsonPath('soc_name', 'Host');
+    }
+
+    public function test_it_reads_plugin_state(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('getState')
+            ->once()
+            ->with('acme.demo')
+            ->andReturn([
+                'items' => [
+                    [
+                        'id' => 'tool0',
+                        'text' => 'E: 205.0°C',
+                    ],
+                ],
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->getJson('/api/plugins/acme.demo/state');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('items.0.id', 'tool0')
+            ->assertJsonPath('items.0.text', 'E: 205.0°C');
+    }
+
+    public function test_it_reads_plugin_logs(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('getLogs')
+            ->once()
+            ->with('acme.demo')
+            ->andReturn([
+                [
+                    'timestamp' => '2026-03-14T12:00:00+00:00',
+                    'level' => 'info',
+                    'stage' => 'startup',
+                    'message' => 'Plugin startup completed.',
+                ],
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->getJson('/api/plugins/acme.demo/logs');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('0.level', 'info')
+            ->assertJsonPath('0.stage', 'startup')
+            ->assertJsonPath('0.message', 'Plugin startup completed.');
+    }
+
     public function test_it_reports_development_plugin_capabilities(): void
     {
         $mountPath = sys_get_temp_dir().'/wprint3d-test-plugins-dev';
@@ -308,6 +413,55 @@ class PluginManagementApiTest extends TestCase
             ->assertJsonPath('trustLevel', 'development');
     }
 
+    public function test_it_installs_an_unpacked_plugin_when_the_live_mount_is_available_even_if_the_explicit_dev_flag_is_stale(): void
+    {
+        $mountPath = sys_get_temp_dir().'/wprint3d-test-plugins-dev-install';
+        File::ensureDirectoryExists($mountPath);
+
+        $previousEnv = getenv('DEVELOPER_MODE');
+        putenv('DEVELOPER_MODE=false');
+        $_ENV['DEVELOPER_MODE'] = 'false';
+        $_SERVER['DEVELOPER_MODE'] = 'false';
+
+        try {
+            config()->set('plugins.development.enabled', false);
+            config()->set('plugins.development.mount_path', $mountPath);
+            config()->set('plugins.development.mount_paths', []);
+
+            $manager = Mockery::mock(PluginManager::class);
+            $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+            $manager->shouldReceive('installFromDevelopmentPath')
+                ->once()
+                ->with($mountPath.'/acme-demo')
+                ->andReturn([
+                    'id' => 'acme.demo',
+                    'trustLevel' => 'development',
+                ]);
+
+            $this->app->instance(PluginManager::class, $manager);
+
+            $response = $this->withoutMiddleware()->postJson('/api/plugins/install', [
+                'unpackedPath' => $mountPath.'/acme-demo',
+            ]);
+
+            $response
+                ->assertOk()
+                ->assertJsonPath('id', 'acme.demo')
+                ->assertJsonPath('trustLevel', 'development');
+        } finally {
+            File::deleteDirectory($mountPath);
+
+            if ($previousEnv === false) {
+                putenv('DEVELOPER_MODE');
+                unset($_ENV['DEVELOPER_MODE'], $_SERVER['DEVELOPER_MODE']);
+            } else {
+                putenv("DEVELOPER_MODE={$previousEnv}");
+                $_ENV['DEVELOPER_MODE'] = $previousEnv;
+                $_SERVER['DEVELOPER_MODE'] = $previousEnv;
+            }
+        }
+    }
+
     public function test_it_installs_a_registry_plugin_from_a_specific_source(): void
     {
         $manager = Mockery::mock(PluginManager::class);
@@ -336,6 +490,12 @@ class PluginManagementApiTest extends TestCase
 
     public function test_it_rejects_unpacked_plugin_installs_when_development_mount_support_is_disabled(): void
     {
+        $previousEnv = getenv('DEVELOPER_MODE');
+
+        putenv('DEVELOPER_MODE=false');
+        $_ENV['DEVELOPER_MODE'] = 'false';
+        $_SERVER['DEVELOPER_MODE'] = 'false';
+
         config()->set('plugins.development.enabled', false);
         config()->set('plugins.development.mount_path', '/path/that/does/not/exist');
         config()->set('plugins.development.mount_paths', []);
@@ -351,6 +511,15 @@ class PluginManagementApiTest extends TestCase
         ]);
 
         $response->assertForbidden();
+
+        if ($previousEnv === false) {
+            putenv('DEVELOPER_MODE');
+            unset($_ENV['DEVELOPER_MODE'], $_SERVER['DEVELOPER_MODE']);
+        } else {
+            putenv("DEVELOPER_MODE={$previousEnv}");
+            $_ENV['DEVELOPER_MODE'] = $previousEnv;
+            $_SERVER['DEVELOPER_MODE'] = $previousEnv;
+        }
     }
 
     public function test_it_exposes_sdk_metadata(): void
@@ -429,5 +598,20 @@ class PluginManagementApiTest extends TestCase
         $response
             ->assertOk()
             ->assertHeader('Content-Type', 'text/javascript; charset=UTF-8');
+    }
+
+    public function test_it_serves_the_octoprint_compatibility_helper_script(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->get('/api/plugins/sdk/octoprint-compat.js');
+
+        $response
+            ->assertOk()
+            ->assertHeader('Content-Type', 'text/javascript; charset=UTF-8')
+            ->assertSee('WPrint3DOctoPrintCompat', false);
     }
 }

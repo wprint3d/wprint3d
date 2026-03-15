@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 class PluginList extends Command
 {
     protected $signature = 'plugin:list';
+
     protected $description = 'List installed plugins';
 
     public function handle(PluginManager $pluginManager): int
@@ -15,12 +16,13 @@ class PluginList extends Command
         $plugins = $pluginManager->listInstalled();
 
         $this->table(
-            ['ID', 'Name', 'Version', 'Enabled', 'Trust'],
+            ['ID', 'Name', 'Version', 'Enabled', 'Status', 'Trust'],
             collect($plugins)->map(fn ($plugin) => [
                 $plugin['id'],
                 $plugin['name'],
                 $plugin['version'],
                 $plugin['enabled'] ? 'yes' : 'no',
+                $plugin['loadStatus'] ?? 'unknown',
                 $plugin['trustLevel'],
             ])->all()
         );

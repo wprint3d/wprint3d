@@ -18,6 +18,14 @@ interface PluginManager
 
     public function get(string $pluginId): array;
 
+    public function getSettings(string $pluginId): array;
+
+    public function updateSettings(string $pluginId, array $settings): array;
+
+    public function getState(string $pluginId): array;
+
+    public function getLogs(string $pluginId): array;
+
     public function installFromArchive(string $archivePath, string $sourceType = 'local_upload', array $sourceMeta = []): array;
 
     public function installFromUrl(string $url): array;
@@ -30,7 +38,7 @@ interface PluginManager
 
     public function disable(string $pluginId): array;
 
-    public function uninstall(string $pluginId): void;
+    public function uninstall(string $pluginId): bool;
 
     public function update(string $pluginId): array;
 

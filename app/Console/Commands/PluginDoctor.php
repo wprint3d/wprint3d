@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 class PluginDoctor extends Command
 {
     protected $signature = 'plugin:doctor {--safe-mode : Disable all enabled plugins after printing diagnostics}';
+
     protected $description = 'Run plugin health diagnostics';
 
     public function handle(PluginManager $pluginManager): int
@@ -15,13 +16,15 @@ class PluginDoctor extends Command
         $results = $pluginManager->doctor();
 
         $this->table(
-            ['ID', 'Enabled', 'Runtime Path', 'Trust', 'Warnings'],
+            ['ID', 'Enabled', 'Status', 'Runtime Path', 'Trust', 'Warnings', 'Last error'],
             collect($results)->map(fn ($result) => [
                 $result['id'],
                 $result['enabled'] ? 'yes' : 'no',
+                $result['loadStatus'] ?? 'unknown',
                 $result['runtimePathExists'] ? 'ok' : 'missing',
                 $result['trustLevel'],
                 implode('; ', $result['warnings']),
+                $result['lastError'] ?? '',
             ])->all()
         );
 

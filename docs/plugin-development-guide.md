@@ -51,7 +51,7 @@ This is intentionally close to the host-managed add-on model used by systems lik
 - Best default.
 - Host-rendered and theme-native.
 - Recommended for settings tabs, cards, lists, forms, buttons, and compact metrics.
-- Supports `remote_component`, a reusable host-rendered component kind that works on web and native.
+- Supports a stable `host.*` component registry plus `host.remote_component`, a reusable host-rendered component kind that works on web and native.
 
 `webview`
 
@@ -79,6 +79,20 @@ This still does not mean arbitrary runtime-loaded React Native code. In practice
 
 That gives us a real cross-platform remote component API without allowing unbounded third-party React Native code execution inside the app shell.
 
+## Host Component Registry
+
+The declarative host renderer now exposes a stable registry of host components. New plugins should prefer `host.*` namespaced component ids instead of depending on raw renderer internals.
+
+Recommended components:
+
+- layout: `host.stack`, `host.row`, `host.surface`, `host.scroll`, `host.spacer`
+- typography: `host.heading`, `host.text`, `host.caption`
+- actions/forms: `host.button`, `host.input`, `host.switch`, `host.form`
+- display: `host.section`, `host.card`, `host.list`, `host.key_value`, `host.badge`, `host.chip_group`, `host.progress`
+- dynamic widgets: `host.progress_cluster`, `host.data_strip`, `host.remote_component`
+
+Legacy ids like `section`, `text`, `button`, `progress_cluster`, and `remote_component` still work, but they are compatibility aliases now.
+
 ## Manifest Anatomy
 
 ```json
@@ -87,7 +101,7 @@ That gives us a real cross-platform remote component API without allowing unboun
   "name": "Hello World",
   "version": "0.1.0",
   "sdkVersion": 1,
-  "sdkRevision": 2,
+  "sdkRevision": 4,
   "runtime": {
     "type": "php",
     "entry": "plugin.php"
@@ -109,10 +123,10 @@ That gives us a real cross-platform remote component API without allowing unboun
       "mode": "declarative",
       "title": "Hello World",
       "schema": {
-        "component": "section",
+        "component": "host.section",
         "children": [
           {
-            "component": "button",
+            "component": "host.button",
             "label": "Ping",
             "actionId": "ping"
           }
@@ -172,7 +186,76 @@ It also creates a local `AGENTS.md` file inside the plugin directory so contribu
 
 Use `./plugin.sh` from the host checkout when possible. It enters the running backend container and executes `php artisan plugin:*` there, which avoids requiring the host machine to have the same PHP runtime as the stack.
 
-Scaffolds created with `./plugin.sh make` land in repo [plugins](/home/facuarmo/wprint3d-core/plugins) by default. In the development stack, the unpacked install flow discovers both your local `plugins/` directory and the bundled reference plugins under [examples/plugins](/home/facuarmo/wprint3d-core/examples/plugins), so new plugins show up next to the samples in `Settings -> Plugins -> Add a plugin -> Install unpacked`.
+Scaffolds created with `./plugin.sh make` land in repo [plugins](../plugins) by default. In the development stack, the unpacked install flow discovers both your local `plugins/` directory and the bundled reference plugins under [examples/plugins](../examples/plugins), so new plugins show up next to the samples in `Settings -> Plugins -> Add a plugin -> Install unpacked`.
+
+## Runtime Diagnostics
+
+Every installed plugin now keeps a bounded lifecycle log and a host-visible load state.
+
+In the UI, the plugin inventory exposes:
+
+- a `Logs` button on every installed plugin card
+- a `Failed to load` badge when startup or source sync failed
+- the most recent startup error in the card body
+
+Use this when developing:
+
+1. install or refresh the plugin
+2. enable it
+3. if it fails, open `Logs`
+4. fix the startup issue and try again
+
+This is the intended debugging path. Plugins should fail gracefully and leave diagnostics behind instead of taking the host down with them.
+
+## Porting OctoPrint Plugins
+
+The current SDK revision is designed to make OctoPrint ports mechanically straightforward.
+
+Use this mapping:
+
+- `SettingsPlugin.get_settings_defaults()` -> `settings.defaults`
+- `_plugin_manager.send_plugin_message(...)` -> `send_plugin_message`
+- `TemplatePlugin` settings template -> `settings_tab`
+- navbar template -> `navbar_widget`
+- `AssetPlugin` files -> manifest `assets`
+- browser AJAX/view model code -> `/api/plugins/sdk/octoprint-compat.js`
+
+### Recommended Port Strategy
+
+1. Keep the original settings keys.
+2. Rebuild navbar/status widgets as host-rendered declarative surfaces first.
+3. Use a `custom_bundle` settings tab only if the original browser-side behavior is meaningful and reusable.
+4. If the original plugin only needed periodic refresh while visible, use action polling instead of recreating a long-lived server timer.
+
+### OctoPrint Browser Helper
+
+For browser-based settings pages, import:
+
+```js
+await import("/backend/api/plugins/sdk/octoprint-compat.js");
+const host = window.WPrint3DOctoPrintCompat.fromWindow();
+```
+
+Then use:
+
+- `host.getSettings()`
+- `host.saveSettings(settings)`
+- `host.getState()`
+- `host.watchState(callback, options)`
+- `host.invokeAction("actionId", payload)`
+
+### Reference Port
+
+Use [examples/plugins/octoprint-navbartemp-port](../examples/plugins/octoprint-navbartemp-port) as the reference implementation.
+
+It shows:
+
+- persisted settings defaults that mirror the original OctoPrint plugin
+- a host-rendered native navbar strip
+- a `custom_bundle` settings tab using the compatibility helper
+- `send_plugin_message` state updates that keep the navbar and the settings preview in sync
+
+Host-rendered `settings_tab` pages are mounted inside a shared WPrint 3D shell. That shell keeps the plugin title visible at the top, but collapses the heavier metadata/warning hero by default so the plugin's own settings UI remains the primary thing on screen.
 
 ### Shape values
 
@@ -359,14 +442,14 @@ Or declare a reusable host-rendered remote component:
     "id": "hostMetricsPanel",
     "kind": "remote_component",
     "schema": {
-      "component": "section",
+      "component": "host.section",
       "title": {
         "$prop": "title",
         "default": "Host telemetry"
       },
       "children": [
         {
-          "component": "text",
+          "component": "host.text",
           "text": "{{description}}"
         }
       ]
@@ -379,7 +462,7 @@ And consume it from a declarative schema:
 
 ```json
 "schema": {
-  "component": "remote_component",
+  "component": "host.remote_component",
   "componentId": "hostMetricsPanel",
   "props": {
     "title": "Host telemetry",
@@ -423,12 +506,12 @@ That lets the page inherit the active theme and call back into the host API with
 
 Use the Host Metrics matrix as the reference implementation:
 
-- [examples/plugins/host-metrics](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics)
-- [examples/plugins/host-metrics-webview-php](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-webview-php)
-- [examples/plugins/host-metrics-custom-bundle-php](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-custom-bundle-php)
-- [examples/plugins/host-metrics-declarative-bridge](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-declarative-bridge)
-- [examples/plugins/host-metrics-webview-bridge](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-webview-bridge)
-- [examples/plugins/host-metrics-custom-bundle-bridge](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-custom-bundle-bridge)
+- [examples/plugins/host-metrics](../examples/plugins/host-metrics)
+- [examples/plugins/host-metrics-webview-php](../examples/plugins/host-metrics-webview-php)
+- [examples/plugins/host-metrics-custom-bundle-php](../examples/plugins/host-metrics-custom-bundle-php)
+- [examples/plugins/host-metrics-declarative-bridge](../examples/plugins/host-metrics-declarative-bridge)
+- [examples/plugins/host-metrics-webview-bridge](../examples/plugins/host-metrics-webview-bridge)
+- [examples/plugins/host-metrics-custom-bundle-bridge](../examples/plugins/host-metrics-custom-bundle-bridge)
 
 These samples deliberately keep the feature set the same:
 
@@ -440,17 +523,18 @@ Only the runtime/UI shape changes.
 
 The custom-bundle variants additionally demonstrate manifest-declared JS component modules:
 
-- [examples/plugins/host-metrics-custom-bundle-php](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-custom-bundle-php)
-- [examples/plugins/host-metrics-custom-bundle-bridge](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-custom-bundle-bridge)
+- [examples/plugins/host-metrics-custom-bundle-php](../examples/plugins/host-metrics-custom-bundle-php)
+- [examples/plugins/host-metrics-custom-bundle-bridge](../examples/plugins/host-metrics-custom-bundle-bridge)
 
 The declarative variants demonstrate the cross-platform remote component API:
 
-- [examples/plugins/host-metrics](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics)
-- [examples/plugins/host-metrics-declarative-bridge](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-declarative-bridge)
+- [examples/plugins/host-metrics](../examples/plugins/host-metrics)
+- [examples/plugins/host-metrics-declarative-bridge](../examples/plugins/host-metrics-declarative-bridge)
 
 ## Best Practices
 
 - Default to `php + declarative` unless you can explain why you need something heavier.
+- Prefer `host.*` declarative component ids for new plugins so the manifest stays aligned with the documented registry.
 - Keep actions fast and idempotent.
 - Use dedicated `settings_tab` pages instead of crowding the plugin inventory.
 - Declare every WebView/custom-bundle entry asset explicitly.

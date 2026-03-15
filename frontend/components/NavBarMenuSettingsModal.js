@@ -1,7 +1,7 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Card, Chip, Icon, Modal, Portal, Text, useTheme } from "react-native-paper";
 import { Tabs, TabsProvider, TabScreen, useTabNavigation } from "react-native-paper-tabs";
-import { View } from "react-native";
+import { Animated, Easing, Pressable, View } from "react-native";
 import NavBarMenuSettingsModalPrinters from "./NavBarMenuSettingsModalPrinters";
 import { SnackbarProvider, useSnackbar } from "react-native-paper-snackbar-stack";
 import NavBarMenuSettingsModalPresets from "./NavBarMenuSettingsModalPresets";
@@ -191,6 +191,66 @@ const PluginSettingsTabIcon = ({ iconSource, color, size = 24 }) => {
 const PluginSettingsTabPanel = ({ extension, modalExtensions = [] }) => {
     const theme = useTheme();
     const headerBadges = buildPluginHeaderBadges(extension, theme);
+    const [ isExpanded, setIsExpanded ] = useState(false);
+    const [ isDetailsMounted, setIsDetailsMounted ] = useState(false);
+    const [ measuredDetailsHeight, setMeasuredDetailsHeight ] = useState(0);
+    const expansionAnimation = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        setIsExpanded(false);
+        setIsDetailsMounted(false);
+        setMeasuredDetailsHeight(0);
+        expansionAnimation.setValue(0);
+    }, [ expansionAnimation, extension?.id, extension?.pluginId ]);
+
+    useEffect(() => {
+        if (isExpanded) {
+            setIsDetailsMounted(true);
+        }
+    }, [ isExpanded ]);
+
+    useEffect(() => {
+        if (!isDetailsMounted) {
+            return undefined;
+        }
+
+        const animation = Animated.timing(expansionAnimation, {
+            toValue: isExpanded ? 1 : 0,
+            duration: 220,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: false,
+        });
+
+        animation.start(({ finished }) => {
+            if (finished && !isExpanded) {
+                setIsDetailsMounted(false);
+            }
+        });
+
+        return () => {
+            animation.stop();
+        };
+    }, [ expansionAnimation, isDetailsMounted, isExpanded ]);
+
+    const detailsMaxHeight = expansionAnimation.interpolate({
+        inputRange: [ 0, 1 ],
+        outputRange: [ 0, Math.max(measuredDetailsHeight, 320) ],
+    });
+
+    const detailsOpacity = expansionAnimation.interpolate({
+        inputRange: [ 0, 1 ],
+        outputRange: [ 0, 1 ],
+    });
+
+    const detailsTranslateY = expansionAnimation.interpolate({
+        inputRange: [ 0, 1 ],
+        outputRange: [ -8, 0 ],
+    });
+
+    const chevronRotation = expansionAnimation.interpolate({
+        inputRange: [ 0, 1 ],
+        outputRange: [ "0deg", "180deg" ],
+    });
 
     return (
         <View style={{ gap: 16, paddingBottom: 24 }}>
@@ -203,13 +263,13 @@ const PluginSettingsTabPanel = ({ extension, modalExtensions = [] }) => {
                     backgroundColor: theme.colors.elevation.level2,
                 }}
             >
-                <Card.Content style={{ gap: 16, paddingVertical: 18 }}>
-                    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 16 }}>
+                <Card.Content style={{ gap: 14, paddingVertical: 18 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
                         <View
                             style={{
-                                width: 68,
-                                height: 68,
-                                borderRadius: 20,
+                                width: 58,
+                                height: 58,
+                                borderRadius: 18,
                                 backgroundColor: theme.colors.surfaceVariant,
                                 alignItems: "center",
                                 justifyContent: "center",
@@ -218,7 +278,7 @@ const PluginSettingsTabPanel = ({ extension, modalExtensions = [] }) => {
                                 borderColor: theme.colors.outlineVariant,
                             }}
                         >
-                            <Icon source={extension.pluginIcon || "puzzle-outline"} size={30} color={theme.colors.onSurfaceVariant} />
+                            <Icon source={extension.pluginIcon || "puzzle-outline"} size={26} color={theme.colors.onSurfaceVariant} />
                             <View
                                 style={{
                                     position: "absolute",
@@ -238,60 +298,105 @@ const PluginSettingsTabPanel = ({ extension, modalExtensions = [] }) => {
                             </View>
                         </View>
 
-                        <View style={{ flex: 1, gap: 4 }}>
+                        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                             <Text variant="headlineSmall">{extension.pluginName}</Text>
-                            <Text style={{ color: theme.colors.onSurfaceVariant, fontWeight: "600" }}>
-                                {extension.title}
-                            </Text>
-                            <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                                {extension.pluginId}{extension.pluginVersion ? ` • ${extension.pluginVersion}` : ""}
-                            </Text>
+                            {isExpanded && (
+                                <Text style={{ color: theme.colors.onSurfaceVariant, fontWeight: "600" }}>
+                                    {extension.title}
+                                </Text>
+                            )}
                         </View>
+
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={isExpanded ? "Collapse plugin details" : "Expand plugin details"}
+                            onPress={() => setIsExpanded((current) => !current)}
+                            style={{
+                                width: 38,
+                                height: 38,
+                                borderRadius: 19,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                borderWidth: 1,
+                                borderColor: theme.colors.outlineVariant,
+                                backgroundColor: theme.colors.elevation.level1,
+                            }}
+                        >
+                            <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
+                                <Icon source="chevron-down" size={20} color={theme.colors.onSurfaceVariant} />
+                            </Animated.View>
+                        </Pressable>
                     </View>
 
-                    {!!extension.pluginDescription && (
-                        <Text style={{ color: theme.colors.onSurfaceVariant, maxWidth: 820 }}>
-                            {extension.pluginDescription}
-                        </Text>
-                    )}
+                    {isDetailsMounted && (
+                        <Animated.View
+                            style={{
+                                maxHeight: detailsMaxHeight,
+                                opacity: detailsOpacity,
+                                overflow: "hidden",
+                                transform: [{ translateY: detailsTranslateY }],
+                            }}
+                        >
+                            <View
+                                onLayout={(event) => {
+                                    const nextHeight = event.nativeEvent.layout.height;
 
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                        {headerBadges.map((badge) => (
-                            <Chip
-                                key={`${extension.pluginId}-${extension.id}-${badge.label}`}
-                                icon={badge.icon}
-                                style={badge.style}
-                                textStyle={badge.textStyle}
+                                    if (nextHeight > 0 && Math.abs(nextHeight - measuredDetailsHeight) > 1) {
+                                        setMeasuredDetailsHeight(nextHeight);
+                                    }
+                                }}
+                                style={{ gap: 16, paddingTop: 4 }}
                             >
-                                {badge.label}
-                            </Chip>
-                        ))}
-                    </View>
+                                <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                                    {extension.pluginId}{extension.pluginVersion ? ` • ${extension.pluginVersion}` : ""}
+                                </Text>
 
-                    {!!extension.warnings?.length && (
-                        <View style={{ gap: 8 }}>
-                            {extension.warnings.map((warning) => (
-                                <View
-                                    key={`${extension.pluginId}-${extension.id}-${warning}`}
-                                    style={{
-                                        flexDirection: "row",
-                                        alignItems: "flex-start",
-                                        gap: 10,
-                                        paddingHorizontal: 14,
-                                        paddingVertical: 12,
-                                        borderRadius: 16,
-                                        backgroundColor: theme.colors.errorContainer,
-                                        borderWidth: 1,
-                                        borderColor: theme.colors.outlineVariant,
-                                    }}
-                                >
-                                    <Icon source="alert-circle-outline" size={18} color={theme.colors.onErrorContainer} />
-                                    <Text style={{ color: theme.colors.onErrorContainer, flex: 1 }}>
-                                        {warning}
+                                {!!extension.pluginDescription && (
+                                    <Text style={{ color: theme.colors.onSurfaceVariant, maxWidth: 820 }}>
+                                        {extension.pluginDescription}
                                     </Text>
+                                )}
+
+                                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                                    {headerBadges.map((badge) => (
+                                        <Chip
+                                            key={`${extension.pluginId}-${extension.id}-${badge.label}`}
+                                            icon={badge.icon}
+                                            style={badge.style}
+                                            textStyle={badge.textStyle}
+                                        >
+                                            {badge.label}
+                                        </Chip>
+                                    ))}
                                 </View>
-                            ))}
-                        </View>
+
+                                {!!extension.warnings?.length && (
+                                    <View style={{ gap: 8 }}>
+                                        {extension.warnings.map((warning) => (
+                                            <View
+                                                key={`${extension.pluginId}-${extension.id}-${warning}`}
+                                                style={{
+                                                    flexDirection: "row",
+                                                    alignItems: "flex-start",
+                                                    gap: 10,
+                                                    paddingHorizontal: 14,
+                                                    paddingVertical: 12,
+                                                    borderRadius: 16,
+                                                    backgroundColor: theme.colors.errorContainer,
+                                                    borderWidth: 1,
+                                                    borderColor: theme.colors.outlineVariant,
+                                                }}
+                                            >
+                                                <Icon source="alert-circle-outline" size={18} color={theme.colors.onErrorContainer} />
+                                                <Text style={{ color: theme.colors.onErrorContainer, flex: 1 }}>
+                                                    {warning}
+                                                </Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
+                            </View>
+                        </Animated.View>
                     )}
                 </Card.Content>
             </Card>

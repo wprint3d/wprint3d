@@ -29,6 +29,30 @@ class PluginController extends Controller
         return $this->pluginManager->get($pluginId);
     }
 
+    public function settings(string $pluginId): array
+    {
+        return $this->pluginManager->getSettings($pluginId);
+    }
+
+    public function updateSettings(string $pluginId, Request $request): array
+    {
+        $validated = $request->validate([
+            'settings' => ['required', 'array'],
+        ]);
+
+        return $this->pluginManager->updateSettings($pluginId, $validated['settings']);
+    }
+
+    public function state(string $pluginId): array
+    {
+        return $this->pluginManager->getState($pluginId);
+    }
+
+    public function logs(string $pluginId): array
+    {
+        return $this->pluginManager->getLogs($pluginId);
+    }
+
     public function registry(): array
     {
         return $this->pluginManager->listRegistry();
@@ -160,6 +184,18 @@ class PluginController extends Controller
             Response::HTTP_OK,
             [
                 'Content-Type' => $asset['mimeType'],
+                'Cache-Control' => 'private, max-age=60',
+            ],
+        );
+    }
+
+    public function octoPrintCompatScript(): Response
+    {
+        return response(
+            file_get_contents(base_path('resources/plugin-sdk/octoprint-compat.js')),
+            Response::HTTP_OK,
+            [
+                'Content-Type' => 'text/javascript',
                 'Cache-Control' => 'private, max-age=60',
             ],
         );

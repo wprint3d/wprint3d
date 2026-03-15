@@ -5,7 +5,7 @@
 Current SDK pair:
 
 - `sdkVersion: 1`
-- `sdkRevision: 2`
+- `sdkRevision: 4`
 
 `sdkVersion` is the API level.
 
@@ -258,6 +258,142 @@ Rules:
 - `requirements.memoryMb` and `requirements.cpuCores` are advisory host checks that surface warnings in the UI when the current system is below the plugin's declared minimum target.
 - `runtime.managedImageId` can point at an image with `service.port` so WPrint 3D can run a self-contained bridge sidecar.
 
+## OctoPrint Compatibility Layer
+
+The current SDK revision adds the compatibility primitives needed to port most OctoPrint plugins with an AI agent instead of a full manual rewrite.
+
+### Mixin Mapping
+
+| OctoPrint concept | WPrint 3D equivalent |
+| --- | --- |
+| `SettingsPlugin.get_settings_defaults()` | `plugin.json -> settings.defaults` |
+| `on_settings_save()` | `PUT /api/plugins/{id}/settings` plus runtime action reads |
+| `TemplatePlugin` navbar/settings templates | `uiExtensions` with `surface: "navbar_widget"` and `surface: "settings_tab"` |
+| `AssetPlugin` static files | manifest `assets` resolved through `asset://...` |
+| `_plugin_manager.send_plugin_message(...)` | effect `send_plugin_message` or `publish_state` |
+| `SimpleApiPlugin` AJAX calls | action endpoints under `/api/plugins/{id}/actions/{actionId}` |
+| Knockout view models reading plugin state | `/api/plugins/{id}/state` or `octoprint-compat.js` `watchState()` |
+
+### Settings And State Endpoints
+
+Authenticated plugin surfaces can now rely on:
+
+- `GET /api/plugins/{pluginId}/settings`
+- `PUT /api/plugins/{pluginId}/settings`
+- `GET /api/plugins/{pluginId}/state`
+- `GET /api/plugins/{pluginId}/logs`
+
+Settings are seeded from `plugin.json -> settings.defaults` and persisted per installed plugin record. State is updated by runtime effects such as `send_plugin_message`.
+
+When a plugin exposes a `settings_tab`, WPrint 3D wraps the surface in a host-owned settings shell. That shell now defaults to a collapsed plugin-details hero so the plugin's actual settings UI stays visible immediately; users can expand the header to inspect metadata, trust badges, and warnings on demand.
+
+### Graceful Load Failure Model
+
+Plugin startup is no longer treated as all-or-nothing process termination for the host.
+
+Installed plugins now expose a load state:
+
+- `disabled`
+- `ready`
+- `failed`
+
+When startup or development-source synchronization fails, WPrint 3D:
+
+- keeps the host running
+- marks the plugin as `failed`
+- stores `lastError`
+- records lifecycle log entries
+- keeps the failure visible to the frontend through the installed-plugin payload
+
+That is the preferred pattern for future runtime additions too: record failure state on the plugin record instead of letting plugin-specific exceptions masquerade as host crashes.
+
+### Browser Helper For Ported Plugins
+
+`GET /api/plugins/sdk/octoprint-compat.js` exposes `window.WPrint3DOctoPrintCompat`.
+
+It provides:
+
+- `fromWindow()` to build a host bridge from query-string metadata injected by WPrint 3D
+- `getSettings()`
+- `saveSettings(settings)`
+- `getState()`
+- `invokeAction(actionId, payload)`
+- `watchState(callback, options)`
+- `getTheme()`
+
+This is the preferred bridge for ported OctoPrint settings pages that previously depended on Knockout models or direct AJAX helpers.
+
+### Native Navbar Ports
+
+OctoPrint navbar plugins should prefer a host-rendered `data_strip` widget instead of recreating the entire navbar inside a WebView. On `surface: "navbar_widget"`, the host renders `data_strip` as an inline telemetry lane that expands across the center navbar slot so ports like NavbarTemp feel native to the shell instead of looking like detached chip stacks.
+
+Example declarative schema:
+
+```json
+{
+  "component": "data_strip",
+  "dataActionId": "snapshot",
+  "pollIntervalMs": 10000,
+  "itemsPath": "items",
+  "gap": 4
+}
+```
+
+The action should return:
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "id": "tool-0",
+        "icon": "printer-3d-nozzle",
+        "text": "Tool: 205.0°C"
+      }
+    ]
+  },
+  "effects": [
+    {
+      "type": "send_plugin_message",
+      "merge": false,
+      "data": {
+        "items": [
+          {
+            "id": "tool-0",
+            "text": "Tool: 205.0°C"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+That gives you:
+
+- native theme parity in the WPrint 3D navbar
+- browser settings pages that can still preview the same state
+- a single action result that updates both the host-rendered widget and the browser-side settings panel
+
+### PHP Runtime Bootstrap For Ports
+
+If a port needs access to Laravel models, configuration, or host services, the PHP runtime now exposes:
+
+- `WPRINT3D_BOOTSTRAP_APP`
+
+Typical pattern:
+
+```php
+$bootstrapPath = getenv('WPRINT3D_BOOTSTRAP_APP');
+
+if ($bootstrapPath && is_file($bootstrapPath)) {
+    $app = require $bootstrapPath;
+    $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+}
+```
+
+That is how the `OctoPrint NavbarTemp Port` reads the active printer state and SBC temperature from host-owned services without bypassing the plugin runtime contract.
+
 ## Supported Permissions
 
 - `printer.read`
@@ -307,19 +443,36 @@ Required field:
 
 - `schema`
 
-Supported built-in components:
+Supported host-rendered components:
 
-- `section`
-- `text`
-- `divider`
-- `list`
-- `key_value`
-- `button`
-- `form`
-- `progress_cluster`
-- `remote_component`
+- `host.section`
+- `host.card`
+- `host.surface`
+- `host.stack`
+- `host.column`
+- `host.row`
+- `host.scroll`
+- `host.text`
+- `host.heading`
+- `host.caption`
+- `host.divider`
+- `host.list`
+- `host.key_value`
+- `host.button`
+- `host.input`
+- `host.switch`
+- `host.form`
+- `host.chip_group`
+- `host.badge`
+- `host.progress`
+- `host.progress_cluster`
+- `host.data_strip`
+- `host.spacer`
+- `host.remote_component`
 
-`progress_cluster` fields:
+Legacy short names such as `section`, `text`, `button`, `progress_cluster`, and `remote_component` remain supported for backward compatibility, but new plugins should prefer the `host.*` ids.
+
+`host.progress_cluster` fields:
 
 - `dataActionId`
 - `pollIntervalMs`
@@ -330,6 +483,63 @@ Each item supports:
 - `id`
 - `label`
 - `valueKey`
+
+### Host Component Registry
+
+The declarative host path is now a stable component registry rather than a handful of ad hoc renderer cases.
+
+Rules:
+
+- Prefer `host.*` component ids in new manifests.
+- Treat the documented fields as the supported API surface.
+- Do not assume every underlying React Native Paper prop is exposed to plugins.
+- Use `webview` or `custom_bundle` when the host registry is not sufficient.
+
+The current registry covers the common host-safe primitives plugin authors need across web and native:
+
+- layout: `host.stack`, `host.row`, `host.surface`, `host.scroll`, `host.spacer`
+- typography: `host.text`, `host.heading`, `host.caption`
+- actions and forms: `host.button`, `host.input`, `host.switch`, `host.form`
+- display: `host.section`, `host.card`, `host.list`, `host.key_value`, `host.badge`, `host.chip_group`, `host.progress`
+- dynamic widgets: `host.progress_cluster`, `host.data_strip`, `host.remote_component`
+
+Example:
+
+```json
+{
+  "component": "host.stack",
+  "gap": 10,
+  "children": [
+    {
+      "component": "host.heading",
+      "variant": "titleMedium",
+      "text": "Host component registry"
+    },
+    {
+      "component": "host.caption",
+      "text": "This UI is rendered by the host on web and native."
+    },
+    {
+      "component": "host.chip_group",
+      "items": [
+        {
+          "text": "settings_tab",
+          "icon": "cog-outline"
+        },
+        {
+          "text": "declarative",
+          "icon": "view-dashboard-outline"
+        }
+      ]
+    },
+    {
+      "component": "host.button",
+      "label": "Run action",
+      "actionId": "ping"
+    }
+  ]
+}
+```
 
 ### WebView
 
@@ -395,7 +605,7 @@ Declarative schemas may mount a declared remote component directly:
 
 ```json
 {
-  "component": "remote_component",
+  "component": "host.remote_component",
   "componentId": "hostMetricsPanel",
   "props": {
     "title": "Host telemetry",

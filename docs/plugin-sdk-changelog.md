@@ -10,15 +10,71 @@
 ## Current SDK
 
 - `sdkVersion: 1`
-- `sdkRevision: 2`
+- `sdkRevision: 4`
 
 ## Version 1
+
+### Revision 4
+
+Status:
+
+- `current`
+
+Released:
+
+- `2026-03-14`
+
+Summary:
+
+- Expanded the declarative host component registry and added plugin-scoped UI isolation.
+
+Changes:
+
+- Added stable `host.*` aliases for the supported declarative host primitives.
+- Expanded the host renderer with rows, stacks, surfaces, headings, captions, chip groups, badges, inputs, switches, progress bars, scroll containers, and spacers.
+- Added plugin-scoped error boundaries so broken declarative plugin UI degrades locally instead of crashing the full app.
+
+Migration notes:
+
+- New plugins should target `sdkRevision: 4`.
+- Existing manifests using short ids like `section`, `text`, `button`, and `remote_component` continue to work.
+- Prefer the namespaced `host.*` ids in new examples and docs.
+
+### Revision 3
+
+Status:
+
+- `supported`
+
+Released:
+
+- `2026-03-14`
+
+Summary:
+
+- OctoPrint compatibility primitives and browser-side host bridge support.
+
+Changes:
+
+- Added `plugin.json -> settings.defaults` as a first-class persisted settings seed.
+- Added authenticated plugin settings and state endpoints.
+- Added `send_plugin_message` / `publish_state` state persistence support.
+- Added the browser compatibility helper at `/api/plugins/sdk/octoprint-compat.js`.
+- Added `WPRINT3D_BOOTSTRAP_APP` to the PHP runtime environment for ports that need host models and config.
+- Added the host-rendered `data_strip` widget for native OctoPrint-style navbar ports.
+- Added the `OctoPrint NavbarTemp Port` example plugin as the reference migration case.
+
+Migration notes:
+
+- New plugins should target `sdkRevision: 3`.
+- Plugins already using revision 2 keep working unchanged.
+- OctoPrint ports should prefer the new settings/state APIs instead of inventing custom AJAX glue.
 
 ### Revision 2
 
 Status:
 
-- `current`
+- `supported`
 
 Released:
 

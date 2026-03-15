@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Log;
 
 class PluginEffectExecutor
 {
+    public function __construct(
+        private PluginStateStore $pluginStateStore,
+    ) {}
+
     public function execute(array $plugin, array $effects): void
     {
         foreach ($effects as $effect) {
@@ -34,6 +38,20 @@ class PluginEffectExecutor
                         $effect['userId'],
                         $effect['toastType'] ?? ToastMessageType::INFO,
                         $effect['message']
+                    );
+                }
+
+                continue;
+            }
+
+            if (in_array($type, ['publish_state', 'send_plugin_message'], true)) {
+                $data = $effect['data'] ?? [];
+
+                if (is_array($data) && ! empty($plugin['id'])) {
+                    $this->pluginStateStore->publish(
+                        $plugin['id'],
+                        $data,
+                        (bool) ($effect['merge'] ?? true),
                     );
                 }
 

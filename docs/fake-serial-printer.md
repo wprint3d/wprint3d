@@ -191,7 +191,7 @@ If commands fail unexpectedly:
 
 ## Related Files
 
-- Implementation plan: [docs/plans/2026-03-13-fake-serial-printer.md](/home/facuarmo/wprint3d-core/docs/plans/2026-03-13-fake-serial-printer.md)
-- Backend manager: [app/Support/FakeSerial/FakeSerialManager.php](/home/facuarmo/wprint3d-core/app/Support/FakeSerial/FakeSerialManager.php)
-- Backend emulator: [app/Support/FakeSerial/FakeSerialEmulator.php](/home/facuarmo/wprint3d-core/app/Support/FakeSerial/FakeSerialEmulator.php)
-- Developer UI panel: [frontend/components/NavBarMenuSettingsModalDeveloperFakeSerial.js](/home/facuarmo/wprint3d-core/frontend/components/NavBarMenuSettingsModalDeveloperFakeSerial.js)
+- Implementation plan: [docs/plans/2026-03-13-fake-serial-printer.md](plans/2026-03-13-fake-serial-printer.md)
+- Backend manager: [app/Support/FakeSerial/FakeSerialManager.php](../app/Support/FakeSerial/FakeSerialManager.php)
+- Backend emulator: [app/Support/FakeSerial/FakeSerialEmulator.php](../app/Support/FakeSerial/FakeSerialEmulator.php)
+- Developer UI panel: [frontend/components/NavBarMenuSettingsModalDeveloperFakeSerial.js](../frontend/components/NavBarMenuSettingsModalDeveloperFakeSerial.js)

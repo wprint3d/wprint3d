@@ -78,8 +78,13 @@ Route::middleware(['auth:sanctum', 'password.ensure_changed'])->group(function (
 
     Route::prefix('/plugins')->group(function () {
         Route::get('/sdk', [PluginController::class, 'sdk']);
+        Route::get('/sdk/octoprint-compat.js', [PluginController::class, 'octoPrintCompatScript']);
         Route::get('/ui', [PluginController::class, 'ui']);
         Route::get('/{pluginId}/assets/{assetPath}', [PluginController::class, 'asset'])->where('assetPath', '.*');
+        Route::get('/{pluginId}/settings', [PluginController::class, 'settings']);
+        Route::put('/{pluginId}/settings', [PluginController::class, 'updateSettings']);
+        Route::get('/{pluginId}/state', [PluginController::class, 'state']);
+        Route::get('/{pluginId}/logs', [PluginController::class, 'logs']);
         Route::post('/{pluginId}/actions/{actionId}', [PluginController::class, 'invokeAction']);
     });
 

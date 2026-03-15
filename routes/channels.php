@@ -96,3 +96,7 @@ Broadcast::channel('system-message.{userId}', function (User $user, $userId) {
      */
     return $userId == Auth::id();
 });
+
+Broadcast::channel('plugins', function (User $user) {
+    return $user !== null;
+});

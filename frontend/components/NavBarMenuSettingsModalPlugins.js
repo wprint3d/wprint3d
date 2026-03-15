@@ -53,21 +53,31 @@ const buildDependencyBadges = (plugin, theme) => {
 const buildPluginBadges = (plugin, theme) => {
   const badges = [];
 
-  badges.push(plugin.enabled
-    ? {
-        icon: "check-circle",
-        label: "Active",
-        tooltip: "This plugin is enabled and its UI surfaces and actions are live.",
-        style: { backgroundColor: theme.colors.primaryContainer },
-        textStyle: { color: theme.colors.onPrimaryContainer },
-      }
-    : {
-        icon: "pause-circle",
-        label: "Disabled",
-        tooltip: "This plugin is installed but currently inactive.",
-        style: { backgroundColor: theme.colors.secondaryContainer },
-        textStyle: { color: theme.colors.onSecondaryContainer },
-      });
+  if (plugin.loadStatus === "failed") {
+    badges.push({
+      icon: "alert-circle",
+      label: "Failed to load",
+      tooltip: plugin.lastError || "The plugin failed during startup or live source synchronization.",
+      style: { backgroundColor: theme.colors.errorContainer },
+      textStyle: { color: theme.colors.onErrorContainer },
+    });
+  } else if (plugin.enabled) {
+    badges.push({
+      icon: "check-circle",
+      label: "Active",
+      tooltip: "This plugin is enabled and its UI surfaces and actions are live.",
+      style: { backgroundColor: theme.colors.primaryContainer },
+      textStyle: { color: theme.colors.onPrimaryContainer },
+    });
+  } else {
+    badges.push({
+      icon: "pause-circle",
+      label: "Disabled",
+      tooltip: "This plugin is installed but currently inactive.",
+      style: { backgroundColor: theme.colors.secondaryContainer },
+      textStyle: { color: theme.colors.onSecondaryContainer },
+    });
+  }
 
   const trustBadges = {
     development: {
@@ -195,6 +205,7 @@ let persistedOverlayState = {
   marketplaceVisible: false,
   registrySourcesVisible: false,
   confirmationDialog: null,
+  logsDialogPlugin: null,
 };
 
 const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettingsPage = () => {} }) => {
@@ -225,6 +236,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
   const marketplaceVisible = overlayState.marketplaceVisible;
   const registrySourcesVisible = overlayState.registrySourcesVisible;
   const confirmationDialog = overlayState.confirmationDialog;
+  const logsDialogPlugin = overlayState.logsDialogPlugin;
 
   const setInstallModalVisible = (value) => updateOverlayState({
     installModalVisible: typeof value === "function" ? value(persistedOverlayState.installModalVisible) : value,
@@ -244,6 +256,10 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
 
   const setConfirmationDialog = (value) => updateOverlayState({
     confirmationDialog: typeof value === "function" ? value(persistedOverlayState.confirmationDialog) : value,
+  });
+
+  const setLogsDialogPlugin = (value) => updateOverlayState({
+    logsDialogPlugin: typeof value === "function" ? value(persistedOverlayState.logsDialogPlugin) : value,
   });
 
   const isWideLayout = window.width >= 1200;
@@ -304,11 +320,27 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
     staleTime: 0,
   });
 
+  const pluginLogsQuery = useQuery({
+    queryKey: ["pluginLogs", logsDialogPlugin?.id],
+    queryFn: () => API.get(`/plugins/${logsDialogPlugin.id}/logs`),
+    enabled: isAdministrator && !!logsDialogPlugin,
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
+    refetchInterval: logsDialogPlugin ? 3000 : false,
+  });
+
   useEffect(() => {
     if (isAdministrator && developerModeEnabled && installModalVisible && installModalTab === "development") {
       developmentPluginsQuery.refetch();
     }
   }, [ isAdministrator, developerModeEnabled, installModalVisible, installModalTab ]);
+
+  useEffect(() => {
+    if (logsDialogPlugin) {
+      pluginLogsQuery.refetch();
+    }
+  }, [ logsDialogPlugin ]);
 
   const settingsPageMap = useMemo(() => buildSettingsPageMap(pluginSettingsPages), [ pluginSettingsPages ]);
 
@@ -320,12 +352,17 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       queryClient.invalidateQueries({ queryKey: ["pluginRegistrySources"] });
       queryClient.invalidateQueries({ queryKey: ["pluginDevelopment"] });
       queryClient.invalidateQueries({ queryKey: ["pluginExtensions"] });
+      queryClient.invalidateQueries({ queryKey: ["pluginLogs"] });
 
       const pluginId = response?.data?.id;
+      const loadStatus = response?.data?.loadStatus;
+      const lastError = response?.data?.lastError;
 
       enqueueSnackbar({
-        message: pluginId ? `Updated ${pluginId}.` : "Plugin operation completed.",
-        variant: "success",
+        message: loadStatus === "failed" && lastError
+          ? `${pluginId} failed to load: ${lastError}`
+          : (pluginId ? `Updated ${pluginId}.` : "Plugin operation completed."),
+        variant: loadStatus === "failed" ? "warning" : "success",
         action: { label: "Got it" },
       });
     },
@@ -585,6 +622,24 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                         </Text>
                       )}
 
+                      {plugin.loadStatus === "failed" && !!plugin.lastError && (
+                        <View
+                          style={{
+                            marginBottom: 12,
+                            padding: 12,
+                            borderRadius: 14,
+                            backgroundColor: theme.colors.errorContainer,
+                          }}
+                        >
+                          <Text style={{ color: theme.colors.onErrorContainer, fontWeight: "700", marginBottom: 4 }}>
+                            Plugin failed to load
+                          </Text>
+                          <Text style={{ color: theme.colors.onErrorContainer }}>
+                            {plugin.lastError}
+                          </Text>
+                        </View>
+                      )}
+
                       {!!plugin.warnings?.length && (
                         <View
                           style={{
@@ -611,18 +666,30 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                           </Button>
                         )}
                         <Button
+                          mode="outlined"
+                          icon="text-box-search-outline"
+                          onPress={() => setLogsDialogPlugin({
+                            id: plugin.id,
+                            name: plugin.name,
+                          })}
+                        >
+                          Logs
+                        </Button>
+                        <Button
                           mode={plugin.enabled ? "outlined" : "contained-tonal"}
                           onPress={() => openConfirmationDialog({
                             kind: "toggle",
                             plugin,
-                            title: plugin.enabled ? `Disable ${plugin.name}?` : `Enable ${plugin.name}?`,
+                            title: plugin.enabled ? `Disable ${plugin.name}?` : `${plugin.loadStatus === "failed" ? "Retry" : "Enable"} ${plugin.name}?`,
                             body: plugin.enabled
                               ? "Its UI surfaces and actions will stop running until you enable it again."
-                              : "Its registered UI surfaces and actions will become active again.",
-                            confirmLabel: plugin.enabled ? "Disable plugin" : "Enable plugin",
+                              : (plugin.loadStatus === "failed"
+                                ? "WPrint 3D will try to start the plugin again and record fresh startup logs."
+                                : "Its registered UI surfaces and actions will become active again."),
+                            confirmLabel: plugin.enabled ? "Disable plugin" : (plugin.loadStatus === "failed" ? "Retry plugin" : "Enable plugin"),
                           })}
                         >
-                          {plugin.enabled ? "Disable" : "Enable"}
+                          {plugin.enabled ? "Disable" : (plugin.loadStatus === "failed" ? "Retry" : "Enable")}
                         </Button>
                         <Button mode="outlined" onPress={() => mutateAndRefresh.mutate({ url: `/plugins/${plugin.id}/update` })}>
                           {plugin.installSource?.type === "development_mount" ? "Refresh" : "Update"}
@@ -1195,6 +1262,97 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
         }
         actions={
           <Button mode="text" onPress={() => setRegistrySourcesVisible(false)}>
+            Close
+          </Button>
+        }
+      />
+
+      <SimpleDialog
+        visible={!!logsDialogPlugin}
+        setVisible={() => setLogsDialogPlugin(null)}
+        title={logsDialogPlugin ? `${logsDialogPlugin.name} logs` : "Plugin logs"}
+        style={{ maxWidth: 980 }}
+        content={
+          <View style={{ gap: 16, minHeight: 320, maxHeight: window.height * 0.7 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <Text style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>
+                Live startup and runtime diagnostics for this plugin. Entries refresh while this dialog is open.
+              </Text>
+              <Button mode="outlined" icon="refresh" onPress={() => pluginLogsQuery.refetch()}>
+                Refresh
+              </Button>
+            </View>
+
+            {pluginLogsQuery.isPending && (
+              <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                Loading plugin logs…
+              </Text>
+            )}
+
+            {pluginLogsQuery.isError && (
+              <Card style={{ borderRadius: 18, backgroundColor: theme.colors.errorContainer }}>
+                <Card.Content>
+                  <Text style={{ color: theme.colors.onErrorContainer }}>
+                    {pluginLogsQuery.error?.response?.data?.message || pluginLogsQuery.error?.message || "Unable to load plugin logs."}
+                  </Text>
+                </Card.Content>
+              </Card>
+            )}
+
+            {!pluginLogsQuery.isPending && !pluginLogsQuery.isError && (
+              <ScrollView style={{ maxHeight: window.height * 0.55 }}>
+                <View style={{ gap: 10, paddingBottom: 8 }}>
+                  {[ ...(pluginLogsQuery?.data?.data || []) ].reverse().map((entry, index) => {
+                    const isError = entry.level === "error";
+                    const surfaceColor = isError ? theme.colors.errorContainer : theme.colors.elevation.level1;
+                    const textColor = isError ? theme.colors.onErrorContainer : theme.colors.onSurface;
+                    const mutedColor = isError ? theme.colors.onErrorContainer : theme.colors.onSurfaceVariant;
+
+                    return (
+                      <Card
+                        key={`${entry.timestamp || "entry"}-${index}`}
+                        style={{
+                          borderRadius: 18,
+                          borderWidth: 1,
+                          borderColor: isError ? theme.colors.error : theme.colors.outlineVariant,
+                          backgroundColor: surfaceColor,
+                        }}
+                      >
+                        <Card.Content style={{ gap: 8 }}>
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                            <Chip compact icon={isError ? "alert-circle" : "information"}>{entry.level || "info"}</Chip>
+                            <Chip compact icon="play-circle-outline">{entry.stage || "runtime"}</Chip>
+                            {!!entry.timestamp && (
+                              <Chip compact icon="clock-outline">
+                                {new Date(entry.timestamp).toLocaleString()}
+                              </Chip>
+                            )}
+                          </View>
+                          <Text style={{ color: textColor }}>{entry.message}</Text>
+                          {!!Object.keys(entry.context || {}).length && (
+                            <Text selectable style={{ color: mutedColor }}>
+                              {JSON.stringify(entry.context)}
+                            </Text>
+                          )}
+                        </Card.Content>
+                      </Card>
+                    );
+                  })}
+
+                  {!pluginLogsQuery?.data?.data?.length && (
+                    <Card style={{ borderRadius: 18, backgroundColor: theme.colors.elevation.level1 }}>
+                      <Card.Content>
+                        <Text>No plugin lifecycle logs have been recorded yet.</Text>
+                      </Card.Content>
+                    </Card>
+                  )}
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        }
+        actions={
+          <Button mode="text" onPress={() => setLogsDialogPlugin(null)}>
             Close
           </Button>
         }

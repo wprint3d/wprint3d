@@ -17,6 +17,7 @@ class PluginManagerService implements PluginManager
         private PluginRegistryClient $registryClient,
         private PluginRuntimeRegistry $runtimeRegistry,
         private PluginDependencyService $dependencyService,
+        private PluginLifecycleLogStore $lifecycleLogStore,
     ) {}
 
     public function sdkMetadata(): array
@@ -57,6 +58,36 @@ class PluginManagerService implements PluginManager
         return $this->serializePlugin($this->requireModel($pluginId));
     }
 
+    public function getSettings(string $pluginId): array
+    {
+        $plugin = $this->requireModel($pluginId);
+
+        return $this->resolvedPluginSettings($plugin);
+    }
+
+    public function updateSettings(string $pluginId, array $settings): array
+    {
+        $plugin = $this->requireModel($pluginId);
+        $plugin->settings = $this->mergeSettings($this->declaredSettingsDefaults($plugin->manifest ?? []), $settings);
+        $plugin->save();
+
+        return $this->resolvedPluginSettings($plugin->fresh() ?? $plugin);
+    }
+
+    public function getState(string $pluginId): array
+    {
+        $plugin = $this->requireModel($pluginId);
+
+        return is_array($plugin->state) ? $plugin->state : [];
+    }
+
+    public function getLogs(string $pluginId): array
+    {
+        $this->requireModel($pluginId);
+
+        return $this->lifecycleLogStore->list($pluginId);
+    }
+
     public function installFromArchive(string $archivePath, string $sourceType = 'local_upload', array $sourceMeta = []): array
     {
         $package = $this->archiveService->inspect($archivePath, $sourceType);
@@ -94,8 +125,23 @@ class PluginManagerService implements PluginManager
             'versions' => $versions,
             'warnings' => $this->mergeWarnings($package->warnings, $dependencyState['warnings'] ?? []),
             'dependency_state' => $dependencyState,
+            'settings' => $this->mergeSettings(
+                $this->declaredSettingsDefaults($package->manifest),
+                $plugin->settings ?? []
+            ),
+            'state' => is_array($plugin->state) ? $plugin->state : [],
+            'logs' => is_array($plugin->logs) ? $plugin->logs : [],
+            'load_status' => ($plugin->exists && $plugin->enabled) ? 'ready' : 'disabled',
+            'load_error_at' => null,
         ]);
         $plugin->save();
+        $this->lifecycleLogStore->append(
+            $plugin,
+            'info',
+            'install',
+            "Installed plugin {$package->manifest['name']} {$package->manifest['version']}.",
+            ['sourceType' => $sourceType]
+        );
 
         return $this->serializePlugin($plugin->fresh());
     }
@@ -176,9 +222,24 @@ class PluginManagerService implements PluginManager
             'versions' => $versions,
             'warnings' => $this->mergeWarnings($package->warnings, $dependencyState['warnings'] ?? []),
             'dependency_state' => $dependencyState,
+            'settings' => $this->mergeSettings(
+                $this->declaredSettingsDefaults($package->manifest),
+                $plugin->settings ?? []
+            ),
+            'state' => is_array($plugin->state) ? $plugin->state : [],
             'last_error' => null,
+            'logs' => is_array($plugin->logs) ? $plugin->logs : [],
+            'load_status' => ($plugin->exists && $plugin->enabled) ? 'ready' : 'disabled',
+            'load_error_at' => null,
         ]);
         $plugin->save();
+        $this->lifecycleLogStore->append(
+            $plugin,
+            'info',
+            'install',
+            "Installed development plugin {$package->manifest['name']} {$package->manifest['version']} from the live source mount.",
+            ['path' => $resolvedPath]
+        );
 
         return $this->serializePlugin($plugin->fresh());
     }
@@ -186,26 +247,56 @@ class PluginManagerService implements PluginManager
     public function enable(string $pluginId): array
     {
         $plugin = $this->requireModel($pluginId);
-        $payload = $this->serializePlugin($plugin);
-        $dependencyState = $this->dependencyService->activate($payload, $plugin->dependency_state ?? []);
-        $plugin->dependency_state = $dependencyState;
-        $plugin->warnings = $this->mergeWarnings($plugin->warnings ?? [], $dependencyState['warnings'] ?? []);
-        $plugin->save();
-        $payload = $this->serializePlugin($plugin->fresh() ?? $plugin);
+        $this->lifecycleLogStore->append($plugin, 'info', 'startup', 'Plugin startup requested.');
 
-        if (($payload['manifest']['runtime']['type'] ?? null) === 'bridge') {
-            $adapter = $this->runtimeRegistry->resolve('bridge');
+        try {
+            $payload = $this->serializePlugin($plugin);
+            $dependencyState = $this->dependencyService->activate($payload, $plugin->dependency_state ?? []);
+            $plugin->dependency_state = $dependencyState;
+            $plugin->warnings = $this->mergeWarnings($plugin->warnings ?? [], $dependencyState['warnings'] ?? []);
+            $plugin->save();
+            $payload = $this->serializePlugin($plugin->fresh() ?? $plugin);
 
-            if ($adapter instanceof BridgePluginRuntimeAdapter) {
-                $adapter->healthcheck($payload);
+            if (($payload['manifest']['runtime']['type'] ?? null) === 'bridge') {
+                $adapter = $this->runtimeRegistry->resolve('bridge');
+
+                if ($adapter instanceof BridgePluginRuntimeAdapter) {
+                    $this->lifecycleLogStore->append($plugin, 'info', 'startup', 'Running bridge healthcheck.');
+                    $adapter->healthcheck($payload);
+                }
             }
+
+            $plugin->enabled = true;
+            $plugin->load_status = 'ready';
+            $plugin->last_error = null;
+            $plugin->load_error_at = null;
+            $plugin->last_healthcheck_at = now()->toAtomString();
+            $plugin->save();
+            $this->lifecycleLogStore->append($plugin, 'info', 'startup', 'Plugin startup completed.');
+
+            return $this->serializePlugin($plugin->fresh());
+        } catch (\Throwable $exception) {
+            try {
+                $this->dependencyService->deactivate($this->serializePlugin($plugin->fresh() ?? $plugin));
+            } catch (\Throwable) {
+            }
+
+            $plugin->enabled = false;
+            $plugin->load_status = 'failed';
+            $plugin->last_error = $exception->getMessage();
+            $plugin->load_error_at = now()->toAtomString();
+            $plugin->warnings = $this->mergeWarnings($plugin->warnings ?? [], [$exception->getMessage()]);
+            $plugin->save();
+            $this->lifecycleLogStore->append(
+                $plugin,
+                'error',
+                'startup',
+                $exception->getMessage(),
+                ['exception' => $exception::class]
+            );
+
+            return $this->serializePlugin($plugin->fresh() ?? $plugin);
         }
-
-        $plugin->enabled = true;
-        $plugin->last_healthcheck_at = now()->toAtomString();
-        $plugin->save();
-
-        return $this->serializePlugin($plugin->fresh());
     }
 
     public function disable(string $pluginId): array
@@ -213,14 +304,21 @@ class PluginManagerService implements PluginManager
         $plugin = $this->requireModel($pluginId);
         $this->dependencyService->deactivate($this->serializePlugin($plugin));
         $plugin->enabled = false;
+        $plugin->load_status = 'disabled';
         $plugin->save();
+        $this->lifecycleLogStore->append($plugin, 'info', 'shutdown', 'Plugin disabled.');
 
         return $this->serializePlugin($plugin->fresh());
     }
 
-    public function uninstall(string $pluginId): void
+    public function uninstall(string $pluginId): bool
     {
-        $plugin = $this->requireModel($pluginId);
+        $plugin = $this->findModel($pluginId);
+
+        if (! $plugin) {
+            return false;
+        }
+
         $this->dependencyService->deactivate($this->serializePlugin($plugin));
 
         foreach (($plugin->versions ?? []) as $version) {
@@ -234,6 +332,8 @@ class PluginManagerService implements PluginManager
         }
 
         $plugin->delete();
+
+        return true;
     }
 
     public function update(string $pluginId): array
@@ -291,12 +391,31 @@ class PluginManagerService implements PluginManager
             throw new PluginRuntimeException("Plugin action {$actionId} does not exist.");
         }
 
-        $adapter = $this->runtimeRegistry->resolve($plugin['manifest']['runtime']['type']);
-        $result = $adapter->invokeAction($plugin, $action, $payload, $context);
+        try {
+            $adapter = $this->runtimeRegistry->resolve($plugin['manifest']['runtime']['type']);
+            $result = $adapter->invokeAction($plugin, $action, $payload, $context);
 
-        app(PluginEffectExecutor::class)->execute($plugin, $result['effects'] ?? []);
+            app(PluginEffectExecutor::class)->execute($plugin, $result['effects'] ?? []);
 
-        return $result;
+            return $result;
+        } catch (\Throwable $exception) {
+            $model = $this->findModel($pluginId);
+
+            if ($model) {
+                $model->last_error = $exception->getMessage();
+                $model->load_error_at = now()->toAtomString();
+                $model->save();
+                $this->lifecycleLogStore->append(
+                    $model,
+                    'error',
+                    'action',
+                    "Action {$actionId} failed: {$exception->getMessage()}",
+                    ['exception' => $exception::class]
+                );
+            }
+
+            throw $exception;
+        }
     }
 
     public function getEnabledPluginsForHook(string $hook): array
@@ -316,10 +435,12 @@ class PluginManagerService implements PluginManager
             return [
                 'id' => $payload['id'],
                 'enabled' => $payload['enabled'],
+                'loadStatus' => $payload['loadStatus'] ?? 'unknown',
                 'runtimePathExists' => is_dir($payload['runtimePath'] ?? ''),
                 'trustLevel' => $payload['trustLevel'],
                 'warnings' => $payload['warnings'],
                 'classification' => $payload['classification'] ?? 'lightweight',
+                'lastError' => $payload['lastError'] ?? null,
             ];
         })->all();
     }
@@ -332,7 +453,9 @@ class PluginManagerService implements PluginManager
         foreach ($enabledPlugins as $plugin) {
             $this->dependencyService->deactivate($this->serializePlugin($plugin));
             $plugin->enabled = false;
+            $plugin->load_status = 'disabled';
             $plugin->save();
+            $this->lifecycleLogStore->append($plugin, 'info', 'shutdown', 'Plugin disabled by safe mode.');
         }
 
         return $count;
@@ -524,6 +647,7 @@ class PluginManagerService implements PluginManager
             'author' => $plugin->author,
             'version' => $plugin->current_version,
             'enabled' => (bool) $plugin->enabled,
+            'loadStatus' => $this->resolveLoadStatus($plugin),
             'trustLevel' => $plugin->trust_level ?? 'unsigned',
             'installSource' => $plugin->install_source ?? [],
             'manifest' => $manifest,
@@ -534,11 +658,16 @@ class PluginManagerService implements PluginManager
             'warnings' => $this->mergeWarnings($plugin->warnings ?? [], $dependencies['warnings'] ?? []),
             'classification' => $dependencies['classification'] ?? 'lightweight',
             'dependencies' => $dependencies,
+            'settings' => $this->resolvedPluginSettings($plugin),
+            'state' => is_array($plugin->state) ? $plugin->state : [],
             'runtimePath' => $plugin->getCurrentRuntimePath(),
             'runtime_path' => $plugin->getCurrentRuntimePath(),
             'versions' => $plugin->versions ?? [],
             'lastError' => $plugin->last_error ?? null,
+            'loadErrorAt' => $plugin->load_error_at ?? null,
             'lastHealthcheckAt' => $plugin->last_healthcheck_at ?? null,
+            'logCount' => count(is_array($plugin->logs) ? $plugin->logs : []),
+            'latestLog' => $this->latestLogEntry($plugin),
             'storagePath' => config('plugins.paths.runtime').DIRECTORY_SEPARATOR.$plugin->plugin_id,
             'storage_path' => config('plugins.paths.runtime').DIRECTORY_SEPARATOR.$plugin->plugin_id,
         ];
@@ -562,7 +691,11 @@ class PluginManagerService implements PluginManager
             if (($plugin->warnings ?? []) !== $warnings || $plugin->last_error !== 'Development plugin source directory is unavailable.') {
                 $plugin->warnings = $warnings;
                 $plugin->last_error = 'Development plugin source directory is unavailable.';
+                $plugin->load_status = 'failed';
+                $plugin->load_error_at = now()->toAtomString();
+                $plugin->enabled = false;
                 $plugin->save();
+                $this->lifecycleLogStore->append($plugin, 'error', 'startup', 'Development plugin source directory is unavailable.');
             }
 
             return $plugin;
@@ -609,11 +742,19 @@ class PluginManagerService implements PluginManager
                 'versions' => $versions,
                 'warnings' => $this->mergeWarnings($package->warnings, $dependencyState['warnings'] ?? []),
                 'dependency_state' => $dependencyState,
+                'settings' => $this->mergeSettings(
+                    $this->declaredSettingsDefaults($package->manifest),
+                    $plugin->settings ?? []
+                ),
+                'state' => is_array($plugin->state) ? $plugin->state : [],
                 'last_error' => null,
+                'load_status' => $plugin->enabled ? 'ready' : 'disabled',
+                'load_error_at' => null,
             ]);
 
             if ($plugin->isDirty()) {
                 $plugin->save();
+                $this->lifecycleLogStore->append($plugin, 'info', 'sync', 'Development plugin source synchronized from disk.');
             }
         } catch (\Throwable $exception) {
             $warnings = collect($plugin->warnings ?? [])
@@ -625,7 +766,17 @@ class PluginManagerService implements PluginManager
             if (($plugin->warnings ?? []) !== $warnings || $plugin->last_error !== $exception->getMessage()) {
                 $plugin->warnings = $warnings;
                 $plugin->last_error = $exception->getMessage();
+                $plugin->load_status = 'failed';
+                $plugin->load_error_at = now()->toAtomString();
+                $plugin->enabled = false;
                 $plugin->save();
+                $this->lifecycleLogStore->append(
+                    $plugin,
+                    'error',
+                    'startup',
+                    $exception->getMessage(),
+                    ['exception' => $exception::class]
+                );
             }
         }
 
@@ -678,6 +829,26 @@ class PluginManagerService implements PluginManager
             ->all();
     }
 
+    private function resolveLoadStatus(Plugin $plugin): string
+    {
+        if (is_string($plugin->load_status) && $plugin->load_status !== '') {
+            return $plugin->load_status;
+        }
+
+        return $plugin->enabled ? 'ready' : 'disabled';
+    }
+
+    private function latestLogEntry(Plugin $plugin): ?array
+    {
+        $logs = is_array($plugin->logs) ? $plugin->logs : [];
+
+        if ($logs === []) {
+            return null;
+        }
+
+        return $logs[count($logs) - 1];
+    }
+
     private function serializeRegistryPackage(array $package): array
     {
         $dependencies = $this->dependencyService->summarize($package['manifest'] ?? $package);
@@ -687,6 +858,38 @@ class PluginManagerService implements PluginManager
             'dependencies' => $dependencies,
             'warnings' => $this->mergeWarnings($package['warnings'] ?? [], $dependencies['warnings'] ?? []),
         ]);
+    }
+
+    private function declaredSettingsDefaults(array $manifest): array
+    {
+        $defaults = data_get($manifest, 'settings.defaults', []);
+
+        return is_array($defaults) ? $defaults : [];
+    }
+
+    private function resolvedPluginSettings(Plugin $plugin): array
+    {
+        return $this->mergeSettings(
+            $this->declaredSettingsDefaults($plugin->manifest ?? []),
+            is_array($plugin->settings) ? $plugin->settings : []
+        );
+    }
+
+    private function mergeSettings(array $defaults, array $overrides): array
+    {
+        $merged = $defaults;
+
+        foreach ($overrides as $key => $value) {
+            if (is_array($value) && is_array($merged[$key] ?? null)) {
+                $merged[$key] = $this->mergeSettings($merged[$key], $value);
+
+                continue;
+            }
+
+            $merged[$key] = $value;
+        }
+
+        return $merged;
     }
 
     private function normalizeManifestComponents(string $pluginId, array $components): array
@@ -713,10 +916,6 @@ class PluginManagerService implements PluginManager
 
     private function resolveDevelopmentPath(string $path): string
     {
-        if (! $this->developmentModeEnabled()) {
-            throw new PluginRuntimeException('Development mount support is disabled.');
-        }
-
         $mounts = $this->developmentMountRoots();
 
         if ($mounts === []) {

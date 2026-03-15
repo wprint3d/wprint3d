@@ -16,9 +16,9 @@ This document shows the current end-to-end plugin workflow in the local WPrint 3
 
 ## Automation Artifacts
 
-- Browser E2E script: [scripts/e2e_plugin_showcase.py](/home/facuarmo/wprint3d-core/scripts/e2e_plugin_showcase.py)
-- Unpacked install E2E script: [scripts/e2e_unpacked_plugin_install.py](/home/facuarmo/wprint3d-core/scripts/e2e_unpacked_plugin_install.py)
-- Generated screenshots: [docs/assets/plugins](/home/facuarmo/wprint3d-core/docs/assets/plugins)
+- Browser E2E script: [scripts/e2e_plugin_showcase.py](../scripts/e2e_plugin_showcase.py)
+- Unpacked install E2E script: [scripts/e2e_unpacked_plugin_install.py](../scripts/e2e_unpacked_plugin_install.py)
+- Generated screenshots: [docs/assets/plugins](assets/plugins)
 
 Re-run the browser capture with:
 
@@ -61,7 +61,7 @@ This matches the intended low-memory default for SBC-class hardware.
 
 ## 2. Package And Install A Plugin
 
-The packaged and installed plugin in this run was the built-in example at [examples/plugins/hello-world](/home/facuarmo/wprint3d-core/examples/plugins/hello-world).
+The packaged and installed plugin in this run was the built-in example at [examples/plugins/hello-world](../examples/plugins/hello-world).
 
 Verified commands inside the running backend container:
 
@@ -189,4 +189,4 @@ Note:
 
 - Point `PLUGIN_REGISTRY_INDEX_URL` to a working registry and repeat the browser flow for registry install/update.
 - Add a browser E2E case for `.w3dp` upload once a stable web file-input path is exposed.
-- The full runtime/UI shape matrix now lives in [docs/plugin-shape-matrix-e2e.md](/home/facuarmo/wprint3d-core/docs/plugin-shape-matrix-e2e.md).
+- The full runtime/UI shape matrix now lives in [docs/plugin-shape-matrix-e2e.md](plugin-shape-matrix-e2e.md).

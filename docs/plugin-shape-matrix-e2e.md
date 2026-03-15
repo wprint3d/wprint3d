@@ -4,11 +4,11 @@ This walkthrough verifies the Host Metrics example across every supported runtim
 
 Verified script:
 
-- [scripts/e2e_plugin_shape_matrix.py](/home/facuarmo/wprint3d-core/scripts/e2e_plugin_shape_matrix.py)
+- [scripts/e2e_plugin_shape_matrix.py](../scripts/e2e_plugin_shape_matrix.py)
 
 Generated screenshots:
 
-- [docs/assets/plugin-shapes](/home/facuarmo/wprint3d-core/docs/assets/plugin-shapes)
+- [docs/assets/plugin-shapes](assets/plugin-shapes)
 
 ## What Was Verified
 
@@ -46,7 +46,7 @@ BASE_URL=https://127.0.0.1:8443 python3 scripts/e2e_plugin_shape_matrix.py
 
 Example:
 
-- [examples/plugins/host-metrics](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics)
+- [examples/plugins/host-metrics](../examples/plugins/host-metrics)
 
 Navbar:
 
@@ -60,7 +60,7 @@ Settings:
 
 Example:
 
-- [examples/plugins/host-metrics-webview-php](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-webview-php)
+- [examples/plugins/host-metrics-webview-php](../examples/plugins/host-metrics-webview-php)
 
 Navbar:
 
@@ -74,7 +74,7 @@ Settings:
 
 Example:
 
-- [examples/plugins/host-metrics-custom-bundle-php](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-custom-bundle-php)
+- [examples/plugins/host-metrics-custom-bundle-php](../examples/plugins/host-metrics-custom-bundle-php)
 
 Navbar:
 
@@ -88,7 +88,7 @@ Settings:
 
 Example:
 
-- [examples/plugins/host-metrics-declarative-bridge](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-declarative-bridge)
+- [examples/plugins/host-metrics-declarative-bridge](../examples/plugins/host-metrics-declarative-bridge)
 
 Navbar:
 
@@ -102,7 +102,7 @@ Settings:
 
 Example:
 
-- [examples/plugins/host-metrics-webview-bridge](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-webview-bridge)
+- [examples/plugins/host-metrics-webview-bridge](../examples/plugins/host-metrics-webview-bridge)
 
 Navbar:
 
@@ -116,7 +116,7 @@ Settings:
 
 Example:
 
-- [examples/plugins/host-metrics-custom-bundle-bridge](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-custom-bundle-bridge)
+- [examples/plugins/host-metrics-custom-bundle-bridge](../examples/plugins/host-metrics-custom-bundle-bridge)
 
 Navbar:
 
@@ -131,5 +131,5 @@ Settings:
 - WebView and custom-bundle settings surfaces now render on Expo web through a host `iframe` path, while native platforms still use `react-native-webview`.
 - The custom-bundle variants now verify the manifest `components` field by loading `components/host-metrics-card.js` from plugin assets and checking for the `Loaded from JS` marker in browser E2E.
 - The declarative variants now verify the cross-platform remote component API through their `remote component UI` subtitles and remote-component-specific copy.
-- Bridge variants rely on the helper service in [examples/plugins/host-metrics-bridge-service](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-bridge-service).
+- Bridge variants rely on the helper service in [examples/plugins/host-metrics-bridge-service](../examples/plugins/host-metrics-bridge-service).
 - The matrix installs each example one-by-one so the navbar stays readable and parity checks remain attributable to the active variant.
