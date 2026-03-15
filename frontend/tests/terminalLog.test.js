@@ -38,6 +38,79 @@ test('parseTerminalEvent preserves rapid command and response events', () => {
     ]);
 });
 
+test('mergeTerminalEntries sorts delayed events by timestamp', () => {
+    const mergedEntries = mergeTerminalEntries(
+        [
+            {
+                date: '2026-03-15 22:16:54',
+                line: '> M105'
+            },
+            {
+                date: '2026-03-15 22:16:54',
+                line: 'ok T:24.00 /0.00'
+            }
+        ],
+        [
+            {
+                date: '2026-03-15 22:17:01',
+                line: 'ok T:24.00 /0.00'
+            },
+            {
+                date: '2026-03-15 22:17:00',
+                line: '> M105'
+            }
+        ],
+        50
+    );
+
+    assert.deepEqual(mergedEntries.map(({ date, line }) => ({ date, line })), [
+        {
+            date: '2026-03-15 22:16:54',
+            line: '> M105'
+        },
+        {
+            date: '2026-03-15 22:16:54',
+            line: 'ok T:24.00 /0.00'
+        },
+        {
+            date: '2026-03-15 22:17:00',
+            line: '> M105'
+        },
+        {
+            date: '2026-03-15 22:17:01',
+            line: 'ok T:24.00 /0.00'
+        }
+    ]);
+});
+
+test('mergeTerminalEntries keeps input lines before output lines for the same timestamp', () => {
+    const mergedEntries = mergeTerminalEntries(
+        [],
+        [
+            {
+                date: '2026-03-15 22:17:07',
+                line: 'ok T:24.00 /0.00'
+            },
+            {
+                date: '2026-03-15 22:17:07',
+                line: '> M105'
+            }
+        ],
+        50
+    );
+
+    assert.deepEqual(mergedEntries.map(({ date, line }) => ({ date, line })), [
+        {
+            date: '2026-03-15 22:17:07',
+            line: '> M105'
+        },
+        {
+            date: '2026-03-15 22:17:07',
+            line: 'ok T:24.00 /0.00'
+        }
+    ]);
+});
+
 test('parseTerminalHistory keeps full timestamps intact', () => {
     const entries = parseTerminalHistory(
         '2026-03-14 00:49:37: > M105\n2026-03-14 00:49:37: ok T:24.00 /0.00\n'
