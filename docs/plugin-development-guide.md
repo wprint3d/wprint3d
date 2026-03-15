@@ -350,6 +350,12 @@ Package for distribution:
 ./plugin.sh pack examples/plugins/host-metrics
 ```
 
+That writes the archive to:
+
+```text
+examples/plugins/host-metrics/builds/host-metrics.w3dp
+```
+
 Or, in development mode:
 
 - run `./run.sh -e dev`
@@ -559,5 +565,20 @@ The declarative variants demonstrate the cross-platform remote component API:
 2. Confirm the manifest targets a supported `sdkVersion` and `sdkRevision`.
 3. Package the plugin.
 4. Optionally sign it.
-5. Publish it to the official registry or a trusted third-party registry.
-6. Add release notes that mention the SDK revision and runtime/UI shape.
+5. If you want official-registry inclusion, keep the plugin in its own repository and open a PR against the public registry with that repository URL.
+6. Wait for the WPrint 3D team to reach out before expecting that plugin to appear publicly.
+7. Otherwise, publish it through your own trusted registry or direct `.w3dp` distribution.
+8. Add release notes that mention the SDK revision and runtime/UI shape.
+
+## Source Checkout Requirement
+
+Today, plugin development is anchored to the full `wprint3d-core` source tree.
+That repository is intentionally small, and the supported workflow depends on the monorepo backend container for:
+
+- `./plugin.sh`
+- live development mounts
+- plugin packaging
+- plugin signing
+- browser E2E validation against the running stack
+
+If you want to develop plugins, clone the full source tree first and work from that checkout instead of trying to package from a standalone extracted plugin directory.

@@ -18,6 +18,7 @@ This document shows the current end-to-end plugin workflow in the local WPrint 3
 
 - Browser E2E script: [scripts/e2e_plugin_showcase.py](../scripts/e2e_plugin_showcase.py)
 - Unpacked install E2E script: [scripts/e2e_unpacked_plugin_install.py](../scripts/e2e_unpacked_plugin_install.py)
+- Packaged install E2E script: [scripts/e2e_octoprint_navbartemp_package.py](../scripts/e2e_octoprint_navbartemp_package.py)
 - Generated screenshots: [docs/assets/plugins](assets/plugins)
 
 Re-run the browser capture with:
@@ -30,6 +31,9 @@ BASE_URL=https://127.0.0.1:8443 python3 scripts/e2e_plugin_showcase.py
 
 # unpacked live-source install flow from the development mount
 python3 scripts/e2e_unpacked_plugin_install.py
+
+# packaged .w3dp build + browser-authenticated upload/install flow
+python3 scripts/e2e_octoprint_navbartemp_package.py
 ```
 
 ## 1. Create A New Plugin Scaffold
@@ -66,8 +70,8 @@ The packaged and installed plugin in this run was the built-in example at [examp
 Verified commands inside the running backend container:
 
 ```bash
-docker exec wprint3d-core-backend-1 php artisan plugin:pack /var/www/examples/plugins/hello-world --output /tmp/hello-world.w3dp
-docker exec wprint3d-core-backend-1 php artisan plugin:install /tmp/hello-world.w3dp
+docker exec wprint3d-core-backend-1 php artisan plugin:pack /var/www/examples/plugins/hello-world
+docker exec wprint3d-core-backend-1 php artisan plugin:install /var/www/examples/plugins/hello-world/builds/hello-world.w3dp
 docker exec wprint3d-core-backend-1 php artisan plugin:enable wprint3d.hello-world
 docker exec wprint3d-core-backend-1 php artisan plugin:list
 ```
@@ -179,14 +183,35 @@ Note:
 - The remote registry index did not populate because the configured GitHub-backed index request returned errors in this environment.
 - That means the listing shell is implemented and routable, but a healthy registry endpoint is still required for populated marketplace content.
 
+## 9. Packaged `.w3dp` Install Flow
+
+The release-package path is now covered through the OctoPrint NavbarTemp port example. That browser run:
+
+- builds `examples/plugins/octoprint-navbartemp-port/builds/octoprint-navbartemp-port.w3dp`
+- uploads it through an authenticated browser session
+- verifies the installed card renders as a packaged sideload:
+  - `Unsigned`
+  - no `Live source`
+- enables the packaged plugin
+- opens its dedicated settings tab and confirms the packaged bundle renders
+
+Screenshots:
+
+![Package upload modal](assets/octoprint-navbartemp-port/06-package-upload-modal.png)
+
+![Packaged plugin installed card](assets/octoprint-navbartemp-port/07-package-installed-card.png)
+
+![Packaged plugin enabled card](assets/octoprint-navbartemp-port/08-package-enabled-card.png)
+
+![Packaged plugin settings tab](assets/octoprint-navbartemp-port/09-package-settings-tab.png)
+
 ## Current Gaps Observed During E2E
 
 - The official registry section in both the app and website depends on a reachable index URL. In this environment, that request failed, so registry browsing was only partially validated.
 - The local app uses a self-signed or untrusted certificate in this stack, so browser automation needed HTTPS certificate bypass.
-- The plugin upload flow was not exercised through drag-and-drop because the current UI uses Expo `DocumentPicker` plus a web drop target, and the installed sample plugin was simpler to validate through the CLI install path.
+- The Expo web upload widget still does not expose a stable native file-input path for headless browser automation, so the packaged upload regression drives the same authenticated multipart install endpoint directly instead of relying on synthetic drag-and-drop.
 
 ## Recommended Next Checks
 
 - Point `PLUGIN_REGISTRY_INDEX_URL` to a working registry and repeat the browser flow for registry install/update.
-- Add a browser E2E case for `.w3dp` upload once a stable web file-input path is exposed.
 - The full runtime/UI shape matrix now lives in [docs/plugin-shape-matrix-e2e.md](plugin-shape-matrix-e2e.md).
