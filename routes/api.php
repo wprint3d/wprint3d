@@ -112,9 +112,16 @@ Route::middleware(['auth:sanctum', 'password.ensure_changed'])->group(function (
             Route::get('/development', [PluginController::class, 'development']);
             Route::get('/doctor', [PluginController::class, 'doctor']);
             Route::post('/safe-mode', [PluginController::class, 'safeMode']);
+            Route::get('/preferences', [PluginController::class, 'preferences']);
+            Route::put('/preferences', [PluginController::class, 'updatePreferences']);
+            Route::post('/check-updates', [PluginController::class, 'checkUpdates']);
+            Route::post('/update-all', [PluginController::class, 'updateAll']);
+            Route::post('/disable-all', [PluginController::class, 'disableAll']);
+            Route::post('/enable-all', [PluginController::class, 'enableAll']);
             Route::post('/install', [PluginController::class, 'install']);
             Route::get('/', [PluginController::class, 'index']);
             Route::get('/{pluginId}', [PluginController::class, 'show']);
+            Route::put('/{pluginId}/automatic-updates', [PluginController::class, 'setAutomaticUpdates']);
             Route::post('/{pluginId}/enable', [PluginController::class, 'enable']);
             Route::post('/{pluginId}/disable', [PluginController::class, 'disable']);
             Route::post('/{pluginId}/update', [PluginController::class, 'update']);

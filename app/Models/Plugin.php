@@ -33,6 +33,10 @@ class Plugin extends Model
         'last_error',
         'load_error_at',
         'last_healthcheck_at',
+        'automatic_update_enabled',
+        'update_available',
+        'latest_version',
+        'last_update_checked_at',
     ];
 
     protected $casts = [
@@ -40,6 +44,8 @@ class Plugin extends Model
         'settings' => 'array',
         'state' => 'array',
         'logs' => 'array',
+        'automatic_update_enabled' => 'boolean',
+        'update_available' => 'boolean',
     ];
 
     public function scopeEnabled($query)

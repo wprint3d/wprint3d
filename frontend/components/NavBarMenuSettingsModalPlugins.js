@@ -1,8 +1,8 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import { Platform, ScrollView, View, useWindowDimensions } from "react-native";
+import { Platform, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Chip, Icon, IconButton, Menu, Searchbar, Text, TextInput, Tooltip, useTheme } from "react-native-paper";
+import { Button, Card, Checkbox, Chip, Divider, Icon, IconButton, Menu, Searchbar, Switch, Text, TextInput, Tooltip, useTheme } from "react-native-paper";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 import API from "../includes/API";
 import SimpleDialog from "./SimpleDialog";
@@ -142,6 +142,18 @@ const buildPluginBadges = (plugin, theme) => {
     });
   }
 
+  if (plugin.updateAvailable) {
+    badges.push({
+      icon: "update",
+      label: plugin.latestVersion ? `Update ${plugin.latestVersion}` : "Update available",
+      tooltip: plugin.latestVersion
+        ? `A newer release (${plugin.latestVersion}) is available from the configured registry source.`
+        : "A newer release is available from the configured registry source.",
+      style: { backgroundColor: theme.colors.secondaryContainer },
+      textStyle: { color: theme.colors.onSecondaryContainer },
+    });
+  }
+
   return [ ...badges, ...buildDependencyBadges(plugin, theme) ];
 };
 
@@ -251,6 +263,52 @@ const buildMutationFeedback = (response, variables = {}) => {
     };
   }
 
+  if (variables.intent === "check-updates-all") {
+    return {
+      message: `Checked ${response?.data?.checkedCount ?? 0} plugin${response?.data?.checkedCount === 1 ? "" : "s"}: ${response?.data?.updatesAvailableCount ?? 0} update${response?.data?.updatesAvailableCount === 1 ? "" : "s"} available, ${response?.data?.upToDateCount ?? 0} already current, ${response?.data?.unsupportedCount ?? 0} unsupported.`,
+      variant: "info",
+    };
+  }
+
+  if (variables.intent === "update-all") {
+    return {
+      message: `Processed ${response?.data?.checkedCount ?? 0} plugin${response?.data?.checkedCount === 1 ? "" : "s"}: ${response?.data?.updatedCount ?? 0} updated, ${response?.data?.noopCount ?? 0} already current, ${response?.data?.unsupportedCount ?? 0} unsupported.`,
+      variant: (response?.data?.updatedCount ?? 0) > 0 ? "success" : "info",
+    };
+  }
+
+  if (variables.intent === "disable-all") {
+    return {
+      message: `Disabled ${response?.data?.disabledCount ?? 0} plugin${response?.data?.disabledCount === 1 ? "" : "s"}.`,
+      variant: "info",
+    };
+  }
+
+  if (variables.intent === "enable-all") {
+    return {
+      message: `Enabled ${response?.data?.enabledCount ?? 0} plugin${response?.data?.enabledCount === 1 ? "" : "s"}${(response?.data?.failedCount ?? 0) ? `, ${response?.data?.failedCount} failed to start` : ""}.`,
+      variant: (response?.data?.failedCount ?? 0) > 0 ? "warning" : "success",
+    };
+  }
+
+  if (variables.intent === "plugin-automatic-updates") {
+    return {
+      message: pluginId
+        ? `${response?.data?.automaticUpdatesEnabled ? "Enabled" : "Disabled"} automatic updates for ${pluginId}.`
+        : "Plugin automatic update preference saved.",
+      variant: "info",
+    };
+  }
+
+  if (variables.intent === "global-automatic-updates") {
+    return {
+      message: response?.data?.automaticUpdatesEnabled
+        ? "Global automatic updates enabled."
+        : `Global automatic updates disabled.${(response?.data?.disabledPluginAutomaticUpdatesCount ?? 0) ? ` Cleared ${response?.data?.disabledPluginAutomaticUpdatesCount} plugin override${response?.data?.disabledPluginAutomaticUpdatesCount === 1 ? "" : "s"}.` : ""}`,
+      variant: "info",
+    };
+  }
+
   return {
     message: pluginId ? `Updated ${pluginId}.` : "Plugin operation completed.",
     variant: "success",
@@ -265,6 +323,15 @@ const gridCardStyle = (theme, cardWidth, isWideLayout) => ({
   borderColor: theme.colors.outlineVariant,
   backgroundColor: theme.colors.elevation.level2,
 });
+
+const pillButtonContentStyle = {
+  minHeight: 44,
+};
+
+const pillButtonStyle = {
+  borderRadius: 999,
+  alignSelf: "flex-start",
+};
 
 const buildSettingsPageMap = (pluginSettingsPages = []) => (
   pluginSettingsPages.reduce((map, page) => {
@@ -299,6 +366,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
   const [ registrySourceWebsiteUrl, setRegistrySourceWebsiteUrl ] = useState("");
   const [ overlayState, setOverlayStateState ] = useState(() => ({ ...persistedOverlayState }));
   const [ pluginActionsMenuId, setPluginActionsMenuId ] = useState(null);
+  const [ globalActionsMenuVisible, setGlobalActionsMenuVisible ] = useState(false);
 
   const updateOverlayState = (updates) => {
     const nextState = typeof updates === "function"
@@ -342,6 +410,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
 
   const isWideLayout = window.width >= 1200;
   const isCompactActionLayout = window.width < 720;
+  const isCompactHeaderLayout = window.width < 900;
   const cardWidth = isWideLayout ? 760 : (window.width >= 840 ? 620 : "100%");
 
   const userQuery = useQuery({
@@ -421,10 +490,19 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
     }
   }, [ logsDialogPlugin ]);
 
+  const pluginPreferencesQuery = useQuery({
+    queryKey: ["pluginPreferences"],
+    queryFn: () => API.get("/plugins/preferences"),
+    enabled: isAdministrator,
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+  });
+
   const settingsPageMap = useMemo(() => buildSettingsPageMap(pluginSettingsPages), [ pluginSettingsPages ]);
 
   const mutateAndRefresh = useMutation({
-    mutationFn: ({ url, body = {} }) => API.post(url, body),
+    mutationFn: ({ url, body = {}, method = "post" }) => API[method](url, body),
     onSuccess: (response, variables) => {
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["pluginRegistry"] });
@@ -432,6 +510,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       queryClient.invalidateQueries({ queryKey: ["pluginDevelopment"] });
       queryClient.invalidateQueries({ queryKey: ["pluginExtensions"] });
       queryClient.invalidateQueries({ queryKey: ["pluginLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["pluginPreferences"] });
 
       const feedback = buildMutationFeedback(response, variables);
 
@@ -509,6 +588,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
 
   const registrySources = registrySourcesQuery?.data?.data || [];
   const trustedRegistrySources = registrySources.filter((source) => !source.official);
+  const globalAutomaticUpdatesEnabled = pluginPreferencesQuery?.data?.data?.automaticUpdatesEnabled !== false;
 
   const filteredRegistryPlugins = useMemo(() => {
     const list = registryPluginsQuery?.data?.data || [];
@@ -548,6 +628,14 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
 
     if (confirmationDialog.kind === "safe-mode") {
       mutateAndRefresh.mutate({ url: "/plugins/safe-mode", body: {}, intent: "safe-mode" });
+    }
+
+    if (confirmationDialog.kind === "disable-all") {
+      mutateAndRefresh.mutate({ url: "/plugins/disable-all", body: {}, intent: "disable-all" });
+    }
+
+    if (confirmationDialog.kind === "enable-all") {
+      mutateAndRefresh.mutate({ url: "/plugins/enable-all", body: {}, intent: "enable-all" });
     }
 
     if (confirmationDialog.kind === "remove-registry-source") {
@@ -627,26 +715,42 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
     updateRegistrySourcesMutation.mutate(sources);
   };
 
+  const toggleGlobalAutomaticUpdates = () => {
+    mutateAndRefresh.mutate({
+      url: "/plugins/preferences",
+      body: { automaticUpdatesEnabled: !globalAutomaticUpdatesEnabled },
+      method: "put",
+      intent: "global-automatic-updates",
+    });
+  };
+
   return (
     <View style={{ flex: 1, position: "relative" }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
-        <Text variant="headlineSmall" style={{ marginBottom: 8 }}>Plugins</Text>
-        <Text style={{ marginBottom: 16 }}>
-          Manage installed plugins and use the dedicated settings tabs for plugins that declare them.
-        </Text>
+        <View style={{ marginBottom: 20, gap: 12 }}>
+          <View
+            style={{
+              flexDirection: isCompactHeaderLayout ? "column" : "row",
+              alignItems: isCompactHeaderLayout ? "flex-start" : "center",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
+            <View style={{ flexShrink: 1, gap: 8 }}>
+              <Text variant="headlineSmall">Plugins</Text>
+              <Text>
+                Manage installed plugins and use the dedicated settings tabs for plugins that declare them.
+              </Text>
+            </View>
 
-        {isAdministrator && (
-          <Card style={{ marginBottom: 16, borderRadius: 18, overflow: "hidden" }}>
-            <Card.Title title="Installed plugins" subtitle="Manage what is already active on this instance" />
-            <Card.Content>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+            {isAdministrator && (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
                 <Button
                   mode="contained"
                   icon="plus"
                   onPress={openInstallModal}
-                  style={{
-                    borderRadius: 999,
-                  }}
+                  style={pillButtonStyle}
+                  contentStyle={pillButtonContentStyle}
                 >
                   Add a plugin
                 </Button>
@@ -654,30 +758,123 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                   mode="contained-tonal"
                   icon="store-search"
                   onPress={openMarketplace}
-                  style={{
-                    borderRadius: 999,
-                  }}
+                  style={pillButtonStyle}
+                  contentStyle={pillButtonContentStyle}
                 >
                   Marketplace
                 </Button>
-                <Button
-                  mode="outlined"
-                  icon="shield-alert"
-                  onPress={() => openConfirmationDialog({
-                    kind: "safe-mode",
-                    title: "Enable safe mode?",
-                    body: "This disables all enabled plugins so you can recover from a bad install or runtime issue.",
-                    confirmLabel: "Disable all plugins",
-                  })}
-                  style={{
-                    borderRadius: 999,
-                  }}
+                <Menu
+                  visible={globalActionsMenuVisible}
+                  onDismiss={() => setGlobalActionsMenuVisible(false)}
+                  anchor={(
+                    <View style={{ alignSelf: "flex-start" }}>
+                      <IconButton
+                        icon="dots-vertical"
+                        mode="outlined"
+                        accessibilityLabel="Plugin manager actions"
+                        containerColor={theme.colors.elevation.level1}
+                        size={20}
+                        style={{ margin: 0 }}
+                        onPress={() => setGlobalActionsMenuVisible(true)}
+                      />
+                    </View>
+                  )}
                 >
-                  Safe mode
-                </Button>
+                  <Menu.Item
+                    leadingIcon="refresh"
+                    title="Check for updates"
+                    onPress={() => {
+                      setGlobalActionsMenuVisible(false);
+                      mutateAndRefresh.mutate({ url: "/plugins/check-updates", body: {}, intent: "check-updates-all" });
+                    }}
+                  />
+                  <Menu.Item
+                    leadingIcon="update"
+                    title="Update all"
+                    onPress={() => {
+                      setGlobalActionsMenuVisible(false);
+                      mutateAndRefresh.mutate({ url: "/plugins/update-all", body: {}, intent: "update-all" });
+                    }}
+                  />
+                  <Menu.Item
+                    leadingIcon="pause-circle-outline"
+                    title="Disable all"
+                    onPress={() => {
+                      setGlobalActionsMenuVisible(false);
+                      openConfirmationDialog({
+                        kind: "disable-all",
+                        title: "Disable all plugins?",
+                        body: "This disables every currently enabled plugin on this instance.",
+                        confirmLabel: "Disable all",
+                      });
+                    }}
+                  />
+                  <Menu.Item
+                    leadingIcon="power"
+                    title="Enable all"
+                    onPress={() => {
+                      setGlobalActionsMenuVisible(false);
+                      openConfirmationDialog({
+                        kind: "enable-all",
+                        title: "Enable all plugins?",
+                        body: "WPrint 3D will try to start every installed plugin again.",
+                        confirmLabel: "Enable all",
+                      });
+                    }}
+                  />
+                  <Divider />
+                  <Pressable
+                    accessibilityRole="menuitemcheckbox"
+                    accessibilityState={{ checked: globalAutomaticUpdatesEnabled }}
+                    onPress={() => {
+                      setGlobalActionsMenuVisible(false);
+                      toggleGlobalAutomaticUpdates();
+                    }}
+                    style={{
+                      minWidth: 220,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                    }}
+                  >
+                    <Checkbox
+                      status={globalAutomaticUpdatesEnabled ? "checked" : "unchecked"}
+                      pointerEvents="none"
+                    />
+                    <Text>Automatic updates</Text>
+                  </Pressable>
+                  <Divider />
+                  <Menu.Item
+                    leadingIcon="shield-alert"
+                    title="Enable safe mode"
+                    onPress={() => {
+                      setGlobalActionsMenuVisible(false);
+                      openConfirmationDialog({
+                        kind: "safe-mode",
+                        title: "Enable safe mode?",
+                        body: "This disables all enabled plugins so you can recover from a bad install or runtime issue.",
+                        confirmLabel: "Disable all plugins",
+                      });
+                    }}
+                  />
+                </Menu>
               </View>
+            )}
+          </View>
+        </View>
 
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
+        {isAdministrator && (
+          <View style={{ marginBottom: 16 }}>
+            <View style={{ marginBottom: 16, gap: 4 }}>
+              <Text variant="titleMedium">Installed plugins</Text>
+              <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                Manage what is already active on this instance.
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
                 {(installedPluginsQuery?.data?.data || []).map((plugin) => (
                   (() => {
                     const toggleActionLabel = plugin.enabled ? "Disable" : (plugin.loadStatus === "failed" ? "Retry" : "Enable");
@@ -790,6 +987,42 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                             </View>
                           )}
 
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 12,
+                              marginBottom: 12,
+                              paddingVertical: 10,
+                              paddingHorizontal: 12,
+                              borderRadius: 14,
+                              backgroundColor: theme.colors.elevation.level1,
+                            }}
+                          >
+                            <View style={{ flex: 1, gap: 2 }}>
+                              <Text style={{ fontWeight: "700" }}>Automatic updates</Text>
+                              <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                                {plugin.automaticUpdatesSupported
+                                  ? (globalAutomaticUpdatesEnabled
+                                    ? "Install new registry releases for this plugin automatically."
+                                    : "Global automatic updates are disabled for all plugins.")
+                                  : "Only plugins installed from a trusted registry can update automatically."}
+                              </Text>
+                            </View>
+                            <Switch
+                              value={plugin.automaticUpdatesSupported && !!plugin.automaticUpdatesEnabled}
+                              accessibilityLabel={`${plugin.name} automatic updates`}
+                              disabled={!plugin.automaticUpdatesSupported || !globalAutomaticUpdatesEnabled}
+                              onValueChange={(enabled) => mutateAndRefresh.mutate({
+                                url: `/plugins/${plugin.id}/automatic-updates`,
+                                body: { enabled },
+                                method: "put",
+                                intent: "plugin-automatic-updates",
+                              })}
+                            />
+                          </View>
+
                           {isCompactActionLayout ? (
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                               {hasSettingsPage && (
@@ -818,6 +1051,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                                 anchor={(
                                   <IconButton
                                     icon="dots-vertical"
+                                    accessibilityLabel={`${plugin.name} more actions`}
                                     mode="outlined"
                                     size={20}
                                     containerColor={theme.colors.elevation.level1}
@@ -845,6 +1079,8 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                                 <Button
                                   mode="contained-tonal"
                                   icon="cog-outline"
+                                  style={pillButtonStyle}
+                                  contentStyle={pillButtonContentStyle}
                                   onPress={() => onOpenSettingsPage(settingsPageMap[plugin.id].key)}
                                 >
                                   Settings
@@ -853,6 +1089,8 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                               <Button
                                 mode="outlined"
                                 icon="text-box-search-outline"
+                                style={pillButtonStyle}
+                                contentStyle={pillButtonContentStyle}
                                 onPress={() => setLogsDialogPlugin({
                                   id: plugin.id,
                                   name: plugin.name,
@@ -863,6 +1101,8 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                               <Button
                                 mode={plugin.enabled ? "outlined" : "contained-tonal"}
                                 icon={toggleActionIcon}
+                                style={pillButtonStyle}
+                                contentStyle={pillButtonContentStyle}
                                 onPress={openToggleDialog}
                               >
                                 {toggleActionLabel}
@@ -870,6 +1110,8 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                               <Button
                                 mode="outlined"
                                 icon={updateActionIcon}
+                                style={pillButtonStyle}
+                                contentStyle={pillButtonContentStyle}
                                 onPress={() => mutateAndRefresh.mutate({ url: `/plugins/${plugin.id}/update`, intent: "update" })}
                               >
                                 {updateActionLabel}
@@ -880,6 +1122,8 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                                 buttonColor={theme.colors.error}
                                 textColor={theme.colors.white || "#ffffff"}
                                 iconColor={theme.colors.white || "#ffffff"}
+                                style={pillButtonStyle}
+                                contentStyle={pillButtonContentStyle}
                                 onPress={openRemoveDialog}
                               >
                                 Remove
@@ -891,15 +1135,14 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                     );
                   })()
                 ))}
-              </View>
 
               {!installedPluginsQuery?.data?.data?.length && (
                 <Text style={{ marginTop: 12 }}>
                   No plugins are installed yet. Use `Add a plugin` or `Marketplace` to bring one in.
                 </Text>
               )}
-            </Card.Content>
-          </Card>
+            </View>
+          </View>
         )}
       </ScrollView>
 

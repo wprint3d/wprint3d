@@ -87,4 +87,24 @@ class PluginCommandsTest extends TestCase
             ->expectsOutput('No automatic update source is configured for octoprint.navbartemp-port.')
             ->assertExitCode(0);
     }
+
+    public function test_plugin_auto_update_reports_a_summary(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('runAutomaticUpdates')
+            ->once()
+            ->andReturn([
+                'checkedCount' => 3,
+                'updatedCount' => 1,
+                'noopCount' => 1,
+                'skippedCount' => 1,
+                'failedCount' => 0,
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $this->artisan('plugin:auto-update')
+            ->expectsOutput('Automatic plugin updates checked 3 plugins: 1 updated, 1 already current, 1 skipped, 0 failed.')
+            ->assertExitCode(0);
+    }
 }
