@@ -45,7 +45,7 @@ For OctoPrint-oriented ports, use [examples/plugins/octoprint-navbartemp-port](.
 ```bash
 ./plugin.sh make
 ./plugin.sh pack plugins/acme-hello-world
-./plugin.sh install plugins/acme-hello-world.w3dp
+./plugin.sh install plugins/acme-hello-world/builds/acme-hello-world.w3dp
 ./plugin.sh list
 ./plugin.sh doctor
 ./plugin.sh status
@@ -53,6 +53,8 @@ For OctoPrint-oriented ports, use [examples/plugins/octoprint-navbartemp-port](.
 
 `./plugin.sh` is the recommended host entrypoint because it runs the plugin Artisan commands inside the backend container. Use raw `php artisan plugin:*` only when you are already inside that container or a matching PHP environment.
 `./plugin.sh status` is the quickest way to verify which backend container was resolved, whether developer mode is live, and whether the unpacked-plugin source roots are actually visible for live installs.
+By default, `./plugin.sh pack <plugin-path>` writes the release archive to `<plugin-path>/builds/<plugin-dir>.w3dp`. In the development stack that path stays visible on the host because the repo is bind-mounted into the backend container at `/var/www`.
+Plugin development currently assumes a full `wprint3d-core` source checkout. The repo is small, and that checkout is the supported environment for live mounts, packaging, signing, and running `./plugin.sh`.
 
 ## Development Mount
 
@@ -72,6 +74,7 @@ Production backend images do not bundle `examples/plugins`. That keeps the shipp
 - Official packages come from the GitHub-backed official registry.
 - Trusted third-party registries can be added in the Marketplace via the gear button.
 - Unsigned sideloaded packages remain installable but are flagged in the UI.
+- Until the public registry workflow is documented in more detail, plugin authors should keep their plugin in their own repository, open a PR against the public registry with that repository URL, and wait for the WPrint 3D team to follow up.
 
 ## Manifest Highlights
 

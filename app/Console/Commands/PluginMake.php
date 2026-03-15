@@ -440,6 +440,10 @@ HTML);
 
     private function readmeForScaffold(array $manifest, array $shapeConfig, bool $managedBridgeService, ?int $servicePort): string
     {
+        $pluginPath = dirname($this->resolveTargetPath($manifest['id'])).'/'.basename($this->resolveTargetPath($manifest['id']));
+        $buildPath = $pluginPath.'/builds/'.basename($this->resolveTargetPath($manifest['id'])).'.w3dp';
+        $keyPath = 'keys/'.basename($this->resolveTargetPath($manifest['id'])).'-private.pem';
+
         $lines = [
             "# {$manifest['name']}",
             '',
@@ -451,15 +455,57 @@ HTML);
             "- UI mode: `{$shapeConfig['uiMode']}`",
             '- Footprint: `'.(! empty($manifest['images']) ? 'heavyweight' : 'lightweight').'`',
             '',
-            '## Next steps',
+            '## Develop from source',
             '',
-            '1. Edit `plugin.json` to describe the plugin properly.',
-            '2. Implement the runtime handlers or bridge service.',
-            '3. Package the plugin with `php artisan plugin:pack '.dirname($this->resolveTargetPath($manifest['id'])).'/'.basename($this->resolveTargetPath($manifest['id'])).'`.',
+            'Developing WPrint 3D plugins currently requires a full `wprint3d-core` source checkout.',
+            'The repository is intentionally small, and the supported workflow uses the monorepo backend container plus `./plugin.sh`.',
+            'Clone the full source tree before editing, packaging, or live-mount testing this plugin.',
+            '',
+            'Recommended local loop:',
+            '',
+            '1. Start the dev stack with `./run.sh -e dev`.',
+            '2. Edit `plugin.json` and the runtime/UI files in this directory.',
+            '3. Use `Settings -> Plugins -> Add a plugin -> Install unpacked` for live-source testing.',
+            '',
+            '## Package it',
+            '',
+            '```bash',
+            "./plugin.sh pack {$pluginPath}",
+            '```',
+            '',
+            'The default archive path is:',
+            '',
+            '```text',
+            $buildPath,
+            '```',
+            '',
+            '## Sign it',
+            '',
+            'Keep the signing key outside the plugin directory and out of version control:',
+            '',
+            '```bash',
+            'mkdir -p keys',
+            "openssl genpkey -algorithm RSA -out {$keyPath} -pkeyopt rsa_keygen_bits:4096",
+            "./plugin.sh pack {$pluginPath} --signing-key={$keyPath}",
+            '```',
+            '',
+            '## Install the packaged archive',
+            '',
+            '```bash',
+            "./plugin.sh install {$buildPath}",
+            "./plugin.sh enable {$manifest['id']}",
+            '```',
+            '',
+            '## Public registry',
+            '',
+            'For now, publish the plugin from your own repository, then open a PR against the public registry with that repository URL.',
+            'After that, wait for the WPrint 3D team to reach out before expecting the plugin to appear in the registry UI.',
+            'The exact registry submission workflow will be documented further once the registry foundation is finalized.',
         ];
 
         if (($shapeConfig['runtimeType'] ?? 'php') === 'bridge') {
-            $lines[] = '4. Run the bridge service locally with `node bridge/server.mjs`.';
+            $lines[] = '';
+            $lines[] = 'Bridge note: run the bridge service locally with `node bridge/server.mjs` while testing.';
         }
 
         if ($managedBridgeService && $servicePort) {
@@ -509,7 +555,7 @@ HTML);
             '',
             '## Verification',
             '',
-            '- `php artisan plugin:pack <plugin-path>`',
+            '- `php artisan plugin:pack <plugin-path>` writes the archive to `<plugin-path>/builds/<plugin-dir>.w3dp` by default.',
             '- Install it through the Plugins UI, `php artisan plugin:install`, or the development mount when working locally.',
         ];
 

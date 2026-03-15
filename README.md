@@ -104,12 +104,16 @@ If you want to build plugins, use this path:
    - [docs/plugin-shape-matrix-e2e.md](/home/facuarmo/wprint3d-core/docs/plugin-shape-matrix-e2e.md): every supported runtime/UI shape
 5. Use the plugin-local `AGENTS.md` files inside each example directory when modifying or extending those examples.
 
+Plugin development currently expects a full `wprint3d-core` source checkout. The repository is small, and the supported authoring loop depends on that checkout for `./plugin.sh`, the live development mounts, browser E2E, and `.w3dp` packaging/signing.
+
 When running `./run.sh -e dev`, unpacked plugins can be installed directly from the live development sources exposed inside the containers. New plugins scaffold into repo [plugins](/home/facuarmo/wprint3d-core/plugins), while the bundled samples live in [examples/plugins](/home/facuarmo/wprint3d-core/examples/plugins). The `Install unpacked` flow shows both sources so you can iterate on your own plugin without packaging it first.
 
 Use `./plugin.sh` for host-side plugin commands when you do not have a matching PHP runtime installed locally. The wrapper reuses WPrint 3D's Podman/Docker detection and runs `php artisan plugin:*` inside the backend container.
 Use `./plugin.sh status` when you need to confirm which backend container it found, whether developer mode is effectively enabled, and whether the live unpacked plugin mount is visible from that container.
 
 Production backend images intentionally exclude `examples/plugins` so sample plugins do not ship in the runtime image. Use the development stack or a source checkout when you need the example plugins for testing, packaging, or demos.
+
+For public-registry inclusion, the temporary process is simple: keep the plugin in its own repository, open a PR against the public registry with that repository URL, and then wait for the WPrint 3D team to reach out. We will document the registry workflow in more detail once the foundation is finalized.
 
 ## System requirements
 - Any **dual-core CPU** running at, at least, **1 GHz**

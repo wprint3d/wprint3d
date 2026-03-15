@@ -689,6 +689,7 @@ Action calls are always host-mediated:
 - `php artisan plugin:doctor`
 
 `plugin:make` is now interactive and can scaffold any runtime/UI shape plus optional heavyweight image metadata. Use `--shape`, `--image`, `--memory`, and `--cpu` when you want a fully non-interactive generator.
+`plugin:pack <plugin-path>` writes to `<plugin-path>/builds/<plugin-dir>.w3dp` by default. Use `--output` only when you need a custom location.
 
 ## Host Theme Metadata For Elevated UI
 

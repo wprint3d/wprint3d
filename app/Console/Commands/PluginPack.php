@@ -18,7 +18,7 @@ class PluginPack extends Command
     public function handle(PluginPackager $packager): int
     {
         $source = rtrim((string) $this->argument('source'), DIRECTORY_SEPARATOR);
-        $output = $this->option('output') ?: $source . '.w3dp';
+        $output = $this->option('output') ?: $this->defaultOutputPath($source);
 
         $packager->build(
             sourceDirectory: $source,
@@ -30,5 +30,15 @@ class PluginPack extends Command
         $this->info("Plugin package created at {$output}");
 
         return self::SUCCESS;
+    }
+
+    private function defaultOutputPath(string $source): string
+    {
+        return $source
+            .DIRECTORY_SEPARATOR
+            .'builds'
+            .DIRECTORY_SEPARATOR
+            .basename($source)
+            .'.w3dp';
     }
 }
