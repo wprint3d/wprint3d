@@ -2,7 +2,7 @@
 
 This variant is covered by the shape-matrix E2E guide:
 
-- [docs/plugin-shape-matrix-e2e.md](/home/facuarmo/wprint3d-core/docs/plugin-shape-matrix-e2e.md)
+- [docs/plugin-shape-matrix-e2e.md](../../../../docs/plugin-shape-matrix-e2e.md)
 
 Use this example when you need:
 

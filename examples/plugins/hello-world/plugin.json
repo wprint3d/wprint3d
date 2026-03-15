@@ -3,8 +3,9 @@
   "name": "Hello World",
   "version": "0.1.0",
   "sdkVersion": 1,
+  "sdkRevision": 4,
   "minCoreVersion": "0.0.0",
-  "description": "A reference plugin that demonstrates the default declarative UI mode.",
+  "description": "A reference plugin that demonstrates the default declarative UI mode and host.* component registry.",
   "author": "WPrint 3D",
   "icon": "hand-wave-outline",
   "runtime": {
@@ -35,16 +36,36 @@
       "mode": "declarative",
       "title": "Hello World Settings",
       "schema": {
-        "component": "section",
+        "component": "host.section",
         "title": "Lightweight declarative UI",
         "subtitle": "Default template for low-memory hardware",
         "children": [
           {
-            "component": "text",
+            "component": "host.heading",
+            "variant": "titleMedium",
+            "text": "Host component registry"
+          },
+          {
+            "component": "host.caption",
             "text": "This plugin uses WPrint 3D's default host-rendered UI path."
           },
           {
-            "component": "button",
+            "component": "host.chip_group",
+            "items": [
+              {
+                "id": "surface",
+                "text": "settings_tab",
+                "icon": "cog-outline"
+              },
+              {
+                "id": "mode",
+                "text": "declarative",
+                "icon": "view-dashboard-outline"
+              }
+            ]
+          },
+          {
+            "component": "host.button",
             "label": "Ping plugin",
             "actionId": "ping"
           }
@@ -57,11 +78,15 @@
       "mode": "declarative",
       "title": "Printer panel",
       "schema": {
-        "component": "section",
-        "title": "Hello panel",
+        "component": "host.surface",
         "children": [
           {
-            "component": "text",
+            "component": "host.heading",
+            "variant": "titleMedium",
+            "text": "Hello panel"
+          },
+          {
+            "component": "host.caption",
             "text": "Plugins can add printer-specific panels without shipping a custom frontend bundle."
           }
         ]
