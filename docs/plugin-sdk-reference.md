@@ -132,6 +132,9 @@ sequenceDiagram
 - `sdkRevision`
 - `description`
 - `author`
+- `homepageUrl`
+- `documentationUrl`
+- `sourceUrl`
 - `minCoreVersion`
 - `icon`
 - `permissions`
@@ -143,6 +146,44 @@ sequenceDiagram
 - `updateSource`
 - `requirements`
 - `images`
+
+### Signature Schema
+
+Unsigned manifests use:
+
+```json
+"signature": {
+  "algorithm": "none"
+}
+```
+
+Signed release packages use:
+
+```json
+"signature": {
+  "algorithm": "openssl-sha256",
+  "keyId": "sha1-of-embedded-public-key",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n",
+  "publicKeySha256": "sha256-of-embedded-public-key",
+  "value": "base64-signature"
+}
+```
+
+Notes:
+
+- `plugin:pack --signing-key=...` signs the canonical manifest payload with SHA-256.
+- The embedded `publicKey` is there for transparency and offline verification.
+- Host trust still depends on configured trusted keys, not on blindly trusting the package’s embedded key.
+
+### Canonical Plugin URLs
+
+Public plugins should declare these manifest fields so registry entries and landing pages do not guess URLs from the monorepo:
+
+- `homepageUrl`: the canonical repository or project homepage
+- `documentationUrl`: the primary install or usage docs page
+- `sourceUrl`: the canonical source repository
+
+All three must be absolute `http` or `https` URLs when present.
 
 ## Runtime Contracts
 
@@ -690,6 +731,12 @@ Action calls are always host-mediated:
 
 `plugin:make` is now interactive and can scaffold any runtime/UI shape plus optional heavyweight image metadata. Use `--shape`, `--image`, `--memory`, and `--cpu` when you want a fully non-interactive generator.
 `plugin:pack <plugin-path>` writes to `<plugin-path>/builds/<plugin-dir>.w3dp` by default. Use `--output` only when you need a custom location.
+
+Signing helpers from the repo root:
+
+- `python3 scripts/plugin_sign.py <plugin-path> --private-key=/path/to/key.pem`
+- `python3 scripts/plugin_verify_signature.py inspect <package.w3dp>`
+- `python3 scripts/plugin_verify_signature.py verify <package.w3dp>`
 
 ## Host Theme Metadata For Elevated UI
 

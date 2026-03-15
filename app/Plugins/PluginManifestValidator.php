@@ -211,6 +211,9 @@ class PluginManifestValidator
         $manifest['minCoreVersion'] = $manifest['minCoreVersion'] ?? null;
         $manifest['description'] = $manifest['description'] ?? null;
         $manifest['author'] = $manifest['author'] ?? null;
+        $manifest['homepageUrl'] = $this->normalizeOptionalUrl($manifest['homepageUrl'] ?? null, 'homepageUrl');
+        $manifest['documentationUrl'] = $this->normalizeOptionalUrl($manifest['documentationUrl'] ?? null, 'documentationUrl');
+        $manifest['sourceUrl'] = $this->normalizeOptionalUrl($manifest['sourceUrl'] ?? null, 'sourceUrl');
         $manifest['updateSource'] = $manifest['updateSource'] ?? [];
         $manifest['settings'] = $this->normalizeSettings($manifest['settings'] ?? []);
 
@@ -378,6 +381,35 @@ class PluginManifestValidator
         }
 
         return $normalized;
+    }
+
+    private function normalizeOptionalUrl(mixed $value, string $field): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_string($value)) {
+            throw new InvalidPluginManifestException("{$field} must be an absolute http(s) URL.");
+        }
+
+        $value = trim($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (! filter_var($value, FILTER_VALIDATE_URL)) {
+            throw new InvalidPluginManifestException("{$field} must be an absolute http(s) URL.");
+        }
+
+        $scheme = parse_url($value, PHP_URL_SCHEME);
+
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            throw new InvalidPluginManifestException("{$field} must be an absolute http(s) URL.");
+        }
+
+        return $value;
     }
 
     private function normalizeCommand(mixed $command): array

@@ -8,7 +8,7 @@ class PluginSignatureService
 {
     public function signManifest(array $manifest, string $privateKeyPath, ?string $passphrase = null): array
     {
-        if (!is_file($privateKeyPath)) {
+        if (! is_file($privateKeyPath)) {
             throw new PluginRuntimeException("Private signing key not found: {$privateKeyPath}");
         }
 
@@ -21,16 +21,24 @@ class PluginSignatureService
         $payload = $this->canonicalPayload($manifest);
         $signature = '';
 
-        if (!openssl_sign($payload, $signature, $privateKey, OPENSSL_ALGO_SHA256)) {
+        if (! openssl_sign($payload, $signature, $privateKey, OPENSSL_ALGO_SHA256)) {
             throw new PluginRuntimeException('Failed to sign plugin manifest.');
         }
 
         $publicKeyDetails = openssl_pkey_get_details($privateKey);
-        $keyId = sha1($publicKeyDetails['key'] ?? basename($privateKeyPath));
+        $publicKey = $this->normalizePublicKeyPem($publicKeyDetails['key'] ?? null);
+
+        if ($publicKey === null) {
+            throw new PluginRuntimeException('Unable to derive plugin signing public key.');
+        }
+
+        $keyId = $this->keyIdForPublicKey($publicKey);
 
         $manifest['signature'] = [
             'algorithm' => 'openssl-sha256',
             'keyId' => $keyId,
+            'publicKey' => $publicKey,
+            'publicKeySha256' => $this->publicKeySha256($publicKey),
             'value' => base64_encode($signature),
         ];
 
@@ -41,7 +49,7 @@ class PluginSignatureService
     {
         $signature = $manifest['signature'] ?? null;
 
-        if (!is_array($signature) || ($signature['algorithm'] ?? 'none') === 'none') {
+        if (! is_array($signature) || ($signature['algorithm'] ?? 'none') === 'none') {
             return false;
         }
 
@@ -51,29 +59,16 @@ class PluginSignatureService
 
         $encodedSignature = $signature['value'] ?? null;
 
-        if (!$encodedSignature) {
+        if (! $encodedSignature) {
             return false;
         }
 
         foreach ($publicKeyPaths as $path) {
-            if (!is_file($path)) {
+            if (! is_file($path)) {
                 continue;
             }
 
-            $publicKey = openssl_pkey_get_public(file_get_contents($path));
-
-            if ($publicKey === false) {
-                continue;
-            }
-
-            $result = openssl_verify(
-                $this->canonicalPayload($manifest),
-                base64_decode($encodedSignature, true) ?: '',
-                $publicKey,
-                OPENSSL_ALGO_SHA256
-            );
-
-            if ($result === 1) {
+            if ($this->verifyManifestWithPublicKeyContents($manifest, (string) file_get_contents($path))) {
                 return true;
             }
         }
@@ -96,6 +91,55 @@ class PluginSignatureService
         );
     }
 
+    public function embeddedPublicKey(array $manifest): ?string
+    {
+        return $this->normalizePublicKeyPem($manifest['signature']['publicKey'] ?? null);
+    }
+
+    public function verifyManifestWithPublicKeyContents(array $manifest, string $publicKeyContents): bool
+    {
+        $signature = $manifest['signature'] ?? null;
+
+        if (! is_array($signature) || ($signature['algorithm'] ?? null) !== 'openssl-sha256') {
+            return false;
+        }
+
+        $encodedSignature = $signature['value'] ?? null;
+
+        if (! is_string($encodedSignature) || $encodedSignature === '') {
+            return false;
+        }
+
+        $decodedSignature = base64_decode($encodedSignature, true);
+
+        if ($decodedSignature === false) {
+            return false;
+        }
+
+        $publicKey = openssl_pkey_get_public($publicKeyContents);
+
+        if ($publicKey === false) {
+            return false;
+        }
+
+        return openssl_verify(
+            $this->canonicalPayload($manifest),
+            $decodedSignature,
+            $publicKey,
+            OPENSSL_ALGO_SHA256
+        ) === 1;
+    }
+
+    public function keyIdForPublicKey(string $publicKeyPem): string
+    {
+        return sha1($this->normalizePublicKeyPem($publicKeyPem) ?? $publicKeyPem);
+    }
+
+    public function publicKeySha256(string $publicKeyPem): string
+    {
+        return hash('sha256', $this->normalizePublicKeyPem($publicKeyPem) ?? $publicKeyPem);
+    }
+
     private function sortRecursive(array $input): array
     {
         if (array_is_list($input)) {
@@ -111,5 +155,20 @@ class PluginSignatureService
         }
 
         return $input;
+    }
+
+    private function normalizePublicKeyPem(mixed $publicKeyPem): ?string
+    {
+        if (! is_string($publicKeyPem)) {
+            return null;
+        }
+
+        $trimmed = trim($publicKeyPem);
+
+        if ($trimmed === '') {
+            return null;
+        }
+
+        return $trimmed."\n";
     }
 }

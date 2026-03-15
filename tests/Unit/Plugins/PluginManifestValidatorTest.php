@@ -113,6 +113,55 @@ class PluginManifestValidatorTest extends TestCase
         $this->assertSame(1, $manifest['sdkRevision']);
     }
 
+    public function test_it_normalizes_canonical_plugin_urls(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
+
+        $manifest = $validator->validate([
+            'id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'runtime' => [
+                'type' => 'php',
+                'entry' => 'plugin.php',
+            ],
+            'permissions' => [
+                'printer.read',
+            ],
+            'homepageUrl' => 'https://example.com/plugin',
+            'documentationUrl' => 'https://example.com/plugin/docs',
+            'sourceUrl' => 'https://github.com/example/plugin',
+        ]);
+
+        $this->assertSame('https://example.com/plugin', $manifest['homepageUrl']);
+        $this->assertSame('https://example.com/plugin/docs', $manifest['documentationUrl']);
+        $this->assertSame('https://github.com/example/plugin', $manifest['sourceUrl']);
+    }
+
+    public function test_it_rejects_invalid_canonical_plugin_urls(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
+
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('homepageUrl must be an absolute http(s) URL');
+
+        $validator->validate([
+            'id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'runtime' => [
+                'type' => 'php',
+                'entry' => 'plugin.php',
+            ],
+            'permissions' => [
+                'printer.read',
+            ],
+            'homepageUrl' => 'github.com/example/plugin',
+        ]);
+    }
+
     public function test_it_rejects_unknown_sdk_revisions(): void
     {
         $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
