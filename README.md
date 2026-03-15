@@ -92,25 +92,38 @@ WPrint 3D now includes a plugin platform with:
 
 If you want to build plugins, use this path:
 
-1. Read the plugin entrypoint docs in [docs/plugins.md](/home/facuarmo/wprint3d-core/docs/plugins.md).
-2. Follow the full authoring walkthrough in [docs/plugin-development-guide.md](/home/facuarmo/wprint3d-core/docs/plugin-development-guide.md).
+1. Read the plugin entrypoint docs in [docs/plugins.md](docs/plugins.md).
+2. Follow the full authoring walkthrough in [docs/plugin-development-guide.md](docs/plugin-development-guide.md).
 3. Use the signing guides when you start distributing packages:
-   - [docs/plugin-signing-for-developers.md](/home/facuarmo/wprint3d-core/docs/plugin-signing-for-developers.md)
-   - [docs/plugin-signature-verification-for-users.md](/home/facuarmo/wprint3d-core/docs/plugin-signature-verification-for-users.md)
-   - [docs/plugin-registry-signing-review.md](/home/facuarmo/wprint3d-core/docs/plugin-registry-signing-review.md)
+   - [docs/plugin-signing-for-developers.md](docs/plugin-signing-for-developers.md)
+   - [docs/plugin-signature-verification-for-users.md](docs/plugin-signature-verification-for-users.md)
+   - [docs/plugin-registry-signing-review.md](docs/plugin-registry-signing-review.md)
 4. Use the scaffold command to start a new plugin:
 
    `./plugin.sh make`
 
+   Generate a signing key when you are ready to distribute packages:
+
+   `./plugin.sh keygen`
+
 5. Study the reference examples:
-   - [examples/plugins/hello-world](/home/facuarmo/wprint3d-core/examples/plugins/hello-world): smallest PHP + declarative starter
-   - [examples/plugins/host-metrics](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics): baseline host-rendered plugin
-   - [docs/plugin-shape-matrix-e2e.md](/home/facuarmo/wprint3d-core/docs/plugin-shape-matrix-e2e.md): every supported runtime/UI shape
+   - [examples/plugins/hello-world](examples/plugins/hello-world): smallest PHP + declarative starter
+   - [examples/plugins/host-metrics](examples/plugins/host-metrics): baseline host-rendered plugin
+   - [docs/plugin-shape-matrix-e2e.md](docs/plugin-shape-matrix-e2e.md): every supported runtime/UI shape
 6. Use the plugin-local `AGENTS.md` files inside each example directory when modifying or extending those examples.
 
 Plugin development currently expects a full `wprint3d-core` source checkout. The repository is small, and the supported authoring loop depends on that checkout for `./plugin.sh`, the live development mounts, browser E2E, and `.w3dp` packaging/signing.
 
-When running `./run.sh -e dev`, unpacked plugins can be installed directly from the live development sources exposed inside the containers. New plugins scaffold into repo [plugins](/home/facuarmo/wprint3d-core/plugins), while the bundled samples live in [examples/plugins](/home/facuarmo/wprint3d-core/examples/plugins). The `Install unpacked` flow shows both sources so you can iterate on your own plugin without packaging it first.
+Typical release commands from the repo root:
+
+```bash
+./plugin.sh pack examples/plugins/hello-world --wizard
+./plugin.sh verify examples/plugins/hello-world/builds/hello-world.w3dp
+./plugin.sh verify examples/plugins/hello-world/builds/hello-world.w3dp --require-trusted
+./plugin.sh restore examples/plugins/hello-world/builds/hello-world.w3dp --output plugins/hello-world-fork
+```
+
+When running `./run.sh -e dev`, unpacked plugins can be installed directly from the live development sources exposed inside the containers. New plugins scaffold into repo [plugins](plugins), while the bundled samples live in [examples/plugins](examples/plugins). The `Install unpacked` flow shows both sources so you can iterate on your own plugin without packaging it first.
 
 Use `./plugin.sh` for host-side plugin commands when you do not have a matching PHP runtime installed locally. The wrapper reuses WPrint 3D's Podman/Docker detection and runs `php artisan plugin:*` inside the backend container.
 Use `./plugin.sh status` when you need to confirm which backend container it found, whether developer mode is effectively enabled, and whether the live unpacked plugin mount is visible from that container.

@@ -29,31 +29,82 @@ That makes the archive self-describing enough for users and registry maintainers
 
 Use one stable key per publisher or team, not one key per release.
 
+Recommended command from the repo root:
+
 ```bash
-mkdir -p ~/.config/wprint3d/plugin-signing
+./plugin.sh keygen --output ../plugin-signing/acme-plugin.pem
+```
+
+That creates both the private key and the matching `.pub.pem` file, then reminds you about backups and storage.
+
+Equivalent raw `openssl` flow:
+
+```bash
+mkdir -p ../plugin-signing
 openssl genpkey \
   -algorithm RSA \
+  -aes-256-cbc \
   -pkeyopt rsa_keygen_bits:4096 \
-  -out ~/.config/wprint3d/plugin-signing/acme-plugin.pem
+  -out ../plugin-signing/acme-plugin.pem
 ```
 
 Optional: extract the public key now for your own records.
 
 ```bash
 openssl pkey \
-  -in ~/.config/wprint3d/plugin-signing/acme-plugin.pem \
+  -in ../plugin-signing/acme-plugin.pem \
   -pubout \
-  -out ~/.config/wprint3d/plugin-signing/acme-plugin.pub.pem
+  -out ../plugin-signing/acme-plugin.pub.pem
 ```
 
-### 2. Build and sign the package
+### 2. Back the private key up before you rely on it
 
-Use the helper script from the repo root:
+- Keep at least one encrypted backup outside your workstation.
+- Record which plugin releases depend on that key.
+- Do not assume the embedded public key inside a `.w3dp` is enough to recover your signing identity later. It is not.
+
+If the private key is lost permanently, you can still publish future releases, but you cannot prove signer continuity with the previous ones.
+
+To restore from backup later:
+
+```bash
+cp ../backups/acme-plugin.pem ../plugin-signing/acme-plugin.pem
+chmod 600 ../plugin-signing/acme-plugin.pem
+openssl pkey \
+  -in ../plugin-signing/acme-plugin.pem \
+  -pubout \
+  -out ../plugin-signing/acme-plugin.pub.pem
+```
+
+### 3. Build and sign the package
+
+Interactive release flow:
+
+```bash
+./plugin.sh pack examples/plugins/hello-world --wizard
+```
+
+Non-interactive release flow:
+
+```bash
+./plugin.sh pack examples/plugins/hello-world \
+  --signing-key ../plugin-signing/acme-plugin.pem
+```
+
+If the key has a passphrase, prefer a temporary passphrase file over putting secrets in shell history:
+
+```bash
+./plugin.sh pack examples/plugins/hello-world \
+  --signing-key ../plugin-signing/acme-plugin.pem \
+  --passphrase-file ../secrets/acme-plugin.passphrase
+```
+
+Equivalent helper script:
 
 ```bash
 python3 scripts/plugin_sign.py \
   examples/plugins/hello-world \
-  --private-key ~/.config/wprint3d/plugin-signing/acme-plugin.pem
+  --private-key ../plugin-signing/acme-plugin.pem
 ```
 
 That script will:
@@ -64,14 +115,17 @@ That script will:
 - verify the resulting archive
 - extract the embedded public key next to the package as `<plugin>.pub.pem`
 
-Equivalent raw command:
+Every signed `.w3dp` embeds the signer public key automatically in `plugin.json -> signature.publicKey`.
+
+### 4. Inspect the signed archive
+
+Shell wrapper:
 
 ```bash
-./plugin.sh pack examples/plugins/hello-world \
-  --signing-key=/home/you/.config/wprint3d/plugin-signing/acme-plugin.pem
+./plugin.sh verify examples/plugins/hello-world/builds/hello-world.w3dp
 ```
 
-### 3. Inspect the signed archive
+Python helper:
 
 ```bash
 python3 scripts/plugin_verify_signature.py inspect \
@@ -90,24 +144,34 @@ Public key SHA-256: 7f4a...
 Key ID matches embedded key: yes
 ```
 
-### 4. Verify the package before release
+### 5. Verify the package before release
+
+Local integrity check:
 
 ```bash
-python3 scripts/plugin_verify_signature.py verify \
+./plugin.sh verify \
   examples/plugins/hello-world/builds/hello-world.w3dp
 ```
 
-If you are rotating nothing and want to confirm continuity against the previous release:
+Fail closed unless this WPrint 3D instance already trusts the signer:
+
+```bash
+./plugin.sh verify \
+  examples/plugins/hello-world/builds/hello-world.w3dp \
+  --require-trusted
+```
+
+Continuity check against the previous release:
 
 ```bash
 python3 scripts/plugin_verify_signature.py verify \
   examples/plugins/hello-world/builds/hello-world.w3dp \
-  --previous-package /tmp/hello-world-0.0.9.w3dp
+  --previous-package tmp/hello-world-0.0.9.w3dp
 ```
 
 That should only pass if the new release is signed correctly and uses the same public key as the previous release.
 
-### 5. Publish the release artifact
+### 6. Publish the release artifact
 
 If you are hosting releases on GitHub, upload the signed package to a release before opening the registry PR:
 
@@ -159,6 +223,7 @@ The current public-registry process is still PR-driven.
 - Do not commit private keys, generated `.pem` files, or passphrase files.
 - Use one stable signing identity across releases.
 - Use a passphrase for keys that leave your workstation.
+- Prefer `./plugin.sh keygen` and `./plugin.sh pack --wizard` over ad-hoc release snippets so your local flow matches the backend packer.
 - Rotate keys only for compromise, team ownership change, or a documented security event.
 - If you rotate, tell registry maintainers before they discover it from a failed continuity check.
 - Treat unsigned releases as test artifacts, not public releases.
@@ -167,7 +232,7 @@ The current public-registry process is still PR-driven.
 
 ### `Package is unsigned`
 
-You packed without `--signing-key`. Rebuild through `plugin_sign.py` or `./plugin.sh pack ... --signing-key=...`.
+You packed without `--signing-key`. Rebuild through `plugin_sign.py`, `./plugin.sh pack ... --signing-key=...`, or `./plugin.sh pack ... --wizard`.
 
 ### `Verified: no`
 

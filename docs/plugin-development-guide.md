@@ -349,7 +349,7 @@ That keeps the plugin inventory clean and avoids embedding arbitrary settings UI
 
 ### 5. Package Or Mount
 
-Package for distribution:
+Unsigned development build:
 
 ```bash
 ./plugin.sh pack examples/plugins/host-metrics
@@ -359,6 +359,41 @@ That writes the archive to:
 
 ```text
 examples/plugins/host-metrics/builds/host-metrics.w3dp
+```
+
+Generate or reuse a long-lived signing key before public releases:
+
+```bash
+./plugin.sh keygen --output ../plugin-signing/host-metrics.pem
+```
+
+Interactive signed release flow:
+
+```bash
+./plugin.sh pack examples/plugins/host-metrics --wizard
+```
+
+Non-interactive signed release flow:
+
+```bash
+./plugin.sh pack examples/plugins/host-metrics \
+  --signing-key ../plugin-signing/host-metrics.pem
+```
+
+Every signed package embeds the signer public key in `plugin.json -> signature.publicKey`.
+
+Verify before installing or publishing:
+
+```bash
+./plugin.sh verify examples/plugins/host-metrics/builds/host-metrics.w3dp
+./plugin.sh verify examples/plugins/host-metrics/builds/host-metrics.w3dp --require-trusted
+```
+
+Restore a source tree from a package when you need to test or fork a published release:
+
+```bash
+./plugin.sh restore examples/plugins/host-metrics/builds/host-metrics.w3dp \
+  --output plugins/host-metrics-fork
 ```
 
 Or, in development mode:
@@ -570,10 +605,12 @@ The declarative variants demonstrate the cross-platform remote component API:
 2. Confirm the manifest targets a supported `sdkVersion` and `sdkRevision`.
 3. Package the plugin.
 4. Sign it before any public release.
-5. If you want official-registry inclusion, keep the plugin in its own repository and open a PR against the public registry with that repository URL plus the signed package details.
-6. Wait for the WPrint 3D team to reach out before expecting that plugin to appear publicly.
-7. Otherwise, publish it through your own trusted registry or direct `.w3dp` distribution.
-8. Add release notes that mention the SDK revision, runtime/UI shape, and signer continuity if you rotated keys.
+5. Back up the private key in at least one secure encrypted location.
+6. If you lose the private key, restore that PEM from backup, run `chmod 600 /path/to/key.pem`, and regenerate the public key with `openssl pkey -in /path/to/key.pem -pubout -out /path/to/key.pub.pem` if needed.
+7. If you want official-registry inclusion, keep the plugin in its own repository and open a PR against the public registry with that repository URL plus the signed package details.
+8. Wait for the WPrint 3D team to reach out before expecting that plugin to appear publicly.
+9. Otherwise, publish it through your own trusted registry or direct `.w3dp` distribution.
+10. Add release notes that mention the SDK revision, runtime/UI shape, and signer continuity if you rotated keys.
 
 ## Source Checkout Requirement
 

@@ -12,7 +12,7 @@ Use this when you need isolated HTML UI but want to keep runtime execution insid
 
 Develop this plugin from a full `wprint3d-core` source checkout. The repository is small, and the supported workflow relies on that checkout for `./plugin.sh`, live-source mounts, and `.w3dp` packaging/signing.
 
-Package it:
+Unsigned development build:
 
 ```bash
 ./plugin.sh pack examples/plugins/host-metrics-webview-php
@@ -24,16 +24,44 @@ Archive output:
 examples/plugins/host-metrics-webview-php/builds/host-metrics-webview-php.w3dp
 ```
 
-Sign it if you plan to distribute it:
+Generate or reuse a long-lived signing key:
 
 ```bash
-mkdir -p keys
-openssl genpkey -algorithm RSA -out keys/host-metrics-webview-php-private.pem -pkeyopt rsa_keygen_bits:4096
-./plugin.sh pack examples/plugins/host-metrics-webview-php --signing-key=keys/host-metrics-webview-php-private.pem
+./plugin.sh keygen --output ../plugin-signing/host-metrics-webview-php.pem
 ```
 
-Keep the private key outside the plugin directory and out of version control.
-For the full signing, verification, and registry submission flow, see `/home/facuarmo/wprint3d-core/docs/plugin-signing-for-developers.md`.
+Interactive signed release flow:
+
+```bash
+./plugin.sh pack examples/plugins/host-metrics-webview-php --wizard
+```
+
+Non-interactive signed release flow:
+
+```bash
+./plugin.sh pack examples/plugins/host-metrics-webview-php --signing-key ../plugin-signing/host-metrics-webview-php.pem
+```
+
+Verify before installing or publishing:
+
+```bash
+./plugin.sh verify examples/plugins/host-metrics-webview-php/builds/host-metrics-webview-php.w3dp
+./plugin.sh verify examples/plugins/host-metrics-webview-php/builds/host-metrics-webview-php.w3dp --require-trusted
+```
+
+Restore a source tree from a package when you need to test or fork a published release:
+
+```bash
+./plugin.sh restore examples/plugins/host-metrics-webview-php/builds/host-metrics-webview-php.w3dp --output plugins/host-metrics-webview-php-fork
+```
+
+Every signed `.w3dp` embeds the signer public key automatically.
+Keep the private key outside the plugin directory and out of version control, back it up in at least one secure encrypted location, and if you ever restore it from backup run `chmod 600 ../plugin-signing/host-metrics-webview-php.pem`.
+For the full signing, verification, backup, and registry submission flow, see:
+
+- [../../../docs/plugin-signing-for-developers.md](../../../docs/plugin-signing-for-developers.md)
+- [../../../docs/plugin-signature-verification-for-users.md](../../../docs/plugin-signature-verification-for-users.md)
+- [../../../docs/plugin-registry-signing-review.md](../../../docs/plugin-registry-signing-review.md)
 
 Install it:
 

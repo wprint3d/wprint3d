@@ -719,6 +719,8 @@ Action calls are always host-mediated:
 - From the host checkout, prefer `./plugin.sh <command>` so the plugin Artisan commands run inside the backend container.
 - `php artisan plugin:make`
 - `php artisan plugin:pack`
+- `php artisan plugin:verify`
+- `php artisan plugin:restore`
 - `php artisan plugin:publish`
 - `php artisan plugin:install`
 - `php artisan plugin:search`
@@ -731,9 +733,16 @@ Action calls are always host-mediated:
 
 `plugin:make` is now interactive and can scaffold any runtime/UI shape plus optional heavyweight image metadata. Use `--shape`, `--image`, `--memory`, and `--cpu` when you want a fully non-interactive generator.
 `plugin:pack <plugin-path>` writes to `<plugin-path>/builds/<plugin-dir>.w3dp` by default. Use `--output` only when you need a custom location.
+`plugin:verify <package.w3dp>` checks the embedded signer metadata and can fail closed with `--require-trusted`.
+`plugin:restore <package.w3dp>` expands a package back into a source tree, which is useful for forks, incident response, and restoring packages that disappeared from the registry.
 
 Signing helpers from the repo root:
 
+- `./plugin.sh keygen`
+- `./plugin.sh pack <plugin-path> --wizard`
+- `./plugin.sh verify <package.w3dp>`
+- `./plugin.sh verify <package.w3dp> --require-trusted`
+- `./plugin.sh restore <package.w3dp> --output plugins/<fork-name>`
 - `python3 scripts/plugin_sign.py <plugin-path> --private-key=/path/to/key.pem`
 - `python3 scripts/plugin_verify_signature.py inspect <package.w3dp>`
 - `python3 scripts/plugin_verify_signature.py verify <package.w3dp>`

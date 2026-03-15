@@ -107,7 +107,33 @@ class PluginArchiveService
     {
         $targetPath = $this->packagesRoot.DIRECTORY_SEPARATOR.$manifest['id'].DIRECTORY_SEPARATOR.$manifest['version'];
 
-        $this->deleteDirectory($targetPath);
+        return $this->extractArchive($archivePath, $targetPath, true);
+    }
+
+    public function restoreToDirectory(string $archivePath, string $targetPath, bool $overwrite = false): string
+    {
+        return $this->extractArchive($archivePath, $targetPath, $overwrite);
+    }
+
+    private function openArchive(string $archivePath): ZipArchive
+    {
+        $zip = new ZipArchive;
+        $result = $zip->open($archivePath);
+
+        if ($result !== true) {
+            throw new PluginRuntimeException("Failed to open plugin archive: {$archivePath}");
+        }
+
+        return $zip;
+    }
+
+    private function extractArchive(string $archivePath, string $targetPath, bool $overwrite): string
+    {
+        if ($overwrite) {
+            $this->deleteDirectory($targetPath);
+        } elseif (is_dir($targetPath) && (scandir($targetPath) ?: []) !== ['.', '..']) {
+            throw new PluginRuntimeException("Target restore directory already exists: {$targetPath}");
+        }
 
         if (! @mkdir($targetPath, 0777, true) && ! is_dir($targetPath)) {
             throw new PluginRuntimeException("Unable to create plugin package directory: {$targetPath}");
@@ -124,18 +150,6 @@ class PluginArchiveService
         $zip->close();
 
         return $targetPath;
-    }
-
-    private function openArchive(string $archivePath): ZipArchive
-    {
-        $zip = new ZipArchive;
-        $result = $zip->open($archivePath);
-
-        if ($result !== true) {
-            throw new PluginRuntimeException("Failed to open plugin archive: {$archivePath}");
-        }
-
-        return $zip;
     }
 
     private function deleteDirectory(string $path): void
