@@ -12,7 +12,7 @@ This directory contains the `Hello World` reference plugin for WPrint 3D.
 
 ## Important files
 
-- `plugin.json`: manifest, permissions, actions, and the settings tab schema
+- `plugin.json`: manifest, permissions, actions, and the `host.*` settings-tab schema
 - `plugin.php`: PHP runtime entrypoint
 - `hooks/on_boot.php`: boot hook sample
 - `actions/ping.php`: minimal action sample
@@ -22,6 +22,7 @@ This directory contains the `Hello World` reference plugin for WPrint 3D.
 
 - Keep this example aligned with `docs/plugin-development-guide.md`.
 - Keep it minimal; this example is the default starting point for new plugin authors.
+- Prefer documented `host.*` component ids when adjusting the declarative UI.
 - If the manifest contract changes, update this example first.
 
 ## Verification
