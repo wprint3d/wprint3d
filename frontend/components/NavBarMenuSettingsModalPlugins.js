@@ -111,7 +111,7 @@ const buildPluginBadges = (plugin, theme) => {
     invalid_signature: {
       icon: "shield-remove",
       label: "Bad signature",
-      tooltip: "The plugin declared a signature, but it could not be verified with configured keys.",
+      tooltip: "The plugin declared a signature, but it could not be verified with the configured or synced trusted keys.",
       style: { backgroundColor: theme.colors.errorContainer },
       textStyle: { color: theme.colors.onErrorContainer },
     },

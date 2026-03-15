@@ -11,11 +11,15 @@ class PluginArchiveService
         private PluginManifestValidator $manifestValidator,
         private ?PluginSignatureService $signatureService = null,
         private ?string $packagesRoot = null,
+        private ?PluginTrustedKeySynchronizer $trustedKeySynchronizer = null,
     ) {
         $this->signatureService ??= function_exists('app') && app()->bound(PluginSignatureService::class)
             ? app(PluginSignatureService::class)
             : new PluginSignatureService;
         $this->packagesRoot ??= $this->storagePath('app/plugins/packages');
+        $this->trustedKeySynchronizer ??= function_exists('app') && app()->bound(PluginTrustedKeySynchronizer::class)
+            ? app(PluginTrustedKeySynchronizer::class)
+            : new PluginTrustedKeySynchronizer(signatureService: $this->signatureService);
     }
 
     public function inspect(string $archivePath, string $sourceType = 'local_upload'): PluginPackage
@@ -49,12 +53,12 @@ class PluginArchiveService
         $warnings = [];
 
         if (($manifest['signature']['algorithm'] ?? 'none') !== 'none') {
-            $publicKeys = config('plugins.signature.trusted_public_keys', []);
+            $publicKeys = $this->trustedKeySynchronizer->allTrustedKeyPaths();
             $verified = $this->signatureService->verifyManifest($manifest, $publicKeys);
             $trustLevel = $verified ? 'signed' : 'invalid_signature';
 
             if (! $verified) {
-                $warnings[] = 'Plugin signature could not be verified with the configured trusted keys.';
+                $warnings[] = 'Plugin signature could not be verified with the configured or synced trusted keys.';
             }
         }
 

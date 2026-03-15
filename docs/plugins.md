@@ -52,6 +52,7 @@ For OctoPrint-oriented ports, use [examples/plugins/octoprint-navbartemp-port](.
 ./plugin.sh install plugins/acme-hello-world/builds/acme-hello-world.w3dp
 python3 scripts/plugin_sign.py plugins/acme-hello-world --private-key=/secure/path/acme.pem
 python3 scripts/plugin_verify_signature.py verify plugins/acme-hello-world/builds/acme-hello-world.w3dp
+php artisan plugin:sync-trusted-keys
 ./plugin.sh list
 ./plugin.sh doctor
 ./plugin.sh status
@@ -79,6 +80,8 @@ Production backend images do not bundle `examples/plugins`. That keeps the shipp
 
 - Official packages come from the GitHub-backed official registry.
 - Trusted third-party registries can be added in the Marketplace via the gear button.
+- WPrint 3D can now sync signer public keys from each trusted registry source with `php artisan plugin:sync-trusted-keys`.
+- The scheduler runs that sync daily against the current marketplace source list, so reviewed marketplace packages can become trusted automatically once their registry publishes `signers/index.json`.
 - Unsigned sideloaded packages remain installable but are flagged in the UI.
 - Signed packages now embed the signer public key and SHA-256 fingerprint so users and maintainers can inspect and verify them locally.
 - Plugin authors should follow [docs/plugin-signing-for-developers.md](plugin-signing-for-developers.md) before shipping public releases.

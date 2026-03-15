@@ -143,7 +143,8 @@ The public registry is still PR-driven. The maintainer-side flow should be:
 2. verify key continuity against the previous accepted release
 3. confirm the package URL is stable and downloadable
 4. update the registry index entry
-5. merge the PR only after the signature review passes
+5. update `signers/index.json` so WPrint 3D instances can auto-sync the accepted signer key
+6. merge the PR only after the signature review passes
 
 ## Suggested Registry Entry Shape
 
@@ -171,6 +172,22 @@ WPrint 3D resolves `packageUrl` directly, so a minimal entry can look like this:
 ```
 
 If the registry stores additional metadata, keep it consistent with the submitted manifest and release notes.
+
+The registry should also publish a signer manifest at `signers/index.json`, for example:
+
+```json
+{
+  "keys": [
+    {
+      "id": "acme.hello-world",
+      "url": "https://raw.githubusercontent.com/wprint3d/plugin-registry/main/signers/acme.hello-world.pub.pem",
+      "publicKeySha256": "..."
+    }
+  ]
+}
+```
+
+WPrint 3D uses that file when `plugin:sync-trusted-keys` downloads trusted signer keys from the official registry and any marketplace-declared trusted registries.
 
 ## Best Practices
 
