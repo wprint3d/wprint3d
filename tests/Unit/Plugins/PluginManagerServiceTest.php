@@ -160,6 +160,18 @@ class PluginManagerServiceTest extends TestCase
                     'actions' => [],
                     'uiExtensions' => [],
                 ],
+                rawManifest: [
+                    'id' => 'acme.demo',
+                    'name' => 'ACME Demo',
+                    'version' => '0.1.0',
+                    'sdkVersion' => (int) config('plugins.sdk.current.version', 1),
+                    'sdkRevision' => (int) config('plugins.sdk.current.revision', 0),
+                    'runtime' => ['type' => 'php'],
+                    'permissions' => [],
+                    'hooks' => [],
+                    'actions' => [],
+                    'uiExtensions' => [],
+                ],
                 archivePath: $pluginPath,
                 archiveSha256: hash('sha256', 'acme-demo'),
                 sourceType: 'development_mount',
@@ -222,6 +234,112 @@ class PluginManagerServiceTest extends TestCase
                 $_ENV['DEVELOPER_MODE'] = $previousEnv;
                 $_SERVER['DEVELOPER_MODE'] = $previousEnv;
             }
+        }
+    }
+
+    public function test_it_recomputes_packaged_plugin_trust_after_registry_keys_sync(): void
+    {
+        $runtimePath = storage_path('framework/testing/plugins-installed-runtime-'.uniqid());
+        File::ensureDirectoryExists($runtimePath);
+
+        Plugin::query()->create([
+            'plugin_id' => 'octoprint.navbartemp-port',
+            'name' => 'OctoPrint NavbarTemp Port',
+            'current_version' => '0.1.0',
+            'enabled' => true,
+            'trust_level' => 'invalid_signature',
+            'install_source' => [
+                'type' => 'official_registry',
+            ],
+            'manifest' => [
+                'runtime' => [
+                    'type' => 'php',
+                ],
+                'uiExtensions' => [],
+                'components' => [],
+            ],
+            'permissions' => [],
+            'hooks' => [],
+            'actions' => [],
+            'ui_extensions' => [],
+            'versions' => [
+                '0.1.0' => [
+                    'path' => $runtimePath,
+                    'trust_level' => 'invalid_signature',
+                ],
+            ],
+            'warnings' => [
+                'Plugin signature could not be verified with the configured or synced trusted keys.',
+            ],
+        ]);
+
+        $archiveService = Mockery::mock(PluginArchiveService::class);
+        $registryClient = Mockery::mock(PluginRegistryClient::class);
+        $runtimeRegistry = Mockery::mock(PluginRuntimeRegistry::class);
+        $dependencyService = Mockery::mock(PluginDependencyService::class);
+
+        $archiveService->shouldReceive('inspectDirectory')
+            ->once()
+            ->with($runtimePath, 'installed_runtime')
+            ->andReturn(new PluginPackage(
+                manifest: [
+                    'id' => 'octoprint.navbartemp-port',
+                    'name' => 'OctoPrint NavbarTemp Port',
+                    'version' => '0.1.0',
+                    'runtime' => ['type' => 'php'],
+                    'uiExtensions' => [],
+                    'components' => [],
+                ],
+                rawManifest: [
+                    'id' => 'octoprint.navbartemp-port',
+                    'name' => 'OctoPrint NavbarTemp Port',
+                    'version' => '0.1.0',
+                    'runtime' => ['type' => 'php'],
+                    'uiExtensions' => [],
+                    'components' => [],
+                ],
+                archivePath: $runtimePath,
+                archiveSha256: hash('sha256', 'octoprint.navbartemp-port'),
+                sourceType: 'installed_runtime',
+                trustLevel: 'signed',
+                warnings: [],
+            ));
+
+        $dependencyService->shouldReceive('summarize')->andReturn([
+            'classification' => 'lightweight',
+            'hint' => 'This plugin is lightweight.',
+            'requirements' => [],
+            'host' => [
+                'cpuCores' => 8,
+                'memoryMb' => 8192,
+                'meetsRequirements' => true,
+            ],
+            'warnings' => [],
+            'runtime' => [],
+            'images' => [],
+        ]);
+
+        $service = new PluginManagerService(
+            $archiveService,
+            $registryClient,
+            $runtimeRegistry,
+            $dependencyService,
+            new PluginLifecycleLogStore,
+        );
+
+        try {
+            $plugins = $service->listInstalled();
+
+            $this->assertSame('signed', $plugins[0]['trustLevel']);
+            $this->assertSame([], $plugins[0]['warnings']);
+
+            $plugin = Plugin::query()->where('plugin_id', 'octoprint.navbartemp-port')->firstOrFail();
+
+            $this->assertSame('signed', $plugin->trust_level);
+            $this->assertSame('signed', $plugin->versions['0.1.0']['trust_level']);
+            $this->assertSame([], $plugin->warnings);
+        } finally {
+            File::deleteDirectory($runtimePath);
         }
     }
 }

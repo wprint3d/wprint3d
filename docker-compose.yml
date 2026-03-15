@@ -3,7 +3,7 @@ services:
     image: wprint3d/wprint3d-proxy
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -24,7 +24,7 @@ services:
     image: wprint3d/wprint3d
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -32,12 +32,10 @@ services:
     environment:
       - ROLE=server
       - COMPOSE_DIR=${PWD}
-      - CONTAINER_CLI=${IN_CONTAINER_CLI:-docker}
-      - CONTAINER_COMPOSE_COMMAND=${IN_CONTAINER_COMPOSE_COMMAND:-docker-compose}
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-      - ${CONTAINER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
       - storage:/var/www/storage
       - proxy:/var/www/proxy/internal
@@ -62,7 +60,7 @@ services:
     image: wprint3d/wprint3d
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -85,7 +83,7 @@ services:
     image: wprint3d/wprint3d
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -96,7 +94,6 @@ services:
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-      - ${CONTAINER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
       - /sys/class:/sys/class
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
@@ -112,7 +109,7 @@ services:
     image: wprint3d/wprint3d
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -137,19 +134,17 @@ services:
     image: wprint3d/wprint3d
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
     environment:
       - ROLE=ws-server
       - COMPOSE_DIR=${PWD}
-      - CONTAINER_CLI=${IN_CONTAINER_CLI:-docker}
-      - CONTAINER_COMPOSE_COMMAND=${IN_CONTAINER_COMPOSE_COMMAND:-docker-compose}
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
-      - ${CONTAINER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
       - storage:/var/www/storage
       - proxy:/var/www/proxy/internal
@@ -163,7 +158,7 @@ services:
     image: wprint3d/wprint3d
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -172,8 +167,6 @@ services:
       - COMPOSE_DIR=${PWD}
       - PORT_SCAN_START=60000
       - PORT_SCAN_END=60016
-      - CONTAINER_CLI=${IN_CONTAINER_CLI:-docker}
-      - CONTAINER_COMPOSE_COMMAND=${IN_CONTAINER_COMPOSE_COMMAND:-docker-compose}
     privileged: true
     volumes:
       - /dev/bus/usb:/dev/bus/usb
@@ -181,7 +174,7 @@ services:
       - /sys/class:/sys/class
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
-      - ${CONTAINER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
       - storage:/var/www/storage
       - proxy:/var/www/proxy/internal
       - startup:/var/www/internal/startup
@@ -194,10 +187,10 @@ services:
       - proxy
       - mapper
   redis:
-    image: docker.io/library/redis:7.2.5
+    image: redis:7.2.5
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -205,10 +198,10 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
     command: redis-server --save "" --appendonly no
   mongo:
-    image: docker.io/library/mongo:4.4.6
+    image: mongo:4.4.6
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -216,10 +209,10 @@ services:
     volumes:
       - mongo:/data/db
   memcached:
-    image: docker.io/library/memcached:latest
+    image: memcached
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking

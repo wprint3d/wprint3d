@@ -91,6 +91,103 @@ class PluginArchiveServiceTest extends TestCase
         $this->assertNotEmpty($package->archiveSha256);
     }
 
+    public function test_it_trusts_a_signed_unpacked_runtime_directory_when_the_signer_key_is_synced(): void
+    {
+        [$privateKeyPath, $publicKeyPem] = $this->generateKeyPair();
+        $basePath = storage_path('framework/testing/plugins-dir-signed-'.uniqid());
+        $publicKeyPath = storage_path('framework/testing/plugin-signature-public-dir-'.uniqid().'.pem');
+
+        @mkdir($basePath, 0777, true);
+
+        file_put_contents($basePath.'/plugin.php', '<?php echo json_encode(["ok" => true]);');
+
+        $signatureService = new PluginSignatureService;
+        $manifest = (new PluginManifestValidator)->validate([
+            'id' => 'acme.runtime-signed-demo',
+            'name' => 'ACME Runtime Signed Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'sdkRevision' => 4,
+            'runtime' => [
+                'type' => 'php',
+                'entry' => 'plugin.php',
+            ],
+            'permissions' => [
+                'printer.read',
+            ],
+        ]);
+        $signedManifest = $signatureService->signManifest($manifest, $privateKeyPath);
+
+        file_put_contents($basePath.'/plugin.json', json_encode($signedManifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        File::put($publicKeyPath, $publicKeyPem);
+
+        $trustedKeys = Mockery::mock(PluginTrustedKeySynchronizer::class);
+        $trustedKeys->shouldReceive('allTrustedKeyPaths')
+            ->once()
+            ->andReturn([$publicKeyPath]);
+
+        try {
+            $service = new PluginArchiveService(new PluginManifestValidator, $signatureService, null, $trustedKeys);
+
+            $package = $service->inspectDirectory($basePath, 'installed_runtime');
+
+            $this->assertSame('signed', $package->trustLevel);
+            $this->assertSame([], $package->warnings);
+        } finally {
+            File::delete([$privateKeyPath, $publicKeyPath]);
+            File::deleteDirectory($basePath);
+        }
+    }
+
+    public function test_it_preserves_signature_verification_for_legacy_signed_manifests_after_validation(): void
+    {
+        [$privateKeyPath, $publicKeyPem] = $this->generateKeyPair();
+        $basePath = storage_path('framework/testing/plugins-dir-legacy-signed-'.uniqid());
+        $publicKeyPath = storage_path('framework/testing/plugin-signature-public-legacy-'.uniqid().'.pem');
+
+        @mkdir($basePath, 0777, true);
+
+        file_put_contents($basePath.'/plugin.php', '<?php echo json_encode(["ok" => true]);');
+
+        $signatureService = new PluginSignatureService;
+        $legacyManifest = [
+            'id' => 'acme.legacy-signed-demo',
+            'name' => 'ACME Legacy Signed Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'runtime' => [
+                'type' => 'php',
+                'entry' => 'plugin.php',
+            ],
+            'permissions' => [
+                'printer.read',
+            ],
+        ];
+        $signedManifest = $signatureService->signManifest($legacyManifest, $privateKeyPath);
+
+        file_put_contents($basePath.'/plugin.json', json_encode($signedManifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        File::put($publicKeyPath, $publicKeyPem);
+
+        $trustedKeys = Mockery::mock(PluginTrustedKeySynchronizer::class);
+        $trustedKeys->shouldReceive('allTrustedKeyPaths')
+            ->once()
+            ->andReturn([$publicKeyPath]);
+
+        try {
+            $service = new PluginArchiveService(new PluginManifestValidator, $signatureService, null, $trustedKeys);
+
+            $package = $service->inspectDirectory($basePath, 'installed_runtime');
+
+            $this->assertSame('signed', $package->trustLevel);
+            $this->assertSame([], $package->warnings);
+            $this->assertArrayHasKey('homepageUrl', $package->manifest);
+            $this->assertNull($package->manifest['homepageUrl']);
+        } finally {
+            File::delete([$privateKeyPath, $publicKeyPath]);
+            File::deleteDirectory($basePath);
+        }
+    }
+
     public function test_it_trusts_signed_archives_when_the_signer_key_was_synced_from_a_registry(): void
     {
         [$privateKeyPath, $publicKeyPem] = $this->generateKeyPair();

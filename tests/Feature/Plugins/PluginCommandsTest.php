@@ -48,4 +48,43 @@ class PluginCommandsTest extends TestCase
             ->expectsOutput('Synced trusted keys from 2 sources (3 keys downloaded, 0 failed sources).')
             ->assertExitCode(0);
     }
+
+    public function test_plugin_update_reports_when_no_new_release_exists(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('update')
+            ->once()
+            ->with('octoprint.navbartemp-port')
+            ->andReturn([
+                'id' => 'octoprint.navbartemp-port',
+                'version' => '0.1.0',
+                'latestVersion' => '0.1.0',
+                'updateStatus' => 'noop',
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $this->artisan('plugin:update octoprint.navbartemp-port')
+            ->expectsOutput('No updates found for octoprint.navbartemp-port. Already at 0.1.0.')
+            ->assertExitCode(0);
+    }
+
+    public function test_plugin_update_reports_when_automatic_updates_are_not_available(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('update')
+            ->once()
+            ->with('octoprint.navbartemp-port')
+            ->andReturn([
+                'id' => 'octoprint.navbartemp-port',
+                'version' => '0.1.0',
+                'updateStatus' => 'unsupported',
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $this->artisan('plugin:update octoprint.navbartemp-port')
+            ->expectsOutput('No automatic update source is configured for octoprint.navbartemp-port.')
+            ->assertExitCode(0);
+    }
 }

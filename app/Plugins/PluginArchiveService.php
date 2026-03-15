@@ -46,29 +46,18 @@ class PluginArchiveService
             throw new PluginRuntimeException('Plugin manifest is not valid JSON.');
         }
 
+        $trust = $this->resolveTrustLevel($manifest, $sourceType);
         $manifest = $this->manifestValidator->validate($manifest);
         $zip->close();
 
-        $trustLevel = 'unsigned';
-        $warnings = [];
-
-        if (($manifest['signature']['algorithm'] ?? 'none') !== 'none') {
-            $publicKeys = $this->trustedKeySynchronizer->allTrustedKeyPaths();
-            $verified = $this->signatureService->verifyManifest($manifest, $publicKeys);
-            $trustLevel = $verified ? 'signed' : 'invalid_signature';
-
-            if (! $verified) {
-                $warnings[] = 'Plugin signature could not be verified with the configured or synced trusted keys.';
-            }
-        }
-
         return new PluginPackage(
             manifest: $manifest,
+            rawManifest: $trust['rawManifest'],
             archivePath: $archivePath,
             archiveSha256: hash_file('sha256', $archivePath),
             sourceType: $sourceType,
-            trustLevel: $trustLevel,
-            warnings: $this->warningsForPackage($trustLevel, $warnings),
+            trustLevel: $trust['trustLevel'],
+            warnings: $this->warningsForPackage($trust['trustLevel'], $trust['warnings']),
         );
     }
 
@@ -90,17 +79,48 @@ class PluginArchiveService
             throw new PluginRuntimeException('Plugin manifest is not valid JSON.');
         }
 
+        $trust = $this->resolveTrustLevel($manifest, $sourceType);
         $manifest = $this->manifestValidator->validate($manifest);
-        $trustLevel = $sourceType === 'development_mount' ? 'development' : 'unsigned';
 
         return new PluginPackage(
             manifest: $manifest,
+            rawManifest: $trust['rawManifest'],
             archivePath: $directoryPath,
             archiveSha256: hash_file('sha256', $manifestPath),
             sourceType: $sourceType,
-            trustLevel: $trustLevel,
-            warnings: $this->warningsForPackage($trustLevel),
+            trustLevel: $trust['trustLevel'],
+            warnings: $this->warningsForPackage($trust['trustLevel'], $trust['warnings']),
         );
+    }
+
+    private function resolveTrustLevel(array $manifest, string $sourceType): array
+    {
+        if ($sourceType === 'development_mount') {
+            return [
+                'rawManifest' => $manifest,
+                'trustLevel' => 'development',
+                'warnings' => [],
+            ];
+        }
+
+        if (($manifest['signature']['algorithm'] ?? 'none') === 'none') {
+            return [
+                'rawManifest' => $manifest,
+                'trustLevel' => 'unsigned',
+                'warnings' => [],
+            ];
+        }
+
+        $publicKeys = $this->trustedKeySynchronizer->allTrustedKeyPaths();
+        $verified = $this->signatureService->verifyManifest($manifest, $publicKeys);
+
+        return [
+            'rawManifest' => $manifest,
+            'trustLevel' => $verified ? 'signed' : 'invalid_signature',
+            'warnings' => $verified
+                ? []
+                : ['Plugin signature could not be verified with the configured or synced trusted keys.'],
+        ];
     }
 
     public function extract(string $archivePath, array $manifest): string

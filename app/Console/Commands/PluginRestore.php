@@ -22,13 +22,14 @@ class PluginRestore extends Command
         $packagePath = (string) $this->argument('package');
         $package = $archiveService->inspect($packagePath, 'restore');
         $manifest = $package->manifest;
-        $signature = $manifest['signature'] ?? [];
+        $signedManifest = $package->rawManifest ?? $manifest;
+        $signature = $signedManifest['signature'] ?? [];
         $algorithm = $signature['algorithm'] ?? 'none';
-        $embeddedPublicKey = $signatureService->embeddedPublicKey($manifest);
+        $embeddedPublicKey = $signatureService->embeddedPublicKey($signedManifest);
 
         if ($algorithm !== 'none') {
             $embeddedValid = $embeddedPublicKey !== null
-                && $signatureService->verifyManifestWithPublicKeyContents($manifest, $embeddedPublicKey);
+                && $signatureService->verifyManifestWithPublicKeyContents($signedManifest, $embeddedPublicKey);
 
             if (! $embeddedValid) {
                 $this->error('The package signature is invalid when checked against its embedded public key.');

@@ -342,10 +342,42 @@ class PluginManagerService implements PluginManager
         $sourceType = $plugin->install_source['type'] ?? null;
 
         if ($sourceType === 'development_mount') {
-            return $this->installFromDevelopmentPath((string) ($plugin->install_source['path'] ?? $plugin->getCurrentRuntimePath()));
+            return array_merge(
+                $this->installFromDevelopmentPath((string) ($plugin->install_source['path'] ?? $plugin->getCurrentRuntimePath())),
+                ['updateStatus' => 'refreshed']
+            );
         }
 
-        return $this->installFromRegistry($pluginId);
+        if (! in_array($sourceType, ['official_registry', 'trusted_registry'], true)) {
+            return array_merge(
+                $this->serializePlugin($plugin->fresh() ?? $plugin),
+                ['updateStatus' => 'unsupported']
+            );
+        }
+
+        $sourceId = $plugin->install_source['registry']['source']['id'] ?? null;
+        $package = $this->registryClient->getPackage($pluginId, null, $sourceId);
+        $latestVersion = (string) ($package['latestVersion'] ?? $package['version'] ?? '');
+        $currentVersion = (string) ($plugin->current_version ?? '');
+
+        if ($latestVersion !== '' && $latestVersion === $currentVersion) {
+            return array_merge(
+                $this->serializePlugin($plugin->fresh() ?? $plugin),
+                [
+                    'updateStatus' => 'noop',
+                    'latestVersion' => $latestVersion,
+                ]
+            );
+        }
+
+        return array_merge(
+            $this->installFromRegistry($pluginId, $latestVersion !== '' ? $latestVersion : null, $sourceId),
+            [
+                'updateStatus' => 'updated',
+                'previousVersion' => $currentVersion,
+                'latestVersion' => $latestVersion !== '' ? $latestVersion : null,
+            ]
+        );
     }
 
     public function listUiExtensions(?string $surface = null): array
@@ -633,6 +665,7 @@ class PluginManagerService implements PluginManager
     private function serializePlugin(Plugin $plugin): array
     {
         $plugin = $this->synchronizeDevelopmentPlugin($plugin);
+        $plugin = $this->synchronizePackagedPluginTrust($plugin);
         $manifest = $plugin->manifest ?? [];
         $uiExtensions = $this->normalizeExtensionAssetUrls($plugin->plugin_id, $plugin->ui_extensions ?? []);
         $manifest['uiExtensions'] = $this->normalizeExtensionAssetUrls($plugin->plugin_id, $manifest['uiExtensions'] ?? []);
@@ -697,8 +730,6 @@ class PluginManagerService implements PluginManager
                 $plugin->save();
                 $this->lifecycleLogStore->append($plugin, 'error', 'startup', 'Development plugin source directory is unavailable.');
             }
-
-            return $plugin;
         }
 
         try {
@@ -781,6 +812,66 @@ class PluginManagerService implements PluginManager
         }
 
         return $plugin->fresh() ?? $plugin;
+    }
+
+    private function synchronizePackagedPluginTrust(Plugin $plugin): Plugin
+    {
+        if (($plugin->install_source['type'] ?? null) === 'development_mount') {
+            return $plugin;
+        }
+
+        $runtimePath = (string) ($plugin->getCurrentRuntimePath() ?? '');
+
+        if ($runtimePath === '' || ! is_dir($runtimePath)) {
+            return $plugin;
+        }
+
+        try {
+            $package = $this->archiveService->inspectDirectory($runtimePath, 'installed_runtime');
+        } catch (\Throwable) {
+            return $plugin;
+        }
+
+        $warnings = $this->replaceTrustWarnings($plugin->warnings ?? [], $package->warnings);
+        $currentVersion = $plugin->current_version;
+        $versions = $plugin->versions ?? [];
+        $versionRecord = is_string($currentVersion) ? ($versions[$currentVersion] ?? null) : null;
+
+        $versionTrustChanged = is_array($versionRecord)
+            && (($versionRecord['trust_level'] ?? null) !== $package->trustLevel);
+
+        if (
+            $plugin->trust_level === $package->trustLevel
+            && $warnings === ($plugin->warnings ?? [])
+            && ! $versionTrustChanged
+        ) {
+            return $plugin;
+        }
+
+        $plugin->trust_level = $package->trustLevel;
+        $plugin->warnings = $warnings;
+
+        if ($versionTrustChanged && is_string($currentVersion)) {
+            $versions[$currentVersion]['trust_level'] = $package->trustLevel;
+            $plugin->versions = $versions;
+        }
+
+        $plugin->save();
+
+        return $plugin->fresh() ?? $plugin;
+    }
+
+    private function replaceTrustWarnings(array $warnings, array $packageWarnings): array
+    {
+        $filteredWarnings = array_values(array_filter(
+            $warnings,
+            fn ($warning) => ! in_array($warning, [
+                'This plugin is not signed. Treat it as a sideloaded package.',
+                'Plugin signature could not be verified with the configured or synced trusted keys.',
+            ], true)
+        ));
+
+        return $this->mergeWarnings($filteredWarnings, $packageWarnings);
     }
 
     private function normalizeExtensionAssetUrls(string $pluginId, array $extensions): array
