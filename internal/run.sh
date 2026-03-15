@@ -529,6 +529,16 @@ else
                 cron -f;
             fi;
         elif [[ "$ROLE" == 'streamer' ]]; then
+            # TODO: Holy fuck, we should improve this code for readability.
+            #       Not even Sonnet 4.3 would do something so atrocious.
+            #
+            # What we should improve on:
+            # - Redundancy
+            # - Readability
+            # - Runtime complexity
+            # - Performance (get rid of on-demand calls, make it event-driven)
+            # - (De-)duplication
+
             getFreePort() {
                 port=$PORT_SCAN_START;
 
