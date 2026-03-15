@@ -167,6 +167,167 @@ class PluginManagementApiTest extends TestCase
             ->assertJsonPath('0.message', 'Plugin startup completed.');
     }
 
+    public function test_it_reads_plugin_preferences(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('getPluginPreferences')
+            ->once()
+            ->andReturn([
+                'automaticUpdatesEnabled' => true,
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->getJson('/api/plugins/preferences');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('automaticUpdatesEnabled', true);
+    }
+
+    public function test_it_updates_plugin_preferences(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('updatePluginPreferences')
+            ->once()
+            ->with([
+                'automaticUpdatesEnabled' => false,
+            ])
+            ->andReturn([
+                'automaticUpdatesEnabled' => false,
+                'disabledPluginAutomaticUpdatesCount' => 3,
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->putJson('/api/plugins/preferences', [
+            'automaticUpdatesEnabled' => false,
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('automaticUpdatesEnabled', false)
+            ->assertJsonPath('disabledPluginAutomaticUpdatesCount', 3);
+    }
+
+    public function test_it_updates_per_plugin_automatic_updates(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('setPluginAutomaticUpdates')
+            ->once()
+            ->with('acme.demo', true)
+            ->andReturn([
+                'id' => 'acme.demo',
+                'automaticUpdatesEnabled' => true,
+                'automaticUpdatesSupported' => true,
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->putJson('/api/plugins/acme.demo/automatic-updates', [
+            'enabled' => true,
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('id', 'acme.demo')
+            ->assertJsonPath('automaticUpdatesEnabled', true)
+            ->assertJsonPath('automaticUpdatesSupported', true);
+    }
+
+    public function test_it_checks_for_plugin_updates(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('checkForPluginUpdates')
+            ->once()
+            ->with(false)
+            ->andReturn([
+                'checkedCount' => 4,
+                'updatesAvailableCount' => 2,
+                'upToDateCount' => 1,
+                'unsupportedCount' => 1,
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->postJson('/api/plugins/check-updates');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('checkedCount', 4)
+            ->assertJsonPath('updatesAvailableCount', 2)
+            ->assertJsonPath('unsupportedCount', 1);
+    }
+
+    public function test_it_updates_all_plugins(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('updateAllPlugins')
+            ->once()
+            ->with(false)
+            ->andReturn([
+                'checkedCount' => 4,
+                'updatedCount' => 2,
+                'noopCount' => 1,
+                'unsupportedCount' => 1,
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->postJson('/api/plugins/update-all');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('checkedCount', 4)
+            ->assertJsonPath('updatedCount', 2)
+            ->assertJsonPath('unsupportedCount', 1);
+    }
+
+    public function test_it_disables_all_plugins(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('disableAll')
+            ->once()
+            ->andReturn([
+                'disabledCount' => 2,
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->postJson('/api/plugins/disable-all');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('disabledCount', 2);
+    }
+
+    public function test_it_enables_all_plugins(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('enableAll')
+            ->once()
+            ->andReturn([
+                'enabledCount' => 2,
+                'failedCount' => 1,
+            ]);
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $response = $this->withoutMiddleware()->postJson('/api/plugins/enable-all');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('enabledCount', 2)
+            ->assertJsonPath('failedCount', 1);
+    }
+
     public function test_it_reports_development_plugin_capabilities(): void
     {
         $mountPath = sys_get_temp_dir().'/wprint3d-test-plugins-dev';

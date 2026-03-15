@@ -29,6 +29,29 @@ class PluginController extends Controller
         return $this->pluginManager->get($pluginId);
     }
 
+    public function preferences(): array
+    {
+        return $this->pluginManager->getPluginPreferences();
+    }
+
+    public function updatePreferences(Request $request): array
+    {
+        $validated = $request->validate([
+            'automaticUpdatesEnabled' => ['required', 'boolean'],
+        ]);
+
+        return $this->pluginManager->updatePluginPreferences($validated);
+    }
+
+    public function setAutomaticUpdates(string $pluginId, Request $request): array
+    {
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        return $this->pluginManager->setPluginAutomaticUpdates($pluginId, $validated['enabled']);
+    }
+
     public function settings(string $pluginId): array
     {
         return $this->pluginManager->getSettings($pluginId);
@@ -153,6 +176,26 @@ class PluginController extends Controller
     public function update(string $pluginId): array
     {
         return $this->pluginManager->update($pluginId);
+    }
+
+    public function checkUpdates(): array
+    {
+        return $this->pluginManager->checkForPluginUpdates(false);
+    }
+
+    public function updateAll(): array
+    {
+        return $this->pluginManager->updateAllPlugins(false);
+    }
+
+    public function disableAll(): array
+    {
+        return $this->pluginManager->disableAll();
+    }
+
+    public function enableAll(): array
+    {
+        return $this->pluginManager->enableAll();
     }
 
     public function ui(Request $request): array

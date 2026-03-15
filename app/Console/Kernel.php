@@ -13,6 +13,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         $schedule->command('plugin:sync-trusted-keys')->daily();
+        $schedule->command('plugin:auto-update')->daily();
     }
 
     /**

@@ -2,6 +2,8 @@
 
 namespace App\Plugins;
 
+use App\Enums\DataType;
+use App\Models\Configuration;
 use App\Models\Plugin;
 use App\Plugins\Contracts\PluginManager;
 use App\Plugins\Exceptions\PluginRuntimeException;
@@ -12,6 +14,8 @@ use Illuminate\Support\Facades\Http;
 
 class PluginManagerService implements PluginManager
 {
+    private const AUTOMATIC_UPDATES_CONFIGURATION_KEY = 'pluginAutomaticUpdatesEnabled';
+
     public function __construct(
         private PluginArchiveService $archiveService,
         private PluginRegistryClient $registryClient,
@@ -53,9 +57,53 @@ class PluginManagerService implements PluginManager
         return $this->registryClient->saveSources($sources);
     }
 
+    public function getPluginPreferences(): array
+    {
+        return [
+            'automaticUpdatesEnabled' => $this->globalAutomaticUpdatesEnabled(),
+        ];
+    }
+
+    public function updatePluginPreferences(array $preferences): array
+    {
+        $automaticUpdatesEnabled = (bool) ($preferences['automaticUpdatesEnabled'] ?? true);
+        $this->saveGlobalAutomaticUpdatesPreference($automaticUpdatesEnabled);
+
+        $disabledPluginAutomaticUpdatesCount = 0;
+
+        if (! $automaticUpdatesEnabled) {
+            $plugins = Plugin::query()
+                ->where('automatic_update_enabled', true)
+                ->get();
+
+            foreach ($plugins as $plugin) {
+                $plugin->automatic_update_enabled = false;
+                $plugin->save();
+                $disabledPluginAutomaticUpdatesCount++;
+            }
+        }
+
+        return [
+            'automaticUpdatesEnabled' => $automaticUpdatesEnabled,
+            'disabledPluginAutomaticUpdatesCount' => $disabledPluginAutomaticUpdatesCount,
+        ];
+    }
+
     public function get(string $pluginId): array
     {
         return $this->serializePlugin($this->requireModel($pluginId));
+    }
+
+    public function setPluginAutomaticUpdates(string $pluginId, bool $enabled): array
+    {
+        $plugin = $this->requireModel($pluginId);
+        $supported = $this->supportsAutomaticUpdates($plugin);
+        $globallyEnabled = $this->globalAutomaticUpdatesEnabled();
+
+        $plugin->automatic_update_enabled = $supported && $globallyEnabled ? $enabled : false;
+        $plugin->save();
+
+        return $this->serializePlugin($plugin->fresh() ?? $plugin);
     }
 
     public function getSettings(string $pluginId): array
@@ -68,7 +116,7 @@ class PluginManagerService implements PluginManager
     public function updateSettings(string $pluginId, array $settings): array
     {
         $plugin = $this->requireModel($pluginId);
-        $plugin->settings = $this->mergeSettings($this->declaredSettingsDefaults($plugin->manifest ?? []), $settings);
+        $plugin->settings = $this->mergeSettings($this->declaredSettingsDefaults($this->decodedManifest($plugin)), $settings);
         $plugin->save();
 
         return $this->resolvedPluginSettings($plugin->fresh() ?? $plugin);
@@ -117,11 +165,11 @@ class PluginManagerService implements PluginManager
             'enabled' => $plugin->exists ? (bool) $plugin->enabled : false,
             'trust_level' => $package->trustLevel,
             'install_source' => array_merge(['type' => $sourceType], $sourceMeta),
-            'manifest' => $package->manifest,
+            'manifest' => $this->encodeMongoSafeValue($package->manifest),
             'permissions' => $package->manifest['permissions'] ?? [],
             'hooks' => array_keys($package->manifest['hooks'] ?? []),
             'actions' => $package->manifest['actions'] ?? [],
-            'ui_extensions' => $package->manifest['uiExtensions'] ?? [],
+            'ui_extensions' => $this->encodeMongoSafeValue($package->manifest['uiExtensions'] ?? []),
             'versions' => $versions,
             'warnings' => $this->mergeWarnings($package->warnings, $dependencyState['warnings'] ?? []),
             'dependency_state' => $dependencyState,
@@ -133,6 +181,10 @@ class PluginManagerService implements PluginManager
             'logs' => is_array($plugin->logs) ? $plugin->logs : [],
             'load_status' => ($plugin->exists && $plugin->enabled) ? 'ready' : 'disabled',
             'load_error_at' => null,
+            'automatic_update_enabled' => $this->defaultAutomaticUpdatesEnabledForSource($sourceType),
+            'update_available' => false,
+            'latest_version' => $package->manifest['version'],
+            'last_update_checked_at' => null,
         ]);
         $plugin->save();
         $this->lifecycleLogStore->append(
@@ -214,11 +266,11 @@ class PluginManagerService implements PluginManager
             'enabled' => $plugin->exists ? (bool) $plugin->enabled : false,
             'trust_level' => $package->trustLevel,
             'install_source' => $source,
-            'manifest' => $package->manifest,
+            'manifest' => $this->encodeMongoSafeValue($package->manifest),
             'permissions' => $package->manifest['permissions'] ?? [],
             'hooks' => array_keys($package->manifest['hooks'] ?? []),
             'actions' => $package->manifest['actions'] ?? [],
-            'ui_extensions' => $package->manifest['uiExtensions'] ?? [],
+            'ui_extensions' => $this->encodeMongoSafeValue($package->manifest['uiExtensions'] ?? []),
             'versions' => $versions,
             'warnings' => $this->mergeWarnings($package->warnings, $dependencyState['warnings'] ?? []),
             'dependency_state' => $dependencyState,
@@ -231,6 +283,10 @@ class PluginManagerService implements PluginManager
             'logs' => is_array($plugin->logs) ? $plugin->logs : [],
             'load_status' => ($plugin->exists && $plugin->enabled) ? 'ready' : 'disabled',
             'load_error_at' => null,
+            'automatic_update_enabled' => false,
+            'update_available' => false,
+            'latest_version' => $package->manifest['version'],
+            'last_update_checked_at' => null,
         ]);
         $plugin->save();
         $this->lifecycleLogStore->append(
@@ -342,6 +398,12 @@ class PluginManagerService implements PluginManager
         $sourceType = $plugin->install_source['type'] ?? null;
 
         if ($sourceType === 'development_mount') {
+            $plugin->automatic_update_enabled = false;
+            $plugin->update_available = false;
+            $plugin->latest_version = $plugin->current_version;
+            $plugin->last_update_checked_at = now()->toAtomString();
+            $plugin->save();
+
             return array_merge(
                 $this->installFromDevelopmentPath((string) ($plugin->install_source['path'] ?? $plugin->getCurrentRuntimePath())),
                 ['updateStatus' => 'refreshed']
@@ -349,6 +411,11 @@ class PluginManagerService implements PluginManager
         }
 
         if (! in_array($sourceType, ['official_registry', 'trusted_registry'], true)) {
+            $plugin->update_available = false;
+            $plugin->latest_version = $plugin->current_version;
+            $plugin->last_update_checked_at = now()->toAtomString();
+            $plugin->save();
+
             return array_merge(
                 $this->serializePlugin($plugin->fresh() ?? $plugin),
                 ['updateStatus' => 'unsupported']
@@ -361,6 +428,11 @@ class PluginManagerService implements PluginManager
         $currentVersion = (string) ($plugin->current_version ?? '');
 
         if ($latestVersion !== '' && $latestVersion === $currentVersion) {
+            $plugin->update_available = false;
+            $plugin->latest_version = $latestVersion;
+            $plugin->last_update_checked_at = now()->toAtomString();
+            $plugin->save();
+
             return array_merge(
                 $this->serializePlugin($plugin->fresh() ?? $plugin),
                 [
@@ -378,6 +450,166 @@ class PluginManagerService implements PluginManager
                 'latestVersion' => $latestVersion !== '' ? $latestVersion : null,
             ]
         );
+    }
+
+    public function checkForPluginUpdates(bool $automaticOnly = false): array
+    {
+        $summary = [
+            'checkedCount' => 0,
+            'updatesAvailableCount' => 0,
+            'upToDateCount' => 0,
+            'unsupportedCount' => 0,
+            'skippedCount' => 0,
+            'failedCount' => 0,
+            'plugins' => [],
+        ];
+
+        foreach (Plugin::query()->orderBy('name')->get() as $plugin) {
+            if ($automaticOnly && ! $this->shouldAutomaticallyUpdate($plugin)) {
+                $summary['skippedCount']++;
+                $summary['plugins'][] = [
+                    'id' => $plugin->plugin_id,
+                    'status' => 'skipped',
+                ];
+
+                continue;
+            }
+
+            $summary['checkedCount']++;
+            $inspection = $this->inspectPluginUpdate($plugin);
+            $summary['plugins'][] = $inspection;
+
+            if ($inspection['status'] === 'update_available') {
+                $summary['updatesAvailableCount']++;
+            } elseif ($inspection['status'] === 'up_to_date') {
+                $summary['upToDateCount']++;
+            } elseif ($inspection['status'] === 'unsupported') {
+                $summary['unsupportedCount']++;
+            } elseif ($inspection['status'] === 'failed') {
+                $summary['failedCount']++;
+            }
+        }
+
+        return $summary;
+    }
+
+    public function updateAllPlugins(bool $automaticOnly = false): array
+    {
+        $summary = [
+            'checkedCount' => 0,
+            'updatedCount' => 0,
+            'noopCount' => 0,
+            'unsupportedCount' => 0,
+            'skippedCount' => 0,
+            'failedCount' => 0,
+            'plugins' => [],
+        ];
+
+        foreach (Plugin::query()->orderBy('name')->get() as $plugin) {
+            if ($automaticOnly && ! $this->shouldAutomaticallyUpdate($plugin)) {
+                $summary['skippedCount']++;
+                $summary['plugins'][] = [
+                    'id' => $plugin->plugin_id,
+                    'updateStatus' => 'skipped',
+                ];
+
+                continue;
+            }
+
+            $summary['checkedCount']++;
+
+            $inspection = $this->inspectPluginUpdate($plugin);
+
+            if (($inspection['status'] ?? null) === 'unsupported') {
+                $summary['unsupportedCount']++;
+                $summary['plugins'][] = [
+                    'id' => $plugin->plugin_id,
+                    'updateStatus' => 'unsupported',
+                ];
+
+                continue;
+            }
+
+            if (($inspection['status'] ?? null) === 'failed') {
+                $summary['failedCount']++;
+                $summary['plugins'][] = [
+                    'id' => $plugin->plugin_id,
+                    'updateStatus' => 'failed',
+                    'message' => $inspection['message'] ?? 'Update check failed.',
+                ];
+
+                continue;
+            }
+
+            if (($inspection['status'] ?? null) === 'up_to_date') {
+                $summary['noopCount']++;
+                $summary['plugins'][] = [
+                    'id' => $plugin->plugin_id,
+                    'updateStatus' => 'noop',
+                    'latestVersion' => $inspection['latestVersion'] ?? $plugin->current_version,
+                ];
+
+                continue;
+            }
+
+            try {
+                $result = $this->update($plugin->plugin_id);
+            } catch (\Throwable $exception) {
+                $summary['failedCount']++;
+                $summary['plugins'][] = [
+                    'id' => $plugin->plugin_id,
+                    'updateStatus' => 'failed',
+                    'message' => $exception->getMessage(),
+                ];
+
+                continue;
+            }
+
+            $summary['plugins'][] = $result;
+            $summary['updatedCount']++;
+        }
+
+        return $summary;
+    }
+
+    public function disableAll(): array
+    {
+        $disabledCount = 0;
+
+        foreach (Plugin::enabled()->get() as $plugin) {
+            $this->disable($plugin->plugin_id);
+            $disabledCount++;
+        }
+
+        return [
+            'disabledCount' => $disabledCount,
+        ];
+    }
+
+    public function enableAll(): array
+    {
+        $enabledCount = 0;
+        $failedCount = 0;
+
+        foreach (Plugin::query()->where('enabled', false)->get() as $plugin) {
+            $result = $this->enable($plugin->plugin_id);
+
+            if (($result['enabled'] ?? false) && ($result['loadStatus'] ?? null) !== 'failed') {
+                $enabledCount++;
+            } else {
+                $failedCount++;
+            }
+        }
+
+        return [
+            'enabledCount' => $enabledCount,
+            'failedCount' => $failedCount,
+        ];
+    }
+
+    public function runAutomaticUpdates(): array
+    {
+        return $this->updateAllPlugins(true);
     }
 
     public function listUiExtensions(?string $surface = null): array
@@ -666,8 +898,8 @@ class PluginManagerService implements PluginManager
     {
         $plugin = $this->synchronizeDevelopmentPlugin($plugin);
         $plugin = $this->synchronizePackagedPluginTrust($plugin);
-        $manifest = $plugin->manifest ?? [];
-        $uiExtensions = $this->normalizeExtensionAssetUrls($plugin->plugin_id, $plugin->ui_extensions ?? []);
+        $manifest = $this->decodedManifest($plugin);
+        $uiExtensions = $this->normalizeExtensionAssetUrls($plugin->plugin_id, $this->decodeMongoSafeValue($plugin->ui_extensions ?? []));
         $manifest['uiExtensions'] = $this->normalizeExtensionAssetUrls($plugin->plugin_id, $manifest['uiExtensions'] ?? []);
         $manifest['components'] = $this->normalizeManifestComponents($plugin->plugin_id, $manifest['components'] ?? []);
         $dependencies = $this->dependencyService->summarize($manifest, $plugin->dependency_state ?? []);
@@ -683,6 +915,11 @@ class PluginManagerService implements PluginManager
             'loadStatus' => $this->resolveLoadStatus($plugin),
             'trustLevel' => $plugin->trust_level ?? 'unsigned',
             'installSource' => $plugin->install_source ?? [],
+            'automaticUpdatesEnabled' => (bool) ($plugin->automatic_update_enabled ?? false),
+            'automaticUpdatesSupported' => $this->supportsAutomaticUpdates($plugin),
+            'updateAvailable' => (bool) ($plugin->update_available ?? false),
+            'latestVersion' => $plugin->latest_version ?? $plugin->current_version,
+            'lastUpdateCheckedAt' => $plugin->last_update_checked_at ?? null,
             'manifest' => $manifest,
             'permissions' => $plugin->permissions ?? [],
             'hooks' => $plugin->hooks ?? [],
@@ -765,11 +1002,11 @@ class PluginManagerService implements PluginManager
                 'current_version' => $package->manifest['version'],
                 'trust_level' => $package->trustLevel,
                 'install_source' => $source,
-                'manifest' => $package->manifest,
+                'manifest' => $this->encodeMongoSafeValue($package->manifest),
                 'permissions' => $package->manifest['permissions'] ?? [],
                 'hooks' => array_keys($package->manifest['hooks'] ?? []),
                 'actions' => $package->manifest['actions'] ?? [],
-                'ui_extensions' => $package->manifest['uiExtensions'] ?? [],
+                'ui_extensions' => $this->encodeMongoSafeValue($package->manifest['uiExtensions'] ?? []),
                 'versions' => $versions,
                 'warnings' => $this->mergeWarnings($package->warnings, $dependencyState['warnings'] ?? []),
                 'dependency_state' => $dependencyState,
@@ -874,6 +1111,161 @@ class PluginManagerService implements PluginManager
         return $this->mergeWarnings($filteredWarnings, $packageWarnings);
     }
 
+    private function decodedManifest(Plugin $plugin): array
+    {
+        $manifest = $this->decodeMongoSafeValue($plugin->manifest ?? []);
+
+        return is_array($manifest) ? $manifest : [];
+    }
+
+    private function encodeMongoSafeValue(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if (array_is_list($value)) {
+            return array_map(fn ($item) => $this->encodeMongoSafeValue($item), $value);
+        }
+
+        $encoded = [];
+
+        foreach ($value as $key => $item) {
+            $encodedKey = str_replace(
+                ['$', '.'],
+                ["\u{FF04}", "\u{FF0E}"],
+                (string) $key
+            );
+            $encoded[$encodedKey] = $this->encodeMongoSafeValue($item);
+        }
+
+        return $encoded;
+    }
+
+    private function decodeMongoSafeValue(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if (array_is_list($value)) {
+            return array_map(fn ($item) => $this->decodeMongoSafeValue($item), $value);
+        }
+
+        $decoded = [];
+
+        foreach ($value as $key => $item) {
+            $decodedKey = str_replace(
+                ["\u{FF04}", "\u{FF0E}"],
+                ['$', '.'],
+                (string) $key
+            );
+            $decoded[$decodedKey] = $this->decodeMongoSafeValue($item);
+        }
+
+        return $decoded;
+    }
+
+    private function globalAutomaticUpdatesEnabled(): bool
+    {
+        $value = Configuration::get(self::AUTOMATIC_UPDATES_CONFIGURATION_KEY, true);
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true;
+    }
+
+    private function saveGlobalAutomaticUpdatesPreference(bool $enabled): void
+    {
+        $configuration = Configuration::firstOrNew(['key' => self::AUTOMATIC_UPDATES_CONFIGURATION_KEY]);
+        $configuration->forceFill([
+            'key' => self::AUTOMATIC_UPDATES_CONFIGURATION_KEY,
+            'value' => $enabled,
+            'default' => true,
+            'hint' => 'Global automatic plugin updates',
+            'type' => DataType::BOOLEAN,
+            'section' => 'Plugins',
+            'description' => 'Automatically check for and install updates for registry plugins that opt in.',
+            'visible' => false,
+            'writeable' => true,
+        ]);
+        $configuration->save();
+    }
+
+    private function supportsAutomaticUpdates(Plugin $plugin): bool
+    {
+        return in_array($plugin->install_source['type'] ?? null, ['official_registry', 'trusted_registry'], true);
+    }
+
+    private function defaultAutomaticUpdatesEnabledForSource(string $sourceType): bool
+    {
+        return in_array($sourceType, ['official_registry', 'trusted_registry'], true)
+            && $this->globalAutomaticUpdatesEnabled();
+    }
+
+    private function shouldAutomaticallyUpdate(Plugin $plugin): bool
+    {
+        if (! $this->globalAutomaticUpdatesEnabled()) {
+            return false;
+        }
+
+        if (! $this->supportsAutomaticUpdates($plugin)) {
+            return false;
+        }
+
+        return (bool) ($plugin->automatic_update_enabled ?? false);
+    }
+
+    private function inspectPluginUpdate(Plugin $plugin): array
+    {
+        if (! $this->supportsAutomaticUpdates($plugin)) {
+            $plugin->update_available = false;
+            $plugin->latest_version = $plugin->current_version;
+            $plugin->last_update_checked_at = now()->toAtomString();
+            $plugin->save();
+
+            return [
+                'id' => $plugin->plugin_id,
+                'status' => 'unsupported',
+                'currentVersion' => $plugin->current_version,
+                'latestVersion' => $plugin->current_version,
+            ];
+        }
+
+        $sourceId = $plugin->install_source['registry']['source']['id'] ?? null;
+
+        try {
+            $package = $this->registryClient->getPackage($plugin->plugin_id, null, $sourceId);
+        } catch (\Throwable $exception) {
+            $plugin->last_update_checked_at = now()->toAtomString();
+            $plugin->save();
+
+            return [
+                'id' => $plugin->plugin_id,
+                'status' => 'failed',
+                'message' => $exception->getMessage(),
+            ];
+        }
+
+        $latestVersion = (string) ($package['latestVersion'] ?? $package['version'] ?? $plugin->current_version ?? '');
+        $currentVersion = (string) ($plugin->current_version ?? '');
+        $updateAvailable = $latestVersion !== '' && $latestVersion !== $currentVersion;
+
+        $plugin->latest_version = $latestVersion !== '' ? $latestVersion : $currentVersion;
+        $plugin->update_available = $updateAvailable;
+        $plugin->last_update_checked_at = now()->toAtomString();
+        $plugin->save();
+
+        return [
+            'id' => $plugin->plugin_id,
+            'status' => $updateAvailable ? 'update_available' : 'up_to_date',
+            'currentVersion' => $currentVersion,
+            'latestVersion' => $plugin->latest_version,
+        ];
+    }
+
     private function normalizeExtensionAssetUrls(string $pluginId, array $extensions): array
     {
         return array_map(function (array $extension) use ($pluginId) {
@@ -961,7 +1353,7 @@ class PluginManagerService implements PluginManager
     private function resolvedPluginSettings(Plugin $plugin): array
     {
         return $this->mergeSettings(
-            $this->declaredSettingsDefaults($plugin->manifest ?? []),
+            $this->declaredSettingsDefaults($this->decodedManifest($plugin)),
             is_array($plugin->settings) ? $plugin->settings : []
         );
     }

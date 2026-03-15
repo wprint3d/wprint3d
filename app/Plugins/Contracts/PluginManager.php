@@ -16,7 +16,13 @@ interface PluginManager
 
     public function saveRegistrySources(array $sources): array;
 
+    public function getPluginPreferences(): array;
+
+    public function updatePluginPreferences(array $preferences): array;
+
     public function get(string $pluginId): array;
+
+    public function setPluginAutomaticUpdates(string $pluginId, bool $enabled): array;
 
     public function getSettings(string $pluginId): array;
 
@@ -41,6 +47,16 @@ interface PluginManager
     public function uninstall(string $pluginId): bool;
 
     public function update(string $pluginId): array;
+
+    public function checkForPluginUpdates(bool $automaticOnly = false): array;
+
+    public function updateAllPlugins(bool $automaticOnly = false): array;
+
+    public function disableAll(): array;
+
+    public function enableAll(): array;
+
+    public function runAutomaticUpdates(): array;
 
     public function listUiExtensions(?string $surface = null): array;
 
