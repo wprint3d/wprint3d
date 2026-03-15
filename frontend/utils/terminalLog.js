@@ -48,6 +48,61 @@ export function filterTerminalEntries(entries, isMessageBlocked) {
     return entries.filter(entry => !isMessageBlocked(entry.line));
 }
 
+function parseTerminalTimestamp(dateString) {
+    if (!dateString) {
+        return null;
+    }
+
+    const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(dateString);
+
+    if (!match) {
+        return null;
+    }
+
+    const [ , year, month, day, hour, minute, second ] = match.map(Number);
+
+    return Date.UTC(year, month - 1, day, hour, minute, second);
+}
+
+function terminalLinePriority(line) {
+    if (line.startsWith('>')) {
+        return 0;
+    }
+
+    return 1;
+}
+
+export function sortTerminalEntries(entries) {
+    return entries
+        .map((entry, index) => ({
+            entry,
+            index,
+            timestamp: parseTerminalTimestamp(entry.date)
+        }))
+        .sort((left, right) => {
+            if (left.timestamp !== null && right.timestamp !== null && left.timestamp !== right.timestamp) {
+                return left.timestamp - right.timestamp;
+            }
+
+            if (left.timestamp !== null && right.timestamp === null) {
+                return -1;
+            }
+
+            if (left.timestamp === null && right.timestamp !== null) {
+                return 1;
+            }
+
+            const priorityDifference = terminalLinePriority(left.entry.line) - terminalLinePriority(right.entry.line);
+
+            if (priorityDifference !== 0) {
+                return priorityDifference;
+            }
+
+            return left.index - right.index;
+        })
+        .map(({ entry }) => entry);
+}
+
 export function trimTerminalEntries(entries, terminalMaxLines) {
     if (terminalMaxLines === 0) {
         return [];
@@ -62,7 +117,7 @@ export function trimTerminalEntries(entries, terminalMaxLines) {
 
 export function mergeTerminalEntries(previousEntries, nextEntries, terminalMaxLines) {
     return trimTerminalEntries(
-        [ ...previousEntries, ...nextEntries ],
+        sortTerminalEntries([ ...previousEntries, ...nextEntries ]),
         terminalMaxLines
     );
 }
