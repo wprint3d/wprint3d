@@ -26,6 +26,8 @@ If any of those are missing, ask the developer to fill the gaps before you revie
 Use the verification helper from a `wprint3d-core` checkout:
 
 ```bash
+./plugin.sh verify /path/to/plugin.w3dp
+./plugin.sh verify /path/to/plugin.w3dp --require-trusted
 python3 scripts/plugin_verify_signature.py inspect /path/to/plugin.w3dp
 python3 scripts/plugin_verify_signature.py verify /path/to/plugin.w3dp
 ```
@@ -35,7 +37,7 @@ To export the embedded public key for manual review:
 ```bash
 python3 scripts/plugin_verify_signature.py inspect \
   /path/to/plugin.w3dp \
-  --write-public-key /tmp/plugin-signer.pub.pem
+  --write-public-key tmp/plugin-signer.pub.pem
 ```
 
 ## Review Workflow
@@ -86,6 +88,7 @@ If there is no previous release:
 2. compare the embedded public key against the PEM pasted in the PR description
 3. record the public-key SHA-256 fingerprint in the PR discussion
 4. use that key as the continuity anchor for future releases
+5. add that key to `signers/index.json` when you update the registry PR
 
 ### 5. Sanity-check the plugin package
 
@@ -106,7 +109,7 @@ Ask them to rebuild through the signing helper:
 
 ```bash
 python3 scripts/plugin_sign.py path/to/plugin \
-  --private-key /secure/path/plugin-signing.pem
+  --private-key ../plugin-signing/plugin-signing.pem
 ```
 
 Tell them to resubmit the new `.w3dp` and include the verification output in the PR.
@@ -145,6 +148,20 @@ The public registry is still PR-driven. The maintainer-side flow should be:
 4. update the registry index entry
 5. update `signers/index.json` so WPrint 3D instances can auto-sync the accepted signer key
 6. merge the PR only after the signature review passes
+
+## Local Restore And Inspection
+
+If you need to inspect or salvage a package that is no longer in the registry, restore it into a disposable source tree:
+
+```bash
+./plugin.sh restore candidate.w3dp --output plugins/candidate-restore
+```
+
+That is useful for:
+
+- manual review of removed plugins
+- emergency republishing
+- helping maintainers fork and recover abandoned plugins
 
 ## Suggested Registry Entry Shape
 

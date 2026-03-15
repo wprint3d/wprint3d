@@ -10,7 +10,7 @@ Declarative host-rendered UI is the default because it is the lightest option fo
 
 Develop this plugin from a full `wprint3d-core` source checkout. The repository is small, and the supported plugin workflow depends on that checkout for `./plugin.sh`, the dev stack, and the packaging/signing commands below.
 
-Package it:
+Unsigned development build:
 
 ```bash
 ./plugin.sh pack examples/plugins/hello-world
@@ -22,16 +22,44 @@ Archive output:
 examples/plugins/hello-world/builds/hello-world.w3dp
 ```
 
-Sign it if you plan to distribute it:
+Generate or reuse a long-lived signing key:
 
 ```bash
-mkdir -p keys
-openssl genpkey -algorithm RSA -out keys/hello-world-private.pem -pkeyopt rsa_keygen_bits:4096
-./plugin.sh pack examples/plugins/hello-world --signing-key=keys/hello-world-private.pem
+./plugin.sh keygen --output ../plugin-signing/hello-world.pem
 ```
 
-Keep the private key outside the plugin directory and out of version control.
-For the full signing, verification, and registry submission flow, see `/home/facuarmo/wprint3d-core/docs/plugin-signing-for-developers.md`.
+Interactive signed release flow:
+
+```bash
+./plugin.sh pack examples/plugins/hello-world --wizard
+```
+
+Non-interactive signed release flow:
+
+```bash
+./plugin.sh pack examples/plugins/hello-world --signing-key ../plugin-signing/hello-world.pem
+```
+
+Verify before installing or publishing:
+
+```bash
+./plugin.sh verify examples/plugins/hello-world/builds/hello-world.w3dp
+./plugin.sh verify examples/plugins/hello-world/builds/hello-world.w3dp --require-trusted
+```
+
+Restore a source tree from a package when you need to test or fork a published release:
+
+```bash
+./plugin.sh restore examples/plugins/hello-world/builds/hello-world.w3dp --output plugins/hello-world-fork
+```
+
+Every signed `.w3dp` embeds the signer public key automatically.
+Keep the private key outside the plugin directory and out of version control, back it up in at least one secure encrypted location, and if you ever restore it from backup run `chmod 600 ../plugin-signing/hello-world.pem`.
+For the full signing, verification, backup, and registry submission flow, see:
+
+- [../../../docs/plugin-signing-for-developers.md](../../../docs/plugin-signing-for-developers.md)
+- [../../../docs/plugin-signature-verification-for-users.md](../../../docs/plugin-signature-verification-for-users.md)
+- [../../../docs/plugin-registry-signing-review.md](../../../docs/plugin-registry-signing-review.md)
 
 Install it:
 

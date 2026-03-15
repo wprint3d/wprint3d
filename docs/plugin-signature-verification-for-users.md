@@ -22,11 +22,14 @@ Signature verification does not prove the plugin is safe or bug-free. It only pr
 From a `wprint3d-core` source checkout:
 
 ```bash
+./plugin.sh verify /path/to/plugin.w3dp
+./plugin.sh verify /path/to/plugin.w3dp --require-trusted
 python3 scripts/plugin_verify_signature.py inspect /path/to/plugin.w3dp
 python3 scripts/plugin_verify_signature.py verify /path/to/plugin.w3dp
 ```
 
 If the package embeds a public key and the signature is valid, `verify` should print `Verified: yes`.
+If `./plugin.sh verify ... --require-trusted` passes, the package is also signed by a key trusted by the current WPrint 3D instance, including keys synced from trusted registries.
 
 ## Compare With A Previous Release
 
@@ -50,7 +53,7 @@ You can export the embedded signer key for your own records:
 ```bash
 python3 scripts/plugin_verify_signature.py inspect \
   /path/to/plugin.w3dp \
-  --write-public-key /tmp/plugin-signer.pub.pem
+  --write-public-key tmp/plugin-signer.pub.pem
 ```
 
 The output fingerprint is the easiest thing to compare across releases.
@@ -72,5 +75,7 @@ In those cases, do not install the package on a system you care about until the 
 - Prefer official-registry packages when they exist.
 - Keep a copy of the last trusted release if you install third-party plugins.
 - Compare the embedded public-key fingerprint before upgrading a sideloaded plugin.
+- Run `./plugin.sh verify <package> --require-trusted` before installing packages that claim to come from a trusted marketplace source.
+- If you need to inspect or fork a removed plugin, restore it first with `./plugin.sh restore /path/to/plugin.w3dp --output plugins/plugin-fork` and review the files before reinstalling it.
 - Treat first-time third-party plugins as a trust decision, not just a click-through warning.
 - If you operate printers for other people, record which plugin version and signer fingerprint you accepted.

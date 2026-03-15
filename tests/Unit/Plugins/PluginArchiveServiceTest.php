@@ -146,6 +146,50 @@ class PluginArchiveServiceTest extends TestCase
         }
     }
 
+    public function test_it_can_restore_a_plugin_archive_to_a_source_directory(): void
+    {
+        $basePath = storage_path('framework/testing/plugins-restore-'.uniqid());
+        $archivePath = $basePath.'.w3dp';
+        $restorePath = storage_path('framework/testing/plugins-restored-'.uniqid());
+
+        @mkdir($basePath, 0777, true);
+
+        file_put_contents($basePath.'/plugin.php', '<?php echo json_encode(["ok" => true]);');
+        file_put_contents($basePath.'/plugin.json', json_encode([
+            'id' => 'acme.restore-demo',
+            'name' => 'ACME Restore Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'runtime' => [
+                'type' => 'php',
+                'entry' => 'plugin.php',
+            ],
+            'permissions' => [
+                'printer.read',
+            ],
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        $zip = new ZipArchive;
+        $zip->open($archivePath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        $zip->addFile($basePath.'/plugin.json', 'plugin.json');
+        $zip->addFile($basePath.'/plugin.php', 'plugin.php');
+        $zip->close();
+
+        try {
+            $service = new PluginArchiveService(new PluginManifestValidator);
+
+            $restoredPath = $service->restoreToDirectory($archivePath, $restorePath);
+
+            $this->assertSame($restorePath, $restoredPath);
+            $this->assertFileExists($restorePath.'/plugin.json');
+            $this->assertFileExists($restorePath.'/plugin.php');
+        } finally {
+            File::delete($archivePath);
+            File::deleteDirectory($basePath);
+            File::deleteDirectory($restorePath);
+        }
+    }
+
     private function generateKeyPair(): array
     {
         $resource = openssl_pkey_new([

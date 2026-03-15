@@ -41,17 +41,17 @@ python3 scripts/e2e_octoprint_navbartemp_package.py
 Verified command:
 
 ```bash
-./plugin.sh make acme.showcase "Showcase Plugin" --path=/tmp/showcase-plugin
+./plugin.sh make acme.showcase "Showcase Plugin" --path=tmp/showcase-plugin
 ```
 
 Observed generated files:
 
 ```text
-/tmp/showcase-plugin/README.md
-/tmp/showcase-plugin/actions/ping.php
-/tmp/showcase-plugin/hooks/on_boot.php
-/tmp/showcase-plugin/plugin.json
-/tmp/showcase-plugin/plugin.php
+tmp/showcase-plugin/README.md
+tmp/showcase-plugin/actions/ping.php
+tmp/showcase-plugin/hooks/on_boot.php
+tmp/showcase-plugin/plugin.json
+tmp/showcase-plugin/plugin.php
 ```
 
 The generated manifest defaults to:

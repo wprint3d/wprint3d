@@ -48,9 +48,14 @@ For OctoPrint-oriented ports, use [examples/plugins/octoprint-navbartemp-port](.
 
 ```bash
 ./plugin.sh make
-./plugin.sh pack plugins/acme-hello-world
+./plugin.sh keygen
+./plugin.sh pack plugins/acme-hello-world --wizard
+./plugin.sh pack plugins/acme-hello-world --signing-key ../plugin-signing/acme-hello-world.pem
+./plugin.sh verify plugins/acme-hello-world/builds/acme-hello-world.w3dp
+./plugin.sh verify plugins/acme-hello-world/builds/acme-hello-world.w3dp --require-trusted
+./plugin.sh restore plugins/acme-hello-world/builds/acme-hello-world.w3dp --output plugins/acme-hello-world-fork
 ./plugin.sh install plugins/acme-hello-world/builds/acme-hello-world.w3dp
-python3 scripts/plugin_sign.py plugins/acme-hello-world --private-key=/secure/path/acme.pem
+python3 scripts/plugin_sign.py plugins/acme-hello-world --private-key=../plugin-signing/acme.pem
 python3 scripts/plugin_verify_signature.py verify plugins/acme-hello-world/builds/acme-hello-world.w3dp
 php artisan plugin:sync-trusted-keys
 ./plugin.sh list
@@ -58,7 +63,7 @@ php artisan plugin:sync-trusted-keys
 ./plugin.sh status
 ```
 
-`./plugin.sh` is the recommended host entrypoint because it runs the plugin Artisan commands inside the backend container. Use raw `php artisan plugin:*` only when you are already inside that container or a matching PHP environment.
+`./plugin.sh` is the recommended host entrypoint because it runs the plugin Artisan commands inside the backend container. It can also stage signing keys from the host into the backend container for one-shot packaging, generate long-lived signing keys with `./plugin.sh keygen`, and restore a source tree from a `.w3dp` package. Use raw `php artisan plugin:*` only when you are already inside that container or a matching PHP environment.
 `./plugin.sh status` is the quickest way to verify which backend container was resolved, whether developer mode is live, and whether the unpacked-plugin source roots are actually visible for live installs.
 By default, `./plugin.sh pack <plugin-path>` writes the release archive to `<plugin-path>/builds/<plugin-dir>.w3dp`. In the development stack that path stays visible on the host because the repo is bind-mounted into the backend container at `/var/www`.
 Plugin development currently assumes a full `wprint3d-core` source checkout. The repo is small, and that checkout is the supported environment for live mounts, packaging, signing, and running `./plugin.sh`.
