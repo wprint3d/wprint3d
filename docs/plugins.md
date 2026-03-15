@@ -19,6 +19,10 @@ Current SDK target:
 - Developer guide: [docs/plugin-development-guide.md](plugin-development-guide.md)
 - API and SDK reference: [docs/plugin-sdk-reference.md](plugin-sdk-reference.md)
 - SDK changelog and deprecation policy: [docs/plugin-sdk-changelog.md](plugin-sdk-changelog.md)
+- Signing guide for plugin developers: [docs/plugin-signing-for-developers.md](plugin-signing-for-developers.md)
+- Signature verification guide for users: [docs/plugin-signature-verification-for-users.md](plugin-signature-verification-for-users.md)
+- Registry maintainer signing review guide: [docs/plugin-registry-signing-review.md](plugin-registry-signing-review.md)
+- Worked example: [docs/octoprint-navbartemp-public-registry-guide.md](octoprint-navbartemp-public-registry-guide.md)
 - Shape-matrix E2E guide: [docs/plugin-shape-matrix-e2e.md](plugin-shape-matrix-e2e.md)
 - Browser walkthrough for packaging/installing: [docs/plugin-showcase-e2e.md](plugin-showcase-e2e.md)
 - OctoPrint porting E2E reference: [docs/octoprint-porting-e2e.md](octoprint-porting-e2e.md)
@@ -46,6 +50,8 @@ For OctoPrint-oriented ports, use [examples/plugins/octoprint-navbartemp-port](.
 ./plugin.sh make
 ./plugin.sh pack plugins/acme-hello-world
 ./plugin.sh install plugins/acme-hello-world/builds/acme-hello-world.w3dp
+python3 scripts/plugin_sign.py plugins/acme-hello-world --private-key=/secure/path/acme.pem
+python3 scripts/plugin_verify_signature.py verify plugins/acme-hello-world/builds/acme-hello-world.w3dp
 ./plugin.sh list
 ./plugin.sh doctor
 ./plugin.sh status
@@ -74,7 +80,9 @@ Production backend images do not bundle `examples/plugins`. That keeps the shipp
 - Official packages come from the GitHub-backed official registry.
 - Trusted third-party registries can be added in the Marketplace via the gear button.
 - Unsigned sideloaded packages remain installable but are flagged in the UI.
-- Until the public registry workflow is documented in more detail, plugin authors should keep their plugin in their own repository, open a PR against the public registry with that repository URL, and wait for the WPrint 3D team to follow up.
+- Signed packages now embed the signer public key and SHA-256 fingerprint so users and maintainers can inspect and verify them locally.
+- Plugin authors should follow [docs/plugin-signing-for-developers.md](plugin-signing-for-developers.md) before shipping public releases.
+- Registry maintainers should use [docs/plugin-registry-signing-review.md](plugin-registry-signing-review.md) for first-release review, key continuity checks, and PR handling.
 
 ## Manifest Highlights
 

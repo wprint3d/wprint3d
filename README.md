@@ -94,15 +94,19 @@ If you want to build plugins, use this path:
 
 1. Read the plugin entrypoint docs in [docs/plugins.md](/home/facuarmo/wprint3d-core/docs/plugins.md).
 2. Follow the full authoring walkthrough in [docs/plugin-development-guide.md](/home/facuarmo/wprint3d-core/docs/plugin-development-guide.md).
-3. Use the scaffold command to start a new plugin:
+3. Use the signing guides when you start distributing packages:
+   - [docs/plugin-signing-for-developers.md](/home/facuarmo/wprint3d-core/docs/plugin-signing-for-developers.md)
+   - [docs/plugin-signature-verification-for-users.md](/home/facuarmo/wprint3d-core/docs/plugin-signature-verification-for-users.md)
+   - [docs/plugin-registry-signing-review.md](/home/facuarmo/wprint3d-core/docs/plugin-registry-signing-review.md)
+4. Use the scaffold command to start a new plugin:
 
    `./plugin.sh make`
 
-4. Study the reference examples:
+5. Study the reference examples:
    - [examples/plugins/hello-world](/home/facuarmo/wprint3d-core/examples/plugins/hello-world): smallest PHP + declarative starter
    - [examples/plugins/host-metrics](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics): baseline host-rendered plugin
    - [docs/plugin-shape-matrix-e2e.md](/home/facuarmo/wprint3d-core/docs/plugin-shape-matrix-e2e.md): every supported runtime/UI shape
-5. Use the plugin-local `AGENTS.md` files inside each example directory when modifying or extending those examples.
+6. Use the plugin-local `AGENTS.md` files inside each example directory when modifying or extending those examples.
 
 Plugin development currently expects a full `wprint3d-core` source checkout. The repository is small, and the supported authoring loop depends on that checkout for `./plugin.sh`, the live development mounts, browser E2E, and `.w3dp` packaging/signing.
 

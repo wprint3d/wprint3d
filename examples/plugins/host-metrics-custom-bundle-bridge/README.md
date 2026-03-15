@@ -34,6 +34,7 @@ openssl genpkey -algorithm RSA -out keys/host-metrics-custom-bundle-bridge-priva
 ```
 
 Keep the private key outside the plugin directory and out of version control.
+For the full signing, verification, and registry submission flow, see `/home/facuarmo/wprint3d-core/docs/plugin-signing-for-developers.md`.
 
 Install it:
 

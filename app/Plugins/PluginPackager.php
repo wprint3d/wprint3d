@@ -80,7 +80,17 @@ class PluginPackager
 
     private function zipDirectory(string $sourceDirectory, string $outputPath): void
     {
-        @mkdir(dirname($outputPath), 0777, true);
+        $outputDirectory = dirname($outputPath);
+
+        @mkdir($outputDirectory, 0777, true);
+
+        if (! is_dir($outputDirectory) || ! is_writable($outputDirectory)) {
+            throw new PluginRuntimeException("Plugin package output directory is not writable: {$outputDirectory}");
+        }
+
+        if (is_file($outputPath) && ! is_writable($outputPath)) {
+            throw new PluginRuntimeException("Plugin package output file is not writable: {$outputPath}. Remove it, fix its ownership, or pass --output to a writable path.");
+        }
 
         $zip = new ZipArchive;
 

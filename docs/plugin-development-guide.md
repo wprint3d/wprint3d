@@ -102,6 +102,9 @@ Legacy ids like `section`, `text`, `button`, `progress_cluster`, and `remote_com
   "version": "0.1.0",
   "sdkVersion": 1,
   "sdkRevision": 4,
+  "homepageUrl": "https://github.com/acme/hello-world-plugin",
+  "documentationUrl": "https://github.com/acme/hello-world-plugin#readme",
+  "sourceUrl": "https://github.com/acme/hello-world-plugin",
   "runtime": {
     "type": "php",
     "entry": "plugin.php"
@@ -154,6 +157,8 @@ Legacy ids like `section`, `text`, `button`, `progress_cluster`, and `remote_com
   }
 }
 ```
+
+For public releases, treat `homepageUrl`, `documentationUrl`, and `sourceUrl` as canonical metadata. Registry entries and landing pages should read from those fields instead of guessing repository links from wherever the plugin happened to be developed.
 
 ## Building A Plugin
 
@@ -564,11 +569,11 @@ The declarative variants demonstrate the cross-platform remote component API:
 1. Increment plugin version.
 2. Confirm the manifest targets a supported `sdkVersion` and `sdkRevision`.
 3. Package the plugin.
-4. Optionally sign it.
-5. If you want official-registry inclusion, keep the plugin in its own repository and open a PR against the public registry with that repository URL.
+4. Sign it before any public release.
+5. If you want official-registry inclusion, keep the plugin in its own repository and open a PR against the public registry with that repository URL plus the signed package details.
 6. Wait for the WPrint 3D team to reach out before expecting that plugin to appear publicly.
 7. Otherwise, publish it through your own trusted registry or direct `.w3dp` distribution.
-8. Add release notes that mention the SDK revision and runtime/UI shape.
+8. Add release notes that mention the SDK revision, runtime/UI shape, and signer continuity if you rotated keys.
 
 ## Source Checkout Requirement
 
@@ -582,3 +587,11 @@ That repository is intentionally small, and the supported workflow depends on th
 - browser E2E validation against the running stack
 
 If you want to develop plugins, clone the full source tree first and work from that checkout instead of trying to package from a standalone extracted plugin directory.
+
+## Signing Guides
+
+Use these guides together:
+
+- Plugin authors: [docs/plugin-signing-for-developers.md](plugin-signing-for-developers.md)
+- End users: [docs/plugin-signature-verification-for-users.md](plugin-signature-verification-for-users.md)
+- Public registry maintainers: [docs/plugin-registry-signing-review.md](plugin-registry-signing-review.md)
