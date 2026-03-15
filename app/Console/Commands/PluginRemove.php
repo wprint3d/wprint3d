@@ -8,11 +8,18 @@ use Illuminate\Console\Command;
 class PluginRemove extends Command
 {
     protected $signature = 'plugin:remove {pluginId}';
+
     protected $description = 'Remove an installed plugin';
 
     public function handle(PluginManager $pluginManager): int
     {
-        $pluginManager->uninstall($this->argument('pluginId'));
+        $removed = $pluginManager->uninstall($this->argument('pluginId'));
+
+        if (! $removed) {
+            $this->info('Plugin was already absent.');
+
+            return self::SUCCESS;
+        }
 
         $this->info('Plugin removed.');
 

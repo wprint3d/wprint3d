@@ -12,15 +12,16 @@ WPrint 3D's plugin platform supports:
 Current SDK target:
 
 - `sdkVersion: 1`
-- `sdkRevision: 2`
+- `sdkRevision: 4`
 
 ## Read This First
 
-- Developer guide: [docs/plugin-development-guide.md](/home/facuarmo/wprint3d-core/docs/plugin-development-guide.md)
-- API and SDK reference: [docs/plugin-sdk-reference.md](/home/facuarmo/wprint3d-core/docs/plugin-sdk-reference.md)
-- SDK changelog and deprecation policy: [docs/plugin-sdk-changelog.md](/home/facuarmo/wprint3d-core/docs/plugin-sdk-changelog.md)
-- Shape-matrix E2E guide: [docs/plugin-shape-matrix-e2e.md](/home/facuarmo/wprint3d-core/docs/plugin-shape-matrix-e2e.md)
-- Browser walkthrough for packaging/installing: [docs/plugin-showcase-e2e.md](/home/facuarmo/wprint3d-core/docs/plugin-showcase-e2e.md)
+- Developer guide: [docs/plugin-development-guide.md](plugin-development-guide.md)
+- API and SDK reference: [docs/plugin-sdk-reference.md](plugin-sdk-reference.md)
+- SDK changelog and deprecation policy: [docs/plugin-sdk-changelog.md](plugin-sdk-changelog.md)
+- Shape-matrix E2E guide: [docs/plugin-shape-matrix-e2e.md](plugin-shape-matrix-e2e.md)
+- Browser walkthrough for packaging/installing: [docs/plugin-showcase-e2e.md](plugin-showcase-e2e.md)
+- OctoPrint porting E2E reference: [docs/octoprint-porting-e2e.md](octoprint-porting-e2e.md)
 
 ## Example Matrix
 
@@ -28,14 +29,16 @@ The Host Metrics sample now exists in every supported runtime/UI shape combinati
 
 | Example | Runtime | Settings UI | Navbar Widget | Path |
 | --- | --- | --- | --- | --- |
-| Host Metrics | `php` | `declarative` | `declarative` | [examples/plugins/host-metrics](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics) |
-| Host Metrics WebView | `php` | `webview` | `declarative` | [examples/plugins/host-metrics-webview-php](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-webview-php) |
-| Host Metrics Bundle | `php` | `custom_bundle` | `declarative` | [examples/plugins/host-metrics-custom-bundle-php](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-custom-bundle-php) |
-| Host Metrics Bridge | `bridge` | `declarative` | `declarative` | [examples/plugins/host-metrics-declarative-bridge](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-declarative-bridge) |
-| Host Metrics Bridge WebView | `bridge` | `webview` | `declarative` | [examples/plugins/host-metrics-webview-bridge](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-webview-bridge) |
-| Host Metrics Bridge Bundle | `bridge` | `custom_bundle` | `declarative` | [examples/plugins/host-metrics-custom-bundle-bridge](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-custom-bundle-bridge) |
+| Host Metrics | `php` | `declarative` | `declarative` | [examples/plugins/host-metrics](../examples/plugins/host-metrics) |
+| Host Metrics WebView | `php` | `webview` | `declarative` | [examples/plugins/host-metrics-webview-php](../examples/plugins/host-metrics-webview-php) |
+| Host Metrics Bundle | `php` | `custom_bundle` | `declarative` | [examples/plugins/host-metrics-custom-bundle-php](../examples/plugins/host-metrics-custom-bundle-php) |
+| Host Metrics Bridge | `bridge` | `declarative` | `declarative` | [examples/plugins/host-metrics-declarative-bridge](../examples/plugins/host-metrics-declarative-bridge) |
+| Host Metrics Bridge WebView | `bridge` | `webview` | `declarative` | [examples/plugins/host-metrics-webview-bridge](../examples/plugins/host-metrics-webview-bridge) |
+| Host Metrics Bridge Bundle | `bridge` | `custom_bundle` | `declarative` | [examples/plugins/host-metrics-custom-bundle-bridge](../examples/plugins/host-metrics-custom-bundle-bridge) |
 
-Bridge examples use the companion service in [examples/plugins/host-metrics-bridge-service](/home/facuarmo/wprint3d-core/examples/plugins/host-metrics-bridge-service).
+Bridge examples use the companion service in [examples/plugins/host-metrics-bridge-service](../examples/plugins/host-metrics-bridge-service).
+
+For OctoPrint-oriented ports, use [examples/plugins/octoprint-navbartemp-port](../examples/plugins/octoprint-navbartemp-port) as the reference case. It demonstrates the settings/state compatibility layer, a host-native navbar port, and a browser-side settings bundle using the host helper.
 
 ## Quick Commands
 
@@ -79,4 +82,6 @@ Production backend images do not bundle `examples/plugins`. That keeps the shipp
 - `runtime.managedImageId` lets a bridge plugin ask WPrint 3D to start one of its declared service images automatically.
 - WebView and custom-bundle assets should be declared under `assets` and referenced with `asset://...`.
 - Declarative UI can mount `remote_component` definitions from `components`, and elevated browser surfaces can load `browser_module` components from `assets`.
+- New declarative plugins should prefer the stable `host.*` component registry (`host.stack`, `host.row`, `host.button`, `host.input`, `host.switch`, `host.progress`, `host.data_strip`, `host.remote_component`, and related primitives).
 - Plugins with a `settings_tab` surface get their own Settings tab and a `Settings` button on the plugin inventory card.
+- Installed plugins keep lifecycle logs and a load-status badge so startup failures can be diagnosed without crashing the host.

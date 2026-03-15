@@ -340,6 +340,57 @@ class PluginManifestValidatorTest extends TestCase
         $this->assertSame(2.0, $manifest['requirements']['cpuCores']);
     }
 
+    public function test_it_accepts_plugin_settings_defaults(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
+
+        $manifest = $validator->validate([
+            'id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'runtime' => [
+                'type' => 'php',
+                'entry' => 'plugin.php',
+            ],
+            'permissions' => [
+                'ui.settings_tab',
+            ],
+            'settings' => [
+                'defaults' => [
+                    'displayRaspiTemp' => true,
+                    'soc_name' => 'SoC',
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($manifest['settings']['defaults']['displayRaspiTemp']);
+        $this->assertSame('SoC', $manifest['settings']['defaults']['soc_name']);
+    }
+
+    public function test_it_rejects_non_object_plugin_settings_defaults(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
+
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('Plugin settings.defaults must be an object');
+
+        $validator->validate([
+            'id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'runtime' => [
+                'type' => 'php',
+                'entry' => 'plugin.php',
+            ],
+            'permissions' => [],
+            'settings' => [
+                'defaults' => 'invalid',
+            ],
+        ]);
+    }
+
     public function test_it_rejects_bridge_managed_images_without_a_declared_service_port(): void
     {
         $validator = new PluginManifestValidator(null, null, null, null, 1, 1);

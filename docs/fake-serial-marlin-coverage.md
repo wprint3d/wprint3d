@@ -1,6 +1,6 @@
 # FakeSerial Marlin Coverage
 
-FakeSerial uses [Marlin.php](/home/facuarmo/wprint3d-core/app/Enums/Marlin.php) as the command inventory.
+FakeSerial uses [Marlin.php](../app/Enums/Marlin.php) as the command inventory.
 
 Behavior rules:
 

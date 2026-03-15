@@ -26,12 +26,20 @@ class Plugin extends Model
         'versions',
         'warnings',
         'dependency_state',
+        'settings',
+        'state',
+        'logs',
+        'load_status',
         'last_error',
+        'load_error_at',
         'last_healthcheck_at',
     ];
 
     protected $casts = [
         'enabled' => 'boolean',
+        'settings' => 'array',
+        'state' => 'array',
+        'logs' => 'array',
     ];
 
     public function scopeEnabled($query)

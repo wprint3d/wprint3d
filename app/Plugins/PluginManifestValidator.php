@@ -212,6 +212,7 @@ class PluginManifestValidator
         $manifest['description'] = $manifest['description'] ?? null;
         $manifest['author'] = $manifest['author'] ?? null;
         $manifest['updateSource'] = $manifest['updateSource'] ?? [];
+        $manifest['settings'] = $this->normalizeSettings($manifest['settings'] ?? []);
 
         return $manifest;
     }
@@ -274,6 +275,19 @@ class PluginManifestValidator
         }
 
         return $normalizedAssets;
+    }
+
+    private function normalizeSettings(array $settings): array
+    {
+        $defaults = $settings['defaults'] ?? [];
+
+        if ($defaults !== [] && ! is_array($defaults)) {
+            throw new InvalidPluginManifestException('Plugin settings.defaults must be an object.');
+        }
+
+        return [
+            'defaults' => is_array($defaults) ? $defaults : [],
+        ];
     }
 
     private function normalizeImages(array $images): array

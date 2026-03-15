@@ -21,6 +21,8 @@ class BridgePluginRuntimeAdapter implements PluginRuntimeAdapter
         return $this->post($plugin, $path, [
             'kind' => 'hook',
             'hook' => $hook,
+            'settings' => $plugin['settings'] ?? [],
+            'state' => $plugin['state'] ?? [],
             'context' => $context,
         ]);
     }
@@ -32,6 +34,8 @@ class BridgePluginRuntimeAdapter implements PluginRuntimeAdapter
         return $this->post($plugin, $path, [
             'kind' => 'action',
             'action' => $action['id'],
+            'settings' => $plugin['settings'] ?? [],
+            'state' => $plugin['state'] ?? [],
             'payload' => $payload,
             'context' => $context,
         ]);

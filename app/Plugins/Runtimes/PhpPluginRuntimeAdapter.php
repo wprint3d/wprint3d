@@ -24,6 +24,8 @@ class PhpPluginRuntimeAdapter implements PluginRuntimeAdapter
         return $this->runPhpHandler($plugin, $handler, [
             'kind' => 'hook',
             'hook' => $hook,
+            'settings' => $plugin['settings'] ?? [],
+            'state' => $plugin['state'] ?? [],
             'context' => $context,
         ]);
     }
@@ -33,6 +35,8 @@ class PhpPluginRuntimeAdapter implements PluginRuntimeAdapter
         return $this->runPhpHandler($plugin, $action['handler'], [
             'kind' => 'action',
             'action' => $action['id'],
+            'settings' => $plugin['settings'] ?? [],
+            'state' => $plugin['state'] ?? [],
             'payload' => $payload,
             'context' => $context,
         ]);
@@ -55,6 +59,7 @@ class PhpPluginRuntimeAdapter implements PluginRuntimeAdapter
                 'WPRINT3D_PLUGIN_STORAGE_PATH' => $plugin['storage_path'] ?? '',
                 'WPRINT3D_BASE_PATH' => base_path(),
                 'WPRINT3D_VENDOR_AUTOLOAD' => base_path('vendor/autoload.php'),
+                'WPRINT3D_BOOTSTRAP_APP' => base_path('bootstrap/app.php'),
             ],
         );
         $process->setTimeout(config('plugins.runtime.timeout_secs', 10));

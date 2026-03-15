@@ -9,18 +9,18 @@ $defaultDevelopmentMountPaths = array_values(array_unique(array_filter([
 
 return [
     'sdk_version' => 1,
-    'sdk_revision' => 2,
+    'sdk_revision' => 4,
 
     'sdk' => [
         'current' => [
             'version' => 1,
-            'revision' => 2,
+            'revision' => 4,
         ],
         'versions' => [
             1 => [
                 'label' => 'WPrint3D Plugin SDK 1',
                 'status' => 'active',
-                'defaultRevision' => 2,
+                'defaultRevision' => 4,
                 'deprecatedAfter' => null,
                 'revisions' => [
                     0 => [
@@ -45,12 +45,32 @@ return [
                     ],
                     2 => [
                         'releasedAt' => '2026-03-13',
-                        'status' => 'current',
+                        'status' => 'supported',
                         'summary' => 'Heavyweight plugin runtime dependencies and interactive scaffolding.',
                         'changes' => [
                             'Added manifest-declared container images with optional service and healthcheck metadata.',
                             'Added host CPU and memory requirement declarations plus install-time warnings.',
                             'Added host-managed bridge service image activation and interactive shape-aware plugin scaffolding.',
+                        ],
+                    ],
+                    3 => [
+                        'releasedAt' => '2026-03-14',
+                        'status' => 'supported',
+                        'summary' => 'OctoPrint-oriented compatibility primitives and browser helper APIs.',
+                        'changes' => [
+                            'Added manifest-declared plugin settings defaults with persisted host settings APIs.',
+                            'Added plugin state retrieval plus send_plugin_message/publish_state effect handling.',
+                            'Added a host-served OctoPrint compatibility helper for browser surfaces and active-printer-aware navbar data widgets.',
+                        ],
+                    ],
+                    4 => [
+                        'releasedAt' => '2026-03-14',
+                        'status' => 'current',
+                        'summary' => 'Expanded host component registry for declarative plugin UI.',
+                        'changes' => [
+                            'Added stable host.* declarative component aliases for common React Native Paper and layout primitives.',
+                            'Expanded the host renderer with rows, stacks, surfaces, headings, captions, badges, chip groups, switches, inputs, scroll containers, progress bars, and spacers.',
+                            'Added plugin-scoped error boundaries so broken plugin surfaces degrade locally instead of crashing the full app.',
                         ],
                     ],
                 ],
@@ -72,6 +92,10 @@ return [
         'timeout_secs' => (int) env('PLUGIN_RUNTIME_TIMEOUT_SECS', 10),
         'bridge_timeout_secs' => (int) env('PLUGIN_BRIDGE_TIMEOUT_SECS', 5),
         'max_payload_bytes' => (int) env('PLUGIN_RUNTIME_MAX_PAYLOAD_BYTES', 262144),
+    ],
+
+    'logs' => [
+        'max_entries' => (int) env('PLUGIN_LOG_MAX_ENTRIES', 200),
     ],
 
     'container' => [
