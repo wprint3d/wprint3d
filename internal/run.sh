@@ -561,6 +561,7 @@ else
             # instead of stdout, as stdout has been trapped by this function.
             updateCameras() {
                 TMP_CAMERAS_CONF=$(mktemp);
+                YV_STREAMER_SOFTWARE_PORT=${YV_STREAMER_SOFTWARE_PORT:-8080};
 
                 truncate --size 0 "$TMP_CAMERAS_CONF";
 
@@ -590,10 +591,13 @@ else
                     if [[ "$CURRENT_ID" != '' ]] && ([[ "$_ID" != "$CURRENT_ID" ]] || [[ "$CURRENT_LINE" -eq "$MAX_LINE" ]]); then
                         port='';
                         FSWEBCAM_PID='';
+                        USES_SOFTWARE_STREAMER=0;
 
                         echo "ENABLED = $ENABLED" >&2;
                         echo "NODE = $NODE" >&2;
                         echo "SUPPORTS_MJPEG = $SUPPORTS_MJPEG" >&2;
+                        echo "STREAMS_MJPEG = $STREAMS_MJPEG" >&2;
+                        echo "CAPTURE_ENCODING = $CAPTURE_ENCODING" >&2;
                         echo "port = $port" >&2;
                         echo "FSWEBCAM_PID = $FSWEBCAM_PID" >&2;
 
@@ -602,8 +606,14 @@ else
                         # camera-streamer doesn't like the actual full path
                         CAMERA_STREAMER_NODE=$(echo -n "$NODE" | sed 's-/sys/firmware/devicetree--');
 
-                        if [[ "$SUPPORTS_MJPEG" -eq 0 ]]; then
-                            echo "This camera doesn't support MJPEG, using fswebcam snapshots instead." >&2;
+                        if [[ "$CAPTURE_ENCODING" == 'null' ]]; then
+                            CAPTURE_ENCODING='';
+                        fi;
+
+                        if [[ "$SUPPORTS_MJPEG" -eq 0 ]] && [[ "$REQUIRES_LIB_CAMERA" -eq 0 ]] && [[ "$STREAMS_MJPEG" -eq 1 ]]; then
+                            USES_SOFTWARE_STREAMER=1;
+
+                            echo "This camera doesn't support hardware MJPEG, routing it through yv-streamer-software instead." >&2;
 
                             FSWEBCAM_PID=$(ps -fax | grep fswebcam | grep -- "$NODE" | xargs | cut -d ' ' -f 1);
                         else
@@ -616,22 +626,11 @@ else
                         fi;
 
                         if [[ "$ENABLED" -eq 1 ]] && [[ -e "$NODE" ]]; then
-                            if [[ "$SUPPORTS_MJPEG" -eq 0 ]]; then
-                                if [[ "$REQUIRES_LIB_CAMERA" -eq 0 ]] && [[ "$FSWEBCAM_PID" == '' ]]; then
-                                    echo "Starting fswebcam for $NODE" >&2;
+                            if [[ "$USES_SOFTWARE_STREAMER" -eq 1 ]]; then
+                                if [[ "$FSWEBCAM_PID" != '' ]]; then
+                                    echo "Stopping deprecated fswebcam process for $NODE" >&2;
 
-                                    fswebcam \
-                                        --device "$NODE" \
-                                        --no-banner \
-                                        --resolution "$RESOLUTION" \
-                                        --fps 1 \
-                                        --loop 1 \
-                                        --quiet \
-                                        --save /tmp/video/stream_"$CURRENT_ID".jpg &
-
-                                    echo "fswebcam started with PID $!" >&2;
-
-                                    FSWEBCAM_PID=$!;
+                                    kill "$FSWEBCAM_PID" || true;
                                 fi;
                             elif [[ $LIB_CAMERA_UVC_PID == '' ]] && [[ "$LIB_CAMERA_CSI_PID" == '' ]]; then # not yet started
                                 port=$(getFreePort);
@@ -714,10 +713,17 @@ else
                                 printf "\n\tproxy_set_header Host \$host;"                      >> $TMP_CAMERAS_CONF;
                                 printf "\n\tinclude               nginxconfig.io/proxy.conf;"   >> $TMP_CAMERAS_CONF;
                                 printf "\n}"                                                    >> $TMP_CAMERAS_CONF;
-                            elif [[ "$FSWEBCAM_PID" != '' ]]; then
+                            elif [[ "$USES_SOFTWARE_STREAMER" -eq 1 ]]; then
                                 printf "\nlocation /video/$MACHINE_UUID/$PROXY_PREFIX/$INDEX {"  >> $TMP_CAMERAS_CONF;
-                                printf "\n\talias         /tmp/video/stream_${CURRENT_ID}.jpg;"  >> $TMP_CAMERAS_CONF;
-                                printf "\n\tadd_header    Content-Type image/jpeg;"              >> $TMP_CAMERAS_CONF;
+                                printf "\n\tproxy_pass            http://yv-streamer-software:${YV_STREAMER_SOFTWARE_PORT}/${CURRENT_ID}/;" >> $TMP_CAMERAS_CONF;
+                                printf "\n\tproxy_set_header Host \$host;"                      >> $TMP_CAMERAS_CONF;
+                                printf "\n\tproxy_set_header X-Node ${NODE};"          >> $TMP_CAMERAS_CONF;
+                                printf "\n\tproxy_set_header X-Resolution ${RESOLUTION};" >> $TMP_CAMERAS_CONF;
+                                printf "\n\tproxy_set_header X-Framerate ${FRAMERATE};" >> $TMP_CAMERAS_CONF;
+                                printf "\n\tproxy_set_header X-Capture-Encoding ${CAPTURE_ENCODING};" >> $TMP_CAMERAS_CONF;
+                                printf "\n\tproxy_buffering      off;"                         >> $TMP_CAMERAS_CONF;
+                                printf "\n\tproxy_ignore_headers X-Accel-Buffering;"            >> $TMP_CAMERAS_CONF;
+                                printf "\n\tinclude               nginxconfig.io/proxy.conf;"  >> $TMP_CAMERAS_CONF;
                                 printf "\n}"                                                     >> $TMP_CAMERAS_CONF;
                             fi;
                         else # the camera has been disabled, kill and de-allocate resources
