@@ -167,6 +167,7 @@ services:
       - COMPOSE_DIR=${PWD}
       - PORT_SCAN_START=60000
       - PORT_SCAN_END=60016
+      - YV_STREAMER_SOFTWARE_PORT=8080
     privileged: true
     volumes:
       - /dev/bus/usb:/dev/bus/usb
@@ -186,6 +187,26 @@ services:
       - mongo
       - proxy
       - mapper
+      - yv-streamer-software
+  yv-streamer-software:
+    image: wprint3d/yv-streamer-software:latest
+    restart: always
+    logging:
+      driver: local
+      options:
+        max-size: "1m"
+        mode: non-blocking
+    environment:
+      - YV_STREAMER_SOFTWARE_HOST=0.0.0.0
+      - YV_STREAMER_SOFTWARE_PORT=8080
+      - YV_STREAMER_SOFTWARE_LOG_LEVEL=info
+    privileged: true
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev:/dev
+      - /sys/class:/sys/class
+      - /sys/devices:/sys/devices
+      - /run/udev:/run/udev:ro
   redis:
     image: redis:7.2.5
     restart: always
