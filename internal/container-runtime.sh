@@ -612,6 +612,7 @@ migrate_docker_volumes_to_podman() {
     local env="${1:-production}";
 
     # Guard 1: only run when Podman is the active runtime.
+    echo 'Migrating Docker volumes to Podman if necessary...';
     if [[ "${HOST_CONTAINER_RUNTIME:-}" != 'podman' ]]; then
         echo "Warning: Container runtime is '${HOST_CONTAINER_RUNTIME:-unknown}', not Podman; skipping volume migration." >&2;
 
@@ -619,6 +620,7 @@ migrate_docker_volumes_to_podman() {
     fi;
 
     # Guard 2: Docker CLI must be available.
+    echo 'Checking for Docker CLI availability for volume migration...';
     if ! command -v docker > /dev/null 2>&1; then
         echo 'Warning: Docker CLI not found; skipping volume migration.' >&2;
 
@@ -626,6 +628,7 @@ migrate_docker_volumes_to_podman() {
     fi;
 
     # Guard 3: Docker daemon must be reachable (no timeout).
+    echo 'Checking Docker daemon connectivity for volume migration...';
     if ! docker info > /dev/null 2>&1; then
         echo 'Warning: Docker daemon is not reachable; skipping volume migration.' >&2;
 
