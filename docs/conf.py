@@ -19,5 +19,5 @@ myst_enable_extensions = [
 ]
 
 html_title = "WPrint 3D Documentation"
-html_theme = "alabaster"
+html_theme = "sphinx_rtd_theme"
 html_static_path = []
