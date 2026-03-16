@@ -146,6 +146,42 @@ sequenceDiagram
 - `updateSource`
 - `requirements`
 - `images`
+- `i18n`
+
+### Plugin Translation Files
+
+Plugins may declare optional host-managed translation files:
+
+```json
+"i18n": {
+  "defaultLocale": "en",
+  "files": {
+    "es": "asset://translations/es.json",
+    "es_AR": "asset://translations/es.json"
+  }
+}
+```
+
+Rules:
+
+- `i18n.defaultLocale` is optional and defaults to the host fallback locale.
+- `i18n.files` keys are locale tags such as `es`, `fr`, or `es_AR`.
+- Each file reference must point at a declared manifest asset.
+- Files must be JSON objects.
+
+Supported translation sections:
+
+- `plugin`
+- `actions`
+- `uiExtensions`
+- `components`
+
+Browser-based plugin UIs also receive:
+
+- `locale`
+- `fallbackLocale`
+
+as query parameters on the embedded asset URL.
 
 ### Signature Schema
 

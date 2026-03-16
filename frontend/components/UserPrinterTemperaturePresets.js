@@ -10,13 +10,15 @@ import API from "../includes/API";
 import SmallButton from "./SmallButton";
 
 import { useSnackbar } from "react-native-paper-snackbar-stack";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserPrinterTemperaturePresets() {
     const { enqueueSnackbar } = useSnackbar();
+    const { t } = useLocalization();
 
     const [ showDropDown,     setShowDropDown     ] = useState(false),
           [ selectedMaterial, setSelectedMaterial ] = useState(null),
-          [ materials,        setMaterials        ] = useState([{ label: 'Loading...', value: null }]);
+          [ materials,        setMaterials        ] = useState([{ label: t("printer.controls.loadingMaterials"), value: null }]);
 
     const windowWidth = useWindowDimensions().width;
 
@@ -35,7 +37,7 @@ export default function UserPrinterTemperaturePresets() {
                 enqueueSnackbar({
                     message: error.response.data.message,
                     variant: 'error',
-                    action:  { label: 'Got it' }
+                    action:  { label: t("notifications.gotIt") }
                 });
             }
         )
@@ -52,7 +54,7 @@ export default function UserPrinterTemperaturePresets() {
 
         if (materialsQuery.isError) {
             setMaterials([{
-                label: 'Couldn\'t load materials',
+                label: t("printer.controls.materialsLoadError"),
                 value: null
             }]);
 
@@ -63,7 +65,7 @@ export default function UserPrinterTemperaturePresets() {
 
         if (!nextMaterials) {
             setMaterials([{
-                label: 'Couldn\'t load materials',
+                label: t("printer.controls.materialsLoadError"),
                 value: null
             }]);
 
@@ -72,7 +74,7 @@ export default function UserPrinterTemperaturePresets() {
 
         if (!nextMaterials.length) {
             setMaterials([{
-                label: 'No materials were defined',
+                label: t("printer.controls.noMaterialsDefined"),
                 value: null
             }]);
 
@@ -80,10 +82,10 @@ export default function UserPrinterTemperaturePresets() {
         }
 
         setMaterials(nextMaterials.map(material => ({
-            label: `${material.name ?? 'Unknown'} (H: ${material.temperatures.hotend} °C, B: ${material.temperatures.bed} °C)`,
+            label: `${material.name ?? t("printer.controls.unknownMaterial")} (H: ${material.temperatures.hotend} °C, B: ${material.temperatures.bed} °C)`,
             value: material._id
         })));
-    }, [ materialsQuery.data ]);
+    }, [ materialsQuery.data, materialsQuery.isError, materialsQuery.isFetched, t ]);
 
     useEffect(() => {
         if (!materials.length) { return; }
@@ -99,7 +101,7 @@ export default function UserPrinterTemperaturePresets() {
         <View style={{ flexDirection: 'row', gap: 8, paddingTop: 10 }}>
             <View style={{ flex: 'auto' }}>
                 <DropDown
-                    label="Material"
+                    label={t("printer.controls.material")}
                     mode="outlined"
                     visible={showDropDown}
                     showDropDown={() => setShowDropDown(true)}
@@ -143,7 +145,7 @@ export default function UserPrinterTemperaturePresets() {
                 >
                     {windowWidth > 768 && // small tablets and large mobile phones
                         <Text style={{ color: colors.onPrimary }}>
-                            Warm up
+                            {t("printer.controls.warmUp")}
                         </Text>
                     }
                 </SmallButton>

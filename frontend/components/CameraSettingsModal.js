@@ -8,9 +8,11 @@ import API from "../includes/API";
 import CameraSettingsModalSettings from "./CameraSettingsModalSettings.js";
 import CameraSettingsModalConfiguration from "./CameraSettingsModalSettings.js";
 import BackButton from "./modules/BackButton";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const CameraSettingsModal = ({ isVisible, setIsVisible, camera, isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
     const theme = useTheme();
+    const { t } = useLocalization();
 
     return (
         <Portal>
@@ -39,7 +41,7 @@ const CameraSettingsModal = ({ isVisible, setIsVisible, camera, isSmallTablet, i
                             tabHeaderStyle={{ alignSelf: 'center' }}
                             showLeadingSpace={false}
                         >
-                            <TabScreen label="Settings" icon="cog">
+                            <TabScreen label={t("camera.settingsTab")} icon="cog">
                                 <CameraSettingsModalConfiguration
                                     camera={camera}
                                     isSmallTablet={isSmallTablet}

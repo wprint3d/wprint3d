@@ -22,6 +22,7 @@ class PluginManagerService implements PluginManager
         private PluginRuntimeRegistry $runtimeRegistry,
         private PluginDependencyService $dependencyService,
         private PluginLifecycleLogStore $lifecycleLogStore,
+        private ?PluginManifestLocalizer $manifestLocalizer = null,
     ) {}
 
     public function sdkMetadata(): array
@@ -899,16 +900,17 @@ class PluginManagerService implements PluginManager
         $plugin = $this->synchronizeDevelopmentPlugin($plugin);
         $plugin = $this->synchronizePackagedPluginTrust($plugin);
         $manifest = $this->decodedManifest($plugin);
-        $uiExtensions = $this->normalizeExtensionAssetUrls($plugin->plugin_id, $this->decodeMongoSafeValue($plugin->ui_extensions ?? []));
+        $manifest = $this->localizeManifest($plugin, $manifest);
         $manifest['uiExtensions'] = $this->normalizeExtensionAssetUrls($plugin->plugin_id, $manifest['uiExtensions'] ?? []);
         $manifest['components'] = $this->normalizeManifestComponents($plugin->plugin_id, $manifest['components'] ?? []);
+        $uiExtensions = $manifest['uiExtensions'] ?? [];
         $dependencies = $this->dependencyService->summarize($manifest, $plugin->dependency_state ?? []);
         $manifest['runtime'] = $this->resolveManagedRuntime($manifest['runtime'] ?? [], $dependencies);
 
         return [
             'id' => $plugin->plugin_id,
-            'name' => $plugin->name,
-            'description' => $plugin->description,
+            'name' => $manifest['name'] ?? $plugin->name,
+            'description' => $manifest['description'] ?? $plugin->description,
             'author' => $plugin->author,
             'version' => $plugin->current_version,
             'enabled' => (bool) $plugin->enabled,
@@ -923,7 +925,7 @@ class PluginManagerService implements PluginManager
             'manifest' => $manifest,
             'permissions' => $plugin->permissions ?? [],
             'hooks' => $plugin->hooks ?? [],
-            'actions' => $plugin->actions ?? [],
+            'actions' => $manifest['actions'] ?? [],
             'uiExtensions' => $uiExtensions,
             'warnings' => $this->mergeWarnings($plugin->warnings ?? [], $dependencies['warnings'] ?? []),
             'classification' => $dependencies['classification'] ?? 'lightweight',
@@ -1116,6 +1118,57 @@ class PluginManagerService implements PluginManager
         $manifest = $this->decodeMongoSafeValue($plugin->manifest ?? []);
 
         return is_array($manifest) ? $manifest : [];
+    }
+
+    private function localizeManifest(Plugin $plugin, array $manifest): array
+    {
+        $translations = $this->loadManifestTranslations($plugin, $manifest);
+
+        if ($translations === []) {
+            return $manifest;
+        }
+
+        $localizer = $this->manifestLocalizer ??= new PluginManifestLocalizer;
+
+        return $localizer->localizeManifest(
+            $manifest,
+            $translations,
+            app()->getLocale(),
+            (string) ($manifest['i18n']['defaultLocale'] ?? config('app.fallback_locale', 'en'))
+        );
+    }
+
+    private function loadManifestTranslations(Plugin $plugin, array $manifest): array
+    {
+        $runtimePath = $plugin->getCurrentRuntimePath();
+        $translationFiles = $manifest['i18n']['files'] ?? [];
+
+        if (! is_string($runtimePath) || $runtimePath === '' || ! is_array($translationFiles)) {
+            return [];
+        }
+
+        $translations = [];
+
+        foreach ($translationFiles as $locale => $reference) {
+            if (! is_string($reference) || ! str_starts_with($reference, 'asset://')) {
+                continue;
+            }
+
+            $assetPath = ltrim(substr($reference, strlen('asset://')), DIRECTORY_SEPARATOR);
+            $absolutePath = rtrim($runtimePath, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$assetPath;
+
+            if (! is_file($absolutePath)) {
+                continue;
+            }
+
+            $decoded = json_decode((string) file_get_contents($absolutePath), true);
+
+            if (is_array($decoded)) {
+                $translations[$this->normalizeLocale((string) $locale)] = $decoded;
+            }
+        }
+
+        return $translations;
     }
 
     private function encodeMongoSafeValue(mixed $value): mixed
@@ -1384,6 +1437,15 @@ class PluginManagerService implements PluginManager
 
             return $component;
         }, $components);
+    }
+
+    private function normalizeLocale(string $locale): string
+    {
+        [$language, $region] = array_pad(explode('_', str_replace('-', '_', trim($locale)), 2), 2, null);
+        $language = strtolower((string) $language);
+        $region = $region ? strtoupper($region) : null;
+
+        return $region ? "{$language}_{$region}" : $language;
     }
 
     private function detectAssetMimeType(string $path): string

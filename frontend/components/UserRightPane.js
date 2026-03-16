@@ -11,9 +11,11 @@ import UserPrinterRecordings from "./UserPrinterRecordings";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import usePluginExtensions from "../hooks/usePluginExtensions";
 import PluginHostRenderer from "./PluginHostRenderer";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserRightPane({ isLoadingPrinter = true, printerId = null, isSmallLaptop, isSmallTablet }) {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const { connectionStatus } = useConnectionStatus({ printerId });
     const pageExtensions = usePluginExtensions('page');
@@ -28,7 +30,7 @@ export default function UserRightPane({ isLoadingPrinter = true, printerId = nul
         }}>
             {
                 isLoadingPrinter
-                    ? <UserPaneLoadingIndicator message={"Preparing actions menu"} />
+                    ? <UserPaneLoadingIndicator message={t("printer.preparingActionsMenu")} />
                     : <TabsProvider defaultIndex={0}>
                         <Tabs
                             style={{ backgroundColor: colors.background }}
@@ -43,16 +45,16 @@ export default function UserRightPane({ isLoadingPrinter = true, printerId = nul
                         //  (default=true) show leading space in scrollable tabs inside the header
                         // disableSwipe={false} // (default=false) disable swipe to left/right gestures
                         >
-                            <TabScreen label="Terminal" icon="console">
+                            <TabScreen label={t("mobile.terminal")} icon="console">
                                 <UserPrinterTerminal isLoadingPrinter={isLoadingPrinter} printerId={printerId} isSmallTablet={isSmallTablet} />
                             </TabScreen>
-                            <TabScreen label="Preview" icon="eye">
+                            <TabScreen label={t("mobile.preview")} icon="eye">
                                 <UserPrinterPreview printerId={printerId} isSmallTablet={isSmallTablet} />
                             </TabScreen>
-                            <TabScreen label="Control" icon="camera-control">
+                            <TabScreen label={t("mobile.control")} icon="camera-control">
                                 <UserPrinterControl  isSmallLaptop={isSmallLaptop} isSmallTablet={isSmallTablet} connectionStatus={connectionStatus} printerId={printerId} />
                             </TabScreen>
-                            <TabScreen label="Recordings" icon="record-circle-outline">
+                            <TabScreen label={t("mobile.recordings")} icon="record-circle-outline">
                                 <UserPrinterRecordings
                                     isLoadingPrinter={isLoadingPrinter}
                                     printerId={printerId}

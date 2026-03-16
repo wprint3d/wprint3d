@@ -7,9 +7,11 @@ import DropDown from 'react-native-paper-dropdown';
 import { useSnackbar } from 'react-native-paper-snackbar-stack';
 import API from '../includes/API';
 import { useCache } from '../hooks/useCache';
+import { useLocalization } from '../includes/LocalizationProvider';
 
 const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, isSmallTablet }) => {
     const cache = useCache();
+    const { t } = useLocalization();
 
     const { colors } = useTheme();
 
@@ -44,9 +46,11 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
         onSuccess:   afterMutation,
         onError:     (error) => {
             enqueueSnackbar({
-                message: 'Failed to send command: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("printer.controls.failedToSendCommand", {
+                    reason: (error.response?.data?.message ?? error.message).toLowerCase(),
+                }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
 
             afterMutation();
@@ -102,7 +106,7 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
 
         if (!extruders || !extruders.length) {
             setExtruderList([{
-                label: 'No extruders available',
+                label: t("printer.controls.noExtrudersAvailable"),
                 value: null
             }]);
 
@@ -115,7 +119,7 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
 
         setExtruderList(
             extruders.map((extruder, index) => ({
-                label: `Extruder ${index + 1} (T${index})`,
+                label: t("printer.controls.extruderOption", { index: index + 1, tool: index }),
                 value: index
             }))
         );
@@ -123,7 +127,7 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
         if (!selectedExtruder) {
             setSelectedExtruder(0);
         }
-    }, [ connectionStatus ]);
+    }, [ connectionStatus, extruderList.length, selectedExtruder, t ]);
 
     useEffect(() => {
         (async () => {
@@ -134,7 +138,7 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
     return (
         <>
             <Text style={{ color: colors.primary, textAlign: 'center', paddingVertical: 4, marginTop: 16 }} variant="titleSmall">
-                Extrusion
+                {t("printer.controls.extrusion")}
             </Text>
             <Divider />
 
@@ -144,14 +148,14 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
                         <View style={{ flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center' }}>
                             {retractButton}
                             <Text style={{ color: colors.primary, textAlign: 'center', paddingTop: 8 }}>
-                                Retract
+                                {t("printer.controls.retract")}
                             </Text>
                         </View>
                     }
 
                     <View style={{ flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={{ color: colors.primary, textAlign: 'center', paddingVertical: 10 }}>
-                            Distance
+                            {t("printer.controls.distance")}
                         </Text>
                         <Slider
                             style={{ width: 200, maxWidth: '100%' }}
@@ -165,7 +169,7 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
                             thumbTintColor={colors.primary}
                         />
                         <Text style={{ color: colors.primary, textAlign: 'center', paddingVertical: 4 }}>
-                            {extrusionDistance} mm
+                            {t("printer.controls.millimeters", { value: extrusionDistance })}
                         </Text>
                     </View>
 
@@ -173,7 +177,7 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
                         <View style={{ flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center' }}>
                             {extrudeButton}
                             <Text style={{ color: colors.primary, textAlign: 'center', paddingTop: 8 }}>
-                                Extrude
+                                {t("printer.controls.extrude")}
                             </Text>
                         </View>
                     }
@@ -183,14 +187,14 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
                             <View style={{ flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center' }}>
                                 {retractButton}
                                 <Text style={{ color: colors.primary, textAlign: 'center', paddingTop: 8 }}>
-                                    Retract
+                                    {t("printer.controls.retract")}
                                 </Text>
                             </View>
 
                             <View style={{ flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center' }}>
                                 {extrudeButton}
                                 <Text style={{ color: colors.primary, textAlign: 'center', paddingTop: 8 }}>
-                                    Extrude
+                                    {t("printer.controls.extrude")}
                                 </Text>
                             </View>
                         </View>
@@ -199,7 +203,7 @@ const UserPrinterControlExtrusion = ({ styles, connectionStatus, isSmallLaptop, 
 
                 <View style={{ paddingTop: 4 }}>
                     <DropDown
-                        label="Extruder"
+                        label={t("printer.controls.extruder")}
                         mode="outlined"
                         visible={showExtruderDropDown}
                         showDropDown={() => setShowExtruderDropDown(true)}

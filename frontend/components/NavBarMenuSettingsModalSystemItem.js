@@ -5,11 +5,13 @@ import { View } from "react-native";
 import { List, Text, TextInput, Tooltip, useTheme } from "react-native-paper";
 
 import DropDown from "react-native-paper-dropdown";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalSystemItem = ({ setting, dataTypes, isSmallTablet, isSmallLaptop, enqueueSnackbar, disabled, options, onChange = () => {} }) => {
     console.debug('NavBarMenuSettingsModalSystemItem: setting:', setting);
 
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const [ showDropDown, setShowDropDown ] = useState(false),
           [ value,        setValue        ] = useState(setting.initialValue),
@@ -60,7 +62,7 @@ const NavBarMenuSettingsModalSystemItem = ({ setting, dataTypes, isSmallTablet, 
         if (setting.type === dataTypes.BOOLEAN) {
             return (
                 <DropDown
-                    label=" "
+                    label={setting.hint}
                     mode="outlined"
                     value={value}
                     setValue={handleValueChange}
@@ -68,8 +70,8 @@ const NavBarMenuSettingsModalSystemItem = ({ setting, dataTypes, isSmallTablet, 
                     onDismiss={() => setShowDropDown(false)}
                     visible={showDropDown}
                     list={[
-                        { label: 'Yes', value: true  },
-                        { label: 'No',  value: false }
+                        { label: t("notifications.yes"), value: true  },
+                        { label: t("notifications.no"),  value: false }
                     ]}
                     inputProps={{
                         right: RevertButton(),
@@ -85,14 +87,14 @@ const NavBarMenuSettingsModalSystemItem = ({ setting, dataTypes, isSmallTablet, 
 
             return (
                 <DropDown
-                    label=" "
+                    label={setting.hint}
                     mode="outlined"
                     value={value}
                     setValue={handleValueChange}
                     showDropDown={() => (!disabled && list.length > 0) && setShowDropDown(true)}
                     onDismiss={() => setShowDropDown(false)}
                     visible={showDropDown}
-                    list={list.length > 0 ? list : [{ label: 'No options available', value: -1 }]}
+                    list={list.length > 0 ? list : [{ label: t("settings.noOptionsAvailable"), value: -1 }]}
                     inputProps={{
                         right: RevertButton(),
                         outlineColor:       (isValid ? colors.onSurfaceVariant : colors.error),
@@ -104,7 +106,7 @@ const NavBarMenuSettingsModalSystemItem = ({ setting, dataTypes, isSmallTablet, 
 
         return (
             <TextInput
-                label=" "
+                label={setting.hint}
                 mode="outlined"
                 value={value}
                 onChangeText={handleValueChange}
@@ -138,7 +140,7 @@ const NavBarMenuSettingsModalSystemItem = ({ setting, dataTypes, isSmallTablet, 
                         {setting.description}
                         {!setting.writeable &&
                             <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
-                                {'\n\nThis setting is read-only.'}
+                                {`\n\n${t("settings.readOnly")}`}
                             </Text>
                         }
                     </Text>

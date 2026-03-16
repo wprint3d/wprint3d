@@ -19,9 +19,11 @@ import SmallButton                    from "./SmallButton";
 import SimpleDialog                   from "./SimpleDialog";
 import UserPrinterFileControlsUploader from "./UserPrinterFileControlsUploader";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserPrinterFileControls({ printerId, connectionStatus, printStatus }) {
     const echo = useEcho();
+    const { t } = useLocalization();
 
     const { enqueueSnackbar } = useSnackbar();
 
@@ -47,6 +49,7 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
     const getCurrentFolder  = () => subDirectory.split('/').pop();
 
     const queryClient = useQueryClient();
+    const getErrorReason = error => (error.response?.data?.message ?? error.message).toLowerCase();
 
     const startPrintMutation = useMutation({
         mutationFn: () => API.post('/user/printer/selected/print', {
@@ -64,9 +67,9 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
             console.error(error);
 
             enqueueSnackbar({
-                message: 'Failed to start the print job: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("files.startPrintError", { reason: getErrorReason(error) }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
 
             setIsRequestingStart(false);
@@ -82,9 +85,9 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
         },
         onError: error => {
             enqueueSnackbar({
-                message: 'Failed to pause the print job: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("files.pausePrintError", { reason: getErrorReason(error) }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
         }
     });
@@ -100,9 +103,9 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
             console.error(error);
 
             enqueueSnackbar({
-                message: 'Failed to resume the print job: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("files.resumePrintError", { reason: getErrorReason(error) }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
         }
     });
@@ -120,9 +123,9 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
             console.error(error);
 
             enqueueSnackbar({
-                message: 'Failed to stop the print job: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("files.stopPrintError", { reason: getErrorReason(error) }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
 
             setIsRequestingStop(false);
@@ -145,9 +148,9 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
             console.error(error);
 
             enqueueSnackbar({
-                message: 'Failed to delete the file: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("files.deleteFileError", { reason: getErrorReason(error) }),
                 variant: 'error',
-                action:  { label: 'Got it' },
+                action:  { label: t("notifications.gotIt") },
                 duration: 5000
             });
 
@@ -172,9 +175,9 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
             console.error(error);
 
             enqueueSnackbar({
-                message: 'Failed to rename the file: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("files.renameFileError", { reason: getErrorReason(error) }),
                 variant: 'error',
-                action:  { label: 'Got it' },
+                action:  { label: t("notifications.gotIt") },
                 duration: 5000
             });
         }
@@ -198,9 +201,9 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
             console.error(error);
 
             enqueueSnackbar({
-                message: 'Failed to create folder: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("files.createFolderError", { reason: getErrorReason(error) }),
                 variant: 'error',
-                action:  { label: 'Got it' },
+                action:  { label: t("notifications.gotIt") },
                 duration: 5000
             });
         }
@@ -222,9 +225,9 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
             console.error(error);
 
             enqueueSnackbar({
-                message: 'Failed to delete the folder: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("files.deleteFolderError", { reason: getErrorReason(error) }),
                 variant: 'error',
-                action:  { label: 'Got it' },
+                action:  { label: t("notifications.gotIt") },
                 duration: 5000
             });
         }
@@ -407,17 +410,17 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
                 actions={
                     <>
                         <Button onPress={() => setIsRequestingStart(false)}>
-                            No
+                            {t("notifications.no")}
                         </Button>
                         <Button onPress={() => startPrintMutation.mutate()}>
-                            Yes
+                            {t("notifications.yes")}
                         </Button>
                     </>
                 }
-                title="Do you really want to start printing this file?"
+                title={t("files.startConfirmTitle")}
                 content={
                     <Text variant="bodyMedium">
-                        "<TextBold variant="bodyMedium">{selectedFileName ?? ''}</TextBold>" will be sent to the print queue and the the job will begin as soon as possible.
+                        {t("files.startConfirmBody", { name: selectedFileName ?? "" })}
                     </Text>
                 }
             />
@@ -428,17 +431,17 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
                 actions={
                     <>
                         <Button onPress={() => setIsRequestingStop(false)}>
-                            No
+                            {t("notifications.no")}
                         </Button>
                         <Button onPress={() => stopPrintMutation.mutate()}>
-                            Yes
+                            {t("notifications.yes")}
                         </Button>
                     </>
                 }
-                title="Do you really want to stop the current print job?"
+                title={t("files.stopConfirmTitle")}
                 content={
                     <Text variant="bodyMedium">
-                        The current print job will be stopped and the printer will be reset.
+                        {t("files.stopConfirmBody")}
                     </Text>
                 }
             />
@@ -449,17 +452,17 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
                 actions={
                     <>
                         <Button onPress={() => setIsRequestingDelete(false)}>
-                            No
+                            {t("notifications.no")}
                         </Button>
                         <Button onPress={() => deleteFileMutation.mutate()}>
-                            Yes
+                            {t("notifications.yes")}
                         </Button>
                     </>
                 }
-                title="Do you really want to delete this file?"
+                title={t("files.deleteConfirmTitle")}
                 content={
                     <Text variant="bodyMedium">
-                        "<TextBold variant="bodyMedium">{selectedFileName ?? ''}</TextBold>" will be permanently deleted.
+                        {t("files.deleteConfirmBody", { name: selectedFileName ?? "" })}
                     </Text>
                 }
             />
@@ -470,20 +473,20 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
                 actions={
                     <>
                         <Button onPress={() => setIsRequestingRename(false)}>
-                            Cancel
+                            {t("notifications.cancel")}
                         </Button>
                         <Button onPress={() => renameFileMutation.mutate()}>
-                            Rename
+                            {t("notifications.rename")}
                         </Button>
                     </>
                 }
-                title="Provide a new name for this file"
+                title={t("files.renameTitle")}
                 content={
                     <>
                         <Text variant="bodyMedium" style={{ marginBottom: 16 }}>
-                            "<TextBold variant="bodyMedium">{selectedFileName ?? ''}</TextBold>" will be renamed.
+                            {t("files.renameBody", { name: selectedFileName ?? "" })}
                         </Text>
-                        <TextInput label="New name" value={newFileName} onChangeText={newFileName => setNewFileName(newFileName)} />
+                        <TextInput label={t("files.newName")} value={newFileName} onChangeText={newFileName => setNewFileName(newFileName)} />
                     </>
                 }
             />
@@ -494,10 +497,10 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
                 actions={
                     <>
                         <Button onPress={() => setIsCreatingFolder(false)}>
-                            Cancel
+                            {t("notifications.cancel")}
                         </Button>
                         <Button onPress={() => createDirectoryMutation.mutate()}>
-                            Create folder
+                            {t("files.createFolder")}
                         </Button>
                     </>
                 }
@@ -506,13 +509,13 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
                         <Icon source="folder-plus" size={24} style={{ marginRight: 4 }} />
                     </View>
                 }
-                title="Provide a name for this folder"
+                title={t("files.folderTitle")}
                 content={
                     <>
                         <Text variant="bodyMedium" style={{ marginBottom: 16 }}>
-                            Type the name of the new folder.
+                            {t("files.folderBody")}
                         </Text>
-                        <TextInput label="Name" value={newFolderName} onChangeText={newFolderName => setNewFolderName(newFolderName)} />
+                        <TextInput label={t("files.folderName")} value={newFolderName} onChangeText={newFolderName => setNewFolderName(newFolderName)} />
                     </>
                 }
             />

@@ -4,6 +4,7 @@ import { View } from "react-native";
 import Reanimated, { FadeInDown, FadeOutUp } from "react-native-reanimated";
 import { useQuery } from "@tanstack/react-query";
 import API from "../includes/API";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const PluginLoadingContext = createContext({
   registerSurface: () => {},
@@ -47,6 +48,7 @@ const normalizePluginIndex = (extensions = [], activeSurfaces = []) => {
 
 const PluginLoadingToast = ({ visible, isComplete, totalPlugins, loadedPlugins, currentPluginName, detailMessage }) => {
   const theme = useTheme();
+  const { t } = useLocalization();
   const progress = totalPlugins > 0 ? loadedPlugins / totalPlugins : 0;
 
   if (!visible) {
@@ -103,7 +105,7 @@ const PluginLoadingToast = ({ visible, isComplete, totalPlugins, loadedPlugins, 
 
               <View style={{ flex: 1, gap: 2 }}>
                 <Text variant="titleMedium">
-                  {isComplete ? "Plugins ready" : "Loading plugins..."}
+                  {isComplete ? t("plugins.loadingReadyTitle") : t("plugins.loadingPluginsTitle")}
                 </Text>
                 <Text style={{ color: theme.colors.onSurfaceVariant }}>
                   {detailMessage}
@@ -124,11 +126,11 @@ const PluginLoadingToast = ({ visible, isComplete, totalPlugins, loadedPlugins, 
                 />
                 <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
                   <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                    {loadedPlugins} of {totalPlugins} plugin{totalPlugins === 1 ? "" : "s"} ready
+                    {t("plugins.loadingReadyCount", { loaded: loadedPlugins, total: totalPlugins })}
                   </Text>
                   {!!currentPluginName && (
                     <Text style={{ color: theme.colors.onSurfaceVariant, fontWeight: "600" }}>
-                      Current: {currentPluginName}
+                      {t("plugins.loadingCurrent", { name: currentPluginName })}
                     </Text>
                   )}
                 </View>
@@ -142,6 +144,7 @@ const PluginLoadingToast = ({ visible, isComplete, totalPlugins, loadedPlugins, 
 };
 
 export default function PluginLoadingProvider({ children }) {
+  const { t } = useLocalization();
   const [ surfaceCounts, setSurfaceCounts ] = useState({});
   const [ surfaceStatuses, setSurfaceStatuses ] = useState({});
   const [ pluginTasks, setPluginTasks ] = useState({});
@@ -312,13 +315,23 @@ export default function PluginLoadingProvider({ children }) {
 
   const detailMessage = isLoading
     ? currentPlugin?.name
-      ? `Preparing ${currentPlugin.name} so its plugin surfaces are ready to use.`
+      ? `__PLUGIN_LOADING_CURRENT__${currentPlugin.name}`
       : pluginIndexQuery.isFetching
-        ? "Discovering mounted plugin surfaces and preparing their UI."
-        : "Preparing plugin integrations for the current view."
+        ? "__PLUGIN_LOADING_DISCOVERING__"
+        : "__PLUGIN_LOADING_PREPARING__"
     : totalPlugins > 0
-      ? `${totalPlugins} plugin${totalPlugins === 1 ? "" : "s"} loaded and ready to use.`
+      ? `__PLUGIN_LOADING_COMPLETE__${totalPlugins}`
       : "";
+
+  const resolvedDetailMessage = detailMessage.startsWith("__PLUGIN_LOADING_CURRENT__")
+    ? t("plugins.loadingCurrentDetail", { name: detailMessage.replace("__PLUGIN_LOADING_CURRENT__", "") })
+    : detailMessage === "__PLUGIN_LOADING_DISCOVERING__"
+      ? t("plugins.loadingDiscovering")
+      : detailMessage === "__PLUGIN_LOADING_PREPARING__"
+        ? t("plugins.loadingPreparingView")
+        : detailMessage.startsWith("__PLUGIN_LOADING_COMPLETE__")
+          ? t("plugins.loadingCompleteDetail", { total: detailMessage.replace("__PLUGIN_LOADING_COMPLETE__", "") })
+          : detailMessage;
 
   const value = useMemo(() => ({
     registerSurface,
@@ -336,7 +349,7 @@ export default function PluginLoadingProvider({ children }) {
         totalPlugins={totalPlugins}
         loadedPlugins={loadedPlugins}
         currentPluginName={currentPlugin?.name || null}
-        detailMessage={detailMessage}
+        detailMessage={resolvedDetailMessage}
       />
     </PluginLoadingContext.Provider>
   );

@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { Button, Card, Icon, IconButton, Text, useTheme } from "react-native-paper";
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
+import { useLocalization } from "../includes/LocalizationProvider";
 
 dayjs.extend(duration);
 
@@ -17,6 +18,7 @@ const UserPrinterRecordingItem = ({
     console.debug('UserPrinterRecordingItem: recording:', recording);
 
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const [ thumbLoadError, setThumbLoadError ] = useState(null);
 
@@ -72,7 +74,7 @@ const UserPrinterRecordingItem = ({
                                     <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                                         <Icon source={'image-broken'} color={colors.onPrimary} size={48} />
                                         <Text style={{ color: colors.onPrimary, fontSize: 16, textAlign: 'center', paddingVertical: 8 }}>
-                                            Couldn't load thumbnail
+                                            {t("recordings.thumbnailLoadError")}
                                         </Text>
                                     </View>
                                 </View>
@@ -92,18 +94,18 @@ const UserPrinterRecordingItem = ({
                 <Card.Title
                     title={recording.name}
                     subtitle={
-                        `Created ${recording.modified}` + '\n' +
-                        (recording.sizeBytes / (1024 * 1024)).toFixed(2) + ' MB'
+                        t("recordings.createdLabel", { date: recording.modified }) + '\n' +
+                        t("recordings.sizeLabel", { size: (recording.sizeBytes / (1024 * 1024)).toFixed(2) })
                     }
                     subtitleNumberOfLines={2}
                     subtitleVariant="bodySmall"
                 />
                 <Card.Actions>
                     <Button mode="contained" icon={'delete'} onPress={() => handleDeleteRequest(recording)} buttonColor={colors.error} textColor={colors.white}>
-                        Delete
+                        {t("notifications.delete")}
                     </Button>
                     <Button mode="contained" icon={'play'} onPress={() => handlePlaybackRequest(recording)}>
-                        Play
+                        {t("recordings.play")}
                     </Button>
                 </Card.Actions>
             </Card>

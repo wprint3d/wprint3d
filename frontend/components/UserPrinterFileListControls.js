@@ -9,6 +9,7 @@ import { ActivityIndicator, Divider, Icon, List, TextInput, useTheme } from "rea
 import API from "../includes/API";
 import SmallButton from "./SmallButton";
 import UserPrinterFileListControlsSortMenu from "./UserPrinterFileListControlsSortMenu";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserPrinterFileListControls({
     isLoading,
@@ -23,6 +24,7 @@ export default function UserPrinterFileListControls({
     setIsCreatingFolder
 }) {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const LOADER_SIZE = 26;
 
@@ -43,7 +45,7 @@ export default function UserPrinterFileListControls({
             <View style={{ flex: 'auto' }}>
                 <TextInput
                     mode="outlined"
-                    label="Subdirectory"
+                    label={t("files.subdirectory")}
                     readOnly={true}
                     value={subDirectory.length == 0 ? '/' : subDirectory}
                 />
@@ -71,7 +73,7 @@ export default function UserPrinterFileListControls({
                     loaderSize={LOADER_SIZE}
                     onPress={handleGoUp}
                     disabled={isLoading || subDirectory.length == 0}
-                    tooltipText={'Go up'}
+                    tooltipText={t("files.goUp")}
                 />
 
                 <SmallButton
@@ -94,7 +96,7 @@ export default function UserPrinterFileListControls({
                     loaderSize={LOADER_SIZE}
                     onPress={handleGoHome}
                     disabled={isLoading || subDirectory.length == 0}
-                    tooltipText={'Go home'}
+                    tooltipText={t("files.goHome")}
                 />
 
                 <UserPrinterFileListControlsSortMenu
@@ -128,7 +130,7 @@ export default function UserPrinterFileListControls({
                     loaderSize={LOADER_SIZE}
                     onPress={handleFolderCreation}
                     disabled={isLoading}
-                    tooltipText={'Create folder'}
+                    tooltipText={t("files.createFolder")}
                 />
             </View>
         </View>

@@ -7,13 +7,15 @@ import { View } from "react-native";
 import dayjs from "dayjs";
 import duration from 'dayjs/plugin/duration';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserPrinterFileProgress({ lastTerminalMessage }) {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const [ lastActionMeaning,      setLastActionMeaning     ] = useState(null);
     const [ lastStopTimestampSecs,  setLastStopTimestampSecs ] = useState(null);
-    const [ remainingTime,          setRemainingTime         ] = useState('Unknown time');
+    const [ remainingTime,          setRemainingTime         ] = useState(t("files.aFewSeconds"));
     const [ clockHasTicked,         setClockHasTicked        ] = useState(false);
 
     useEffect(() => {
@@ -40,7 +42,7 @@ export default function UserPrinterFileProgress({ lastTerminalMessage }) {
         console.debug('UserPrinterFileProgress: remainingTime:', remainingTime);
 
         if (remainingTime < 0) {
-            setRemainingTime('A few seconds');
+            setRemainingTime(t("files.aFewSeconds"));
 
             return;
         }
@@ -50,17 +52,17 @@ export default function UserPrinterFileProgress({ lastTerminalMessage }) {
         console.debug('UserPrinterFileProgress: remainingTimeDuration:', remainingTimeDuration);
 
         if (remainingTimeDuration.asDays() >= 1) {
-            setRemainingTime(remainingTimeDuration.format('D[d], H[h], m[m] [and] s[s]'));
+            setRemainingTime(remainingTimeDuration.format('D[d] H[h] m[m] s[s]'));
         } else if (remainingTimeDuration.asHours() > 1) {
-            setRemainingTime(remainingTimeDuration.format('H[h], m[m] [and] s[s]'));
+            setRemainingTime(remainingTimeDuration.format('H[h] m[m] s[s]'));
         } else if (remainingTimeDuration.asMinutes() > 1) {
-            setRemainingTime(remainingTimeDuration.format('m[m] [and] s[s]'));
+            setRemainingTime(remainingTimeDuration.format('m[m] s[s]'));
         } else if (remainingTimeDuration.asSeconds() > 1) {
             setRemainingTime(remainingTimeDuration.format('s[s]'));
         } else {
-            setRemainingTime('A few seconds');
+            setRemainingTime(t("files.aFewSeconds"));
         }
-    }, [ lastStopTimestampSecs, clockHasTicked ]);
+    }, [ lastStopTimestampSecs, clockHasTicked, t ]);
 
     useEffect(() => {
         console.debug('UserPrinterFileProgress: lastTerminalMessage:', lastTerminalMessage);
@@ -98,11 +100,11 @@ export default function UserPrinterFileProgress({ lastTerminalMessage }) {
                         maxWidth: '100%',
                         overflowX: 'hidden'
                     }}>
-                        {lastActionMeaning ?? 'Waiting for server…'}
+                        {lastActionMeaning ?? t("files.waitingForServer")}
                     </Text>
                     {'\n'}
                     <Text>
-                        {lastStopTimestampSecs ? `${remainingTime} left` : ''}
+                        {lastStopTimestampSecs ? t("files.timeLeft", { time: remainingTime }) : ''}
                     </Text>
                 </Text>
             </View>

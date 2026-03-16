@@ -13,25 +13,18 @@ import { useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { useLastTerminalMessage } from "../hooks/useLastTerminalMessage";
+import { useLocalization } from "../includes/LocalizationProvider";
+import { getLeftPaneWidth } from "../utils/userLayout";
 
 export default function UserLeftPane({ isLoadingPrinter = true, printerId = null, printStatus }) {
+    const { t } = useLocalization();
     const windowWidth = useWindowDimensions().width;
 
     const { connectionStatus, isRunningMapper } = useConnectionStatus({ printerId });
 
     const lastTerminalMessage = useLastTerminalMessage({ printerId });
 
-    let width = '30%';
-
-    if (windowWidth <= 768)  {          // small tablet
-        width = '100%';
-    } else if (windowWidth <= 1024) {   // small laptop
-        width = '45%';
-    } else if (windowWidth <= 1440) {   // medium laptop
-        width = '40%';
-    } else if (windowWidth <= 1600) {   // small desktop
-        width = '35%';  
-    }
+    const width = getLeftPaneWidth(windowWidth);
 
     useEffect(() => {
         console.debug('windowWidth:', windowWidth);
@@ -41,7 +34,7 @@ export default function UserLeftPane({ isLoadingPrinter = true, printerId = null
         <UserPane style={{ width: width, maxWidth: width, overflow: 'auto' }}>
             {
                 isLoadingPrinter
-                    ? <UserPaneLoadingIndicator message={"Getting printer information"} />
+                    ? <UserPaneLoadingIndicator message={t("printer.picker.loadingDetails")} />
                     : <>
                         <UserPrinterPicker key={-1} printerId={printerId} />
                         {printerId && (

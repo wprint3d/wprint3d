@@ -24,9 +24,11 @@ import {
     parseTerminalEvent,
     parseTerminalHistory,
 } from "../utils/terminalLog";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId = null, isSmallTablet = false }) {
     const { enqueueSnackbar } = useSnackbar();
+    const { t } = useLocalization();
     const { bottom }          = useSafeAreaInsets();
 
     const queuedTerminalMessages = useTerminalMessages({ printerId });
@@ -116,7 +118,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                 enqueueSnackbar({
                     message: error.response.data.message,
                     variant: 'error',
-                    action:  { label: 'Got it' }
+                    action:  { label: t("notifications.gotIt") }
                 });
             }
         )
@@ -196,16 +198,16 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
         enqueueSnackbar({
             message: (
                 <Text>
-                    The serial driver stopped responding. Please try to restart the host and try again.
+                    {t("printer.terminal.serialDriverError")}
                     {'\n\n'}
-                    Check for EMI sources and make sure that all USB cables are properly connected and secured to the host.
+                    {t("printer.terminal.serialDriverCheckUsb")}
                     {'\n\n'}
-                    If the issue persists, please <Text
+                    <Text
                         onPress={() => Linking.openURL('https://github.com/wprint3d/wprint3d/issues/new?template=Blank+issue')}
                         style={{ textDecorationLine: 'underline' }}
                     >
-                        create an issue
-                    </Text>.
+                        {t("printer.terminal.serialDriverCreateIssue")}
+                    </Text>
                 </Text>
             ),
             variant: 'error'
@@ -341,11 +343,11 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
     let loaderMessage = null;
 
     if (isLoadingPrinter) {
-        loaderMessage = 'Getting selected printer';
+        loaderMessage = t("printer.terminal.loadingSelectedPrinter");
     } else if (terminalLastLog.isFetching) {
-        loaderMessage = 'Downloading last console log';
+        loaderMessage = t("printer.terminal.downloadingConsoleLog");
     } else if (!terminalMaxLinesConfig.isFetched) {
-        loaderMessage = 'Getting terminal configuration';
+        loaderMessage = t("printer.terminal.gettingTerminalConfig");
     }
 
     return (
@@ -398,7 +400,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                                         }))
                                         : buildLogLine({
                                             key:  null,
-                                            line: 'Nothing here!'
+                                            line: t("printer.terminal.nothingHere")
                                         })
                                     }
                                 </Text>
@@ -415,8 +417,8 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                 value={customCommand}
                 onChangeText={customCommand => setCustomCommand(customCommand)}
                 mode="outlined"
-                label="Enter a custom command"
-                placeholder="Custom command"
+                label={t("printer.terminal.customCommandLabel")}
+                placeholder={t("printer.terminal.customCommandPlaceholder")}
                 right={
                     <TextInput.Icon
                         loading={queueCommandMutation.isPending}
@@ -444,7 +446,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
             >
                 <View style={{ flexDirection: 'row' }}>
                     <AppbarActionWithTooltip
-                        title="Auto-scroll to bottom"
+                        title={t("printer.terminal.autoScrollToBottom")}
                         icon="format-vertical-align-bottom"
                         onPress={() => setAutoScrollToBottom(!autoScrollToBottom)}
                         disabled={!autoScrollToBottom}
@@ -452,7 +454,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                     />
 
                     <AppbarActionWithTooltip
-                        title="Show sensors updates"
+                        title={t("printer.terminal.showSensorsUpdates")}
                         icon="update"
                         onPress={() => setShowSensorsUpdates(!showSensorsUpdates)}
                         disabled={!showSensorsUpdates}
@@ -460,7 +462,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                     />
 
                     <AppbarActionWithTooltip
-                        title="Show input commands"
+                        title={t("printer.terminal.showInputCommands")}
                         icon="console-line"
                         onPress={() => setShowInputCommands(!showInputCommands)}
                         disabled={!showInputCommands}

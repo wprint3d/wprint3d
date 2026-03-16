@@ -1,0 +1,67 @@
+{
+  "plugin": {
+    "name": "Hola Mundo",
+    "description": "Un plugin de referencia que demuestra el modo declarativo predeterminado y el registro de componentes host.*."
+  },
+  "actions": {
+    "ping": {
+      "label": "Probar"
+    }
+  },
+  "uiExtensions": {
+    "settings": {
+      "title": "Configuración de Hola Mundo",
+      "schema": {
+        "title": "Interfaz declarativa liviana",
+        "subtitle": "Plantilla predeterminada para hardware con poca memoria",
+        "children": [
+          {
+            "component": "host.heading",
+            "variant": "titleMedium",
+            "text": "Registro de componentes del host"
+          },
+          {
+            "component": "host.caption",
+            "text": "Este plugin usa la ruta de interfaz renderizada por el host de WPrint 3D."
+          },
+          {
+            "component": "host.chip_group",
+            "items": [
+              {
+                "id": "surface",
+                "text": "settings_tab",
+                "icon": "cog-outline"
+              },
+              {
+                "id": "mode",
+                "text": "declarative",
+                "icon": "view-dashboard-outline"
+              }
+            ]
+          },
+          {
+            "component": "host.button",
+            "label": "Probar plugin",
+            "actionId": "ping"
+          }
+        ]
+      }
+    },
+    "panel": {
+      "title": "Panel de impresora",
+      "schema": {
+        "children": [
+          {
+            "component": "host.heading",
+            "variant": "titleMedium",
+            "text": "Panel Hola"
+          },
+          {
+            "component": "host.caption",
+            "text": "Los plugins pueden agregar paneles específicos de la impresora sin incluir un bundle de frontend personalizado."
+          }
+        ]
+      }
+    }
+  }
+}

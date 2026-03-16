@@ -9,9 +9,11 @@ import TextBold from "./TextBold";
 import UserSettingsModal from "./UserSettingsModal";
 import UserNewPasswordModal from "./UserNewPasswordModal";
 import NavBarMenuSettingsModalUsersOptions from "./NavBarMenuSettingsModalUsersOptions";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
     const queryClient = useQueryClient();
+    const { t } = useLocalization();
 
     const { colors } = useTheme();
 
@@ -49,16 +51,16 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
             setIsNewPasswordDialogOpen(true);
 
             enqueueSnackbar({
-                message: 'Password reset successfully.',
+                message: t("users.resetPasswordSuccess"),
                 variant: 'success',
-                action:  { label: 'Dismiss', onPress: () => {} }
+                action:  { label: t("users.dismiss"), onPress: () => {} }
             });
         },
         onError: (error) => {
             enqueueSnackbar({
-                message: error?.response?.data?.message || 'An error occurred while resetting the password.',
+                message: error?.response?.data?.message || t("users.resetPasswordError"),
                 variant: 'error',
-                action:  { label: 'Dismiss', onPress: () => {} }
+                action:  { label: t("users.dismiss"), onPress: () => {} }
             });
         }
     });
@@ -67,9 +69,9 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
         mutationFn: (userId) => API.delete(`/users/${userId}`),
         onSuccess: () => {
             enqueueSnackbar({
-                message: 'User deleted successfully.',
+                message: t("users.deleteUserSuccess"),
                 variant: 'success',
-                action:  { label: 'Dismiss', onPress: () => {} }
+                action:  { label: t("users.dismiss"), onPress: () => {} }
             });
 
             queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -78,9 +80,9 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
         },
         onError: (error) => {
             enqueueSnackbar({
-                message: error?.response?.data?.message || 'An error occurred while deleting the user.',
+                message: error?.response?.data?.message || t("users.deleteUserError"),
                 variant: 'error',
-                action:  { label: 'Dismiss', onPress: () => {} }
+                action:  { label: t("users.dismiss"), onPress: () => {} }
             });
         }
     });
@@ -136,20 +138,20 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
     };
 
     if (roleTypes.isLoading) {
-        return <UserPaneLoadingIndicator message={"Loading roles..."} />;
+        return <UserPaneLoadingIndicator message={t("users.loadingRoles")} />;
     }
 
     if (roleTypes.isError) {
         return (
             <NavBarMenuSettingsModalPlaceholderItem
                 icon="alert-circle-outline"
-                message="An error occurred while loading roles."
+                message={t("users.rolesLoadError")}
             />
         );
     }
 
     if (userList.isFetching) {
-        return <UserPaneLoadingIndicator message={"Loading users..."} />;
+        return <UserPaneLoadingIndicator message={t("users.loadingUsers")} />;
     }
 
     if (userList.isError) {
@@ -157,10 +159,10 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
             return (
                 <NavBarMenuSettingsModalPlaceholderItem
                     icon="shield-off-outline"
-                    message="You are not authorized to view users."
+                    message={t("users.unauthorized")}
                     troubleshootingOptions={[
-                        "Contact your system administrator for access.",
-                        "Try refreshing the page.",
+                        t("users.unauthorizedContactAdmin"),
+                        t("users.unauthorizedRefresh"),
                     ]}
                 />
             );
@@ -168,7 +170,7 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
             return (
                 <NavBarMenuSettingsModalPlaceholderItem
                     icon="alert-circle-outline"
-                    message="An error occurred while loading users."
+                    message={t("users.usersLoadError")}
                 />
             );
         }
@@ -178,7 +180,7 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
         return (
             <NavBarMenuSettingsModalPlaceholderItem
                 icon="account-group-outline"
-                message="No users found."
+                message={t("users.noUsers")}
             />
         );
     }
@@ -188,18 +190,18 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
             <DataTable style={{ overflow: 'scroll' }}>
                 <DataTable.Header>
                     <DataTable.Title>
-                        Name
+                        {t("users.nameColumn")}
                     </DataTable.Title>
                     {!isSmallTablet &&
                         <DataTable.Title>
-                            E-mail address
+                            {t("users.emailColumn")}
                         </DataTable.Title>
                     }
                     <DataTable.Title>
-                        Role
+                        {t("users.roleColumn")}
                     </DataTable.Title>
                     <DataTable.Title style={{ justifyContent: 'end' }}>
-                        Actions
+                        {t("users.actionsColumn")}
                     </DataTable.Title>
                 </DataTable.Header>
                 {users.map((user) => (
@@ -260,18 +262,18 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
                     bottom: 32
                 }}
                 icon="plus"
-                label="Add user"
+                label={t("users.addUser")}
                 onPress={() => handleAddUser()}
             />
 
             <SimpleDialog
-                title="Do you really want to reset the password for this user?"
+                title={t("users.resetConfirmTitle")}
                 visible={isPasswordResetDialogOpen}
                 onClose={() => setIsPasswordResetDialogOpen(false)}
                 setVisible={setIsPasswordResetDialogOpen}
                 content={
                     <Text variant="bodyMedium">
-                        "<TextBold variant="bodyMedium">{selectedUser?.name}</TextBold>" will have their password reset to a randomly generated password.
+                        {t("users.resetConfirmBody", { name: selectedUser?.name ?? "" })}
                     </Text>
                 }
                 actions={
@@ -280,7 +282,7 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
                             onPress={() => setIsPasswordResetDialogOpen(false)}
                             disabled={resetPasswordMutation.isLoading}
                         >
-                            Cancel
+                            {t("notifications.cancel")}
                         </Button>
                         <Button
                             theme={{ colors: { primary: colors.onPrimary } }}
@@ -289,20 +291,20 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
                             disabled={resetPasswordMutation.isLoading}
                             onPress={() => resetPasswordMutation.mutate(selectedUser?._id)}
                         >
-                            Reset password
+                            {t("users.resetPassword")}
                         </Button>
                     </>
                 }
             />                
 
             <SimpleDialog
-                title="Do you really want to delete this user?"
+                title={t("users.deleteConfirmTitle")}
                 visible={isDeleteDialogOpen}
                 onClose={() => setIsDeleteDialogOpen(false)}
                 setVisible={setIsDeleteDialogOpen}
                 content={
                     <Text variant="bodyMedium">
-                        "<TextBold variant="bodyMedium">{selectedUser?.name}</TextBold>" will be removed from the system and will immediately lose access to the application.
+                        {t("users.deleteConfirmBody", { name: selectedUser?.name ?? "" })}
                     </Text>
                 }
                 actions={
@@ -311,7 +313,7 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
                             onPress={() => setIsDeleteDialogOpen(false)}
                             disabled={deleteUserMutation.isLoading}
                         >
-                            Cancel
+                            {t("notifications.cancel")}
                         </Button>
                         <Button
                             theme={{ colors: { primary: colors.onPrimary } }}
@@ -320,7 +322,7 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
                             disabled={deleteUserMutation.isLoading}
                             onPress={() => deleteUserMutation.mutate(selectedUser?._id)}
                         >
-                            Delete
+                            {t("users.delete")}
                         </Button>
                     </>
                 }

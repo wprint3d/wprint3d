@@ -99,6 +99,8 @@ class MapHardwareCameras extends Command
             'availableFormats' => $formats,
             'requiresLibCamera' => $requiresLibCamera,
             'supportsMjpeg' => $hwCamera->supportsMjpeg(),
+            'streamsMjpeg' => $hwCamera->streamsMjpeg(),
+            'captureEncoding' => $hwCamera->captureEncoding(),
         ];
 
         if (! isset($camera->enabled)) {

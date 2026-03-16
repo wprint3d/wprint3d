@@ -10,6 +10,7 @@ import UserPrinterControl from "./UserPrinterControl";
 import UserPrinterRecordings from "./UserPrinterRecordings";
 import usePluginExtensions from "../hooks/usePluginExtensions";
 import PluginHostRenderer from "./PluginHostRenderer";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const UserMobileLayout = ({
     isLoadingPrinter = true, printerId,
@@ -17,17 +18,18 @@ const UserMobileLayout = ({
     isSmallLaptop, isSmallTablet,
 }) => {
     const { colors } = useTheme();
+    const { t } = useLocalization();
     const pageExtensions = usePluginExtensions('page');
     const modalExtensions = usePluginExtensions('modal');
 
     const [ index, setIndex ] = useState(0);
 
     const routes = [
-        { key: 'home',       title: 'Home',       focusedIcon: 'home',           unfocusedIcon: 'home-outline'           },
-        { key: 'terminal',   title: 'Terminal',   focusedIcon: 'console',        unfocusedIcon: 'console'                },
-        { key: 'preview',    title: 'Preview',    focusedIcon: 'eye',            unfocusedIcon: 'eye-outline'            },
-        { key: 'control',    title: 'Control',    focusedIcon: 'camera-control', unfocusedIcon: 'camera-control'         },
-        { key: 'recordings', title: 'Recordings', focusedIcon: 'record-circle',  unfocusedIcon: 'record-circle-outline'  },
+        { key: 'home',       title: t("mobile.home"),       focusedIcon: 'home',           unfocusedIcon: 'home-outline'           },
+        { key: 'terminal',   title: t("mobile.terminal"),   focusedIcon: 'console',        unfocusedIcon: 'console'                },
+        { key: 'preview',    title: t("mobile.preview"),    focusedIcon: 'eye',            unfocusedIcon: 'eye-outline'            },
+        { key: 'control',    title: t("mobile.control"),    focusedIcon: 'camera-control', unfocusedIcon: 'camera-control'         },
+        { key: 'recordings', title: t("mobile.recordings"), focusedIcon: 'record-circle',  unfocusedIcon: 'record-circle-outline'  },
         ...((pageExtensions?.data?.data || []).map((extension) => ({
             key: `plugin:${extension.pluginId}:${extension.id}`,
             title: extension.title,

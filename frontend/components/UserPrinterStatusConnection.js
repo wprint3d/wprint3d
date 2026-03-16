@@ -3,27 +3,29 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Icon, Text } from "react-native-paper";
 
 import TextBold from "./TextBold";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserPrinterStatusConnection({ connectionStatus, isRunningMapper }) {
-    const [ currentStatus,          setCurrentStatus         ] = useState('waiting for server…');
+    const { t } = useLocalization();
+    const [ currentStatus,          setCurrentStatus         ] = useState(t("printer.status.waitingForServer"));
     const [ thresholdSecs,          setThresholdSecs         ] = useState(null);
     const [ isWaitingForNewStatus,  setIsWaitingForNewStatus ] = useState(true);
     const [ lastUpdate,             setLastUpdate            ] = useState(Date.now() / 1000);
 
     const MAX_THRESHOLD_SECS = 15;
 
-    const handleMapperRunning = () => setCurrentStatus('connecting…');
+    const handleMapperRunning = () => setCurrentStatus(t("printer.status.connecting"));
 
     useEffect(() => {
         const timeout = setInterval(() => {
             if ((Date.now() / 1000) - lastUpdate <= MAX_THRESHOLD_SECS) { return; }
 
             setIsWaitingForNewStatus(false);
-            setCurrentStatus('offline');
+            setCurrentStatus(t("printer.status.offline"));
         }, 1000);
 
         return () => { clearTimeout(timeout); };
-    }, [ lastUpdate ]);
+    }, [ lastUpdate, t ]);
 
     useEffect(() => {
         if (!connectionStatus) { return; }
@@ -69,8 +71,8 @@ export default function UserPrinterStatusConnection({ connectionStatus, isRunnin
                     >
                     connectionStatus.thresholdSecs * 2
                 )
-                    ? 'offline'
-                    : 'online'
+                    ? t("printer.status.offline")
+                    : t("printer.status.online")
             );
         }, 1000);
 
@@ -83,13 +85,13 @@ export default function UserPrinterStatusConnection({ connectionStatus, isRunnin
         }
 
         return () => { clearTimeout(timeout); };
-    }, [ connectionStatus ]);
+    }, [ connectionStatus, thresholdSecs, isRunningMapper, t ]);
 
     useEffect(() => {
         if (!isRunningMapper) { return; }
 
         handleMapperRunning();
-    }, [ isRunningMapper ]);
+    }, [ isRunningMapper, t ]);
 
     useEffect(() => {
         console.debug('UserPrinterStatusConnection: isWaitingForNewStatus:', isWaitingForNewStatus);
@@ -109,7 +111,7 @@ export default function UserPrinterStatusConnection({ connectionStatus, isRunnin
                     paddingRight: 4
                 }}
             />
-            <Icon source='connection' /> <TextBold>Connection status:</TextBold> {currentStatus}
+            <Icon source='connection' /> <TextBold>{t("printer.status.connectionStatus")}</TextBold> {currentStatus}
         </Text>
     );
 }

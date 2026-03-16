@@ -160,6 +160,69 @@ Legacy ids like `section`, `text`, `button`, `progress_cluster`, and `remote_com
 
 For public releases, treat `homepageUrl`, `documentationUrl`, and `sourceUrl` as canonical metadata. Registry entries and landing pages should read from those fields instead of guessing repository links from wherever the plugin happened to be developed.
 
+## Plugin Translations
+
+Plugins can ship host-managed translations for manifest metadata and declarative UI without bundling a second frontend runtime.
+
+Declare translation JSON files in `assets`, then map locales under `i18n.files`:
+
+```json
+{
+  "assets": [
+    { "path": "translations/es.json" }
+  ],
+  "i18n": {
+    "defaultLocale": "en",
+    "files": {
+      "es": "asset://translations/es.json",
+      "es_AR": "asset://translations/es.json"
+    }
+  }
+}
+```
+
+Each translation file can override:
+
+- `plugin.name`
+- `plugin.description`
+- `actions.<actionId>.label`
+- `uiExtensions.<extensionId>.title`
+- `uiExtensions.<extensionId>.schema`
+- `components.<componentId>.schema`
+
+Example `translations/es.json`:
+
+```json
+{
+  "plugin": {
+    "name": "Hola Mundo",
+    "description": "Plugin de referencia"
+  },
+  "actions": {
+    "ping": {
+      "label": "Probar"
+    }
+  },
+  "uiExtensions": {
+    "settings": {
+      "title": "Configuración",
+      "schema": {
+        "title": "Interfaz declarativa liviana"
+      }
+    }
+  }
+}
+```
+
+Resolution rules:
+
+- The host first applies the plugin's `i18n.defaultLocale`.
+- Then it applies the requested base language such as `es`.
+- Finally it applies the exact locale such as `es_AR`.
+- Missing keys fall back to the base manifest instead of rendering empty text.
+
+For `webview` and `custom_bundle` extensions, WPrint 3D also appends `locale` and `fallbackLocale` query params to the embedded URL so browser-side plugin code can load matching translations.
+
 ## Building A Plugin
 
 ### 1. Scaffold It

@@ -18,16 +18,17 @@ import NavBarMenuSystemUpdater from "./NavBarMenuSystemUpdater";
 import NavBarMenuSettingsModalPlugins from "./NavBarMenuSettingsModalPlugins";
 import PluginHostRenderer from "./PluginHostRenderer";
 import usePluginExtensions from "../hooks/usePluginExtensions";
+import { LocalizationContext, useLocalization } from "../includes/LocalizationProvider";
 
 const PLUGINS_TAB_KEY = "plugins";
 
-const buildPluginExtensionWarnings = (plugin, extension) => (
+const buildPluginExtensionWarnings = (plugin, extension, t) => (
     arrayUnique([
         ...(plugin?.warnings || []),
         [ "webview", "custom_bundle" ].includes(extension?.mode || "declarative")
-            ? "This plugin uses an elevated UI mode."
+            ? t("plugins.settingsShell.elevatedUiMode")
             : null,
-        plugin?.enabled === false ? "This plugin is currently disabled. Interactive settings may not work until you enable it again." : null,
+        plugin?.enabled === false ? t("plugins.settingsShell.disabledWarning") : null,
     ].filter(Boolean))
 );
 
@@ -40,7 +41,7 @@ const resolvePluginIcon = (plugin, extension = null) => (
     || "puzzle-outline"
 );
 
-const buildPluginUiExtensionPayload = (plugin, extension) => ({
+const buildPluginUiExtensionPayload = (plugin, extension, t) => ({
     ...extension,
     pluginId: plugin.id,
     pluginName: plugin.name,
@@ -50,10 +51,10 @@ const buildPluginUiExtensionPayload = (plugin, extension) => ({
     pluginDescription: plugin.description,
     pluginManifest: plugin.manifest || {},
     pluginIcon: resolvePluginIcon(plugin, extension),
-    warnings: buildPluginExtensionWarnings(plugin, extension),
+    warnings: buildPluginExtensionWarnings(plugin, extension, t),
 });
 
-const buildPluginSettingsPages = (plugins = []) => (
+const buildPluginSettingsPages = (plugins = [], t) => (
     plugins.flatMap((plugin) => {
         const settingsExtensions = (plugin?.uiExtensions || []).filter((extension) => extension?.surface === "settings_tab");
 
@@ -64,32 +65,32 @@ const buildPluginSettingsPages = (plugins = []) => (
             label: settingsExtensions.length > 1 ? `${plugin.name} ${index + 1}` : plugin.name,
             title: extension.title || plugin.name,
             icon: resolvePluginIcon(plugin, extension),
-            extension: buildPluginUiExtensionPayload(plugin, extension),
+            extension: buildPluginUiExtensionPayload(plugin, extension, t),
         }));
     })
 );
 
-const buildPluginModalExtensions = (plugins = []) => (
+const buildPluginModalExtensions = (plugins = [], t) => (
     plugins.flatMap((plugin) => (
         (plugin?.uiExtensions || [])
             .filter((extension) => extension?.surface === "modal")
-            .map((extension) => buildPluginUiExtensionPayload(plugin, extension))
+            .map((extension) => buildPluginUiExtensionPayload(plugin, extension, t))
     ))
 );
 
-const buildPluginHeaderBadges = (extension, theme) => {
+const buildPluginHeaderBadges = (extension, theme, t) => {
     const badges = [];
 
     badges.push(extension?.pluginEnabled
         ? {
             icon: "check-circle",
-            label: "Active",
+            label: t("plugins.badges.active"),
             style: { backgroundColor: theme.colors.primaryContainer },
             textStyle: { color: theme.colors.onPrimaryContainer },
         }
         : {
             icon: "pause-circle",
-            label: "Disabled",
+            label: t("plugins.badges.disabled"),
             style: { backgroundColor: theme.colors.secondaryContainer },
             textStyle: { color: theme.colors.onSecondaryContainer },
         });
@@ -97,37 +98,37 @@ const buildPluginHeaderBadges = (extension, theme) => {
     const trustBadgeMap = {
         official: {
             icon: "shield-check",
-            label: "Official",
+            label: t("plugins.badges.official"),
             style: { backgroundColor: theme.colors.tertiaryContainer },
             textStyle: { color: theme.colors.onTertiaryContainer },
         },
         signed: {
             icon: "certificate",
-            label: "Signed",
+            label: t("plugins.badges.signed"),
             style: { backgroundColor: theme.colors.tertiaryContainer },
             textStyle: { color: theme.colors.onTertiaryContainer },
         },
         trusted: {
             icon: "shield-check",
-            label: "Trusted",
+            label: t("plugins.badges.trusted"),
             style: { backgroundColor: theme.colors.tertiaryContainer },
             textStyle: { color: theme.colors.onTertiaryContainer },
         },
         development: {
             icon: "flask",
-            label: "Live source",
+            label: t("plugins.badges.liveSource"),
             style: { backgroundColor: theme.colors.inversePrimary },
             textStyle: { color: theme.colors.onPrimaryContainer },
         },
         invalid_signature: {
             icon: "shield-remove",
-            label: "Bad signature",
+            label: t("plugins.badges.badSignature"),
             style: { backgroundColor: theme.colors.errorContainer },
             textStyle: { color: theme.colors.onErrorContainer },
         },
         unsigned: {
             icon: "shield-alert",
-            label: "Unsigned",
+            label: t("plugins.badges.unsigned"),
             style: { backgroundColor: theme.colors.errorContainer },
             textStyle: { color: theme.colors.onErrorContainer },
         },
@@ -135,14 +136,14 @@ const buildPluginHeaderBadges = (extension, theme) => {
 
     badges.push(trustBadgeMap[extension?.pluginTrustLevel] || {
         icon: "shield-outline",
-        label: extension?.pluginTrustLevel || "Unknown",
+        label: extension?.pluginTrustLevel || t("plugins.badges.unknown"),
         style: { backgroundColor: theme.colors.surfaceVariant },
         textStyle: { color: theme.colors.onSurfaceVariant },
     });
 
     badges.push({
         icon: "puzzle",
-        label: "Settings page",
+        label: t("plugins.settingsShell.settingsPage"),
         style: { backgroundColor: theme.colors.surfaceVariant },
         textStyle: { color: theme.colors.onSurfaceVariant },
     });
@@ -190,7 +191,8 @@ const PluginSettingsTabIcon = ({ iconSource, color, size = 24 }) => {
 
 const PluginSettingsTabPanel = ({ extension, modalExtensions = [] }) => {
     const theme = useTheme();
-    const headerBadges = buildPluginHeaderBadges(extension, theme);
+    const { effectiveLanguage, t } = useLocalization();
+    const headerBadges = buildPluginHeaderBadges(extension, theme, t);
     const [ isExpanded, setIsExpanded ] = useState(false);
     const [ isDetailsMounted, setIsDetailsMounted ] = useState(false);
     const [ measuredDetailsHeight, setMeasuredDetailsHeight ] = useState(0);
@@ -309,7 +311,7 @@ const PluginSettingsTabPanel = ({ extension, modalExtensions = [] }) => {
 
                         <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel={isExpanded ? "Collapse plugin details" : "Expand plugin details"}
+                            accessibilityLabel={isExpanded ? t("plugins.settingsShell.collapseDetails") : t("plugins.settingsShell.expandDetails")}
                             onPress={() => setIsExpanded((current) => !current)}
                             style={{
                                 width: 38,
@@ -425,6 +427,8 @@ const SettingsTabNavigationBridge = ({ targetTabKey, tabDefinitions }) => {
 
 const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSmallLaptop }) => {
     const queryClient = useQueryClient();
+    const localization = useLocalization();
+    const { effectiveLanguage, t } = localization;
     const [ activeTabKey, setActiveTabKey ] = useState("printers");
 
     const developerModeQuery = useQuery({
@@ -471,9 +475,9 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
 
             if (!updatableImages || updatableImages.length === 0) {
                 enqueueSnackbar({
-                    message: 'No updates found.',
+                    message: t("settings.noUpdatesFound"),
                     variant: 'info',
-                    action:  { label: 'Got it' }
+                    action:  { label: t("notifications.gotIt") }
                 });
 
                 return;
@@ -483,16 +487,16 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
         },
         onError: (error) => {
             enqueueSnackbar({
-                message: 'An error occurred while checking for updates: ' + (error?.response?.data?.message || error.message),
+                message: t("settings.checkUpdatesError", { reason: error?.response?.data?.message || error.message }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
         }
     });
 
     const pluginSettingsPages = useMemo(() => {
         if (installedPluginsQuery?.data?.data?.length) {
-            return buildPluginSettingsPages(installedPluginsQuery.data.data || []);
+            return buildPluginSettingsPages(installedPluginsQuery.data.data || [], t);
         }
 
         return (fallbackSettingsExtensionsQuery?.data?.data || []).map((extension) => ({
@@ -507,24 +511,24 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
                 pluginIcon: extension.icon || "puzzle-outline",
             },
         }));
-    }, [ fallbackSettingsExtensionsQuery?.data?.data, installedPluginsQuery?.data?.data ]);
+    }, [ fallbackSettingsExtensionsQuery?.data?.data, installedPluginsQuery?.data?.data, t ]);
 
     const pluginModalExtensions = useMemo(() => {
         if (installedPluginsQuery?.data?.data?.length) {
-            return buildPluginModalExtensions(installedPluginsQuery.data.data || []);
+            return buildPluginModalExtensions(installedPluginsQuery.data.data || [], t);
         }
 
         return (fallbackModalExtensionsQuery?.data?.data || []).map((extension) => ({
             ...extension,
             pluginIcon: extension.icon || "puzzle-outline",
         }));
-    }, [ fallbackModalExtensionsQuery?.data?.data, installedPluginsQuery?.data?.data ]);
+    }, [ fallbackModalExtensionsQuery?.data?.data, installedPluginsQuery?.data?.data, t ]);
 
     const tabs = useMemo(() => {
         const baseTabs = [
             {
                 key: "printers",
-                label: "Printers",
+                label: t("settings.printersTab"),
                 icon: "printer-3d",
                 content: (
                     <Wrapper>
@@ -534,7 +538,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
             },
             {
                 key: "presets",
-                label: "Presets",
+                label: t("settings.presetsTab"),
                 icon: "printer-3d-nozzle",
                 content: (
                     <Wrapper>
@@ -544,7 +548,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
             },
             {
                 key: "cameras",
-                label: "Cameras",
+                label: t("settings.camerasTab"),
                 icon: "camera",
                 content: (
                     <Wrapper>
@@ -554,7 +558,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
             },
             {
                 key: "recording",
-                label: "Recording",
+                label: t("settings.recordingTab"),
                 icon: "record",
                 content: (
                     <Wrapper>
@@ -564,7 +568,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
             },
             {
                 key: "system",
-                label: "System",
+                label: t("settings.systemTab"),
                 icon: "cog",
                 content: (
                     <Wrapper>
@@ -579,7 +583,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
             },
             {
                 key: "users",
-                label: "Users",
+                label: t("settings.usersTab"),
                 icon: "account",
                 content: (
                     <Wrapper>
@@ -589,7 +593,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
             },
             {
                 key: PLUGINS_TAB_KEY,
-                label: "Plugins",
+                label: t("settings.pluginsTab"),
                 icon: "puzzle",
                 content: (
                     <Wrapper>
@@ -618,7 +622,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
         if (developerModeQuery?.data?.data === true) {
             baseTabs.push({
                 key: "developer",
-                label: "Developer",
+                label: t("settings.developerTab"),
                 icon: "code-tags",
                 content: (
                     <Wrapper style={{ flexShrink: 1, overflow: 'scroll' }}>
@@ -630,7 +634,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
 
         baseTabs.push({
             key: "about",
-            label: "About",
+            label: t("settings.aboutTab"),
             icon: "information",
             content: (
                 <Wrapper>
@@ -648,6 +652,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
         isSmallTablet,
         pluginModalExtensions,
         pluginSettingsPages,
+        t,
     ]);
 
     useEffect(() => {
@@ -681,6 +686,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
                     <NavBarMenuSystemUpdater enqueueSnackbar={enqueueSnackbar} checkForUpdatesMutation={checkForUpdatesMutation} />
 
                     <TabsProvider
+                        key={`settings-tabs:${effectiveLanguage}`}
                         defaultIndex={tabs.findIndex((tab) => tab.key === activeTabKey) >= 0 ? tabs.findIndex((tab) => tab.key === activeTabKey) : 0}
                         onChangeIndex={(index) => setActiveTabKey(tabs[index]?.key || "printers")}
                     >
@@ -700,8 +706,10 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
                             showLeadingSpace={false}
                         >
                             {tabs.map((tab) => (
-                                <TabScreen key={tab.key} label={tab.label} icon={tab.icon} badge={tab.badge}>
-                                    {tab.content}
+                                <TabScreen key={`${tab.key}:${effectiveLanguage}`} label={tab.label} icon={tab.icon} badge={tab.badge}>
+                                    <LocalizationContext.Provider value={localization}>
+                                        {tab.content}
+                                    </LocalizationContext.Provider>
                                 </TabScreen>
                             ))}
                         </Tabs>

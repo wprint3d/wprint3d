@@ -8,9 +8,11 @@ import { ActivityIndicator, Divider, Icon, List, Menu, TextInput, useTheme } fro
 
 import API from "../includes/API";
 import SmallButton from "./SmallButton";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserPrinterFileListControlsSortMenu({ isLoading, loaderSize, sortingModes, sortingMode, setSortingMode, icons, titles }) {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const [ isVisible, setIsVisible ] = useState(false);
 
@@ -43,7 +45,7 @@ export default function UserPrinterFileListControlsSortMenu({ isLoading, loaderS
                     loaderSize={loaderSize}
                     onPress={() => setIsVisible(true)}
                     disabled={isLoading || sortingModes.isFetching}
-                    tooltipText={'Sort by'}
+                    tooltipText={t("files.sortBy")}
                 />
             }
             anchorPosition='bottom'
@@ -60,7 +62,7 @@ export default function UserPrinterFileListControlsSortMenu({ isLoading, loaderS
                                 }}
                                 leadingIcon={icons[sortingModeKey] || 'progress-question'}
                                 trailingIcon={sortingMode == sortingModeKey && 'check'}
-                                title={titles[sortingModeKey] || 'Unknown mode'}
+                                title={titles[sortingModeKey] || t("files.unknownSortMode")}
                             />
                         );
                     })
