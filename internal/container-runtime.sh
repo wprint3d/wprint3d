@@ -653,21 +653,34 @@ migrate_docker_volumes_to_podman() {
         volumes+=('storage' 'proxy' 'startup');
     fi;
 
+    # Pre-flight: collect only the volumes that actually need migration.
     local vol src dst;
+    local pending_src=() pending_dst=();
 
     for vol in "${volumes[@]}"; do
         src="${src_prefix}_${vol}";
         dst="${dst_prefix}_${vol}";
 
-        # Skip if target Podman volume already exists.
-        if run_host_container_cli volume inspect "$dst" > /dev/null 2>&1; then
-            continue;
-        fi;
+        run_host_container_cli volume inspect "$dst" > /dev/null 2>&1 && continue;
+        docker volume inspect "$src" > /dev/null 2>&1 || continue;
 
-        # Skip if source Docker volume does not exist.
-        if ! docker volume inspect "$src" > /dev/null 2>&1; then
-            continue;
-        fi;
+        pending_src+=("$src");
+        pending_dst+=("$dst");
+    done;
+
+    local total="${#pending_src[@]}";
+
+    if [[ "$total" -eq 0 ]]; then
+        return 0;
+    fi;
+
+    local i;
+
+    for (( i = 0; i < total; i++ )); do
+        src="${pending_src[$i]}";
+        dst="${pending_dst[$i]}";
+
+        printf '[ %d / %d ] Migrating volume %s...\n' "$((i + 1))" "$total" "$src";
 
         # Create the target Podman volume (stdout suppressed; stderr intentionally left open).
         if ! run_host_container_cli volume create "$dst" > /dev/null; then
