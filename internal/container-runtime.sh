@@ -654,6 +654,13 @@ migrate_docker_volumes_to_podman() {
     local src_prefix="${WPRINT3D_DOCKER_PROJECT_NAME:-wprint3d}";
     local dst_prefix="${COMPOSE_PROJECT_NAME:-$(basename "$SCRIPT_PATH")}";
 
+    # Normalize dst_prefix to match Compose's project name derivation:
+    # lowercase and strip any leading non-alphanumeric characters.
+    dst_prefix="${dst_prefix,,}";
+    while [[ -n "$dst_prefix" ]] && [[ "${dst_prefix:0:1}" =~ [^a-zA-Z0-9] ]]; do
+        dst_prefix="${dst_prefix:1}";
+    done;
+
     # Validate / normalise $env argument.
     case "$env" in
         dev|production)
