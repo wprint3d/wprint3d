@@ -4,6 +4,8 @@ export PATH="$PATH":$(pwd)/bin;
 export PATH="$PATH":/root/gcodestat;
 export PATH="$PATH":"$HOME"/bin;
 
+source /var/www/internal/service-status.sh;
+
 # Remove any temporary files that might have been left behind
 rm -fv /tmp/*.txt /var/www/internal/startup/*.txt;
 
@@ -100,52 +102,8 @@ refreshDockerLog() {
 
             STATUS=0;
 
-            if [[ "$NAME" == *"proxy"* ]]; then
-                if docker exec "$CID" grep -e nginx         /proc/*/stat 2> /dev/null | grep -v grep > /dev/null; then
-                    STATUS=1;
-                fi;
-            elif [[ "$NAME" == *"mongo"* ]]; then
-                if docker exec "$CID" grep -e mongod        /proc/*/stat 2> /dev/null | grep -v grep > /dev/null; then
-                    STATUS=1;
-                fi;
-            elif [[ "$NAME" == *"redis"* ]]; then
-                if docker exec "$CID" grep -e redis-server  /proc/*/stat 2> /dev/null | grep -v grep > /dev/null; then
-                    STATUS=1;
-                fi;
-            elif [[ "$NAME" == *"memcached"* ]]; then
-                if docker exec "$CID" grep -e memcached     /proc/*/stat 2> /dev/null | grep -v grep > /dev/null; then
-                    STATUS=1;
-                fi;
-            elif [[ "$NAME" == *"backend"* ]]; then
-                if docker exec "$CID" grep -e php           /proc/*/stat 2> /dev/null | grep -v grep > /dev/null; then
-                    STATUS=1;
-                fi;
-            elif [[ "$NAME" == *"scheduler"* ]] && [[ "$NAME" != *"concurrency"* ]]; then
-                if docker exec "$CID" ps -fax | grep -e cron | grep -v grep > /dev/null; then
-                    STATUS=1;
-                fi;
-            elif [[ "$NAME" == *"mapper"* ]]; then
-                if docker exec "$CID" ps -fax | grep -e udev | grep -v grep > /dev/null; then
-                    STATUS=1;
-                fi;
-            elif [[ "$NAME" == *"streamer"* ]]; then
-                if docker exec "$CID" ps -fax | grep -e inotifywait | grep -v grep > /dev/null; then
-                    STATUS=1;
-                fi;
-            elif [[ "$NAME" == *"web"* ]]; then
-                if docker exec "$CID" ps -fa | grep -e 'expo start' -e 'lighttpd' | grep -v grep > /dev/null; then
-                    STATUS=1;
-                fi;
-            else # all other services
-                # echo "$NAME";
-                # echo "$CID";
-                # echo $(docker exec "$CID" ps -fax | grep -e php | grep -v grep);
-                # echo '';
-                # echo '';
-
-                if docker exec "$CID" ps -fax | grep -e php | grep -v grep > /dev/null; then
-                    STATUS=1;
-                fi;
+            if service_status_for_container "$CID" "$NAME"; then
+                STATUS=1;
             fi;
 
             echo "$STATUS" > /tmp/"$NAME"_status.txt;
