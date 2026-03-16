@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { View } from "react-native";
-import { List, Text, ToggleButton, Tooltip } from "react-native-paper";
+import { List, Text } from "react-native-paper";
 import API from "../includes/API";
 import { useEffect } from "react";
 import PrinterSettingsModalLinkingCamera from "./PrinterSettingsModalLinkingCamera";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const PrinterSettingsModalLinking = ({ printer, details, isLoading, error }) => {
+    const { t } = useLocalization();
     const allCameras = useQuery({
         queryKey: ['cameras'],
         queryFn:  () => API.get('/cameras')
@@ -23,7 +25,7 @@ const PrinterSettingsModalLinking = ({ printer, details, isLoading, error }) => 
     if (isLoading) {
         return (
             <View>
-                <UserPaneLoadingIndicator message={`Loading printer details...`} />
+                <UserPaneLoadingIndicator message={t("settings.loadingPrinterDetails")} />
             </View>
         );
     }
@@ -32,7 +34,7 @@ const PrinterSettingsModalLinking = ({ printer, details, isLoading, error }) => 
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                 <Text style={{ textAlign: 'center' }}>
-                    Couldn't load linking settings, please try again later:
+                    {t("settings.linkingSettingsLoadError")}
                     {'\n\n'}
                     {error}
                 </Text>
@@ -44,10 +46,10 @@ const PrinterSettingsModalLinking = ({ printer, details, isLoading, error }) => 
 
     return (
         <View>
-            <List.Section title="Cameras">
+            <List.Section title={t("settings.camerasTab")}>
                 {
                     !cameras || cameras.length === 0 
-                        ? <List.Item title="No cameras were detected." />
+                        ? <List.Item title={t("settings.noCameras")} />
                         : cameras.map(camera => (
                             <PrinterSettingsModalLinkingCamera key={camera._id} camera={camera} printerDetails={details} isLoading={allCameras.isLoading || isLoading} />
                         ))

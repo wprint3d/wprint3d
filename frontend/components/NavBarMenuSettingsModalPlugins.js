@@ -5,24 +5,25 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Checkbox, Chip, Divider, Icon, IconButton, Menu, Searchbar, Switch, Text, TextInput, Tooltip, useTheme } from "react-native-paper";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 import API from "../includes/API";
+import { useLocalization } from "../includes/LocalizationProvider";
 import SimpleDialog from "./SimpleDialog";
 
-const buildDependencyBadges = (plugin, theme) => {
+const buildDependencyBadges = (plugin, theme, t) => {
   const badges = [];
   const dependencies = plugin.dependencies || {};
 
   badges.push(dependencies.classification === "heavyweight"
     ? {
         icon: "server-network",
-        label: "Heavyweight",
-        tooltip: dependencies.hint || "This plugin ships container image dependencies.",
+        label: t("plugins.badges.heavyweight"),
+        tooltip: dependencies.hint || t("plugins.badges.heavyweightTooltip"),
         style: { backgroundColor: theme.colors.secondaryContainer },
         textStyle: { color: theme.colors.onSecondaryContainer },
       }
     : {
         icon: "leaf",
-        label: "Lightweight",
-        tooltip: dependencies.hint || "This plugin does not declare extra container image dependencies.",
+        label: t("plugins.badges.lightweight"),
+        tooltip: dependencies.hint || t("plugins.badges.lightweightTooltip"),
         style: { backgroundColor: theme.colors.surfaceVariant },
         textStyle: { color: theme.colors.onSurfaceVariant },
       });
@@ -30,8 +31,8 @@ const buildDependencyBadges = (plugin, theme) => {
   if ((dependencies.images || []).length) {
     badges.push({
       icon: "package-variant-closed",
-      label: `${dependencies.images.length} image${dependencies.images.length === 1 ? "" : "s"}`,
-      tooltip: "Container images that WPrint 3D will prepare for this plugin.",
+      label: t("plugins.badges.imagesCount", { count: dependencies.images.length }),
+      tooltip: t("plugins.badges.imagesTooltip"),
       style: { backgroundColor: theme.colors.primaryContainer },
       textStyle: { color: theme.colors.onPrimaryContainer },
     });
@@ -40,8 +41,8 @@ const buildDependencyBadges = (plugin, theme) => {
   if (dependencies.host?.meetsRequirements === false) {
     badges.push({
       icon: "alert",
-      label: "Host shortfall",
-      tooltip: (dependencies.warnings || []).join(" ") || "This host is below the plugin's declared minimum requirements.",
+      label: t("plugins.badges.hostShortfall"),
+      tooltip: (dependencies.warnings || []).join(" ") || t("plugins.badges.hostShortfallTooltip"),
       style: { backgroundColor: theme.colors.errorContainer },
       textStyle: { color: theme.colors.onErrorContainer },
     });
@@ -50,30 +51,30 @@ const buildDependencyBadges = (plugin, theme) => {
   return badges;
 };
 
-const buildPluginBadges = (plugin, theme) => {
+const buildPluginBadges = (plugin, theme, t) => {
   const badges = [];
 
   if (plugin.loadStatus === "failed") {
     badges.push({
       icon: "alert-circle",
-      label: "Failed to load",
-      tooltip: plugin.lastError || "The plugin failed during startup or live source synchronization.",
+      label: t("plugins.badges.failedToLoad"),
+      tooltip: plugin.lastError || t("plugins.badges.failedToLoadTooltip"),
       style: { backgroundColor: theme.colors.errorContainer },
       textStyle: { color: theme.colors.onErrorContainer },
     });
   } else if (plugin.enabled) {
     badges.push({
       icon: "check-circle",
-      label: "Active",
-      tooltip: "This plugin is enabled and its UI surfaces and actions are live.",
+      label: t("plugins.badges.active"),
+      tooltip: t("plugins.badges.activeTooltip"),
       style: { backgroundColor: theme.colors.primaryContainer },
       textStyle: { color: theme.colors.onPrimaryContainer },
     });
   } else {
     badges.push({
       icon: "pause-circle",
-      label: "Disabled",
-      tooltip: "This plugin is installed but currently inactive.",
+      label: t("plugins.badges.disabled"),
+      tooltip: t("plugins.badges.disabledTooltip"),
       style: { backgroundColor: theme.colors.secondaryContainer },
       textStyle: { color: theme.colors.onSecondaryContainer },
     });
@@ -82,43 +83,43 @@ const buildPluginBadges = (plugin, theme) => {
   const trustBadges = {
     development: {
       icon: "flask",
-      label: "Live source",
-      tooltip: "Loaded from the development source mount and refreshed directly from disk.",
+      label: t("plugins.badges.liveSource"),
+      tooltip: t("plugins.badges.liveSourceTooltip"),
       style: { backgroundColor: theme.colors.inversePrimary },
       textStyle: { color: theme.colors.onPrimaryContainer },
     },
     official: {
       icon: "shield-check",
-      label: "Official",
-      tooltip: "Installed from the official reviewed registry.",
+      label: t("plugins.badges.official"),
+      tooltip: t("plugins.badges.officialTooltip"),
       style: { backgroundColor: theme.colors.tertiaryContainer },
       textStyle: { color: theme.colors.onTertiaryContainer },
     },
     signed: {
       icon: "certificate",
-      label: "Signed",
-      tooltip: "The plugin signature matched a trusted key on this WPrint 3D instance.",
+      label: t("plugins.badges.signed"),
+      tooltip: t("plugins.badges.signedTooltip"),
       style: { backgroundColor: theme.colors.success || "#0a9900" },
       textStyle: { color: "#ffffff" },
     },
     trusted: {
       icon: "shield-check",
-      label: "Trusted",
-      tooltip: "Signed or otherwise trusted by this WPrint 3D instance.",
+      label: t("plugins.badges.trusted"),
+      tooltip: t("plugins.badges.trustedTooltip"),
       style: { backgroundColor: theme.colors.tertiaryContainer },
       textStyle: { color: theme.colors.onTertiaryContainer },
     },
     invalid_signature: {
       icon: "shield-remove",
-      label: "Bad signature",
-      tooltip: "The plugin declared a signature, but it could not be verified with the configured or synced trusted keys.",
+      label: t("plugins.badges.badSignature"),
+      tooltip: t("plugins.badges.badSignatureTooltip"),
       style: { backgroundColor: theme.colors.errorContainer },
       textStyle: { color: theme.colors.onErrorContainer },
     },
     unsigned: {
       icon: "shield-alert",
-      label: "Unsigned",
-      tooltip: "Sideloaded without a trusted signature. Review before using.",
+      label: t("plugins.badges.unsigned"),
+      tooltip: t("plugins.badges.unsignedTooltip"),
       style: { backgroundColor: theme.colors.errorContainer },
       textStyle: { color: theme.colors.onErrorContainer },
     },
@@ -126,8 +127,8 @@ const buildPluginBadges = (plugin, theme) => {
 
   badges.push(trustBadges[plugin.trustLevel] || {
     icon: "shield-outline",
-    label: plugin.trustLevel || "Unknown",
-    tooltip: `Trust level reported by the platform: ${plugin.trustLevel || "unknown"}.`,
+    label: plugin.trustLevel || t("plugins.badges.unknown"),
+    tooltip: t("plugins.badges.unknownTooltip", { level: plugin.trustLevel || "unknown" }),
     style: { backgroundColor: theme.colors.surfaceVariant },
     textStyle: { color: theme.colors.onSurfaceVariant },
   });
@@ -135,8 +136,8 @@ const buildPluginBadges = (plugin, theme) => {
   if (plugin.installSource?.type === "trusted_registry") {
     badges.push({
       icon: "information",
-      label: plugin.installSource?.registry?.source?.name || "Trusted registry",
-      tooltip: "This plugin came from a third-party registry that this WPrint 3D instance trusts.",
+      label: plugin.installSource?.registry?.source?.name || t("plugins.badges.trustedRegistry"),
+      tooltip: t("plugins.badges.trustedRegistryTooltip"),
       style: { backgroundColor: theme.colors.secondaryContainer },
       textStyle: { color: theme.colors.onSecondaryContainer },
     });
@@ -145,54 +146,102 @@ const buildPluginBadges = (plugin, theme) => {
   if (plugin.updateAvailable) {
     badges.push({
       icon: "update",
-      label: plugin.latestVersion ? `Update ${plugin.latestVersion}` : "Update available",
+      label: plugin.latestVersion ? t("plugins.badges.updateVersion", { version: plugin.latestVersion }) : t("plugins.badges.updateAvailable"),
       tooltip: plugin.latestVersion
-        ? `A newer release (${plugin.latestVersion}) is available from the configured registry source.`
-        : "A newer release is available from the configured registry source.",
+        ? t("plugins.badges.updateVersionTooltip", { version: plugin.latestVersion })
+        : t("plugins.badges.updateAvailableTooltip"),
       style: { backgroundColor: theme.colors.secondaryContainer },
       textStyle: { color: theme.colors.onSecondaryContainer },
     });
   }
 
-  return [ ...badges, ...buildDependencyBadges(plugin, theme) ];
+  return [ ...badges, ...buildDependencyBadges(plugin, theme, t) ];
 };
 
-const buildRequirementSummary = (plugin) => {
+const buildRequirementSummary = (plugin, t) => {
   const requirements = plugin.dependencies?.requirements || {};
   const parts = [];
 
   if (requirements.cpuCores) {
-    parts.push(`${requirements.cpuCores} CPU core${requirements.cpuCores === 1 ? "" : "s"}`);
+    parts.push(t("plugins.requirements.cpuCores", { count: requirements.cpuCores }));
   }
 
   if (requirements.memoryMb) {
-    parts.push(`${requirements.memoryMb} MB RAM`);
+    parts.push(t("plugins.requirements.memoryMb", { count: requirements.memoryMb }));
   }
 
-  return parts.length ? `Minimum host target: ${parts.join(" • ")}.` : null;
+  return parts.length ? t("plugins.requirements.minimumHostTarget", { value: parts.join(" • ") }) : null;
 };
 
-const buildRegistrySourceBadge = (source, theme) => {
+const buildRegistrySourceBadge = (source, theme, t) => {
   if (source?.official) {
     return {
       icon: "shield-check",
-      label: "Official registry",
+      label: t("plugins.officialRegistry"),
       style: { backgroundColor: theme.colors.tertiaryContainer },
       textStyle: { color: theme.colors.onTertiaryContainer },
-      tooltip: "Reviewed packages from the official WPrint 3D registry.",
+      tooltip: t("plugins.officialRegistryTooltip"),
     };
   }
 
   return {
     icon: "information",
-    label: source?.name || "Trusted source",
+    label: source?.name || t("plugins.trustedSource"),
     style: { backgroundColor: theme.colors.secondaryContainer },
     textStyle: { color: theme.colors.onSecondaryContainer },
-    tooltip: "Third-party source explicitly trusted by this WPrint 3D instance.",
+    tooltip: t("plugins.trustedSourceTooltip"),
   };
 };
 
-const buildMutationFeedback = (response, variables = {}) => {
+const normalizeLocale = (locale) => (
+  locale === "es_AR" ? "es_AR" : (locale || "en")
+);
+
+const buildFailedToStartSuffix = (locale, failedCount) => {
+  if (!failedCount) {
+    return "";
+  }
+
+  switch (normalizeLocale(locale)) {
+    case "es":
+    case "es_AR":
+      return `, ${failedCount} no pudieron iniciar`;
+    case "fr":
+      return `, ${failedCount} n'ont pas pu démarrer`;
+    case "pt":
+      return `, ${failedCount} falharam ao iniciar`;
+    case "it":
+      return `, ${failedCount} non sono riusciti ad avviarsi`;
+    case "de":
+      return `, ${failedCount} konnten nicht gestartet werden`;
+    default:
+      return `, ${failedCount} failed to start`;
+  }
+};
+
+const buildClearedOverridesSuffix = (locale, count) => {
+  if (!count) {
+    return "";
+  }
+
+  switch (normalizeLocale(locale)) {
+    case "es":
+    case "es_AR":
+      return ` Se limpiaron ${count} anulaciones de plugins.`;
+    case "fr":
+      return ` ${count} surcharges de plugin ont été supprimées.`;
+    case "pt":
+      return ` ${count} substituições de plugins foram removidas.`;
+    case "it":
+      return ` Sono state rimosse ${count} eccezioni di plugin.`;
+    case "de":
+      return ` ${count} Plugin-Überschreibungen wurden entfernt.`;
+    default:
+      return ` Cleared ${count} plugin overrides.`;
+  }
+};
+
+const buildMutationFeedback = (response, variables = {}, t, locale = "en") => {
   const pluginId = response?.data?.id;
   const loadStatus = response?.data?.loadStatus;
   const lastError = response?.data?.lastError;
@@ -201,7 +250,7 @@ const buildMutationFeedback = (response, variables = {}) => {
 
   if (loadStatus === "failed" && lastError) {
     return {
-      message: `${pluginId} failed to load: ${lastError}`,
+      message: t("plugins.feedback.failedToLoad", { id: pluginId, reason: lastError }),
       variant: "warning",
     };
   }
@@ -210,8 +259,8 @@ const buildMutationFeedback = (response, variables = {}) => {
     if (updateStatus === "noop") {
       return {
         message: pluginId
-          ? `No updates found for ${pluginId}${latestVersion ? ` (${latestVersion})` : ""}.`
-          : "No updates found.",
+          ? t("plugins.feedback.noUpdatesForPlugin", { id: pluginId, version: latestVersion ? ` (${latestVersion})` : "" })
+          : t("plugins.feedback.noUpdates"),
         variant: "info",
       };
     }
@@ -219,8 +268,8 @@ const buildMutationFeedback = (response, variables = {}) => {
     if (updateStatus === "unsupported") {
       return {
         message: pluginId
-          ? `No automatic update source is configured for ${pluginId}.`
-          : "No automatic update source is configured for this plugin.",
+          ? t("plugins.feedback.noAutomaticUpdateSourceForPlugin", { id: pluginId })
+          : t("plugins.feedback.noAutomaticUpdateSource"),
         variant: "info",
       };
     }
@@ -228,14 +277,14 @@ const buildMutationFeedback = (response, variables = {}) => {
     if (updateStatus === "refreshed") {
       return {
         message: pluginId
-          ? `Refreshed ${pluginId} from the live source mount.`
-          : "Plugin refreshed from the live source mount.",
+          ? t("plugins.feedback.refreshedPlugin", { id: pluginId })
+          : t("plugins.feedback.refreshed"),
         variant: "success",
       };
     }
 
     return {
-      message: pluginId ? `Updated ${pluginId}.` : "Plugin updated.",
+      message: pluginId ? t("plugins.feedback.updatedPlugin", { id: pluginId }) : t("plugins.feedback.updated"),
       variant: "success",
     };
   }
@@ -243,74 +292,95 @@ const buildMutationFeedback = (response, variables = {}) => {
   if (variables.intent === "toggle") {
     return {
       message: pluginId
-        ? `${response?.data?.enabled ? "Enabled" : "Disabled"} ${pluginId}.`
-        : "Plugin state updated.",
+        ? t(response?.data?.enabled ? "plugins.feedback.enabledPlugin" : "plugins.feedback.disabledPlugin", { id: pluginId })
+        : t("plugins.feedback.stateUpdated"),
       variant: "success",
     };
   }
 
   if (variables.intent === "install") {
     return {
-      message: pluginId ? `Installed ${pluginId}.` : "Plugin installed.",
+      message: pluginId ? t("plugins.feedback.installedPlugin", { id: pluginId }) : t("plugins.feedback.installed"),
       variant: "success",
     };
   }
 
   if (variables.intent === "safe-mode") {
     return {
-      message: `Safe mode enabled. Disabled ${response?.data?.disabledCount ?? 0} plugin${response?.data?.disabledCount === 1 ? "" : "s"}.`,
+      message: t("plugins.feedback.safeModeEnabled", { count: response?.data?.disabledCount ?? 0 }),
       variant: "info",
     };
   }
 
   if (variables.intent === "check-updates-all") {
     return {
-      message: `Checked ${response?.data?.checkedCount ?? 0} plugin${response?.data?.checkedCount === 1 ? "" : "s"}: ${response?.data?.updatesAvailableCount ?? 0} update${response?.data?.updatesAvailableCount === 1 ? "" : "s"} available, ${response?.data?.upToDateCount ?? 0} already current, ${response?.data?.unsupportedCount ?? 0} unsupported.`,
+      message: t("plugins.feedback.checkedUpdatesSummary", {
+        checked: response?.data?.checkedCount ?? 0,
+        available: response?.data?.updatesAvailableCount ?? 0,
+        current: response?.data?.upToDateCount ?? 0,
+        unsupported: response?.data?.unsupportedCount ?? 0,
+      }),
       variant: "info",
     };
   }
 
   if (variables.intent === "update-all") {
     return {
-      message: `Processed ${response?.data?.checkedCount ?? 0} plugin${response?.data?.checkedCount === 1 ? "" : "s"}: ${response?.data?.updatedCount ?? 0} updated, ${response?.data?.noopCount ?? 0} already current, ${response?.data?.unsupportedCount ?? 0} unsupported.`,
+      message: t("plugins.feedback.updateAllSummary", {
+        checked: response?.data?.checkedCount ?? 0,
+        updated: response?.data?.updatedCount ?? 0,
+        current: response?.data?.noopCount ?? 0,
+        unsupported: response?.data?.unsupportedCount ?? 0,
+      }),
       variant: (response?.data?.updatedCount ?? 0) > 0 ? "success" : "info",
     };
   }
 
   if (variables.intent === "disable-all") {
     return {
-      message: `Disabled ${response?.data?.disabledCount ?? 0} plugin${response?.data?.disabledCount === 1 ? "" : "s"}.`,
+      message: t("plugins.feedback.disabledMany", { count: response?.data?.disabledCount ?? 0 }),
       variant: "info",
     };
   }
 
   if (variables.intent === "enable-all") {
+    const failedCount = response?.data?.failedCount ?? 0;
+
     return {
-      message: `Enabled ${response?.data?.enabledCount ?? 0} plugin${response?.data?.enabledCount === 1 ? "" : "s"}${(response?.data?.failedCount ?? 0) ? `, ${response?.data?.failedCount} failed to start` : ""}.`,
-      variant: (response?.data?.failedCount ?? 0) > 0 ? "warning" : "success",
+      message: `${t("plugins.feedback.enabledMany", {
+        count: response?.data?.enabledCount ?? 0,
+      })}${buildFailedToStartSuffix(locale, failedCount)}`,
+      variant: failedCount > 0 ? "warning" : "success",
     };
   }
 
   if (variables.intent === "plugin-automatic-updates") {
     return {
       message: pluginId
-        ? `${response?.data?.automaticUpdatesEnabled ? "Enabled" : "Disabled"} automatic updates for ${pluginId}.`
-        : "Plugin automatic update preference saved.",
+        ? t(
+            response?.data?.automaticUpdatesEnabled
+              ? "plugins.feedback.enabledAutomaticUpdatesForPlugin"
+              : "plugins.feedback.disabledAutomaticUpdatesForPlugin",
+            { id: pluginId }
+          )
+        : t("plugins.feedback.pluginAutomaticUpdatePreferenceSaved"),
       variant: "info",
     };
   }
 
   if (variables.intent === "global-automatic-updates") {
+    const disabledOverridesCount = response?.data?.disabledPluginAutomaticUpdatesCount ?? 0;
+
     return {
       message: response?.data?.automaticUpdatesEnabled
-        ? "Global automatic updates enabled."
-        : `Global automatic updates disabled.${(response?.data?.disabledPluginAutomaticUpdatesCount ?? 0) ? ` Cleared ${response?.data?.disabledPluginAutomaticUpdatesCount} plugin override${response?.data?.disabledPluginAutomaticUpdatesCount === 1 ? "" : "s"}.` : ""}`,
+        ? t("plugins.feedback.globalAutomaticUpdatesEnabled")
+        : `${t("plugins.feedback.globalAutomaticUpdatesDisabled")}${buildClearedOverridesSuffix(locale, disabledOverridesCount)}`,
       variant: "info",
     };
   }
 
   return {
-    message: pluginId ? `Updated ${pluginId}.` : "Plugin operation completed.",
+    message: pluginId ? t("plugins.feedback.updatedPlugin", { id: pluginId }) : t("plugins.feedback.operationCompleted"),
     variant: "success",
   };
 };
@@ -356,6 +426,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
   const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
   const theme = useTheme();
+  const { effectiveLanguage, t } = useLocalization();
   const window = useWindowDimensions();
 
   const [ installUrl, setInstallUrl ] = useState("");
@@ -512,19 +583,19 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       queryClient.invalidateQueries({ queryKey: ["pluginLogs"] });
       queryClient.invalidateQueries({ queryKey: ["pluginPreferences"] });
 
-      const feedback = buildMutationFeedback(response, variables);
+      const feedback = buildMutationFeedback(response, variables, t, effectiveLanguage);
 
       enqueueSnackbar({
         message: feedback.message,
         variant: feedback.variant,
-        action: { label: "Got it" },
+        action: { label: t("notifications.gotIt") },
       });
     },
     onError: (error) => {
       enqueueSnackbar({
         message: error?.response?.data?.message || error.message,
         variant: "error",
-        action: { label: "Got it" },
+        action: { label: t("notifications.gotIt") },
       });
     }
   });
@@ -536,16 +607,16 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       queryClient.invalidateQueries({ queryKey: ["pluginExtensions"] });
 
       enqueueSnackbar({
-        message: "Plugin removed.",
+        message: t("plugins.pluginRemoved"),
         variant: "success",
-        action: { label: "Got it" },
+        action: { label: t("notifications.gotIt") },
       });
     },
     onError: (error) => {
       enqueueSnackbar({
         message: error?.response?.data?.message || error.message,
         variant: "error",
-        action: { label: "Got it" },
+        action: { label: t("notifications.gotIt") },
       });
     }
   });
@@ -557,9 +628,9 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       queryClient.invalidateQueries({ queryKey: ["pluginRegistry"] });
 
       enqueueSnackbar({
-        message: "Trusted registry sources updated.",
+        message: t("plugins.registrySourcesUpdated"),
         variant: "success",
-        action: { label: "Got it" },
+        action: { label: t("notifications.gotIt") },
       });
 
       setRegistrySourceName("");
@@ -570,7 +641,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       enqueueSnackbar({
         message: error?.response?.data?.message || error.message,
         variant: "error",
-        action: { label: "Got it" },
+        action: { label: t("notifications.gotIt") },
       });
     }
   });
@@ -737,9 +808,9 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
             }}
           >
             <View style={{ flexShrink: 1, gap: 8 }}>
-              <Text variant="headlineSmall">Plugins</Text>
+              <Text variant="headlineSmall">{t("plugins.title")}</Text>
               <Text>
-                Manage installed plugins and use the dedicated settings tabs for plugins that declare them.
+                {t("plugins.manageDescription")}
               </Text>
             </View>
 
@@ -752,7 +823,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                   style={pillButtonStyle}
                   contentStyle={pillButtonContentStyle}
                 >
-                  Add a plugin
+                  {t("plugins.addPlugin")}
                 </Button>
                 <Button
                   mode="contained-tonal"
@@ -761,7 +832,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                   style={pillButtonStyle}
                   contentStyle={pillButtonContentStyle}
                 >
-                  Marketplace
+                  {t("plugins.marketplace")}
                 </Button>
                 <Menu
                   visible={globalActionsMenuVisible}
@@ -771,7 +842,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                       <IconButton
                         icon="dots-vertical"
                         mode="outlined"
-                        accessibilityLabel="Plugin manager actions"
+                        accessibilityLabel={t("plugins.pluginManagerActions")}
                         containerColor={theme.colors.elevation.level1}
                         size={20}
                         style={{ margin: 0 }}
@@ -782,7 +853,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                 >
                   <Menu.Item
                     leadingIcon="refresh"
-                    title="Check for updates"
+                    title={t("plugins.checkForUpdates")}
                     onPress={() => {
                       setGlobalActionsMenuVisible(false);
                       mutateAndRefresh.mutate({ url: "/plugins/check-updates", body: {}, intent: "check-updates-all" });
@@ -790,7 +861,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                   />
                   <Menu.Item
                     leadingIcon="update"
-                    title="Update all"
+                    title={t("plugins.updateAll")}
                     onPress={() => {
                       setGlobalActionsMenuVisible(false);
                       mutateAndRefresh.mutate({ url: "/plugins/update-all", body: {}, intent: "update-all" });
@@ -798,27 +869,27 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                   />
                   <Menu.Item
                     leadingIcon="pause-circle-outline"
-                    title="Disable all"
+                    title={t("plugins.disableAll")}
                     onPress={() => {
                       setGlobalActionsMenuVisible(false);
                       openConfirmationDialog({
                         kind: "disable-all",
-                        title: "Disable all plugins?",
-                        body: "This disables every currently enabled plugin on this instance.",
-                        confirmLabel: "Disable all",
+                        title: t("plugins.disableAllConfirmTitle"),
+                        body: t("plugins.disableAllConfirmBody"),
+                        confirmLabel: t("plugins.disableAll"),
                       });
                     }}
                   />
                   <Menu.Item
                     leadingIcon="power"
-                    title="Enable all"
+                    title={t("plugins.enableAll")}
                     onPress={() => {
                       setGlobalActionsMenuVisible(false);
                       openConfirmationDialog({
                         kind: "enable-all",
-                        title: "Enable all plugins?",
-                        body: "WPrint 3D will try to start every installed plugin again.",
-                        confirmLabel: "Enable all",
+                        title: t("plugins.enableAllConfirmTitle"),
+                        body: t("plugins.enableAllConfirmBody"),
+                        confirmLabel: t("plugins.enableAll"),
                       });
                     }}
                   />
@@ -843,19 +914,19 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                       status={globalAutomaticUpdatesEnabled ? "checked" : "unchecked"}
                       pointerEvents="none"
                     />
-                    <Text>Automatic updates</Text>
+                    <Text>{t("plugins.automaticUpdates")}</Text>
                   </Pressable>
                   <Divider />
                   <Menu.Item
                     leadingIcon="shield-alert"
-                    title="Enable safe mode"
+                    title={t("plugins.safeMode")}
                     onPress={() => {
                       setGlobalActionsMenuVisible(false);
                       openConfirmationDialog({
                         kind: "safe-mode",
-                        title: "Enable safe mode?",
-                        body: "This disables all enabled plugins so you can recover from a bad install or runtime issue.",
-                        confirmLabel: "Disable all plugins",
+                        title: t("plugins.safeModeConfirmTitle"),
+                        body: t("plugins.safeModeConfirmBody"),
+                        confirmLabel: t("plugins.disableAllPlugins"),
                       });
                     }}
                   />
@@ -868,46 +939,55 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
         {isAdministrator && (
           <View style={{ marginBottom: 16 }}>
             <View style={{ marginBottom: 16, gap: 4 }}>
-              <Text variant="titleMedium">Installed plugins</Text>
+              <Text variant="titleMedium">{t("plugins.installedPlugins")}</Text>
               <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                Manage what is already active on this instance.
+                {t("plugins.installedDescription")}
               </Text>
             </View>
 
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
                 {(installedPluginsQuery?.data?.data || []).map((plugin) => (
                   (() => {
-                    const toggleActionLabel = plugin.enabled ? "Disable" : (plugin.loadStatus === "failed" ? "Retry" : "Enable");
+                    const toggleActionLabel = plugin.enabled ? t("plugins.disable") : (plugin.loadStatus === "failed" ? t("plugins.retry") : t("plugins.enable"));
                     const toggleActionIcon = plugin.enabled ? "pause-circle-outline" : (plugin.loadStatus === "failed" ? "restart" : "power");
-                    const updateActionLabel = plugin.installSource?.type === "development_mount" ? "Refresh" : "Update";
+                    const updateActionLabel = plugin.installSource?.type === "development_mount" ? t("plugins.refresh") : t("plugins.update");
                     const updateActionIcon = plugin.installSource?.type === "development_mount" ? "refresh" : "update";
                     const hasSettingsPage = !!settingsPageMap[plugin.id];
 
                     const openToggleDialog = () => openConfirmationDialog({
                       kind: "toggle",
                       plugin,
-                      title: plugin.enabled ? `Disable ${plugin.name}?` : `${plugin.loadStatus === "failed" ? "Retry" : "Enable"} ${plugin.name}?`,
+                      title: plugin.enabled
+                        ? t("plugins.disablePluginTitle", { name: plugin.name })
+                        : t(
+                            plugin.loadStatus === "failed"
+                              ? "plugins.retryPluginTitle"
+                              : "plugins.enablePluginTitle",
+                            { name: plugin.name }
+                          ),
                       body: plugin.enabled
-                        ? "Its UI surfaces and actions will stop running until you enable it again."
+                        ? t("plugins.disablePluginBody")
                         : (plugin.loadStatus === "failed"
-                          ? "WPrint 3D will try to start the plugin again and record fresh startup logs."
-                          : "Its registered UI surfaces and actions will become active again."),
-                      confirmLabel: plugin.enabled ? "Disable plugin" : (plugin.loadStatus === "failed" ? "Retry plugin" : "Enable plugin"),
+                          ? t("plugins.retryPluginBody")
+                          : t("plugins.enablePluginBody")),
+                      confirmLabel: plugin.enabled
+                        ? t("plugins.disablePlugin")
+                        : (plugin.loadStatus === "failed" ? t("plugins.retryPlugin") : t("plugins.enablePlugin")),
                     });
 
                     const openRemoveDialog = () => openConfirmationDialog({
                       kind: "remove",
                       plugin,
-                      title: `Remove ${plugin.name}?`,
-                      body: "This uninstalls the plugin from the current WPrint 3D instance.",
-                      confirmLabel: "Remove plugin",
+                      title: t("plugins.removePluginTitle", { name: plugin.name }),
+                      body: t("plugins.removePluginBody"),
+                      confirmLabel: t("plugins.removePlugin"),
                     });
 
                     const secondaryActions = [
                       {
                         key: "logs",
                         icon: "text-box-search-outline",
-                        label: "Logs",
+                        label: t("plugins.logs"),
                         onPress: () => setLogsDialogPlugin({
                           id: plugin.id,
                           name: plugin.name,
@@ -922,7 +1002,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                       {
                         key: "remove",
                         icon: "trash-can-outline",
-                        label: "Remove",
+                        label: t("plugins.remove"),
                         titleStyle: { color: theme.colors.error },
                         onPress: openRemoveDialog,
                       },
@@ -933,7 +1013,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                         <Card.Title title={plugin.name} subtitle={`${plugin.id} • ${plugin.version}`} />
                         <Card.Content>
                           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-                            {buildPluginBadges(plugin, theme).map((badge) => (
+                            {buildPluginBadges(plugin, theme, t).map((badge) => (
                               <Tooltip key={`${plugin.id}-${badge.label}`} title={badge.tooltip}>
                                 <Chip icon={badge.icon} style={badge.style} textStyle={badge.textStyle}>
                                   {badge.label}
@@ -948,9 +1028,9 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                             </Text>
                           )}
 
-                          {!!buildRequirementSummary(plugin) && (
+                          {!!buildRequirementSummary(plugin, t) && (
                             <Text style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12 }}>
-                              {buildRequirementSummary(plugin)}
+                              {buildRequirementSummary(plugin, t)}
                             </Text>
                           )}
 
@@ -964,7 +1044,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                               }}
                             >
                               <Text style={{ color: theme.colors.onErrorContainer, fontWeight: "700", marginBottom: 4 }}>
-                                Plugin failed to load
+                                {t("plugins.pluginFailedToLoad")}
                               </Text>
                               <Text style={{ color: theme.colors.onErrorContainer }}>
                                 {plugin.lastError}
@@ -1005,9 +1085,9 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                               <Text style={{ color: theme.colors.onSurfaceVariant }}>
                                 {plugin.automaticUpdatesSupported
                                   ? (globalAutomaticUpdatesEnabled
-                                    ? "Install new registry releases for this plugin automatically."
-                                    : "Global automatic updates are disabled for all plugins.")
-                                  : "Only plugins installed from a trusted registry can update automatically."}
+                                    ? t("plugins.automaticUpdatesDescriptionEnabled")
+                                    : t("plugins.automaticUpdatesDescriptionDisabled"))
+                                  : t("plugins.automaticUpdatesDescriptionUnsupported")}
                               </Text>
                             </View>
                             <Switch
@@ -1033,7 +1113,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                                   contentStyle={{ minHeight: 44 }}
                                   onPress={() => onOpenSettingsPage(settingsPageMap[plugin.id].key)}
                                 >
-                                  Settings
+                                  {t("profile.settings")}
                                 </Button>
                               )}
                               <Button
@@ -1051,7 +1131,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                                 anchor={(
                                   <IconButton
                                     icon="dots-vertical"
-                                    accessibilityLabel={`${plugin.name} more actions`}
+                                    accessibilityLabel={t("plugins.moreActions", { name: plugin.name })}
                                     mode="outlined"
                                     size={20}
                                     containerColor={theme.colors.elevation.level1}
@@ -1083,7 +1163,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                                   contentStyle={pillButtonContentStyle}
                                   onPress={() => onOpenSettingsPage(settingsPageMap[plugin.id].key)}
                                 >
-                                  Settings
+                                  {t("profile.settings")}
                                 </Button>
                               )}
                               <Button
@@ -1096,7 +1176,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                                   name: plugin.name,
                                 })}
                               >
-                                Logs
+                                {t("plugins.logs")}
                               </Button>
                               <Button
                                 mode={plugin.enabled ? "outlined" : "contained-tonal"}
@@ -1126,7 +1206,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                                 contentStyle={pillButtonContentStyle}
                                 onPress={openRemoveDialog}
                               >
-                                Remove
+                                {t("plugins.remove")}
                               </Button>
                             </View>
                           )}
@@ -1138,7 +1218,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
 
               {!installedPluginsQuery?.data?.data?.length && (
                 <Text style={{ marginTop: 12 }}>
-                  No plugins are installed yet. Use `Add a plugin` or `Marketplace` to bring one in.
+                  {t("plugins.emptyInstalled")}
                 </Text>
               )}
             </View>
@@ -1149,7 +1229,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       <SimpleDialog
         visible={installModalVisible}
         setVisible={setInstallModalVisible}
-        title="Install a plugin"
+        title={t("plugins.installTitle")}
         style={{ maxWidth: 920 }}
         content={
           <View style={{ minHeight: 340 }}>
@@ -1159,14 +1239,14 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                 icon="link"
                 onPress={() => setInstallModalTab("url")}
               >
-                Install from URL
+                {t("plugins.installFromUrl")}
               </Button>
               <Button
                 mode={installModalTab === "upload" ? "contained-tonal" : "text"}
                 icon="upload"
                 onPress={() => setInstallModalTab("upload")}
               >
-                Upload from file
+                {t("plugins.uploadFromFile")}
               </Button>
               {developerModeEnabled && (
                 <Button
@@ -1174,7 +1254,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                   icon="flask"
                   onPress={() => setInstallModalTab("development")}
                 >
-                  Install unpacked
+                  {t("plugins.installUnpacked")}
                 </Button>
               )}
             </View>
@@ -1182,18 +1262,18 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
             {installModalTab === "url" && (
               <View style={{ gap: 12, paddingTop: 8 }}>
                 <Text>
-                  Install a remote `.w3dp` package directly from a URL. Use this for internal distribution or third-party sources you trust.
+                  {t("plugins.installUrlDescription")}
                 </Text>
                 <TextInput
                   mode="outlined"
-                  label="Package URL"
+                  label={t("plugins.packageUrl")}
                   value={installUrl}
                   onChangeText={setInstallUrl}
                   placeholder="https://example.com/plugin.w3dp"
                 />
                 <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
                   <Button mode="contained" onPress={installFromUrl} disabled={!installUrl}>
-                    Install from URL
+                    {t("plugins.installFromUrl")}
                   </Button>
                 </View>
               </View>
@@ -1262,7 +1342,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                       });
                     }}
                   >
-                    Choose a .w3dp package
+                    {t("plugins.choosePackage")}
                   </Button>
 
                   <Text
@@ -1272,7 +1352,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                       maxWidth: 320,
                     }}
                   >
-                    or drag and drop a <Text style={{ fontWeight: "700", color: theme.colors.onSurface }}>.w3dp</Text> file here
+                    {t("plugins.dragDropPackagePrefix")}<Text style={{ fontWeight: "700", color: theme.colors.onSurface }}>.w3dp</Text>{t("plugins.dragDropPackageSuffix")}
                   </Text>
                 </View>
               </View>
@@ -1281,24 +1361,24 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
             {installModalTab === "development" && developerModeEnabled && (
               <View style={{ gap: 14, paddingTop: 8 }}>
                 <Text style={{ textAlign: "center", color: theme.colors.onSurfaceVariant }}>
-                  Developer mode is enabled. Install plugins directly from the live development mount when this instance is running through `./run.sh -e dev`.
+                  {t("plugins.developmentDescription")}
                 </Text>
 
                 {developmentPluginsQuery.isPending && (
                   <Text style={{ textAlign: "center", color: theme.colors.onSurfaceVariant }}>
-                    Checking the live development mount…
+                    {t("plugins.checkingLiveDevelopmentMount")}
                   </Text>
                 )}
 
                 {developmentPluginsQuery.isError && (
                   <Card style={{ borderRadius: 18, backgroundColor: theme.colors.elevation.level1 }}>
                     <Card.Content style={{ gap: 10 }}>
-                      <Text variant="titleMedium">Development mount unavailable</Text>
+                      <Text variant="titleMedium">{t("plugins.developmentMountUnavailable")}</Text>
                       <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                        The unpacked plugin mount is only available when WPrint 3D is running from the source checkout with `./run.sh -e dev`.
+                        {t("plugins.developmentMountUnavailableDescription")}
                       </Text>
                       <Button mode="outlined" onPress={() => developmentPluginsQuery.refetch()}>
-                        Retry
+                        {t("plugins.retry")}
                       </Button>
                     </Card.Content>
                   </Card>
@@ -1310,12 +1390,12 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                       <>
                         <View style={{ flexDirection: "row", justifyContent: "center" }}>
                           <Button mode="text" icon="refresh" onPress={() => developmentPluginsQuery.refetch()}>
-                            Refresh
+                            {t("plugins.refresh")}
                           </Button>
                         </View>
                         <View style={{ gap: 8 }}>
                           <Text style={{ textAlign: "center" }}>
-                            Source mounts
+                            {t("plugins.sourceMounts")}
                           </Text>
                           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
                             {(developmentPluginsQuery?.data?.data?.mountPaths || []).map((mountPath) => (
@@ -1351,8 +1431,8 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                                     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                                       <Text variant="titleMedium" style={{ flexShrink: 1 }}>{plugin.name}</Text>
                                       {!!plugin.mountLabel && (
-                                        <Chip compact icon={plugin.mountLabel === "Local plugins" ? "folder-home-outline" : "flask-outline"}>
-                                          {plugin.mountLabel}
+                                        <Chip compact icon={plugin.mountLabel === t("plugins.localPluginsMountLabel") ? "folder-home-outline" : "flask-outline"}>
+                                          {plugin.mountLabel === t("plugins.localPluginsMountLabel") ? t("plugins.localPlugins") : plugin.mountLabel}
                                         </Chip>
                                       )}
                                     </View>
@@ -1360,7 +1440,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                                   </View>
                                   {!!plugin.description && <Text>{plugin.description}</Text>}
                                   <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                                    Mounted path: {plugin.relativePath || plugin.path}
+                                    {t("plugins.mountedPath", { path: plugin.relativePath || plugin.path })}
                                   </Text>
                                   {!!plugin.warning && (
                                     <Text style={{ color: theme.colors.error }}>
@@ -1378,14 +1458,14 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                                     onPress={() => installFromDevelopmentPath(plugin.path)}
                                     disabled={!!plugin.warning}
                                   >
-                                    Install unpacked plugin
+                                    {t("plugins.installUnpackedPlugin")}
                                   </Button>
                                 </Card.Content>
                               </Card>
                             ))}
                             {!developmentPluginsQuery?.data?.data?.plugins?.length && (
                               <Text style={{ textAlign: "center", color: theme.colors.onSurfaceVariant, width: "100%" }}>
-                                No unpacked plugins were found in the live development mounts yet.
+                                {t("plugins.noUnpackedPlugins")}
                               </Text>
                             )}
                           </View>
@@ -1394,17 +1474,17 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                     ) : (
                       <Card style={{ borderRadius: 18, backgroundColor: theme.colors.elevation.level1 }}>
                         <Card.Content style={{ gap: 10 }}>
-                          <Text variant="titleMedium">Live development mount unavailable</Text>
+                          <Text variant="titleMedium">{t("plugins.liveDevelopmentMountUnavailable")}</Text>
                           <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                            This instance is not running from `./run.sh -e dev`, so unpacked plugins cannot be installed live.
+                            {t("plugins.liveDevelopmentMountUnavailableDescription")}
                           </Text>
                           {!!developmentPluginsQuery?.data?.data?.configuredMountPath && (
                             <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                              Configured mount path: {developmentPluginsQuery?.data?.data?.configuredMountPath}
+                              {t("plugins.configuredMountPath", { path: developmentPluginsQuery?.data?.data?.configuredMountPath })}
                             </Text>
                           )}
                           <Button mode="outlined" icon="refresh" onPress={() => developmentPluginsQuery.refetch()}>
-                            Refresh
+                            {t("plugins.refresh")}
                           </Button>
                         </Card.Content>
                       </Card>
@@ -1417,7 +1497,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
         }
         actions={
           <Button mode="text" onPress={() => setInstallModalVisible(false)}>
-            Close
+            {t("plugins.close")}
           </Button>
         }
       />
@@ -1430,20 +1510,20 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
             setRegistrySourcesVisible(false);
           }
         }}
-        title="Marketplace"
+        title={t("plugins.marketplaceTitle")}
         style={{ maxWidth: 1180 }}
         content={
           <View style={{ minHeight: 420, maxHeight: window.height * 0.72, gap: 16 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
               <View style={{ flex: 1, gap: 6 }}>
-                <Text variant="titleMedium">Official registry and trusted sources</Text>
+                <Text variant="titleMedium">{t("plugins.registryIntroTitle")}</Text>
                 <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                  Browse reviewed packages from WPrint 3D and any third-party registries you explicitly trust.
+                  {t("plugins.registryIntroDescription")}
                 </Text>
               </View>
-              <Tooltip title="Manage trusted third-party registries">
+              <Tooltip title={t("plugins.manageRegistrySources")}>
                 <IconButton
-                  accessibilityLabel="Registry sources"
+                  accessibilityLabel={t("plugins.registrySources")}
                   icon="cog-outline"
                   mode="contained-tonal"
                   onPress={() => setRegistrySourcesVisible(true)}
@@ -1454,13 +1534,13 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
             <Searchbar
               value={registryQuery}
               onChangeText={setRegistryQuery}
-              placeholder="Search registry plugins"
+              placeholder={t("plugins.searchRegistryPlugins")}
             />
 
             <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
                 {filteredRegistryPlugins.map((plugin) => {
-                  const sourceBadge = buildRegistrySourceBadge(plugin.registrySource, theme);
+                  const sourceBadge = buildRegistrySourceBadge(plugin.registrySource, theme, t);
 
                   return (
                     <Card key={`${plugin.registrySource?.id || "registry"}-${plugin.id}`} style={gridCardStyle(theme, cardWidth, isWideLayout)}>
@@ -1476,7 +1556,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                               {sourceBadge.label}
                             </Chip>
                           </Tooltip>
-                          {buildDependencyBadges(plugin, theme).map((badge) => (
+                          {buildDependencyBadges(plugin, theme, t).map((badge) => (
                             <Tooltip key={`${plugin.registrySource?.id || "registry"}-${plugin.id}-${badge.label}`} title={badge.tooltip}>
                               <Chip icon={badge.icon} style={badge.style} textStyle={badge.textStyle}>
                                 {badge.label}
@@ -1502,9 +1582,9 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                           </Text>
                         )}
 
-                        {!!buildRequirementSummary(plugin) && (
+                        {!!buildRequirementSummary(plugin, t) && (
                           <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                            {buildRequirementSummary(plugin)}
+                            {buildRequirementSummary(plugin, t)}
                           </Text>
                         )}
 
@@ -1536,17 +1616,17 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                             <Icon source="information" size={18} color={theme.colors.onSecondaryContainer} />
                             <View style={{ flex: 1, gap: 4 }}>
                               <Text style={{ color: theme.colors.onSecondaryContainer, fontWeight: "700" }}>
-                                Trusted third-party registry
+                                {t("plugins.trustedRegistry")}
                               </Text>
                               <Text style={{ color: theme.colors.onSecondaryContainer }}>
-                                This plugin was signed by a third-party registry that you trust.
+                                {t("plugins.trustedRegistryDescription")}
                               </Text>
                             </View>
                           </View>
                         )}
 
                         <Button mode="contained" onPress={() => installFromRegistry(plugin)}>
-                          Install
+                          {t("plugins.install")}
                         </Button>
                       </Card.Content>
                     </Card>
@@ -1556,7 +1636,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                 {!filteredRegistryPlugins.length && !registryPluginsQuery.isLoading && (
                   <Card style={{ borderRadius: 18, width: "100%" }}>
                     <Card.Content>
-                      <Text>No registry plugins matched this search.</Text>
+                      <Text>{t("plugins.noRegistryMatches")}</Text>
                     </Card.Content>
                   </Card>
                 )}
@@ -1566,7 +1646,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
         }
         actions={
           <Button mode="text" onPress={() => setMarketplaceVisible(false)}>
-            Close
+            {t("plugins.close")}
           </Button>
         }
       />
@@ -1574,16 +1654,16 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       <SimpleDialog
         visible={registrySourcesVisible}
         setVisible={setRegistrySourcesVisible}
-        title="Trusted registry sources"
+        title={t("plugins.registryTitle")}
         style={{ maxWidth: 980 }}
         content={
           <View style={{ gap: 16, minHeight: 320 }}>
             <Text style={{ color: theme.colors.onSurfaceVariant }}>
-              Official registry packages are always available. Add extra registry indexes here if you want the marketplace to surface third-party plugins from sources you trust.
+              {t("plugins.registryDescription")}
             </Text>
 
             <Card style={{ borderRadius: 18, backgroundColor: theme.colors.elevation.level1 }}>
-              <Card.Title title="Official registry" subtitle="Built-in and always enabled" />
+              <Card.Title title={t("plugins.officialRegistry")} subtitle={t("plugins.builtInAlwaysEnabled")} />
               <Card.Content>
                 <Text selectable>{registrySources.find((source) => source.official)?.indexUrl}</Text>
               </Card.Content>
@@ -1607,25 +1687,25 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                         <Text selectable>{source.indexUrl}</Text>
                         {!!source.websiteUrl && (
                           <Text selectable style={{ color: theme.colors.onSurfaceVariant }}>
-                            Website: {source.websiteUrl}
+                            {t("plugins.website", { url: source.websiteUrl })}
                           </Text>
                         )}
                       </View>
                       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                         <Text style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>
-                          Plugins from this source will be marked as trusted third-party listings in the marketplace.
+                          {t("plugins.pluginsFromSourceDescription")}
                         </Text>
                         <Button
                           mode="outlined"
                           onPress={() => openConfirmationDialog({
                             kind: "remove-registry-source",
                             source,
-                            title: `Remove ${source.name}?`,
-                            body: "This removes the registry from the marketplace for this WPrint 3D instance.",
-                            confirmLabel: "Remove source",
+                            title: t("plugins.removeSourceTitle", { name: source.name }),
+                            body: t("plugins.removeSourceBody"),
+                            confirmLabel: t("plugins.removeSource"),
                           })}
                         >
-                          Remove
+                          {t("plugins.remove")}
                         </Button>
                       </View>
                     </Card.Content>
@@ -1635,7 +1715,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                 {!trustedRegistrySources.length && (
                   <Card style={{ borderRadius: 18, backgroundColor: theme.colors.elevation.level1 }}>
                     <Card.Content>
-                      <Text>No trusted third-party registries have been added yet.</Text>
+                      <Text>{t("plugins.noTrustedRegistrySources")}</Text>
                     </Card.Content>
                   </Card>
                 )}
@@ -1643,18 +1723,18 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
             </ScrollView>
 
             <Card style={{ borderRadius: 18, backgroundColor: theme.colors.elevation.level2 }}>
-              <Card.Title title="Add a trusted registry" subtitle="Marketplace source settings" />
+              <Card.Title title={t("plugins.addTrustedRegistry")} subtitle={t("plugins.marketplaceSourceSettings")} />
               <Card.Content style={{ gap: 12 }}>
                 <TextInput
                   mode="outlined"
-                  label="Registry name"
+                  label={t("plugins.registryName")}
                   value={registrySourceName}
                   onChangeText={setRegistrySourceName}
-                  placeholder="Partner registry"
+                  placeholder={t("plugins.registryNamePlaceholder")}
                 />
                 <TextInput
                   mode="outlined"
-                  label="Index URL"
+                  label={t("plugins.indexUrl")}
                   value={registrySourceIndexUrl}
                   onChangeText={setRegistrySourceIndexUrl}
                   placeholder="https://plugins.example.com/index.json"
@@ -1662,7 +1742,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                 />
                 <TextInput
                   mode="outlined"
-                  label="Website URL (optional)"
+                  label={t("plugins.websiteUrlOptional")}
                   value={registrySourceWebsiteUrl}
                   onChangeText={setRegistrySourceWebsiteUrl}
                   placeholder="https://plugins.example.com"
@@ -1675,7 +1755,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                     onPress={addTrustedRegistrySource}
                     disabled={!registrySourceName.trim() || !registrySourceIndexUrl.trim() || updateRegistrySourcesMutation.isPending}
                   >
-                    Save source
+                    {t("plugins.saveSource")}
                   </Button>
                 </View>
               </Card.Content>
@@ -1684,7 +1764,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
         }
         actions={
           <Button mode="text" onPress={() => setRegistrySourcesVisible(false)}>
-            Close
+            {t("plugins.close")}
           </Button>
         }
       />
@@ -1692,22 +1772,22 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       <SimpleDialog
         visible={!!logsDialogPlugin}
         setVisible={() => setLogsDialogPlugin(null)}
-        title={logsDialogPlugin ? `${logsDialogPlugin.name} logs` : "Plugin logs"}
+        title={logsDialogPlugin ? t("plugins.pluginLogsTitleWithName", { name: logsDialogPlugin.name }) : t("plugins.pluginLogsTitle")}
         style={{ maxWidth: 980 }}
         content={
           <View style={{ gap: 16, minHeight: 320, maxHeight: window.height * 0.7 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
               <Text style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>
-                Live startup and runtime diagnostics for this plugin. Entries refresh while this dialog is open.
+                {t("plugins.pluginLogsDescription")}
               </Text>
               <Button mode="outlined" icon="refresh" onPress={() => pluginLogsQuery.refetch()}>
-                Refresh
+                {t("plugins.refresh")}
               </Button>
             </View>
 
             {pluginLogsQuery.isPending && (
               <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                Loading plugin logs…
+                {t("plugins.loadingPluginLogs")}
               </Text>
             )}
 
@@ -1715,7 +1795,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
               <Card style={{ borderRadius: 18, backgroundColor: theme.colors.errorContainer }}>
                 <Card.Content>
                   <Text style={{ color: theme.colors.onErrorContainer }}>
-                    {pluginLogsQuery.error?.response?.data?.message || pluginLogsQuery.error?.message || "Unable to load plugin logs."}
+                    {pluginLogsQuery.error?.response?.data?.message || pluginLogsQuery.error?.message || t("plugins.unableToLoadPluginLogs")}
                   </Text>
                 </Card.Content>
               </Card>
@@ -1764,7 +1844,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                   {!pluginLogsQuery?.data?.data?.length && (
                     <Card style={{ borderRadius: 18, backgroundColor: theme.colors.elevation.level1 }}>
                       <Card.Content>
-                        <Text>No plugin lifecycle logs have been recorded yet.</Text>
+                        <Text>{t("plugins.noLogsYet")}</Text>
                       </Card.Content>
                     </Card>
                   )}
@@ -1775,7 +1855,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
         }
         actions={
           <Button mode="text" onPress={() => setLogsDialogPlugin(null)}>
-            Close
+            {t("plugins.close")}
           </Button>
         }
       />
@@ -1783,15 +1863,15 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       <SimpleDialog
         visible={!!confirmationDialog}
         setVisible={closeConfirmationDialog}
-        title={confirmationDialog?.title || "Confirm action"}
+        title={confirmationDialog?.title || t("plugins.confirmAction")}
         content={<Text>{confirmationDialog?.body}</Text>}
         actions={
           <>
             <Button mode="text" onPress={closeConfirmationDialog}>
-              Cancel
+              {t("plugins.cancel")}
             </Button>
             <Button mode="contained" onPress={executeConfirmedAction}>
-              {confirmationDialog?.confirmLabel || "Continue"}
+              {confirmationDialog?.confirmLabel || t("plugins.continue")}
             </Button>
           </>
         }

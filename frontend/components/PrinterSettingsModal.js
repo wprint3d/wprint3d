@@ -5,12 +5,15 @@ import { useEffect, useState } from "react";
 
 import PrinterSettingsModalDetails from "./PrinterSettingsModalDetails";
 import PrinterSettingsModalLinking from "./PrinterSettingsModalLinking";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import API from "../includes/API";
 import BackButton from "./modules/BackButton";
+import { LocalizationContext, useLocalization } from "../includes/LocalizationProvider";
 
 const PrinterSettingsModal = ({ isVisible, setIsVisible, printer, isSmallTablet }) => {
     const theme = useTheme();
+    const localization = useLocalization();
+    const { effectiveLanguage, t } = localization;
 
     const [ details,    setDetails   ] = useState(null);
     const [ loading,    setLoading   ] = useState(true);
@@ -54,7 +57,7 @@ const PrinterSettingsModal = ({ isVisible, setIsVisible, printer, isSmallTablet 
                     }}
                 >
                     {isSmallTablet && <BackButton onPress={() => setIsVisible(false)} />}
-                    <TabsProvider defaultIndex={0}>
+                    <TabsProvider key={`printer-settings-tabs:${effectiveLanguage}`} defaultIndex={0}>
                         <Tabs
                             style={{
                                 backgroundColor: theme.colors.elevation.level1,
@@ -64,11 +67,15 @@ const PrinterSettingsModal = ({ isVisible, setIsVisible, printer, isSmallTablet 
                             tabHeaderStyle={{ alignSelf: 'center' }}
                             showLeadingSpace={false}
                         >
-                            <TabScreen label="Details" icon="cog">
-                                <PrinterSettingsModalDetails details={details} isLoading={loading} error={error} />
+                            <TabScreen key={`details:${effectiveLanguage}`} label={t("settings.detailsTab")} icon="cog">
+                                <LocalizationContext.Provider value={localization}>
+                                    <PrinterSettingsModalDetails details={details} isLoading={loading} error={error} />
+                                </LocalizationContext.Provider>
                             </TabScreen>
-                            <TabScreen label="Linking" icon="link">
-                                <PrinterSettingsModalLinking details={details} isLoading={loading} error={error} printer={printer} />
+                            <TabScreen key={`linking:${effectiveLanguage}`} label={t("settings.linkingTab")} icon="link">
+                                <LocalizationContext.Provider value={localization}>
+                                    <PrinterSettingsModalLinking details={details} isLoading={loading} error={error} printer={printer} />
+                                </LocalizationContext.Provider>
                             </TabScreen>
                         </Tabs>
                     </TabsProvider>

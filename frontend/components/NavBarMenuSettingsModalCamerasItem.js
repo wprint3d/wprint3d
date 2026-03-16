@@ -7,9 +7,11 @@ import API from "../includes/API";
 
 import SimpleDialog from "./SimpleDialog";
 import UserPrinterCamera from "./UserPrinterCamera";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLaptop, enqueueSnackbar, handleSettingsModal }) => {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const queryClient = useQueryClient();
 
@@ -36,9 +38,9 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
             console.error('NavBarMenuSettingsModalCamerasItem: deletePrinterMutation: onError:', error, printer);
 
             enqueueSnackbar({
-                message: 'An error occurred while deleting the printer: ' + (error?.response?.data?.message ?? 'unknown error').toLowerCase(),
+                message: `${t("camera.deleteTitle")}: ${(error?.response?.data?.message ?? 'unknown error').toLowerCase()}`,
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("password.dismiss") }
             });
         }
     });
@@ -56,19 +58,19 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
             <SimpleDialog
                 visible={showDeleteDialog}
                 setVisible={setShowDeleteDialog}
-                title="Delete camera"
+                title={t("camera.deleteTitle")}
                 content={
                     <Text variant="bodyMedium">
-                        Are you sure you want to delete the camera "<Text style={{ fontWeight: 'bold' }}>{camera?.label ?? 'Unknown camera'}"</Text>?
+                        {t("camera.deleteBody", { name: camera?.label ?? t("camera.unknownCamera") })}
                     </Text>
                 }
                 actions={
                     <>
                         <Button onPress={() => setShowDeleteDialog(false)} loading={deleteCameraMutation.isLoading}>
-                            No
+                            {t("camera.no")}
                         </Button>
                         <Button onPress={() => deleteCamera(camera)} loading={deleteCameraMutation.isLoading}>
-                            Yes
+                            {t("camera.yes")}
                         </Button>
                     </>
                 }
@@ -105,7 +107,7 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
                                         <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                                             <Icon source={'eye-off'} color={colors.onPrimary} size={48} />
                                             <Text style={{ color: colors.onPrimary, fontSize: 16, textAlign: 'center', paddingVertical: 8 }}>
-                                                No preview available
+                                                {t("camera.noPreview")}
                                             </Text>
                                         </View>
                                     </View>
@@ -121,22 +123,22 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
                                 }
                             }}
                         >
-                            {camera?.connected ? 'Online' : 'Offline'}
+                            {camera?.connected ? t("camera.online") : t("camera.offline")}
                         </Badge>
                     </View>
                     <Card.Title
-                        title={camera?.label ?? 'Unknown camera'}
+                        title={camera?.label ?? t("camera.unknownCamera")}
                         subtitleNumberOfLines={4}
                         subtitle={
                             <Text>
                                 {camera?.node}
                                 {'\n'}
-                                {!(camera?.supportsMjpeg ?? true) && (
+                                {!(camera?.supportsMjpeg ?? true) && (camera?.streamsMjpeg ?? true) && (
                                     <Text>
                                         <Icon source="alert" size={12} />
 
                                         <Text style={{ marginLeft: 2, fontSize: 12, color: colors.onSurfaceVariant }}>
-                                            Slow mode (MJPEG is not supported)
+                                            {t("camera.slowMode")}
                                         </Text>
                                     </Text>
                                 )}
@@ -152,7 +154,7 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
 
                                 setShowPreviewDialog(true);
                             }}
-                        >Preview</Button>
+                        >{t("camera.preview")}</Button>
                         <Button
                             icon="pencil"
                             loading={deleteCameraMutation.isLoading}
@@ -161,7 +163,7 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
 
                                 handleSettingsModal(camera);
                             }}
-                        >Edit</Button>
+                        >{t("camera.edit")}</Button>
                         <Button
                             icon="delete"
                             loading={deleteCameraMutation.isLoading}
@@ -179,9 +181,9 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
                                 console.debug('Camera is online, cannot delete');
 
                                 enqueueSnackbar({
-                                    message: 'Cannot delete a camera while it\'s online',
+                                    message: t("camera.cannotDeleteOnline"),
                                     variant: 'error',
-                                    action:  { label: 'Got it' }
+                                    action:  { label: t("password.dismiss") }
                                 });
                             }}
                             theme={{
@@ -190,7 +192,7 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
                                     onPrimary:  colors.white
                                 }
                             }}
-                        >Delete</Button>
+                        >{t("camera.delete")}</Button>
                     </Card.Actions>
                 </Card>
             </View>
@@ -198,12 +200,12 @@ const NavBarMenuSettingsModalCamerasItem = ({ camera, isSmallTablet, isSmallLapt
             <SimpleDialog
                 visible={showPreviewDialog}
                 setVisible={setShowPreviewDialog}
-                title={`Previewing camera "${camera.label}"`}
-                content={<UserPrinterCamera url={camera.url} isConnected={camera.connected} supportsMjpeg={camera?.supportsMjpeg ?? true} />}
+                title={t("camera.previewingCamera", { name: camera.label })}
+                content={<UserPrinterCamera url={camera.url} isConnected={camera.connected} streamsMjpeg={camera?.streamsMjpeg ?? camera?.supportsMjpeg ?? true} />}
                 style={{ maxWidth: 1000, width: '95%' }}
                 actions={
                     <Button mode="text" onPress={() => setShowPreviewDialog(false)}>
-                        Close
+                        {t("camera.close")}
                     </Button>
                 }
             />

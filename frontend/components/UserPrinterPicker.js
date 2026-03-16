@@ -7,12 +7,13 @@ import { Icon, Menu, Text, TextInput } from "react-native-paper";
 
 import API from "../includes/API";
 import { useEcho } from "../hooks/useEcho";
+import { useLocalization } from "../includes/LocalizationProvider";
 
-const buildPrinterOption = (printer) => {
+const buildPrinterOption = (printer, t) => {
     const simulated = printer?.machine?.connectionType === "fakeSerial" || printer?.machine?.simulated === true;
 
     return {
-        label: `${printer?.machine?.machineType ?? "Unknown printer"} (${printer?.machine?.uuid})`,
+        label: `${printer?.machine?.machineType ?? t("settings.unknownPrinter")} (${printer?.machine?.uuid})`,
         value: printer._id,
         icon: simulated ? "monitor" : "printer-3d-nozzle-outline",
         simulated,
@@ -20,6 +21,7 @@ const buildPrinterOption = (printer) => {
 };
 
 export default function UserPrinterPicker({ printerId }) {
+    const { t } = useLocalization();
     const [ showMenu, setShowMenu ] = useState(false);
     const [ options,  setOptions  ] = useState([]);
 
@@ -39,7 +41,7 @@ export default function UserPrinterPicker({ printerId }) {
     useEffect(() => {
         if (printersListQuery.isFetching) {
             setOptions([{
-                label: "Loading...",
+                label: t("printer.picker.loading"),
                 value: null,
                 icon: "progress-clock",
                 disabled: true,
@@ -50,7 +52,7 @@ export default function UserPrinterPicker({ printerId }) {
 
         if (printersListQuery.isError) {
             setOptions([{
-                label: "Something went wrong",
+                label: t("printer.picker.loadError"),
                 value: null,
                 icon: "alert-circle-outline",
                 disabled: true,
@@ -63,7 +65,7 @@ export default function UserPrinterPicker({ printerId }) {
 
         if (!printersList.length) {
             setOptions([{
-                label: "No printers available",
+                label: t("settings.noPrinters"),
                 value: null,
                 icon: "usb-port",
                 disabled: true,
@@ -72,8 +74,8 @@ export default function UserPrinterPicker({ printerId }) {
             return;
         }
 
-        setOptions(printersList.map(buildPrinterOption));
-    }, [ printersListQuery.data, printersListQuery.isError, printersListQuery.isFetching ]);
+        setOptions(printersList.map((printer) => buildPrinterOption(printer, t)));
+    }, [ printersListQuery.data, printersListQuery.isError, printersListQuery.isFetching, t ]);
 
     useEffect(() => {
         if (!options.length || printerId || options[0]?.value === null) {
@@ -106,7 +108,7 @@ export default function UserPrinterPicker({ printerId }) {
         [ options, printerId ]
     );
 
-    const selectedLabel = selectedOption?.label ?? "Select a printer";
+    const selectedLabel = selectedOption?.label ?? t("printer.picker.selectPrinter");
     const selectedIcon = selectedOption?.icon ?? "printer-3d-nozzle-outline";
 
     return (
@@ -118,7 +120,7 @@ export default function UserPrinterPicker({ printerId }) {
                     <TouchableOpacity onPress={() => setShowMenu(true)} activeOpacity={0.9}>
                         <View pointerEvents="none">
                             <TextInput
-                                label="Printer"
+                                label={t("printer.picker.label")}
                                 mode="outlined"
                                 editable={false}
                                 value={selectedLabel}
@@ -152,10 +154,10 @@ export default function UserPrinterPicker({ printerId }) {
                 <View style={{ alignItems: "center", flexGrow: 1, justifyContent: "center", paddingVertical: 80 }}>
                     <Icon source="connection" size={48} />
                     <Text style={{ paddingTop: 20, textAlign: "center" }}>
-                        To get started, plug a compatible printer and wait for a few seconds.
+                        {t("printer.picker.emptyState")}
                         {"\n"}
                         {"\n"}
-                        Once the printer is ready to go, it'll be selected automatically.
+                        {t("printer.picker.emptyStateFollowUp")}
                     </Text>
                 </View>
             )}

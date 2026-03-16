@@ -19,7 +19,10 @@ class Camera extends Model
         'mode',
         'format',
         'availableFormats',
-        'requiresLibCamera'
+        'requiresLibCamera',
+        'supportsMjpeg',
+        'streamsMjpeg',
+        'captureEncoding',
     ];
 
     public function scopeConnected(Builder $query): void {

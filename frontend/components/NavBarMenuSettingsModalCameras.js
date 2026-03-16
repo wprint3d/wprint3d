@@ -7,8 +7,10 @@ import { useEffect, useState } from "react";
 import API from "../includes/API";
 import CameraSettingsModal from "./CameraSettingsModal";
 import { View } from "react-native";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalCameras = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
+  const { t } = useLocalization();
   const allCameras = useQuery({
     queryKey: ['cameras'],
     queryFn:  () => API.get('/cameras')
@@ -37,7 +39,7 @@ const NavBarMenuSettingsModalCameras = ({ isSmallTablet, isSmallLaptop, enqueueS
   }, [ allCameras ]);
 
   if (allCameras.isFetching) {
-    return <UserPaneLoadingIndicator message={`Loading cameras list`} />;
+    return <UserPaneLoadingIndicator message={t("settings.loadingCameras")} />;
   }
 
   return (
@@ -45,12 +47,12 @@ const NavBarMenuSettingsModalCameras = ({ isSmallTablet, isSmallLaptop, enqueueS
       {cameras.length === 0 && !allCameras.isFetching
         ? <NavBarMenuSettingsModalPlaceholderItem
               icon="camera-off"
-              message="No cameras were detected"
+              message={t("settings.noCameras")}
               troubleshootingOptions={[
-                'Reset the USB controller.',
-                'Re-seat the camera\'s USB plug into the port.',
-                'If it\'s a CSI camera, ensure that the flex cable works properly.',
-                'Restart the host.',
+                t("settings.cameraTroubleshootingResetUsb"),
+                t("settings.cameraTroubleshootingReseat"),
+                t("settings.cameraTroubleshootingCsi"),
+                t("settings.cameraTroubleshootingRestartHost"),
               ]}
           />
         : (

@@ -5,10 +5,12 @@ import SimpleDialog from "./SimpleDialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import API from "../includes/API";
 import PrinterSettingsModal from "./PrinterSettingsModal";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 
 const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLaptop, enqueueSnackbar, handleSettingsModal }) => {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const queryClient = useQueryClient();
 
@@ -34,9 +36,11 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
             console.error('NavbarMenuSettingsModalPrintersItem: deletePrinterMutation: onError:', error, printer);
 
             enqueueSnackbar({
-                message: 'An error occurred while deleting the printer: ' + (error?.response?.data?.message ?? 'unknown error').toLowerCase(),
+                message: t("settings.printerDeleteError", {
+                    reason: (error?.response?.data?.message ?? 'unknown error').toLowerCase(),
+                }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
         }
     });
@@ -54,19 +58,21 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
             <SimpleDialog
                 visible={showDeleteDialog}
                 setVisible={setShowDeleteDialog}
-                title="Delete printer"
+                title={t("settings.deletePrinterTitle")}
                 content={
                     <Text variant="bodyMedium">
-                        Are you sure you want to delete the printer "<Text style={{ fontWeight: 'bold' }}>{printer?.machine?.machineType ?? 'Unknown printer'}"</Text>?
+                        {t("settings.deletePrinterBody", {
+                            name: printer?.machine?.machineType ?? t("settings.unknownPrinter"),
+                        })}
                     </Text>
                 }
                 actions={
                     <>
                         <Button onPress={() => setShowDeleteDialog(false)} loading={deletePrinterMutation.isLoading}>
-                            No
+                            {t("notifications.no")}
                         </Button>
                         <Button onPress={() => deletePrinter(printer)} loading={deletePrinterMutation.isLoading}>
-                            Yes
+                            {t("notifications.yes")}
                         </Button>
                     </>
                 }
@@ -103,7 +109,7 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
                                         <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                                             <Icon source={'eye-off'} color={colors.onPrimary} size={48} />
                                             <Text style={{ color: colors.onPrimary, fontSize: 16, textAlign: 'center', paddingVertical: 8 }}>
-                                                No preview available
+                                                {t("settings.previewUnavailable")}
                                             </Text>
                                         </View>
                                     </View>
@@ -119,11 +125,11 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
                                 }
                             }}
                         >
-                            {printer?.connected ? 'Online' : 'Offline'}
+                            {printer?.connected ? t("camera.online") : t("camera.offline")}
                         </Badge>
                     </View>
                     <Card.Title
-                        title={printer?.machine?.machineType ?? 'Unknown printer'}
+                        title={printer?.machine?.machineType ?? t("settings.unknownPrinter")}
                         subtitle={printer?.machine?.uuid}
                         titleVariant="headlineSmall"
                     />
@@ -137,7 +143,7 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
 
                                 handleSettingsModal(printer);
                             }}
-                        >Edit</Button>
+                        >{t("camera.edit")}</Button>
                         <Button
                             icon="delete"
                             loading={deletePrinterMutation.isLoading}
@@ -155,9 +161,9 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
                                 console.debug('Printer is online, cannot delete');
 
                                 enqueueSnackbar({
-                                    message: 'Cannot delete a printer while it\'s online',
+                                    message: t("settings.cannotDeleteOnlinePrinter"),
                                     variant: 'error',
-                                    action:  { label: 'Got it' }
+                                    action:  { label: t("notifications.gotIt") }
                                 });
                             }}
                             theme={{
@@ -166,7 +172,7 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
                                     onPrimary:  colors.white
                                 }
                             }}
-                        >Delete</Button>
+                        >{t("camera.delete")}</Button>
                     </Card.Actions>
                 </Card>
             </View>

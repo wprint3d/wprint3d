@@ -7,9 +7,11 @@ import { useSnackbar } from "react-native-paper-snackbar-stack";
 import TooltipToggleButton from "./modules/TooltipToggleButton";
 import SimpleDialog from "./SimpleDialog";
 import UserPrinterCamera from "./UserPrinterCamera";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }) => {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const queryClient = useQueryClient();
 
@@ -42,9 +44,12 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
             console.error('PrinterSettingsModalLinkingCamera: linkCameraMutation: onError:', error, variables, context);
 
             enqueueSnackbar({
-                message: `An error occurred while ${isLinked ? 'unlinking' : 'linking'} the camera: ${(error?.response?.data?.message ?? 'unknown error').toLowerCase()}`,
+                message: t("camera.linkError", {
+                    action: isLinked ? t("camera.unlinkAction") : t("camera.linkAction"),
+                    reason: (error?.response?.data?.message ?? t("camera.unknownError")).toLowerCase(),
+                }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
 
             setIsRecordable(variables.isLinked); // reset to previous state
@@ -71,9 +76,12 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
             console.error('PrinterSettingsModalLinkingCamera: recordCameraMutation: onError:', error, variables, context);
 
             enqueueSnackbar({
-                message: `An error occurred while ${isRecordable ? 'disabling' : 'enabling'} recording for the camera: ${(error?.response?.data?.message ?? 'unknown error').toLowerCase()}`,
+                message: t("camera.recordingLinkError", {
+                    action: isRecordable ? t("camera.disableRecordingAction") : t("camera.enableRecordingAction"),
+                    reason: (error?.response?.data?.message ?? t("camera.unknownError")).toLowerCase(),
+                }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
 
             setIsRecordable(variables.isRecordable); // reset to previous state
@@ -95,12 +103,12 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
                     {' - '}
                     {!camera.enabled && (
                         <>
-                            <Text style={{ marginRight: 5 }}> disabled </Text>
+                            <Text style={{ marginRight: 5 }}> {t("camera.disabledBadge")} </Text>
                             <Icon source="power" />
                         </>
                     ) || (!camera.connected && (
                         <>
-                            <Text style={{ marginRight: 5 }}> offline </Text>
+                            <Text style={{ marginRight: 5 }}> {t("camera.offlineBadge")} </Text>
                             <Icon source="connection" />
                         </>
                     ))}
@@ -110,8 +118,8 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
                 <View style={{ flexDirection: 'row', gap: 4 }}>
                     <TooltipToggleButton
                         onPress={({ wasChecked }) => linkCameraMutation.mutate({ isLinked: wasChecked, cameraId: camera._id })}
-                        tooltip="Unlink"
-                        disabledTooltip="Link"
+                        tooltip={t("camera.unlinkAction")}
+                        disabledTooltip={t("camera.linkAction")}
                         icon="link-variant"
                         isChecked={isLinked}
                         checkedColor="green"
@@ -120,27 +128,27 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
 
                     <TooltipToggleButton
                         onPress={({ wasChecked }) => recordCameraMutation.mutate({ isRecordable: wasChecked, cameraId: camera._id })}
-                        tooltip="Disable recording"
-                        disabledTooltip="Enable recording"
+                        tooltip={t("camera.disableRecordingAction")}
+                        disabledTooltip={t("camera.enableRecordingAction")}
                         icon="record"
                         isChecked={isRecordable}
                         checkedColor="red"
                         disabled={isLoading || recordCameraMutation.isPending}
                     />
 
-                    <Tooltip title="Preview">
+                    <Tooltip title={t("camera.preview")}>
                         <ToggleButton disabled={isLoading} icon="eye" status="unchecked" onPress={() => setPreviewVisible(true)} />
                     </Tooltip>
 
                     <SimpleDialog
                         visible={previewVisible}
                         setVisible={setPreviewVisible}
-                        title={`Previewing camera "${camera.label}"`}
-                        content={<UserPrinterCamera url={camera.url} isConnected={camera.connected} supportsMjpeg={camera?.supportsMjpeg ?? true} />}
+                        title={t("camera.previewingCamera", { name: camera.label })}
+                        content={<UserPrinterCamera url={camera.url} isConnected={camera.connected} streamsMjpeg={camera?.streamsMjpeg ?? camera?.supportsMjpeg ?? true} />}
                         style={{ maxWidth: 1000, width: '95%' }}
                         actions={
                             <Button mode="text" onPress={() => setPreviewVisible(false)}>
-                                Close
+                                {t("camera.close")}
                             </Button>
                         }
                     />

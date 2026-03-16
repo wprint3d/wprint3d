@@ -9,6 +9,7 @@ import { ActivityIndicator, Badge, Divider, Icon, List, Text, useTheme } from "r
 import UserPrinterFileListControls from "./UserPrinterFileListControls";
 
 import API from "../includes/API";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserPrinterFileList({
     selectedFileName,
@@ -21,6 +22,7 @@ export default function UserPrinterFileList({
     isParentBusy = false
 }) {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const sortingModesIcons = {
         NAME_ASCENDING:     'sort-alphabetical-ascending',
@@ -30,10 +32,10 @@ export default function UserPrinterFileList({
     };
 
     const sortingModesTitles = {
-        NAME_ASCENDING:     'Name ascending',
-        NAME_DESCENDING:    'Name descending',
-        DATE_ASCENDING:     'Date ascending',
-        DATE_DESCENDING:    'Date descending'
+        NAME_ASCENDING:     t("files.nameAscending"),
+        NAME_DESCENDING:    t("files.nameDescending"),
+        DATE_ASCENDING:     t("files.dateAscending"),
+        DATE_DESCENDING:    t("files.dateDescending")
     };
 
     const [ sortingMode,  setSortingMode  ] = useState(null);
@@ -91,6 +93,11 @@ export default function UserPrinterFileList({
     }, [ selectedFileName ]);
 
     let components = [];
+    const formatPrintCount = (count) => (
+        count === 1
+            ? t("files.printCountOne", { count })
+            : t("files.printCountOther", { count })
+    );
 
     const isBusy = fileList.isFetching || sortingModes.isFetching || isParentBusy;
 
@@ -105,8 +112,8 @@ export default function UserPrinterFileList({
                 title={
                     (
                         fileList.isFetching
-                            ? 'Loading files list'
-                            : 'Getting sorting modes'
+                            ? t("files.loadingFilesList")
+                            : t("files.gettingSortingModes")
                     ) + '...'
                 }
                 left={() => <ActivityIndicator animating={true} style={{ paddingLeft: 10 }} />}
@@ -146,7 +153,7 @@ export default function UserPrinterFileList({
                         if (!file?.prints) {
                             return (
                                 <Badge theme={{ colors: { onError: '#FFFFFF' } }} style={{ paddingHorizontal: 8 }}>
-                                    NEW
+                                    {t("files.newBadge")}
                                 </Badge>
                             );
                         }
@@ -162,7 +169,7 @@ export default function UserPrinterFileList({
                                     }}
                                     style={{ paddingHorizontal: 8 }}
                                 >
-                                    {file.prints} print{file.prints > 1 ? 's' : ''}
+                                    {formatPrintCount(file.prints)}
                                 </Badge>
                             );
                         }
@@ -177,7 +184,7 @@ export default function UserPrinterFileList({
                                 }}
                                 style={{ paddingHorizontal: 8 }}
                             >
-                                {file.prints} print{file.prints > 1 ? 's' : ''}
+                                {formatPrintCount(file.prints)}
                             </Badge>
                         );
                     }}
@@ -193,12 +200,18 @@ export default function UserPrinterFileList({
 
     if (components.length == 0) {
         components.push(
-            <List.Item
-                key={components.length}
-                title={
-                    subDirectory.length == 0
-                        ? <Text> No files uploaded, try uploading something.</Text>
-                        : <Text> No files uploaded, <Text onPress={() => deleteDirectoryMutation.mutate(subDirectory)} style={{ textDecoration: 'underline' }}>delete this folder</Text> or try uploading something.</Text>
+                <List.Item
+                    key={components.length}
+                    title={
+                        subDirectory.length == 0
+                            ? <Text>{t("files.emptyRoot")}</Text>
+                            : <Text>
+                                {t("files.emptySubdirectoryPrefix")}
+                                <Text onPress={() => deleteDirectoryMutation.mutate(subDirectory)} style={{ textDecoration: 'underline' }}>
+                                    {t("files.deleteThisFolder")}
+                                </Text>
+                                {t("files.emptySubdirectorySuffix")}
+                            </Text>
                 }
                 disabled={true}
             />

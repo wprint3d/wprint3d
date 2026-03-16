@@ -11,9 +11,11 @@ import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 import dayjs from "dayjs"
 import NavBarMenuSettingsModalPlaceholderItem from "./NavBarMenuSettingsModalPlaceholderItem"
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
     const theme = useTheme();
+    const { t } = useLocalization();
 
     const [ logs, setLogs ] = useState({});
 
@@ -47,9 +49,15 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
             console.debug('NavBarMenuSettingsModalDeveloperLogging: deleteLogMutation: onSuccess', data);
 
             enqueueSnackbar({
-                message: (selectedLogs.length === 0 ? 'All logs have been cleared.' : `${selectedLogs.length} log${selectedLogs.length === 1 ? ' has' : 's have'} been deleted.`),
+                message: selectedLogs.length === 0
+                    ? t("plugins.logsCleared")
+                    : (
+                        selectedLogs.length === 1
+                            ? t("plugins.logsDeletedOne")
+                            : t("plugins.logsDeletedMany", { count: selectedLogs.length })
+                    ),
                 variant: 'success',
-                action:  { label: 'Dismiss' }
+                action:  { label: t("notifications.dismiss") }
             });
 
             logIndexQuery.refetch();
@@ -58,9 +66,11 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
             console.error('NavBarMenuSettingsModalDeveloperLogging: deleteLogMutation: onError', error);
 
             enqueueSnackbar({
-                message: `Couldn't clear logs: ${(error.response?.data?.message || error.message).toLowerCase()}`,
+                message: t("plugins.clearLogsError", {
+                    reason: (error.response?.data?.message || error.message).toLowerCase(),
+                }),
                 variant: 'error',
-                action:  { label: 'Dismiss' }
+                action:  { label: t("notifications.dismiss") }
             });
         }
     });
@@ -117,9 +127,11 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
             console.error('Error downloading log:', error);
 
             enqueueSnackbar({
-                message: `Couldn't download file: ${(error.response?.data?.message || error.message).toLowerCase()}`,
+                message: t("plugins.downloadLogError", {
+                    reason: (error.response?.data?.message || error.message).toLowerCase(),
+                }),
                 variant: 'error',
-                action:  { label: 'Dismiss' }
+                action:  { label: t("notifications.dismiss") }
             });
         }
 
@@ -199,7 +211,7 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
     }, [logIndexQuery.data, sorting]);
 
     if (logIndexQuery.isFetching) {
-        return <UserPaneLoadingIndicator message={'Loading logs index...'} />;
+        return <UserPaneLoadingIndicator message={t("plugins.loadingLogsIndex")} />;
     }
 
     if (logIndexQuery.isError) {
@@ -207,7 +219,7 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
             <NavBarMenuSettingsModalPlaceholderItem
                 icon="alert-circle-outline"
                 message={
-                    'An error occurred while loading the logs index: ' +
+                    t("plugins.loadingLogsError") +
                     '\n\n' +
                     (logIndexQuery?.error?.response?.data?.message || logIndexQuery?.error?.message)
                 }
@@ -218,7 +230,7 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
     return (
         <View style={{ maxHeight: '100%' }}>
             <Text style={{ textAlign: 'center', paddingVertical: 24 }}>
-                From this page you can view, download and clear your server logs.
+                {t("plugins.developerLoggingDescription")}
             </Text>
 
             <DataTable style={{ flexGrow: 1, overflow: 'scroll' }}>
@@ -255,10 +267,10 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
                             setSorting(sorting === 'ascending' ? 'descending' : 'ascending');
                         }}
                     >
-                        Path
+                        {t("plugins.path")}
                     </DataTable.Title>
                     <DataTable.Title style={{ flex: 'none', minWidth: 160, justifyContent: 'center' }}>
-                        Actions
+                        {t("plugins.actions")}
                     </DataTable.Title>
                 </DataTable.Header>
 
@@ -274,13 +286,13 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
                             {log}
                         </DataTable.Cell>
                         <DataTable.Cell style={{ flex: 'none', minWidth: 160 }}>
-                            <Tooltip title="Preview">
+                            <Tooltip title={t("plugins.preview")}>
                                 <IconButton icon="eye"      onPress={() => handleLogPreview(log)}   />
                             </Tooltip>
-                            <Tooltip title="Download">
+                            <Tooltip title={t("plugins.download")}>
                                 <IconButton icon="download" onPress={() => handleLogDownload(log)}  />
                             </Tooltip>
-                            <Tooltip title="Delete">
+                            <Tooltip title={t("notifications.delete")}>
                                 <IconButton icon="delete"   onPress={() => handleSelectedLogDelete(log)} />
                             </Tooltip>
                         </DataTable.Cell>
@@ -305,10 +317,10 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
                             },
                             label: (() => {
                                 if (selectedLogs.length === 0) {
-                                    return 'Download all';
+                                    return t("plugins.downloadAllLogs");
                                 }
 
-                                return `Download ${selectedLogs.length} logs`;
+                                return t("plugins.downloadSelectedLogs", { count: selectedLogs.length });
                             })(),
                             onPress: () => {
                                 console.debug('Download');
@@ -334,10 +346,10 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
                             },
                             label: (() => {
                                 if (selectedLogs.length === 0) {
-                                    return 'Clear all';
+                                    return t("plugins.clearAllLogs");
                                 }
 
-                                return `Delete ${selectedLogs.length} logs`;
+                                return t("plugins.deleteSelectedLogs", { count: selectedLogs.length });
                             })(),
                             onPress: () => {
                                 console.debug('Clear');
@@ -363,7 +375,7 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
 
             <SimpleDialog
                 visible={previewLog !== null}
-                title={`Previewing log "${previewLog}"`}
+                title={t("plugins.previewLogTitle", { name: previewLog })}
                 content={<FormattedLogView fileName={previewLog} wrap={previewWrap} />}
                 style={{ maxWidth: 1000, width: '95%', maxHeight: '95%' }}
                 onDismiss={() => setPreviewLog(null)}
@@ -376,7 +388,7 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
                     }}>
                         <Checkbox.Item
                             testID="wrap-text-checkbox"
-                            label="Wrap"
+                            label={t("plugins.wrap")}
                             status={previewWrap ? 'checked' : 'unchecked'}
                             position="leading"
                             labelVariant="bodySmall"
@@ -390,10 +402,10 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
 
                                 handleLogDownload(previewLog);
                             }} icon="download">
-                                Download
+                                {t("plugins.download")}
                             </Button>
                             <Button mode="text" onPress={() => setPreviewLog(null)}>
-                                Close
+                                {t("notifications.close")}
                             </Button>
                         </View>
                     </View>
@@ -402,12 +414,15 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
 
             <SimpleDialog
                 visible={isDeleting}
-                title={selectedLogs.length === 0 ? 'Clear all logs' : `Delete ${selectedLogs.length} file${selectedLogs.length === 1 ? '' : 's'}`}
+                title={selectedLogs.length === 0
+                    ? t("plugins.clearAllLogs")
+                    : t("plugins.deleteLogsTitle", { count: selectedLogs.length })
+                }
                 content={
                     <Text>
                         {selectedLogs.length === 0
-                            ? 'Are you sure you want to clear all logs?'
-                            : `Are you sure you want to delete ${selectedLogs.length} file${selectedLogs.length === 1 ? '' : 's'}?`
+                            ? t("plugins.clearAllLogsBody")
+                            : t("plugins.deleteLogsBody", { count: selectedLogs.length })
                         }
                     </Text>
                 }
@@ -425,10 +440,10 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
                             style={{ backgroundColor: theme.colors.error }}
                             textColor={theme.colors.white}
                         >
-                            Delete
+                            {t("notifications.delete")}
                         </Button>
                         <Button mode="text" onPress={() => setIsDeleting(false)}>
-                            Cancel
+                            {t("notifications.cancel")}
                         </Button>
                     </View>
                 }

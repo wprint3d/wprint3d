@@ -4,9 +4,11 @@ import { View } from "react-native";
 import { Badge, Button, Card, List, Text, TextInput, useTheme } from "react-native-paper";
 import API from "../includes/API";
 import SimpleDialog from "./SimpleDialog";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalPresetsItem = ({ material, isSmallTablet, isSmallLaptop, enqueueSnackbar, handleEditModal }) => {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const queryClient = useQueryClient();
 
@@ -30,9 +32,9 @@ const NavBarMenuSettingsModalPresetsItem = ({ material, isSmallTablet, isSmallLa
             console.error('NavBarMenuSettingsModalPresetsItem: deleteMaterialMutation: onError:', error, material);
 
             enqueueSnackbar({
-                message: 'An error occurred while deleting the material: ' + (error?.response?.data?.message ?? 'unknown error').toLowerCase(),
+                message: t("presets.deleteError", { reason: (error?.response?.data?.message ?? 'unknown error').toLowerCase() }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
         }
     });
@@ -46,18 +48,18 @@ const NavBarMenuSettingsModalPresetsItem = ({ material, isSmallTablet, isSmallLa
     return (
         <>
             <SimpleDialog
-                title="Delete material"
+                title={t("presets.deleteTitle")}
                 visible={showDeleteDialog}
                 setVisible={setShowDeleteDialog}
                 actions={
                     <>
-                        <Button onPress={() => setShowDeleteDialog(false)}>Cancel</Button>
-                        <Button onPress={() => deleteMaterial(material)}>Delete</Button>
+                        <Button onPress={() => setShowDeleteDialog(false)}>{t("presets.cancel")}</Button>
+                        <Button onPress={() => deleteMaterial(material)}>{t("presets.delete")}</Button>
                     </>
                 }
                 content={
                     <Text variant="bodyMedium">
-                        Are you sure you want to delete the material "<Text style={{ fontWeight: 'bold' }}>{material?.name ?? 'Unknown material'}"</Text>?
+                        {t("presets.deleteBody", { name: material?.name ?? t("presets.unknownMaterial") })}
                     </Text>
                 }
             />
@@ -76,15 +78,15 @@ const NavBarMenuSettingsModalPresetsItem = ({ material, isSmallTablet, isSmallLa
             }}>
                 <Card style={{ padding: 8, backgroundColor: colors.surface }}>
                     <Card.Title
-                        title={material?.name ?? 'Unknown material'}
+                        title={material?.name ?? t("presets.unknownMaterial")}
                         // subtitle={printer?.machine?.uuid}
                         subtitleNumberOfLines={2}
                         titleVariant="headlineSmall"
                     />
                     <Card.Content>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
-                            <List.Item title="Hotend" description={(material?.temperatures?.hotend ? `${material.temperatures.hotend}°C` : 'Unknown temperature')} />
-                            <List.Item title="Bed"    description={(material?.temperatures?.bed    ? `${material.temperatures.bed}°C`    : 'Unknown temperature')} />
+                            <List.Item title={t("presets.hotend")} description={(material?.temperatures?.hotend ? `${material.temperatures.hotend}°C` : t("presets.unknownTemperature"))} />
+                            <List.Item title={t("presets.bed")}    description={(material?.temperatures?.bed    ? `${material.temperatures.bed}°C`    : t("presets.unknownTemperature"))} />
                         </View>
                     </Card.Content>
                     <Card.Actions>
@@ -98,7 +100,7 @@ const NavBarMenuSettingsModalPresetsItem = ({ material, isSmallTablet, isSmallLa
 
                                     handleEditModal(material);
                                 }}
-                            >Edit</Button>
+                            >{t("presets.edit")}</Button>
                             <Button
                                 mode="contained"
                                 icon="delete"
@@ -114,7 +116,7 @@ const NavBarMenuSettingsModalPresetsItem = ({ material, isSmallTablet, isSmallLa
                                         onPrimary:  colors.white
                                     }
                                 }}
-                            >Delete</Button>
+                            >{t("presets.delete")}</Button>
                         </View>
                     </Card.Actions>
                 </Card>

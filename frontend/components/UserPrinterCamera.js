@@ -8,11 +8,13 @@ import { Image } from "expo-image";
 import UserPrinterCameraError from "./UserPrinterCameraError";
 import UserPrinterCameraInformation from "./UserPrinterCameraInformation";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
+import { useLocalization } from "../includes/LocalizationProvider";
 
-const UserPrinterCamera = ({ url, isConnected, supportsMjpeg = true }) => {
+const UserPrinterCamera = ({ url, isConnected, streamsMjpeg = true }) => {
     const image = useRef(null);
 
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const [ width,      setWidth      ] = useState(0);
     const [ activeURL,  setActiveURL  ] = useState(null);
@@ -36,7 +38,7 @@ const UserPrinterCamera = ({ url, isConnected, supportsMjpeg = true }) => {
     useEffect(() => {
         console.debug('UserPrinterCamera: isUpdating:', isUpdating);
 
-        if (supportsMjpeg) {
+        if (streamsMjpeg) {
             return; // Exit early if MJPEG is supported
         }
 
@@ -47,7 +49,7 @@ const UserPrinterCamera = ({ url, isConnected, supportsMjpeg = true }) => {
         return () => {
             clearInterval(interval); // Cleanup the interval when the component unmounts
         };
-    }, [url]); // Depend on `url` to update the interval if `url` changes
+    }, [url, streamsMjpeg]); // Depend on `url` to update the interval if `url` changes
 
     useEffect(() => {
         console.debug('UserPrinterCamera: activeURL:', activeURL);
@@ -59,12 +61,12 @@ const UserPrinterCamera = ({ url, isConnected, supportsMjpeg = true }) => {
         return (
             <UserPrinterCameraError
                 icon="power-plug"
-                message="This camera is not connected."
+                message={t("camera.notConnected")}
                 height={viewHeight}
                 suggestions={[
-                    'Make sure that the camera is plugged in.',
-                    'Reset the USB controller.',
-                    'Restart the host.'
+                    t("camera.suggestionPlugIn"),
+                    t("camera.suggestionResetUsb"),
+                    t("camera.suggestionRestartHost")
                 ]}
                 onLayout={event => setWidth(event.nativeEvent.layout.width)}
             />
@@ -76,12 +78,12 @@ const UserPrinterCamera = ({ url, isConnected, supportsMjpeg = true }) => {
             <View style={{ margin: 8 }}>
                 <UserPrinterCameraError
                     icon="exclamation"
-                    message="This camera is not working."
+                    message={t("camera.notWorking")}
                     height={viewHeight}
                     error={error}
                     suggestions={[
-                        'Re-seat the camera into the port.',
-                        'Restart the host.'
+                        t("camera.suggestionReseat"),
+                        t("camera.suggestionRestartHost")
                     ]}
                     onLayout={event => setWidth(event.nativeEvent.layout.width)}
                 />
@@ -102,7 +104,7 @@ const UserPrinterCamera = ({ url, isConnected, supportsMjpeg = true }) => {
                     justifyContent: 'center',
                     height:         '100%'
                 }}>
-                    <UserPaneLoadingIndicator message="Buffering stream" />
+                    <UserPaneLoadingIndicator message={t("camera.bufferingStream")} />
                 </View>
             </UserPrinterCameraInformation>
 
@@ -136,12 +138,12 @@ const UserPrinterCamera = ({ url, isConnected, supportsMjpeg = true }) => {
                     }}
                 />
 
-                {!supportsMjpeg && (
+                {!streamsMjpeg && (
                     <View style={{ width: '100%', flexDirection: 'row', justifyContent: 'center', paddingTop: 10 }}>
                         <Icon source="alert" size={12} />
 
                         <Text style={{ marginLeft: 2, fontSize: 12, color: colors.onSurfaceVariant }}>
-                            Slow mode (MJPEG is not supported)
+                            {t("camera.slowMode")}
                         </Text>
                     </View>
                 )}

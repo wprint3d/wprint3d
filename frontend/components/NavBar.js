@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 
 import { Appbar } from 'react-native-paper';
 
 import NavBarMenu from './NavBarMenu';
 import PluginHostRenderer from './PluginHostRenderer';
 import usePluginExtensions from '../hooks/usePluginExtensions';
+import { getNavBarLeftPadding } from '../utils/navBar';
 
 export default function NavBar({
   heightReporter = () => {}, enqueueSnackbar = () => {},
@@ -13,6 +14,7 @@ export default function NavBar({
 }) {
   const [ headerHeight, _setHeaderHeight ] = useState(0);
   const navbarWidgetExtensions = usePluginExtensions('navbar_widget');
+  const windowWidth = useWindowDimensions().width;
 
   const setHeaderHeight = (height) => {
     _setHeaderHeight(height);
@@ -24,7 +26,10 @@ export default function NavBar({
 
   return (
     <>
-      <Appbar.Header onLayout={event => setHeaderHeight(event.nativeEvent.layout.height)} style={{ minHeight: 46 }}>
+      <Appbar.Header
+        onLayout={event => setHeaderHeight(event.nativeEvent.layout.height)}
+        style={{ minHeight: 46, paddingLeft: getNavBarLeftPadding(windowWidth) }}
+      >
         <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ marginRight: 14, flexShrink: 0 }}>
             <Appbar.Content

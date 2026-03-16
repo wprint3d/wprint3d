@@ -8,9 +8,11 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'react-native-paper-snackbar-stack';
 import API from '../includes/API';
+import { useLocalization } from '../includes/LocalizationProvider';
 
 export default function UserPrinterFileControlsUploader({ subDirectory, setSelectedFileName }) {
   const { colors } = useTheme();
+  const { t } = useLocalization();
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -33,9 +35,9 @@ export default function UserPrinterFileControlsUploader({ subDirectory, setSelec
       console.error('fileUploadMutation onError:', error);
 
       enqueueSnackbar({
-        message: 'Failed to upload file: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+        message: t("files.uploadError", { reason: (error.response?.data?.message ?? error.message).toLowerCase() }),
         variant: 'error',
-        action:  { label: 'Got it' }
+        action:  { label: t("notifications.gotIt") }
       });
     }
   });
@@ -64,7 +66,7 @@ export default function UserPrinterFileControlsUploader({ subDirectory, setSelec
             size={16}
           />
         }
-      > Upload </SmallButton>
+      > {t("files.upload")} </SmallButton>
     </>
   );
 };

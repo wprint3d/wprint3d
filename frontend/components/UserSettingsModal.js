@@ -6,9 +6,11 @@ import DropDown from "react-native-paper-dropdown";
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import API from "../includes/API";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTablet, isSmallLaptop, enqueueSnackbar, setSelectedUser, setGeneratedPassword }) => {
     const queryClient = useQueryClient();
+    const { t } = useLocalization();
 
     const { colors } = useTheme();
 
@@ -23,9 +25,9 @@ const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTabl
         mutationFn: async ({ username, email, role }) => API.post('/users', { username, email, role }),
         onSuccess: response => {
             enqueueSnackbar({
-                message: 'The user has been created.',
+                message: t("users.createUserSuccess"),
                 variant: 'success',
-                action:  { label: 'Dismiss', onPress: () => {} }
+                action:  { label: t("notifications.dismiss"), onPress: () => {} }
             });
 
             const user      = response?.data?.user,
@@ -43,9 +45,9 @@ const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTabl
             console.error('UserSettingsModal.addNewUserMutation.onError', error);
 
             enqueueSnackbar({
-                message: error?.response?.data?.message || 'An error occurred while creating the user.',
+                message: error?.response?.data?.message || t("users.createUserError"),
                 variant: 'error',
-                action:  { label: 'Dismiss', onPress: () => {} }
+                action:  { label: t("notifications.dismiss"), onPress: () => {} }
             });
         }
     });
@@ -56,11 +58,11 @@ const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTabl
             enqueueSnackbar({
                 message: (
                     user === null
-                        ? 'The user has been created.'
-                        : 'The user settings have been saved.'
+                        ? t("users.createUserSuccess")
+                        : t("users.saveUserSuccess")
                 ),
                 variant: 'success',
-                action:  { label: 'Dismiss', onPress: () => {} }
+                action:  { label: t("notifications.dismiss"), onPress: () => {} }
             });
 
             onDismiss();
@@ -72,9 +74,9 @@ const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTabl
             console.error('UserSettingsModal.saveChangesMutation.onError', error);
 
             enqueueSnackbar({
-                message: error?.response?.data?.message || 'An error occurred while saving the user settings.',
+                message: error?.response?.data?.message || t("users.saveUserError"),
                 variant: 'error',
-                action:  { label: 'Dismiss', onPress: () => {} }
+                action:  { label: t("notifications.dismiss"), onPress: () => {} }
             });
         }
     });
@@ -132,14 +134,14 @@ const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTabl
                     <View style={{ padding: 8, marginBottom: 16 }}>
                         {
                             user?._id
-                                ? <Text variant="headlineSmall"><Icon source="pencil" size={24} /> Edit <TextBold>{user?.name}</TextBold>'s account</Text>
-                                : <Text variant="headlineSmall"><Icon source="account-plus" size={24} /> Create a new user</Text>
+                                ? <Text variant="headlineSmall"><Icon source="pencil" size={24} /> {t("users.editUserTitlePrefix")} <TextBold>{user?.name}</TextBold>{t("users.editUserTitleSuffix")}</Text>
+                                : <Text variant="headlineSmall"><Icon source="account-plus" size={24} /> {t("users.createUserTitle")}</Text>
                         }
                     </View>
                     <View style={{ marginBottom: 16 }}>
                         <TextInput
                             mode="outlined"
-                            label="Username"
+                            label={t("users.usernameLabel")}
                             value={username}
                             onChangeText={text => setUsername(text)}
                             activeOutlineColor={isUsernameValid ? colors.primary : colors.error}
@@ -148,7 +150,7 @@ const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTabl
                     <View style={{ marginBottom: 16 }}>
                         <TextInput
                             mode="outlined"
-                            label="E-mail address"
+                            label={t("users.emailAddressLabel")}
                             value={email}
                             onChangeText={text => setEmail(text)}
                             activeOutlineColor={isEmailValid ? colors.primary : colors.error}
@@ -156,7 +158,7 @@ const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTabl
                     </View>
                     <View style={{ marginBottom: 16 }}>
                         <DropDown
-                            label="Role"
+                            label={t("users.roleLabel")}
                             mode="outlined"
                             value={role}
                             setValue={value => setRole(value)}
@@ -171,9 +173,9 @@ const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTabl
                                 }
 
                                 enqueueSnackbar({
-                                    message: 'You cannot change the role of this user.',
+                                    message: t("users.cannotChangeRole"),
                                     variant: 'error',
-                                    action:  { label: 'Dismiss', onPress: () => {} }
+                                    action:  { label: t("notifications.dismiss"), onPress: () => {} }
                                 });
                             }}
                         />
@@ -189,7 +191,7 @@ const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTabl
                                             marginLeft: 8,
                                             color: canSave ? colors.onPrimary : colors.disabled
                                         }}>
-                                            Save changes
+                                            {t("settings.saveChanges")}
                                         </Text>
                                     </Button>
                                 )
@@ -200,7 +202,7 @@ const UserSettingsModal = ({ user = null, roles, onDismiss, visible, isSmallTabl
                                             marginLeft: 8,
                                             color: canSave ? colors.onPrimary : colors.disabled
                                         }}>
-                                            Create user
+                                            {t("users.createUserCta")}
                                         </Text>
                                     </Button>
                                 )

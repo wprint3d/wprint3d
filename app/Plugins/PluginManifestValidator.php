@@ -216,6 +216,7 @@ class PluginManifestValidator
         $manifest['sourceUrl'] = $this->normalizeOptionalUrl($manifest['sourceUrl'] ?? null, 'sourceUrl');
         $manifest['updateSource'] = $manifest['updateSource'] ?? [];
         $manifest['settings'] = $this->normalizeSettings($manifest['settings'] ?? []);
+        $manifest['i18n'] = $this->normalizeI18n($manifest['i18n'] ?? [], $manifest['assets']);
 
         return $manifest;
     }
@@ -291,6 +292,45 @@ class PluginManifestValidator
         return [
             'defaults' => is_array($defaults) ? $defaults : [],
         ];
+    }
+
+    private function normalizeI18n(array $i18n, array $declaredAssets): array
+    {
+        if ($i18n === []) {
+            return [];
+        }
+
+        $defaultLocale = $i18n['defaultLocale'] ?? null;
+
+        if ($defaultLocale !== null && ! is_string($defaultLocale)) {
+            throw new InvalidPluginManifestException('Plugin i18n.defaultLocale must be a string.');
+        }
+
+        $files = $i18n['files'] ?? [];
+
+        if ($files !== [] && ! is_array($files)) {
+            throw new InvalidPluginManifestException('Plugin i18n.files must be an object.');
+        }
+
+        $normalizedFiles = [];
+
+        foreach ($files as $locale => $reference) {
+            if (! is_string($locale) || trim($locale) === '') {
+                throw new InvalidPluginManifestException('Plugin i18n.files locale keys must be non-empty strings.');
+            }
+
+            if (! is_string($reference) || trim($reference) === '') {
+                throw new InvalidPluginManifestException("Plugin i18n file for {$locale} must be a non-empty asset reference.");
+            }
+
+            $this->assertDeclaredAssetReference($reference, "i18n {$locale}", $declaredAssets);
+            $normalizedFiles[$locale] = trim($reference);
+        }
+
+        return array_filter([
+            'defaultLocale' => $defaultLocale ? trim($defaultLocale) : null,
+            'files' => $normalizedFiles,
+        ]);
     }
 
     private function normalizeImages(array $images): array

@@ -29,8 +29,10 @@ import SliderTag from "./modules/SliderTag";
 
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { useLastTerminalMessage } from "../hooks/useLastTerminalMessage";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserPrinterPreview({ printerId, isSmallTablet = false }) {
+    const { t } = useLocalization();
     const cache = useCache();
 
     const windowSize = useWindowDimensions();
@@ -362,7 +364,7 @@ export default function UserPrinterPreview({ printerId, isSmallTablet = false })
             >
                 <View style={{ flexDirection: 'row', flexGrow: 1 }}>
                     <AppbarActionWithTooltip
-                        title="Show extrusion"
+                        title={t("printer.preview.showExtrusion")}
                         icon="printer-3d-nozzle"
                         onPress={() => setShowExtrusion(!showExtrusion)}
                         disabled={!showExtrusion}
@@ -370,7 +372,7 @@ export default function UserPrinterPreview({ printerId, isSmallTablet = false })
                     />
 
                     <AppbarActionWithTooltip
-                        title="Show travel moves"
+                        title={t("printer.preview.showTravelMoves")}
                         icon="axis-arrow"
                         onPress={() => setShowTravelMoves(!showTravelMoves)}
                         disabled={!showTravelMoves}
@@ -443,7 +445,7 @@ export default function UserPrinterPreview({ printerId, isSmallTablet = false })
                     />
 
                     <AppbarActionWithTooltip
-                        title="Live preview"
+                        title={t("printer.preview.livePreview")}
                         icon={selectedLayer === null ? 'pause': 'play'}
                         onPress={() => setSelectedLayer(selectedLayer === null ? currentLayer : null)}
                         disabled={!isPrinting}

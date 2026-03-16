@@ -4,6 +4,7 @@ namespace App\Libraries;
 
 use App\Models\Configuration;
 use App\Plugins\PluginHookCompiler;
+use App\Support\CameraRuntimeMetadata;
 use Closure;
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
@@ -22,6 +23,8 @@ class HardwareCamera
     private array $pluginHooks;
 
     private bool $supportsMjpeg = false;
+
+    private ?string $captureEncoding = null;
 
     private bool $requiresLibCamera = false;
 
@@ -151,8 +154,12 @@ class HardwareCamera
 
         if ($this->formats) {
             $this->supportsMjpeg = true;
+            $this->captureEncoding = 'MJPG';
         } elseif ($output->contains('YUYV')) {
             $this->loadFormatsFromDiscreteUVC(input: $output, captureType: 'YUYV');
+            if ($this->formats) {
+                $this->captureEncoding = 'YUYV';
+            }
         }
     }
 
@@ -216,5 +223,15 @@ class HardwareCamera
     public function supportsMjpeg(): bool
     {
         return $this->supportsMjpeg;
+    }
+
+    public function captureEncoding(): ?string
+    {
+        return $this->captureEncoding;
+    }
+
+    public function streamsMjpeg(): bool
+    {
+        return $this->requiresLibCamera || CameraRuntimeMetadata::supportsSoftwareMjpeg($this->captureEncoding);
     }
 }

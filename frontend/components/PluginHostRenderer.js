@@ -7,6 +7,7 @@ import { useSnackbar } from "react-native-paper-snackbar-stack";
 import API from "../includes/API";
 import { usePluginLoading } from "./PluginLoadingProvider";
 import useActivePrinterId from "../hooks/useActivePrinterId";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const clampPercentage = (value) => {
   if (!Number.isFinite(value)) { return 0; }
@@ -53,7 +54,7 @@ const resolveRemoteComponentValue = (value, props) => {
   return resolveTemplateString(value, props);
 };
 
-const buildEmbeddedUiUrl = (rawUrl, extension, colors) => {
+const buildEmbeddedUiUrl = (rawUrl, extension, colors, effectiveLanguage) => {
   if (!rawUrl) { return rawUrl; }
 
   let resolvedUrl = null;
@@ -80,6 +81,8 @@ const buildEmbeddedUiUrl = (rawUrl, extension, colors) => {
   resolvedUrl.searchParams.set("currentPrinterId", extension.currentPrinterId || "");
   resolvedUrl.searchParams.set("components", JSON.stringify(extension.pluginManifest?.components || []));
   resolvedUrl.searchParams.set("componentIds", JSON.stringify(extension.components || []));
+  resolvedUrl.searchParams.set("locale", (effectiveLanguage || "en").replace("_", "-"));
+  resolvedUrl.searchParams.set("fallbackLocale", "en");
   resolvedUrl.searchParams.set("theme", JSON.stringify({
     primary: colors.primary,
     secondary: colors.secondary,
@@ -154,6 +157,7 @@ const ProgressMetric = ({ label, percentage, accentColor }) => {
 
 const ProgressClusterNode = ({ extension, node, printerId = null }) => {
   const { colors } = useTheme();
+  const { t } = useLocalization();
   const { setPluginTaskState } = usePluginLoading();
   const tones = [
     colors.primary,
@@ -242,7 +246,7 @@ const ProgressClusterNode = ({ extension, node, printerId = null }) => {
         return (
           <ProgressMetric
             key={item.id || item.label || index}
-            label={item.label || item.id || "Metric"}
+            label={item.label || item.id || t("plugins.metric")}
             percentage={resolvedValue}
             accentColor={tones[index % tones.length]}
           />
@@ -283,6 +287,7 @@ const NavbarStripItem = ({ item }) => {
 
 const DataStripNode = ({ extension, node, printerId = null }) => {
   const { colors } = useTheme();
+  const { t } = useLocalization();
   const { setPluginTaskState } = usePluginLoading();
   const queryKeyPayload = JSON.stringify(node.dataActionPayload || {});
   const taskKey = `data-strip:${extension.id}:${node.dataActionId}:${printerId || "global"}:${queryKeyPayload}`;
@@ -580,7 +585,8 @@ class PluginRenderBoundary extends Component {
 
 const PluginRenderFallback = ({ extension, error, onRetry }) => {
   const { colors } = useTheme();
-  const message = error?.message || "Unknown plugin render error.";
+  const { t } = useLocalization();
+  const message = error?.message || t("plugins.unknownPluginRenderError");
 
   if (extension.surface === "navbar_widget") {
     return (
@@ -602,10 +608,10 @@ const PluginRenderFallback = ({ extension, error, onRetry }) => {
           numberOfLines={2}
           style={{ color: colors.onErrorContainer }}
         >
-          Plugin UI failed to render.
+          {t("plugins.pluginUiFailedToRender")}
         </Text>
         <Button compact mode="text" textColor={colors.onErrorContainer} onPress={onRetry}>
-          Retry
+          {t("plugins.retry")}
         </Button>
       </View>
     );
@@ -614,19 +620,19 @@ const PluginRenderFallback = ({ extension, error, onRetry }) => {
   return (
     <Card style={{ marginBottom: 12, backgroundColor: colors.errorContainer }}>
       <Card.Title
-        title={`${extension.pluginName || extension.pluginId} failed to render`}
-        subtitle={extension.title || extension.id || extension.surface || "Plugin surface"}
+        title={t("plugins.pluginFailedToRenderTitle", { name: extension.pluginName || extension.pluginId })}
+        subtitle={extension.title || extension.id || extension.surface || t("plugins.pluginSurface")}
       />
       <Card.Content>
         <Text style={{ color: colors.onErrorContainer, marginBottom: 8 }}>
-          This plugin surface was isolated by an error boundary so the rest of WPrint 3D can keep running.
+          {t("plugins.pluginSurfaceIsolated")}
         </Text>
         <Text selectable style={{ color: colors.onErrorContainer }}>
           {message}
         </Text>
       </Card.Content>
       <Card.Actions>
-        <Button onPress={onRetry}>Retry</Button>
+        <Button onPress={onRetry}>{t("plugins.retry")}</Button>
       </Card.Actions>
     </Card>
   );
@@ -634,6 +640,7 @@ const PluginRenderFallback = ({ extension, error, onRetry }) => {
 
 const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId = null }) => {
   const { colors } = useTheme();
+  const { effectiveLanguage, t } = useLocalization();
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
   const activePrinterIdQuery = useActivePrinterId();
@@ -666,7 +673,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
         enqueueSnackbar({
           message,
           variant: "info",
-          action: { label: "Got it" },
+          action: { label: t("notifications.gotIt") },
         });
       }
     },
@@ -674,7 +681,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
       enqueueSnackbar({
         message: error?.response?.data?.message || error.message,
         variant: "error",
-        action: { label: "Got it" },
+        action: { label: t("notifications.gotIt") },
       });
     }
   });
@@ -911,7 +918,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
             style={{ marginBottom: node.marginBottom ?? 8 }}
             onPress={() => openExtensionOrRunAction(node, node.payload || {})}
           >
-            {node.label || "Run"}
+            {node.label || t("plugins.run")}
           </Button>
         );
       case "input":
@@ -1014,7 +1021,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
                   runAction(node.submitActionId, payload);
                 }}
               >
-                {node.submitLabel || "Submit"}
+                {node.submitLabel || t("plugins.submit")}
               </Button>
             </Card.Content>
           </Card>
@@ -1080,7 +1087,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
             <Card key={key} style={{ marginBottom: 12, backgroundColor: colors.errorContainer }}>
               <Card.Content>
                 <Text style={{ color: colors.onErrorContainer }}>
-                  Unable to render remote component {componentId || "unknown"}.
+                  {t("plugins.unableToRenderRemoteComponent", { id: componentId || t("plugins.unknown") })}
                 </Text>
               </Card.Content>
             </Card>
@@ -1092,7 +1099,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
             <Card key={key} style={{ marginBottom: 12, backgroundColor: colors.errorContainer }}>
               <Card.Content>
                 <Text style={{ color: colors.onErrorContainer }}>
-                  Remote component recursion detected for {componentId}.
+                  {t("plugins.remoteComponentRecursionDetected", { id: componentId })}
                 </Text>
               </Card.Content>
             </Card>
@@ -1116,12 +1123,13 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
     const embeddedUrl = buildEmbeddedUiUrl(
       extension.url,
       { ...extension, currentPrinterId: effectivePrinterId },
-      colors
+      colors,
+      effectiveLanguage
     );
 
     return (
       <Card style={{ marginBottom: 12, overflow: "hidden" }}>
-        <Card.Title title={extension.title} subtitle={`${extension.pluginName} WebView`} />
+        <Card.Title title={extension.title} subtitle={t("plugins.webViewSubtitle", { name: extension.pluginName })} />
         <View style={{ minHeight: 360 }}>
           <EmbeddedBrowserFrame uri={embeddedUrl} minHeight={360} fitContentHeight={extension.surface === "settings_tab"} />
         </View>
@@ -1134,15 +1142,16 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
     const embeddedUrl = buildEmbeddedUiUrl(
       customBundleUrl,
       { ...extension, currentPrinterId: effectivePrinterId },
-      colors
+      colors,
+      effectiveLanguage
     );
 
     return (
       <Card style={{ marginBottom: 12, overflow: "hidden" }}>
-        <Card.Title title={extension.title} subtitle={`${extension.pluginName} custom bundle`} />
+        <Card.Title title={extension.title} subtitle={t("plugins.customBundleSubtitle", { name: extension.pluginName })} />
         <Card.Content>
           <Text style={{ marginBottom: 12 }}>
-            This extension uses the elevated custom bundle mode. It is isolated and may consume more resources than the default declarative mode.
+            {t("plugins.customBundleDescription")}
           </Text>
         </Card.Content>
         {embeddedUrl ? (
@@ -1151,7 +1160,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
           </View>
         ) : (
           <Card.Content>
-            <Text>No bundle URL was provided by this plugin.</Text>
+            <Text>{t("plugins.noBundleUrl")}</Text>
           </Card.Content>
         )}
       </Card>
@@ -1173,7 +1182,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions>
-            <Button onPress={() => setOpenedModalId(null)}>Close</Button>
+            <Button onPress={() => setOpenedModalId(null)}>{t("plugins.close")}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -1184,13 +1193,14 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
 const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null }) => {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
+  const { t } = useLocalization();
   const [ boundaryNonce, setBoundaryNonce ] = useState(0);
   const lastBoundaryErrorRef = useRef(null);
 
   const boundaryKey = `${extension.pluginId}:${extension.id}:${printerId || "global"}:${boundaryNonce}`;
 
   const handleBoundaryError = (error) => {
-    const message = error?.message || "Unknown plugin render error.";
+    const message = error?.message || t("plugins.unknownPluginRenderError");
 
     if (lastBoundaryErrorRef.current === message) {
       return;
@@ -1199,9 +1209,9 @@ const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null 
     lastBoundaryErrorRef.current = message;
 
     enqueueSnackbar({
-      message: `${extension.pluginName || extension.pluginId} UI crashed while rendering.`,
+      message: t("plugins.pluginUiCrashed", { name: extension.pluginName || extension.pluginId }),
       variant: "error",
-      action: { label: "Dismiss" },
+      action: { label: t("notifications.dismiss") },
     });
 
     console.error("Plugin UI render error", {

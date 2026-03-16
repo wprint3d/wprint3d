@@ -5,6 +5,20 @@ axios.defaults.headers         = { Accept: 'application/json' };
 
 const BACKEND_BASE_URL = '/backend';
 
+export const setBackendLocale = (locale) => {
+    if (!locale) {
+        delete axios.defaults.headers.common?.["Accept-Language"];
+        delete axios.defaults.headers.common?.["X-WPrint3D-Locale"];
+        return;
+    }
+
+    const normalizedLocale = String(locale).replace("_", "-");
+
+    axios.defaults.headers.common = axios.defaults.headers.common || {};
+    axios.defaults.headers.common["Accept-Language"] = normalizedLocale;
+    axios.defaults.headers.common["X-WPrint3D-Locale"] = normalizedLocale;
+};
+
 export default ({
     get: (url, data, options = {}) => (
         axios.get(

@@ -4,6 +4,7 @@ import { ScrollView, View } from "react-native";
 import { ActivityIndicator, Button, Card, Chip, Divider, Icon, SegmentedButtons, Switch, Text, useTheme } from "react-native-paper";
 
 import API from "../includes/API";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const formatTimestamp = (timestamp) => {
     if (!timestamp) {
@@ -27,6 +28,7 @@ const DIRECTION_COLOR_KEY = {
 
 const NavBarMenuSettingsModalDeveloperFakeSerial = ({ enqueueSnackbar }) => {
     const theme = useTheme();
+    const { t } = useLocalization();
     const queryClient = useQueryClient();
     const [ selectedBaudRate, setSelectedBaudRate ] = useState("115200");
 
@@ -46,7 +48,7 @@ const NavBarMenuSettingsModalDeveloperFakeSerial = ({ enqueueSnackbar }) => {
             enqueueSnackbar({
                 message: error?.response?.data?.message ?? error.message,
                 variant: "error",
-                action: { label: "Got it" },
+                action: { label: t("notifications.gotIt") },
             });
         },
     });
@@ -85,9 +87,9 @@ const NavBarMenuSettingsModalDeveloperFakeSerial = ({ enqueueSnackbar }) => {
                 <Card.Content style={{ gap: 16 }}>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
                         <View style={{ flex: 1, gap: 4 }}>
-                            <Text variant="titleMedium">FakeSerial printer</Text>
+                            <Text variant="titleMedium">{t("plugins.fakeSerialTitle")}</Text>
                             <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                                Plug a simulated Marlin printer into the normal discovery flow and inspect the transcript live.
+                                {t("plugins.fakeSerialDescription")}
                             </Text>
                         </View>
                         <Switch
@@ -102,9 +104,9 @@ const NavBarMenuSettingsModalDeveloperFakeSerial = ({ enqueueSnackbar }) => {
 
                     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                         <Chip icon="usb-port" compact>{state?.node ?? "FAKE0"}</Chip>
-                        <Chip icon="connection" compact>{enabled ? "Plugged in" : "Unplugged"}</Chip>
+                        <Chip icon="connection" compact>{enabled ? t("plugins.pluggedIn") : t("plugins.unplugged")}</Chip>
                         <Chip icon={printer?.connected ? "check-circle" : "pause-circle"} compact>
-                            {printer?.connected ? "Detected by mapper" : "Waiting for mapper"}
+                            {printer?.connected ? t("plugins.detectedByMapper") : t("plugins.waitingForMapper")}
                         </Chip>
                         {printer?.machine?.machineType && (
                             <Chip icon="printer-3d-nozzle-outline" compact>{printer.machine.machineType}</Chip>
@@ -112,7 +114,7 @@ const NavBarMenuSettingsModalDeveloperFakeSerial = ({ enqueueSnackbar }) => {
                     </View>
 
                     <View style={{ gap: 8 }}>
-                        <Text variant="labelLarge">Active baud rate</Text>
+                        <Text variant="labelLarge">{t("plugins.activeBaudRate")}</Text>
                         <SegmentedButtons
                             value={selectedBaudRate}
                             buttons={baudButtons}
@@ -131,7 +133,7 @@ const NavBarMenuSettingsModalDeveloperFakeSerial = ({ enqueueSnackbar }) => {
 
                     <View style={{ gap: 8 }}>
                         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-                            <Text variant="labelLarge">Live transcript</Text>
+                            <Text variant="labelLarge">{t("plugins.liveTranscript")}</Text>
                             <Button
                                 mode="text"
                                 icon="refresh"
@@ -139,7 +141,7 @@ const NavBarMenuSettingsModalDeveloperFakeSerial = ({ enqueueSnackbar }) => {
                                 onPress={() => fakeSerialQuery.refetch()}
                                 disabled={fakeSerialQuery.isFetching}
                             >
-                                Refresh
+                                {t("plugins.refresh")}
                             </Button>
                         </View>
 
@@ -155,7 +157,7 @@ const NavBarMenuSettingsModalDeveloperFakeSerial = ({ enqueueSnackbar }) => {
                         >
                             {!log.length && (
                                 <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                                    No FakeSerial activity yet.
+                                    {t("plugins.noFakeSerialActivity")}
                                 </Text>
                             )}
 

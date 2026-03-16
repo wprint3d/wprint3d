@@ -3,10 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Models\Camera;
+use App\Support\HardwareCameraEnvironmentSerializer;
 
 use Illuminate\Console\Command;
-
-use Illuminate\Support\Str;
 
 class GetHardwareCamera extends Command
 {
@@ -41,26 +40,7 @@ class GetHardwareCamera extends Command
             return Command::SUCCESS;
         }
 
-        $camera = $camera->toArray();
-
-        list($resolution, $framerate) = explode('@', $camera['format']);
-
-        $camera['resolution']   = $resolution;
-        $camera['framerate']    = $framerate;
-
-        foreach ($camera as $key => $value) {
-            $base = Str::of( $key )->snake()->upper();
-
-            if (is_scalar( $value )) {
-                if ($value === null) {
-                    $value = 'null';
-                } else if (is_bool( $value )) {
-                    $value = !!$value ? 1 : 0;
-                }
-
-                echo $base . '="' . ((string) $value) . '"' . PHP_EOL;
-            }
-        }
+        echo HardwareCameraEnvironmentSerializer::serialize($camera->toArray());
 
         return Command::SUCCESS;
     }

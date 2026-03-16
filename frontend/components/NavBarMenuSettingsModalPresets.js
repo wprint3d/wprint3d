@@ -7,8 +7,10 @@ import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import NavBarMenuSettingsModalPlaceholderItem from "./NavBarMenuSettingsModalPlaceholderItem";
 import NavBarMenuSettingsModalPresetsEditDialog from "./NavBarMenuSettingsModalPresetsEditDialog";
 import { Button, FAB, Portal } from "react-native-paper";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalPresets = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
+    const { t } = useLocalization();
     const materialsList = useQuery({
         queryKey: ['materials'],
         queryFn:  () => API.get('/user/materials')
@@ -43,7 +45,7 @@ const NavBarMenuSettingsModalPresets = ({ isSmallTablet, isSmallLaptop, enqueueS
     }, [ showEditDialog ]);
 
     if (materialsList.isFetching) {
-        return <UserPaneLoadingIndicator message={`Loading materials list...`} />;
+        return <UserPaneLoadingIndicator message={t("presets.loadingMaterials")} />;
     }
 
     return (
@@ -51,14 +53,14 @@ const NavBarMenuSettingsModalPresets = ({ isSmallTablet, isSmallLaptop, enqueueS
             {materials.length === 0 && !materialsList.isFetching
                 ? <NavBarMenuSettingsModalPlaceholderItem
                     icon="printer-3d-nozzle"
-                    message="No materials available"
+                    message={t("presets.noMaterials")}
                     actions={
                         <Button
                             mode="contained"
                             icon="plus"
                             onPress={() => setShowEditDialog(true)}
                         >
-                            Add
+                            {t("presets.add")}
                         </Button>
                     }
                 />
@@ -90,7 +92,7 @@ const NavBarMenuSettingsModalPresets = ({ isSmallTablet, isSmallLaptop, enqueueS
                         &&
                         !showEditDialog
                     }
-                    label="Add preset"
+                    label={t("presets.addPreset")}
                     variant="primary"
                     style={{
                         position: 'absolute',

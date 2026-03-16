@@ -6,9 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 import API from "../includes/API";
 import TextBold from "./TextBold";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalAbout = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const appName = useQuery({
         queryKey: ['getAppNameAbout'],
@@ -31,18 +33,18 @@ const NavBarMenuSettingsModalAbout = ({ isSmallTablet, isSmallLaptop, enqueueSna
     let licensesContent = null;
 
     if (licenses.isLoading) {
-        licensesContent = <UserPaneLoadingIndicator message={'Downloading licenses…'} />;
+        licensesContent = <UserPaneLoadingIndicator message={t("about.downloadingLicenses")} />;
     } else if (licenses.isError) {
         licensesContent = (
             <Text style={{ color: colors.error, paddingVertical: 32 }}>
-                Failed to download licenses, please try again later.
+                {t("about.downloadError")}
             </Text>
         );
     } else {
         licensesContent = (
             <ScrollView style={{ width: '100%', flex: 1, maxHeight: '100%', padding: 16, marginTop: 16, backgroundColor: colors.background }}>
                 <Text variant="bodySmall" style={{ marginBottom: 8 }}>
-                    {licenses?.data?.data ?? 'No licenses found'}
+                    {licenses?.data?.data ?? t("about.noLicenses")}
                 </Text>
             </ScrollView>
         );
@@ -58,15 +60,16 @@ const NavBarMenuSettingsModalAbout = ({ isSmallTablet, isSmallLaptop, enqueueSna
                 </Text>
             </Text>
             <Text style={{ textAlign: 'center', marginVertical: 8 }}>
-                Open-source software licensed under the <TextBold>MIT license</TextBold>.
+                {t("about.openSourceBlurb")}
             </Text>
             <Text style={{ textAlign: 'center', marginVertical: 8, marginTop: 24 }}>
-                For more information about licensing, security and other administrative procedures please refer to the <TextBold>README.md</TextBold> file provided as part of 
+                {t("about.repositoryPrefix")}
                 {' '}
-                <Text style={{ fontWeight: 'bold', color: colors.primary, textDecorationStyle: 'solid', textDecorationLine: 'underline' }} onPress={() => Linking.openURL('https://github.com/wprint3d/wprint3d')}>the repository</Text>.
+                <Text style={{ fontWeight: 'bold', color: colors.primary, textDecorationStyle: 'solid', textDecorationLine: 'underline' }} onPress={() => Linking.openURL('https://github.com/wprint3d/wprint3d')}>{t("about.repositoryLinkLabel")}</Text>
+                {t("about.repositorySuffix")}
             </Text>
             <Text style={{ textAlign: 'center', marginVertical: 8 }}>
-                If you want to know more about the licensing specifications of most of our third-party dependencies, please refer to the documentation provided below.
+                {t("about.thirdPartyInfo")}
             </Text>
             {licensesContent}
         </View>

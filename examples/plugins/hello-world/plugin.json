@@ -22,6 +22,18 @@
       "handler": "hooks/on_boot.php"
     }
   },
+  "assets": [
+    {
+      "path": "translations/es.json"
+    }
+  ],
+  "i18n": {
+    "defaultLocale": "en",
+    "files": {
+      "es": "asset://translations/es.json",
+      "es_AR": "asset://translations/es.json"
+    }
+  },
   "actions": [
     {
       "id": "ping",
