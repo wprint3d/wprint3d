@@ -222,6 +222,7 @@ if [[ "$ENV" == 'dev' ]]; then
     init_container_runtime || exit 1;
     offer_frontend_node_modules_reownership || exit 1;
     ensure_podman_development_ports_supported || exit 1;
+    migrate_docker_volumes_to_podman "$ENV" || exit 1;
     run_host_compose -f docker-compose-development.yml pull || exit 1;
 
     if [[ "$NO_BUILD" != 1 ]]; then
@@ -233,6 +234,7 @@ if [[ "$ENV" == 'dev' ]]; then
     fi;
 elif [[ "$ENV" == 'production' ]]; then
     init_container_runtime || exit 1;
+    migrate_docker_volumes_to_podman "$ENV" || exit 1;
 
     run_host_compose pull || exit 1;
 fi;
