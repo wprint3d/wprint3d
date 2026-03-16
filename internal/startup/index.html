@@ -166,6 +166,7 @@
         </p>
     </div>
 
+    <script src="service-name.js"></script>
     <script>
         let isFetching      = false,
             firstFetch      = true,
@@ -263,7 +264,7 @@
                     servicesContainer.innerHTML = '';
 
                     services.forEach(service => {
-                        let simplifiedName = service.substring(0, service.lastIndexOf('-')).replace('wprint3d-', '');
+                        let simplifiedName = startupServiceNameUtils.normalizeStartupServiceName(service);
 
                         servicesContainer.innerHTML += `
                             <div class="status-item" data-internal-name="${service}">
