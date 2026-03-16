@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Host Metrics Component Bundle</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #11131a;
+      --surface: #161c24;
+      --surface-strong: #1d2530;
+      --outline: #314155;
+      --text: #f3f4f7;
+      --muted: #b8c0cf;
+      --primary: #84b9ff;
+      --secondary: #99d5c6;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(132, 185, 255, 0.14), transparent 28%),
+        var(--background);
+      color: var(--text);
+      padding: 22px;
+    }
+
+    .shell {
+      max-width: 760px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .frame {
+      border-radius: 24px;
+      border: 1px solid color-mix(in srgb, var(--outline) 80%, transparent);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 94%, transparent), var(--surface));
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 4px 0 0;
+      font-size: clamp(24px, 4vw, 34px);
+      line-height: 1.05;
+    }
+
+    .description {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      max-width: 60ch;
+    }
+
+    #component-root {
+      min-height: 220px;
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="frame">
+      <div>
+        <p class="eyebrow">Custom bundle surface</p>
+        <h1>Host Metrics</h1>
+      </div>
+      <p class="description">
+        This page is only a thin loader. The actual settings UI comes from a manifest-declared JavaScript component module.
+      </p>
+      <div id="component-root"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    const params = new URLSearchParams(window.location.search);
+    const components = safeParse(params.get("components"), []);
+    const componentIds = safeParse(params.get("componentIds"), []);
+    const componentRoot = document.getElementById("component-root");
+
+    const componentMap = new Map(components.map((component) => [component.id, component]));
+    const componentId = componentIds[0] || components[0]?.id;
+    const componentDefinition = componentMap.get(componentId);
+
+    if (!componentDefinition?.entry) {
+      componentRoot.textContent = "No manifest component was declared for this surface.";
+    } else {
+      const module = await import(componentDefinition.entry);
+      const exportName = componentDefinition.exports || "mount";
+      const mount = module?.[exportName];
+
+      if (typeof mount !== "function") {
+        componentRoot.textContent = `Component export ${exportName} was not found.`;
+      } else {
+        mount(componentRoot, {
+          pluginName: params.get("pluginName") || "Host Metrics",
+          actionId: params.get("actionId") || "host_metrics",
+          pluginApiBase: params.get("pluginApiBase") || "/backend/api/plugins",
+          theme: safeParse(params.get("theme"), {}),
+          extensionMode: params.get("extensionMode") || "custom_bundle",
+        });
+      }
+    }
+
+    function safeParse(value, fallback) {
+      if (!value) {
+        return fallback;
+      }
+
+      try {
+        return JSON.parse(value);
+      } catch (_error) {
+        return fallback;
+      }
+    }
+  </script>
+</body>
+</html>

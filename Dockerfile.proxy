@@ -1,4 +1,4 @@
-FROM nginx:stable-alpine
+FROM docker.io/library/nginx:stable-alpine
 
 ADD ./proxy/nginxconfig.io /etc/nginx/nginxconfig.io
 ADD ./proxy/conf.d /etc/nginx/conf.d

@@ -17,13 +17,22 @@ import { useCache } from "../hooks/useCache";
 import uuid from 'react-native-uuid';
 
 import { useSnackbar } from "react-native-paper-snackbar-stack";
-import { useLastTerminalMessage } from "../hooks/useLastTerminalMessage";
+import { useTerminalMessages } from "../hooks/useTerminalMessages";
+import {
+    filterTerminalEntries,
+    mergeTerminalEntries,
+    parseTerminalEvent,
+    parseTerminalHistory,
+} from "../utils/terminalLog";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId = null, isSmallTablet = false }) {
     const { enqueueSnackbar } = useSnackbar();
+    const { t } = useLocalization();
     const { bottom }          = useSafeAreaInsets();
 
-    const lastTerminalMessage = useLastTerminalMessage({ printerId });
+    const queuedTerminalMessages = useTerminalMessages({ printerId });
+    const lastProcessedMessageId = useRef(0);
 
     const BOTTOM_APPBAR_HEIGHT_BASE = 48;
     const BOTTOM_APPBAR_HEIGHT = (
@@ -40,7 +49,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
 
     const { colors } = useTheme();
 
-    const [ log,            setLog           ] = useState([]);
+    const [ logEntries,     setLogEntries    ] = useState([]);
     const [ customCommand,  setCustomCommand ] = useState('');
 
     const [ autoScrollToBottom,     _setAutoScrollToBottom   ] = useState(null);
@@ -64,6 +73,10 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
     useEffect(() => {
         console.debug('showInputCommands:',  showInputCommands);
     }, [ showInputCommands ]);
+
+    useEffect(() => {
+        lastProcessedMessageId.current = 0;
+    }, [ printerId ]);
 
     const setAutoScrollToBottom = async newValue => {
         await cache.set('autoScrollToBottom', newValue);
@@ -105,7 +118,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                 enqueueSnackbar({
                     message: error.response.data.message,
                     variant: 'error',
-                    action:  { label: 'Got it' }
+                    action:  { label: t("notifications.gotIt") }
                 });
             }
         )
@@ -185,16 +198,16 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
         enqueueSnackbar({
             message: (
                 <Text>
-                    The serial driver stopped responding. Please try to restart the host and try again.
+                    {t("printer.terminal.serialDriverError")}
                     {'\n\n'}
-                    Check for EMI sources and make sure that all USB cables are properly connected and secured to the host.
+                    {t("printer.terminal.serialDriverCheckUsb")}
                     {'\n\n'}
-                    If the issue persists, please <Text
+                    <Text
                         onPress={() => Linking.openURL('https://github.com/wprint3d/wprint3d/issues/new?template=Blank+issue')}
                         style={{ textDecorationLine: 'underline' }}
                     >
-                        create an issue
-                    </Text>.
+                        {t("printer.terminal.serialDriverCreateIssue")}
+                    </Text>
                 </Text>
             ),
             variant: 'error'
@@ -232,12 +245,10 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
             !terminalLastLog.data.data
         ) { return; }
 
-        let nextLog = [];
+        let nextLogEntries = [];
 
-        terminalLastLog.data.data.split('\n').forEach(splitLine => {
-            if (!splitLine.length) { return; }
-
-            const [ date, line ] = splitLine.split(': ');
+        parseTerminalHistory(terminalLastLog.data.data).forEach(({ date, line }) => {
+            if (!line.length) { return; }
 
             if (line.indexOf('> ') > -1) {
                 setInputLines(prevInputLines => prevInputLines + 1);
@@ -245,19 +256,14 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                 setInputLines(0);
             }
 
-            if (isMessageBlocked(line)) { return; }
-
-            nextLog.push(
-                buildLogLine({
-                    key:  uuid.v4(),
-                    date: date,
-                    line: line
-                })
-            );
+            nextLogEntries.push({ date, line });
         });
 
-        setLog(
-            nextLog.filter(element => element !== null)
+        setLogEntries(
+            filterTerminalEntries(nextLogEntries, isMessageBlocked).map(entry => ({
+                ...entry,
+                key: uuid.v4()
+            }))
         );
     }, [ terminalLastLog.isFetching, terminalLastLog.isFetched ]);
 
@@ -288,43 +294,33 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
             return;
         }
 
-        console.debug('UserPrinterTerminal: lastTerminalMessage:', lastTerminalMessage);
+        console.debug('UserPrinterTerminal: queuedTerminalMessages:', queuedTerminalMessages);
 
-        let nextLog = [];
+        const unprocessedMessages = queuedTerminalMessages.filter(
+            ({ id }) => id > lastProcessedMessageId.current
+        );
 
-        const command = lastTerminalMessage?.command;
+        if (!unprocessedMessages.length) { return; }
 
-        if (!command || !command.length) { return; }
+        lastProcessedMessageId.current = unprocessedMessages[unprocessedMessages.length - 1].id;
 
-        console.debug('UserPrinterTerminal: command:', command);
+        const nextLogEntries = filterTerminalEntries(
+            unprocessedMessages.flatMap(({ event }) => parseTerminalEvent(event)),
+            isMessageBlocked
+        );
 
-        command.split('\n').forEach(line => {
-            if (
-                !line.trim().length
-                ||
-                isMessageBlocked(line)
-            ) { return; }
+        if (!nextLogEntries.length) { return; }
 
-            nextLog.push(
-                buildLogLine({
-                    key:  uuid.v4(),
-                    date: lastTerminalMessage?.dateString,
-                    line: line
-                })
-            );
-        });
+        console.debug('setLogEntries:', nextLogEntries);
 
-        console.debug('setLog:', nextLog);
-
-        setLog(prevLog => {
-            if (terminalMaxLines === 0) { return []; }
-
-            let newLog = [...prevLog, ...nextLog];
-
-            while (newLog.length > terminalMaxLines) { newLog.shift(); }
-
-            return newLog;
-        });
+        setLogEntries(previousEntries => mergeTerminalEntries(
+            previousEntries,
+            nextLogEntries.map(entry => ({
+                ...entry,
+                key: uuid.v4()
+            })),
+            terminalMaxLines
+        ));
 
         if (!autoScrollToBottom) { return; }
 
@@ -335,16 +331,23 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
         }
 
         terminalView.current.scrollToEnd({ animated: true });
-    }, [ lastTerminalMessage ]);
+    }, [
+        autoScrollToBottom,
+        isLoadingPrinter,
+        queuedTerminalMessages,
+        terminalLastLog.isFetched,
+        terminalMaxLines,
+        terminalMaxLinesConfig.isFetched
+    ]);
 
     let loaderMessage = null;
 
     if (isLoadingPrinter) {
-        loaderMessage = 'Getting selected printer';
+        loaderMessage = t("printer.terminal.loadingSelectedPrinter");
     } else if (terminalLastLog.isFetching) {
-        loaderMessage = 'Downloading last console log';
+        loaderMessage = t("printer.terminal.downloadingConsoleLog");
     } else if (!terminalMaxLinesConfig.isFetched) {
-        loaderMessage = 'Getting terminal configuration';
+        loaderMessage = t("printer.terminal.gettingTerminalConfig");
     }
 
     return (
@@ -389,11 +392,15 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                                 }}
                             >
                                 <Text style={{ width: '100%', whiteSpace: 'nowrap' }}>
-                                    {log.length > 0
-                                        ? log
+                                    {logEntries.length > 0
+                                        ? logEntries.map(({ key, date, line }) => buildLogLine({
+                                            key: key,
+                                            date: date,
+                                            line: line
+                                        }))
                                         : buildLogLine({
                                             key:  null,
-                                            line: 'Nothing here!'
+                                            line: t("printer.terminal.nothingHere")
                                         })
                                     }
                                 </Text>
@@ -410,8 +417,8 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                 value={customCommand}
                 onChangeText={customCommand => setCustomCommand(customCommand)}
                 mode="outlined"
-                label="Enter a custom command"
-                placeholder="Custom command"
+                label={t("printer.terminal.customCommandLabel")}
+                placeholder={t("printer.terminal.customCommandPlaceholder")}
                 right={
                     <TextInput.Icon
                         loading={queueCommandMutation.isPending}
@@ -439,7 +446,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
             >
                 <View style={{ flexDirection: 'row' }}>
                     <AppbarActionWithTooltip
-                        title="Auto-scroll to bottom"
+                        title={t("printer.terminal.autoScrollToBottom")}
                         icon="format-vertical-align-bottom"
                         onPress={() => setAutoScrollToBottom(!autoScrollToBottom)}
                         disabled={!autoScrollToBottom}
@@ -447,7 +454,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                     />
 
                     <AppbarActionWithTooltip
-                        title="Show sensors updates"
+                        title={t("printer.terminal.showSensorsUpdates")}
                         icon="update"
                         onPress={() => setShowSensorsUpdates(!showSensorsUpdates)}
                         disabled={!showSensorsUpdates}
@@ -455,7 +462,7 @@ export default function UserPrinterTerminal({ isLoadingPrinter = true, printerId
                     />
 
                     <AppbarActionWithTooltip
-                        title="Show input commands"
+                        title={t("printer.terminal.showInputCommands")}
                         icon="console-line"
                         onPress={() => setShowInputCommands(!showInputCommands)}
                         disabled={!showInputCommands}

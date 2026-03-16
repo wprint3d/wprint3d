@@ -6,9 +6,11 @@ import { Button, List, Switch, Text, TextInput, useTheme } from "react-native-pa
 import { View } from "react-native";
 import DropDown from "react-native-paper-dropdown";
 import Slider from "@react-native-community/slider";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalRecording = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const userRecordingSettings = useQuery({
         queryKey: ['user'],
@@ -36,9 +38,9 @@ const NavBarMenuSettingsModalRecording = ({ isSmallTablet, isSmallLaptop, enqueu
             console.error('NavBarMenuSettingsModalRecording: updateRecordingSettings: error:', error);
 
             enqueueSnackbar({
-                message: 'Failed to update recording settings: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("settings.recordingUpdateError", { reason: (error.response?.data?.message ?? error.message).toLowerCase() }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
         }
     });
@@ -117,19 +119,22 @@ const NavBarMenuSettingsModalRecording = ({ isSmallTablet, isSmallLaptop, enqueu
     }, [ hasChanges ]);
 
     if (userRecordingSettings.isFetching) {
-        return <UserPaneLoadingIndicator message={`Loading recording settings...`} />;
+        return <UserPaneLoadingIndicator message={t("settings.loadingRecordingSettings")} />;
     }
 
     if (recorderOptions.isFetching) {
-        return <UserPaneLoadingIndicator message={`Loading recorder options...`} />;
+        return <UserPaneLoadingIndicator message={t("settings.loadingRecorderOptions")} />;
     }
+
+    const contentMaxWidth = isSmallLaptop || isSmallTablet ? 640 : 760;
+    const controlWidth = isSmallTablet ? 150 : 180;
 
     return (
         <View style={{ width: '100%' }}>
-            <View style={{ maxWidth: 480, width: '100%', margin: 'auto' }}>
+            <View style={{ maxWidth: contentMaxWidth, width: '100%', margin: 'auto' }}>
                 <List.Item
-                    title="Toggle recording"
-                    description="Whether to enable or disable recording."
+                    title={t("settings.toggleRecordingTitle")}
+                    description={t("settings.toggleRecordingDescription")}
                     right={() =>
                         <Switch
                             value={enabled}
@@ -142,12 +147,12 @@ const NavBarMenuSettingsModalRecording = ({ isSmallTablet, isSmallLaptop, enqueu
                 />
 
                 <List.Item
-                    title="Resolution"
-                    description="The resolution of the output video."
+                    title={t("settings.resolutionTitle")}
+                    description={t("settings.resolutionDescription")}
                     right={() =>
-                        <View style={{ maxWidth: 125 }}>
+                        <View style={{ width: controlWidth, maxWidth: controlWidth }}>
                             <DropDown
-                                label=" "
+                                label={t("settings.resolutionTitle")}
                                 mode="outlined"
                                 visible={showResolutionDropDown}
                                 showDropDown={() => setShowResolutionDropDown(true)}
@@ -162,12 +167,12 @@ const NavBarMenuSettingsModalRecording = ({ isSmallTablet, isSmallLaptop, enqueu
                 />
 
                 <List.Item
-                    title="Frame rate"
-                    description="The frame rate of the output video."
+                    title={t("settings.frameRateTitle")}
+                    description={t("settings.frameRateDescription")}
                     right={() =>
-                        <View style={{ maxWidth: 125 }}>
+                        <View style={{ width: controlWidth, maxWidth: controlWidth }}>
                             <DropDown
-                                label=" "
+                                label={t("settings.frameRateTitle")}
                                 mode="outlined"
                                 visible={showFrameRateDropDown}
                                 showDropDown={() => setShowFrameRateDropDown(true)}
@@ -185,12 +190,12 @@ const NavBarMenuSettingsModalRecording = ({ isSmallTablet, isSmallLaptop, enqueu
                 />
 
                 <List.Item
-                    title="Capture interval"
-                    description="The interval at which frames are captured."
+                    title={t("settings.captureIntervalTitle")}
+                    description={t("settings.captureIntervalDescription")}
                     right={() =>
-                        <View style={{ maxWidth: 125 }}>
+                        <View style={{ width: controlWidth, maxWidth: controlWidth }}>
                             <Slider
-                                style={{ width: 125, top: -5 }}
+                                style={{ width: controlWidth, top: -5 }}
                                 minimumValue={0.25}
                                 maximumValue={5.0}
                                 step={0.25}
@@ -202,7 +207,9 @@ const NavBarMenuSettingsModalRecording = ({ isSmallTablet, isSmallLaptop, enqueu
                                 maximumTrackTintColor={colors.elevation.level5}
                             />
                             <Text style={{ textAlign: 'center' }}>
-                                Every {captureInterval} second{captureInterval !== 1 ? 's' : ''}
+                                {captureInterval === 1
+                                    ? t("settings.everySecondsOne", { count: captureInterval })
+                                    : t("settings.everySecondsOther", { count: captureInterval })}
                             </Text>
                         </View>
                     }
@@ -217,7 +224,7 @@ const NavBarMenuSettingsModalRecording = ({ isSmallTablet, isSmallLaptop, enqueu
                         style={{ maxWidth: 175, alignContent: 'center', marginTop: 24 }}
                         disabled={!hasChanges || updateRecordingSettings.isPending}
                     >
-                        Save changes
+                        {t("settings.saveChanges")}
                     </Button>
                 </View>
             </View>

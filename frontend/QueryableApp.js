@@ -11,9 +11,12 @@ import API from './includes/API';
 
 import { useEffect, useState } from 'react';
 import UserChangePasswordModal from './components/UserChangePasswordModal';
+import PluginLoadingProvider from './components/PluginLoadingProvider';
+import { useLocalization } from './includes/LocalizationProvider';
 
 export default function QueryableApp({ colorScheme, setColorScheme }) {
   const { colors } = useTheme();
+  const { t } = useLocalization();
 
   const messageStyle = { color: colors.onBackground, textAlign: 'center' };
 
@@ -106,7 +109,7 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
             entering={FadeIn.delay(200).duration(500)}
           >
               <Text style={messageStyle}>
-                Please wait for a while, the server is still starting up...
+                {t("app.serverStarting")}
               </Text>
           </Reanimated.View>
         </View>
@@ -123,14 +126,14 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
               <Animated.View style={{ transform: [{ scale: sharedRetryingScale }], textAlignLast: 'center' }}>
                 <Icon source="heart-broken" size={48} color={getAppName.isFetching ? 'orange': colors.onBackground} />
               </Animated.View>
-              <Text style={[ messageStyle, { visibility: getAppName.isFetching ? 'visible' : 'hidden' } ]}> Retrying... </Text>
+              <Text style={[ messageStyle, { visibility: getAppName.isFetching ? 'visible' : 'hidden' } ]}> {t("app.retrying")} </Text>
             </View>
             <View style={styles.messageContainer}>
                 <Text style={messageStyle}>
-                  Something went wrong, please wait for a few seconds as the server becomes available.
+                  {t("app.serverUnavailable")}
                   {'\n'}
                   {'\n'}
-                  If the problem persists, please <Text style={{ textDecorationLine: 'underline' }} onPress={() => Linking.openURL('https://github.com/wprint3d/wprint3d')}>create an issue on our GitHub repository</Text>.
+                  If the problem persists, please <Text style={{ textDecorationLine: 'underline' }} onPress={() => Linking.openURL('https://github.com/wprint3d/wprint3d')}>{t("app.createGithubIssue")}</Text>.
                 </Text>
             </View>
           </View>
@@ -153,7 +156,7 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
             entering={FadeIn.delay(200).duration(500)}
           >
               <Text style={messageStyle}>
-                Please wait for a while, we're still loading some assets...
+                {t("app.loadingAssets")}
               </Text>
           </Reanimated.View>
         </Reanimated.View>
@@ -181,7 +184,9 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
 
   return (
     <Reanimated.View style={{flex: 1}} entering={FadeIn.duration(500)}>
-      <Main appName={appName} colorScheme={colorScheme} setColorScheme={setColorScheme} />
+      <PluginLoadingProvider>
+        <Main appName={appName} colorScheme={colorScheme} setColorScheme={setColorScheme} />
+      </PluginLoadingProvider>
     </Reanimated.View>
   );
 }

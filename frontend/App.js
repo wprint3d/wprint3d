@@ -3,8 +3,6 @@
 
 import "@expo/metro-runtime";
 
-import { registerRootComponent } from "expo";
-
 import {
   QueryClient,
   QueryClientProvider
@@ -13,6 +11,7 @@ import {
 import { PaperProvider } from "react-native-paper";
 
 import Background   from "./components/Background";
+import { LocalizationProvider } from "./includes/LocalizationProvider";
 
 import Theme        from "./includes/Theme";
 
@@ -54,13 +53,15 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <PaperProvider theme={Theme({ colorScheme })}>
-        <Background>
-          <View style={styles.root}>
-            <SnackbarProvider maxSnack={4}>
-              <QueryableApp colorScheme={colorScheme} setColorScheme={setColorScheme} />
-            </SnackbarProvider>
-          </View>
-        </Background>
+        <LocalizationProvider>
+          <Background>
+            <View style={styles.root}>
+              <SnackbarProvider maxSnack={4}>
+                <QueryableApp colorScheme={colorScheme} setColorScheme={setColorScheme} />
+              </SnackbarProvider>
+            </View>
+          </Background>
+        </LocalizationProvider>
       </PaperProvider>
     </QueryClientProvider>
   );
@@ -73,5 +74,3 @@ const styles = StyleSheet.create({
     overflow: 'auto'
   }
 })
-
-registerRootComponent(App);

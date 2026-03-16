@@ -7,13 +7,13 @@ use App\Models\Configuration;
 use App\Models\Meta;
 use App\Models\User;
 use App\Notifications\SystemMessage;
+use App\Support\ContainerRuntime;
 use Illuminate\Console\Command;
 use Illuminate\Log\Logger;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
-
 use Symfony\Component\Yaml\Yaml;
 
 class CheckForUpdates extends Command
@@ -36,23 +36,27 @@ class CheckForUpdates extends Command
 
     private ?Logger $log;
 
-    private function savePendingUpdate(array $update): Meta {
-        $meta = new Meta();
-        $meta->key   = 'pending_update';
+    private ?ContainerRuntime $runtime = null;
+
+    private function savePendingUpdate(array $update): Meta
+    {
+        $meta = new Meta;
+        $meta->key = 'pending_update';
         $meta->value = $update;
         $meta->save();
 
         return $meta;
     }
 
-    public function getImages(): array {
+    public function getImages(): array
+    {
         $yaml = Yaml::parseFile(
             base_path('docker-compose.yml')
         );
 
         $images = [];
 
-        if (!isset($yaml['services']) || !is_array($yaml['services'])) {
+        if (! isset($yaml['services']) || ! is_array($yaml['services'])) {
             return $images;
         }
 
@@ -67,11 +71,12 @@ class CheckForUpdates extends Command
         );
     }
 
-    public function getLocalDigest(string $image): ?string {
+    public function getLocalDigest(string $image): ?string
+    {
         $this->log->debug("Checking for local digest of image: {$image}");
 
-        $namespace  = 'library';
-        $tag        = 'latest';
+        $namespace = 'library';
+        $tag = 'latest';
 
         if (strpos($image, '/') !== false) {
             [$namespace, $image] = explode('/', $image, 2);
@@ -87,7 +92,9 @@ class CheckForUpdates extends Command
             $repository = "{$namespace}/{$image}";
         }
 
-        $process = Process::run("docker image inspect {$repository}:{$tag}");
+        $process = Process::run(
+            $this->containerRuntime()->imageInspectCommand("{$repository}:{$tag}")
+        );
 
         $result = trim($process->output());
 
@@ -112,11 +119,12 @@ class CheckForUpdates extends Command
         return explode('@', $digest)[1];
     }
 
-    public function getRemoteDigest(string $image): ?string {
+    public function getRemoteDigest(string $image): ?string
+    {
         $this->log->debug("Checking for remote digest of image: {$image}");
 
-        $namespace  = 'library';
-        $tag        = 'latest';
+        $namespace = 'library';
+        $tag = 'latest';
 
         if (strpos($image, '/') !== false) {
             [$namespace, $image] = explode('/', $image, 2);
@@ -135,16 +143,18 @@ class CheckForUpdates extends Command
         return $response->json('digest');
     }
 
-    public function checkForUpdates(bool $ignoreDev = false, bool $ignoreConfig = false): array {
+    public function checkForUpdates(bool $ignoreDev = false, bool $ignoreConfig = false): array
+    {
         $this->log = Log::channel('package-manager');
+        $this->runtime = ContainerRuntime::fromConfig(config('docker'));
 
-        $developerMode   = env('DEVELOPER_MODE', false);
+        $developerMode = env('DEVELOPER_MODE', false);
         $checkForUpdates = Configuration::get('checkForUpdates', true);
 
         if (
-            ($developerMode && !$ignoreDev)
+            ($developerMode && ! $ignoreDev)
             ||
-            (!$checkForUpdates && !$ignoreConfig)
+            (! $checkForUpdates && ! $ignoreConfig)
         ) {
             throw new InitializationException(
                 $checkForUpdates
@@ -176,8 +186,8 @@ class CheckForUpdates extends Command
 
             if ($localDigest !== $remoteDigest) {
                 $updates[] = [
-                    'image'  => $image,
-                    'local'  => $localDigest,
+                    'image' => $image,
+                    'local' => $localDigest,
                     'remote' => $remoteDigest,
                 ];
             } else {
@@ -193,7 +203,7 @@ class CheckForUpdates extends Command
      */
     public function handle()
     {
-        $ignoreDev    = $this->option('ignore-dev');
+        $ignoreDev = $this->option('ignore-dev');
         $ignoreConfig = $this->option('ignore-config');
 
         $updates = $this->checkForUpdates($ignoreDev, $ignoreConfig);
@@ -218,5 +228,14 @@ class CheckForUpdates extends Command
         echo json_encode($updates);
 
         return Command::SUCCESS;
+    }
+
+    private function containerRuntime(): ContainerRuntime
+    {
+        if ($this->runtime === null) {
+            $this->runtime = ContainerRuntime::fromConfig(config('docker'));
+        }
+
+        return $this->runtime;
     }
 }

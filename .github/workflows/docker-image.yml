@@ -33,6 +33,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Verify production build excludes example plugins
+        run: |
+          cat <<'EOF' > /tmp/Dockerfile.production-context-check
+          FROM alpine
+          WORKDIR /context
+          COPY . .
+          RUN test ! -d /context/examples/plugins
+          EOF
+          docker build -f /tmp/Dockerfile.production-context-check .
+
       - name: Build main image
         uses: docker/build-push-action@v6
         with:

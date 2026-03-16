@@ -1,0 +1,609 @@
+#!/bin/bash
+
+podman_auto_install_disabled() {
+    [[ "${WPRINT3D_AUTO_INSTALL_PODMAN:-1}" == '0' ]];
+}
+
+podman_rootful_enabled() {
+    [[ "${WPRINT3D_PODMAN_ROOTFUL:-1}" != '0' ]];
+}
+
+DETECTED_HOST_CONTAINER_RUNTIME='';
+DETECTED_HOST_COMPOSE_COMMAND='';
+HOST_PODMAN_ROOTFUL=0;
+
+has_graphical_session() {
+    [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]];
+}
+
+detect_sudo_askpass_program() {
+    local askpass_candidates=(
+        "${SUDO_ASKPASS:-}"
+        /usr/libexec/openssh/ssh-askpass
+        /usr/bin/ssh-askpass
+        /usr/bin/ksshaskpass
+        /usr/bin/lxqt-openssh-askpass
+        /usr/lib/ssh/x11-ssh-askpass
+    );
+    local askpass_program;
+
+    for askpass_program in "${askpass_candidates[@]}"; do
+        if [[ -n "$askpass_program" ]] && [[ -x "$askpass_program" ]]; then
+            printf '%s\n' "$askpass_program";
+
+            return 0;
+        fi;
+    done;
+
+    return 1;
+}
+
+apt_lock_is_held() {
+    local apt_lock_paths=(
+        /var/lib/dpkg/lock-frontend
+        /var/lib/dpkg/lock
+        /var/lib/apt/lists/lock
+        /var/cache/apt/archives/lock
+    );
+
+    if command -v fuser > /dev/null 2>&1; then
+        fuser "${apt_lock_paths[@]}" > /dev/null 2>&1;
+
+        return $?;
+    fi;
+
+    if command -v lsof > /dev/null 2>&1; then
+        lsof "${apt_lock_paths[@]}" > /dev/null 2>&1;
+
+        return $?;
+    fi;
+
+    return 1;
+}
+
+wait_for_apt_lock() {
+    local attempt=1;
+
+    while [[ "$attempt" -le 20 ]]; do
+        if ! apt_lock_is_held; then
+            return 0;
+        fi;
+
+        if [[ "$attempt" -eq 20 ]]; then
+            echo 'apt/dpkg is locked by another process. Podman setup timed out waiting for the package manager to become available.' >&2;
+
+            return 1;
+        fi;
+
+        echo 'Waiting for apt/dpkg locks to clear before continuing Podman setup...' >&2;
+
+        sleep 3;
+        attempt=$((attempt + 1));
+    done;
+}
+
+run_with_elevation() {
+    local askpass_program;
+
+    if [[ "${EUID:-1}" -eq 0 ]]; then
+        "$@";
+
+        return $?;
+    fi;
+
+    if command -v sudo > /dev/null 2>&1; then
+        if sudo -n true > /dev/null 2>&1; then
+            sudo "$@";
+
+            return $?;
+        fi;
+
+        if { exec 3<> /dev/tty; } 2> /dev/null; then
+            echo 'Administrator privileges are required to continue the automatic Podman setup. sudo will prompt for your password.' >&3;
+
+            sudo -v <&3 >&3 || {
+                exec 3<&-;
+                exec 3>&-;
+
+                return 1;
+            };
+
+            sudo "$@" <&3;
+
+            local sudo_exit_code=$?;
+
+            exec 3<&-;
+            exec 3>&-;
+
+            return $sudo_exit_code;
+        fi;
+
+        if has_graphical_session && askpass_program="$(detect_sudo_askpass_program)"; then
+            echo "No interactive terminal is available. Requesting administrator privileges through ${askpass_program}..." >&2;
+
+            SUDO_ASKPASS="$askpass_program" sudo -A "$@";
+
+            return $?;
+        fi;
+
+        echo 'Automatic Podman setup needs sudo access, but no interactive terminal is available for a password prompt.' >&2;
+
+        return 1;
+    fi;
+
+    if command -v doas > /dev/null 2>&1; then
+        doas "$@";
+
+        return $?;
+    fi;
+
+    echo 'Podman installation requires root privileges or a working sudo or doas command.' >&2;
+
+    return 1;
+}
+
+prime_elevated_access() {
+    local askpass_program;
+
+    if [[ "${EUID:-1}" -eq 0 ]]; then
+        return 0;
+    fi;
+
+    if command -v sudo > /dev/null 2>&1; then
+        if sudo -n true > /dev/null 2>&1; then
+            return 0;
+        fi;
+
+        if { exec 3<> /dev/tty; } 2> /dev/null; then
+            echo 'Administrator privileges will be required during startup. Authenticating now so the script can continue unattended.' >&3;
+
+            sudo -v <&3 >&3;
+            local sudo_exit_code=$?;
+
+            exec 3<&-;
+            exec 3>&-;
+
+            return $sudo_exit_code;
+        fi;
+
+        if has_graphical_session && askpass_program="$(detect_sudo_askpass_program)"; then
+            echo "Requesting administrator privileges through ${askpass_program} before startup continues..." >&2;
+
+            SUDO_ASKPASS="$askpass_program" sudo -A -v;
+
+            return $?;
+        fi;
+    fi;
+
+    if command -v doas > /dev/null 2>&1; then
+        echo 'Administrator privileges will be required during startup. Authenticating now so the script can continue unattended.' >&2;
+
+        doas true;
+
+        return $?;
+    fi;
+
+    echo 'Administrator privileges will be required later in startup, but no supported elevation method is available right now.' >&2;
+
+    return 1;
+}
+
+enable_podman_user_socket() {
+    local current_user="${SUDO_USER:-${USER:-}}";
+
+    if [[ -z "$current_user" ]] && command -v id > /dev/null 2>&1; then
+        current_user="$(id -un)";
+    fi;
+
+    if command -v loginctl > /dev/null 2>&1 && [[ -n "$current_user" ]]; then
+        run_with_elevation loginctl enable-linger "$current_user" > /dev/null 2>&1 || true;
+    fi;
+
+    if command -v systemctl > /dev/null 2>&1; then
+        systemctl --user enable --now podman.socket > /dev/null 2>&1 || true;
+    fi;
+}
+
+install_podman_automatically() {
+    if podman_auto_install_disabled; then
+        return 1;
+    fi;
+
+    if command -v podman > /dev/null 2>&1; then
+        return 0;
+    fi;
+
+    echo 'Podman is not installed. Attempting automatic installation...' >&2;
+
+    if command -v apt-get > /dev/null 2>&1; then
+        wait_for_apt_lock || return 1;
+        run_with_elevation apt-get update || return 1;
+        wait_for_apt_lock || return 1;
+        run_with_elevation apt-get install -y podman podman-compose || return 1;
+    elif command -v dnf > /dev/null 2>&1; then
+        run_with_elevation dnf install -y podman podman-compose || return 1;
+    elif command -v yum > /dev/null 2>&1; then
+        run_with_elevation yum install -y podman podman-compose || return 1;
+    elif command -v pacman > /dev/null 2>&1; then
+        run_with_elevation pacman -Sy --noconfirm podman podman-compose || return 1;
+    elif command -v zypper > /dev/null 2>&1; then
+        run_with_elevation zypper --non-interactive install podman podman-compose || return 1;
+    elif command -v apk > /dev/null 2>&1; then
+        run_with_elevation apk add podman podman-compose || return 1;
+    else
+        echo 'Automatic Podman installation is not supported on this system: no supported package manager was found.' >&2;
+
+        return 1;
+    fi;
+
+    if ! command -v podman > /dev/null 2>&1; then
+        echo 'Podman installation completed but the podman binary is still not available in PATH.' >&2;
+
+        return 1;
+    fi;
+
+    enable_podman_user_socket;
+
+    echo 'Podman was installed successfully.' >&2;
+
+    return 0;
+}
+
+install_podman_compose_automatically() {
+    if podman_auto_install_disabled; then
+        return 1;
+    fi;
+
+    if command -v podman-compose > /dev/null 2>&1; then
+        return 0;
+    fi;
+
+    echo 'A native Podman compose provider is not available. Attempting to install podman-compose...' >&2;
+
+    if command -v apt-get > /dev/null 2>&1; then
+        wait_for_apt_lock || return 1;
+        run_with_elevation apt-get install -y podman-compose || return 1;
+    elif command -v dnf > /dev/null 2>&1; then
+        run_with_elevation dnf install -y podman-compose || return 1;
+    elif command -v yum > /dev/null 2>&1; then
+        run_with_elevation yum install -y podman-compose || return 1;
+    elif command -v pacman > /dev/null 2>&1; then
+        run_with_elevation pacman -Sy --noconfirm podman-compose || return 1;
+    elif command -v zypper > /dev/null 2>&1; then
+        run_with_elevation zypper --non-interactive install podman-compose || return 1;
+    elif command -v apk > /dev/null 2>&1; then
+        run_with_elevation apk add podman-compose || return 1;
+    else
+        echo 'Automatic podman-compose installation is not supported on this system: no supported package manager was found.' >&2;
+
+        return 1;
+    fi;
+
+    command -v podman-compose > /dev/null 2>&1;
+}
+
+podman_compose_uses_external_provider() {
+    local compose_output;
+
+    compose_output="$(podman compose version 2>&1)" || return 1;
+
+    [[ "$compose_output" == *'Executing external compose provider'* ]];
+}
+
+detect_host_container_runtime() {
+    if [[ -n "${HOST_CONTAINER_RUNTIME:-}" ]]; then
+        if command -v "${HOST_CONTAINER_RUNTIME}" > /dev/null 2>&1; then
+            DETECTED_HOST_CONTAINER_RUNTIME="${HOST_CONTAINER_RUNTIME}";
+
+            return 0;
+        fi;
+
+        if [[ "${HOST_CONTAINER_RUNTIME}" == 'podman' ]] && install_podman_automatically; then
+            DETECTED_HOST_CONTAINER_RUNTIME='podman';
+
+            return 0;
+        fi;
+
+        echo "Requested container runtime '${HOST_CONTAINER_RUNTIME}' is not installed." >&2;
+
+        return 1;
+    fi;
+
+    if command -v podman > /dev/null 2>&1; then
+        DETECTED_HOST_CONTAINER_RUNTIME='podman';
+
+        return 0;
+    fi;
+
+    if install_podman_automatically; then
+        DETECTED_HOST_CONTAINER_RUNTIME='podman';
+
+        return 0;
+    fi;
+
+    echo 'Podman is unavailable and the automatic installation attempt did not succeed.' >&2;
+
+    return 1;
+}
+
+detect_host_compose_command() {
+    local runtime="$1";
+    local compose_output;
+
+    case "$runtime" in
+        podman)
+            compose_output="$(run_podman_host_command compose version 2>&1)" || compose_output='';
+
+            if [[ "$compose_output" != '' ]] && [[ "$compose_output" != *'Executing external compose provider'* ]]; then
+                DETECTED_HOST_COMPOSE_COMMAND='podman compose';
+
+                return 0;
+            fi;
+
+            if [[ "$compose_output" == *'Executing external compose provider'* ]]; then
+                echo 'Detected a Docker-backed external compose provider behind `podman compose`.' >&2;
+            fi;
+
+            if command -v podman-compose > /dev/null 2>&1; then
+                DETECTED_HOST_COMPOSE_COMMAND='podman-compose';
+
+                return 0;
+            fi;
+
+            if install_podman_compose_automatically; then
+                DETECTED_HOST_COMPOSE_COMMAND='podman-compose';
+
+                return 0;
+            fi;
+
+            echo 'Podman is installed but no usable native compose provider was found.' >&2;
+
+            return 1
+            ;;
+        docker)
+            if docker compose version > /dev/null 2>&1; then
+                DETECTED_HOST_COMPOSE_COMMAND='docker compose';
+
+                return 0;
+            fi;
+
+            if command -v docker-compose > /dev/null 2>&1; then
+                DETECTED_HOST_COMPOSE_COMMAND='docker-compose';
+
+                return 0;
+            fi;
+
+            echo 'Docker is installed but no compose provider was found.' >&2;
+
+            return 1
+            ;;
+    esac
+
+    echo "Unsupported container runtime '${runtime}'." >&2;
+
+    return 1;
+}
+
+configure_podman_host_access() {
+    local rootless_output='';
+
+    HOST_PODMAN_ROOTFUL=0;
+
+    if [[ "${HOST_CONTAINER_RUNTIME:-}" != 'podman' ]]; then
+        export HOST_PODMAN_ROOTFUL;
+
+        return 0;
+    fi;
+
+    if ! podman_rootful_enabled; then
+        export HOST_PODMAN_ROOTFUL;
+
+        return 0;
+    fi;
+
+    rootless_output="$(run_with_elevation podman info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" || {
+        echo 'Rootful Podman is enabled for this project, but elevated Podman access could not be established.' >&2;
+        echo 'Set WPRINT3D_PODMAN_ROOTFUL=0 if you need to opt back into rootless Podman.' >&2;
+
+        return 1;
+    };
+
+    if [[ "$rootless_output" != 'false' ]]; then
+        echo 'Elevated Podman access did not resolve to a rootful Podman service.' >&2;
+        echo 'Set WPRINT3D_PODMAN_ROOTFUL=0 if you need to opt back into rootless Podman.' >&2;
+
+        return 1;
+    fi;
+
+    HOST_PODMAN_ROOTFUL=1;
+    export HOST_PODMAN_ROOTFUL;
+
+    return 0;
+}
+
+ensure_podman_socket() {
+    local socket_path="${CONTAINER_SOCKET_PATH:-}";
+
+    if [[ -z "$socket_path" ]]; then
+        socket_path="$(run_podman_host_command info --format '{{.Host.RemoteSocket.Path}}' 2> /dev/null)";
+    fi;
+
+    if [[ -z "$socket_path" ]]; then
+        if [[ "${HOST_PODMAN_ROOTFUL:-0}" == '1' ]]; then
+            socket_path='/run/podman/podman.sock';
+        else
+            socket_path="/run/user/$(id -u)/podman/podman.sock";
+        fi;
+    fi;
+
+    export CONTAINER_SOCKET_PATH="$socket_path";
+
+    if [[ -S "$CONTAINER_SOCKET_PATH" ]]; then
+        return 0;
+    fi;
+
+    if [[ "${HOST_PODMAN_ROOTFUL:-0}" == '1' ]]; then
+        run_with_elevation mkdir -p "$(dirname "$CONTAINER_SOCKET_PATH")";
+
+        if command -v systemctl > /dev/null 2>&1; then
+            run_with_elevation systemctl enable --now podman.socket > /dev/null 2>&1 || true;
+        fi;
+    else
+        mkdir -p "$(dirname "$CONTAINER_SOCKET_PATH")";
+
+        if command -v systemctl > /dev/null 2>&1 && systemctl --user show-environment > /dev/null 2>&1; then
+            systemctl --user start podman.socket > /dev/null 2>&1 || true;
+        fi;
+
+        if [[ ! -S "$CONTAINER_SOCKET_PATH" ]] && ! pgrep -f "podman system service .*${CONTAINER_SOCKET_PATH}" > /dev/null 2>&1; then
+            nohup podman system service --time=0 "unix://${CONTAINER_SOCKET_PATH}" > /tmp/wprint3d-podman-service.log 2>&1 &
+        fi;
+    fi;
+
+    local socket_attempt=1;
+
+    while [[ "$socket_attempt" -le 20 ]]; do
+        if [[ -S "$CONTAINER_SOCKET_PATH" ]]; then
+            return 0;
+        fi;
+
+        sleep 0.25;
+        socket_attempt=$((socket_attempt + 1));
+    done;
+
+    echo "Failed to start the Podman API socket at ${CONTAINER_SOCKET_PATH}." >&2;
+
+    return 1;
+}
+
+init_container_runtime() {
+    DETECTED_HOST_CONTAINER_RUNTIME='';
+    detect_host_container_runtime || return 1;
+    HOST_CONTAINER_RUNTIME="${DETECTED_HOST_CONTAINER_RUNTIME}";
+    export HOST_CONTAINER_RUNTIME;
+    configure_podman_host_access || return 1;
+
+    if [[ -z "${HOST_COMPOSE_COMMAND:-}" ]]; then
+        DETECTED_HOST_COMPOSE_COMMAND='';
+        detect_host_compose_command "$HOST_CONTAINER_RUNTIME" || return 1;
+        HOST_COMPOSE_COMMAND="${DETECTED_HOST_COMPOSE_COMMAND}";
+    fi;
+    export HOST_COMPOSE_COMMAND;
+
+    read -r -a HOST_COMPOSE_COMMAND_ARGS <<< "$HOST_COMPOSE_COMMAND"
+
+    case "$HOST_CONTAINER_RUNTIME" in
+        podman)
+            export CONTAINER_LOG_DRIVER="${CONTAINER_LOG_DRIVER:-k8s-file}"
+            ensure_podman_socket || return 1
+            ;;
+        docker)
+            export CONTAINER_LOG_DRIVER="${CONTAINER_LOG_DRIVER:-local}"
+            export CONTAINER_SOCKET_PATH="${CONTAINER_SOCKET_PATH:-/var/run/docker.sock}"
+            ;;
+    esac
+
+    export IN_CONTAINER_CLI="${IN_CONTAINER_CLI:-docker}"
+    export IN_CONTAINER_COMPOSE_COMMAND="${IN_CONTAINER_COMPOSE_COMMAND:-docker-compose}"
+}
+
+frontend_node_modules_needs_permission_repair() {
+    local node_modules_path="${1:-frontend/node_modules}";
+    local current_user current_group;
+
+    if [[ "${HOST_CONTAINER_RUNTIME:-}" != 'podman' ]]; then
+        return 1;
+    fi;
+
+    if [[ ! -d "$node_modules_path" ]]; then
+        return 1;
+    fi;
+
+    current_user="$(id -un)";
+    current_group="$(id -gn)";
+
+    find "$node_modules_path" \( ! -user "$current_user" -o ! -group "$current_group" \) -print -quit 2> /dev/null | grep -q .;
+}
+
+repair_frontend_node_modules_permissions() {
+    local node_modules_path="${1:-frontend/node_modules}";
+    local current_user current_group;
+
+    if ! frontend_node_modules_needs_permission_repair "$node_modules_path"; then
+        return 0;
+    fi;
+
+    current_user="$(id -un)";
+    current_group="$(id -gn)";
+
+    echo "Repairing ${node_modules_path} ownership for Podman..." >&2;
+
+    run_with_elevation chown -R "${current_user}:${current_group}" "$node_modules_path";
+}
+
+run_host_compose() {
+    if [[ "${HOST_CONTAINER_RUNTIME:-}" == 'podman' ]] && [[ "${HOST_PODMAN_ROOTFUL:-0}" == '1' ]]; then
+        run_podman_rootful_command compose "$@";
+
+        return $?;
+    fi;
+
+    "${HOST_COMPOSE_COMMAND_ARGS[@]}" "$@";
+}
+
+run_host_container_cli() {
+    if [[ "${HOST_CONTAINER_RUNTIME:-}" == 'podman' ]] && [[ "${HOST_PODMAN_ROOTFUL:-0}" == '1' ]]; then
+        run_podman_rootful_command "$@";
+
+        return $?;
+    fi;
+
+    "${HOST_CONTAINER_RUNTIME}" "$@";
+}
+
+run_podman_host_command() {
+    if [[ "${HOST_PODMAN_ROOTFUL:-0}" == '1' ]]; then
+        run_podman_rootful_command "$@";
+
+        return $?;
+    fi;
+
+    podman "$@";
+}
+
+run_podman_rootful_command() {
+    local command="$1";
+    shift;
+
+    local env_args=("PATH=$PATH" "PWD=$PWD");
+    local var_name;
+    local passthrough_vars=(
+        CONTAINER_SOCKET_PATH
+        CONTAINER_LOG_DRIVER
+        IN_CONTAINER_CLI
+        IN_CONTAINER_COMPOSE_COMMAND
+        HOST_CONTAINER_RUNTIME
+        HOST_COMPOSE_COMMAND
+        HOST_PODMAN_ROOTFUL
+    );
+
+    for var_name in "${passthrough_vars[@]}"; do
+        if [[ -n "${!var_name+x}" ]]; then
+            env_args+=("${var_name}=${!var_name}");
+        fi;
+    done;
+
+    if [[ "$command" == 'compose' ]]; then
+        if [[ "${HOST_COMPOSE_COMMAND:-}" == 'podman-compose' ]]; then
+            run_with_elevation env "${env_args[@]}" podman-compose "$@";
+
+            return $?;
+        fi;
+
+        run_with_elevation env "${env_args[@]}" podman compose "$@";
+
+        return $?;
+    fi;
+
+    run_with_elevation env "${env_args[@]}" podman "$command" "$@";
+}

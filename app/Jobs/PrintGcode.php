@@ -7,45 +7,32 @@ use App\Enums\FormatterCommands;
 use App\Enums\Marlin;
 use App\Enums\PauseReason;
 use App\Enums\ToastMessageType;
-
 use App\Events\PrintJobFailed;
 use App\Events\PrintJobFinished;
 use App\Events\ToastMessage;
-
 use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
-
 use App\Libraries\GcodeStat;
 use App\Libraries\Serial;
-
 use App\Models\Configuration;
 use App\Models\File;
 use App\Models\Printer;
 use App\Models\User;
-
+use App\Plugins\PluginHookCompiler;
+use App\Plugins\PluginHookDispatcher;
+use Bayfront\MimeTypes\MimeType;
+use Exception;
 use Illuminate\Bus\Queueable;
-
 use Illuminate\Contracts\Queue\ShouldQueue;
-
 use Illuminate\Filesystem\FilesystemAdapter;
-
 use Illuminate\Foundation\Bus\Dispatchable;
-
 use Illuminate\Log\Logger;
-
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-
-use Illuminate\Support\Str;
-
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-
-use Bayfront\MimeTypes\MimeType;
-
+use Illuminate\Support\Str;
 use Throwable;
-
-use Exception;
 
 class PrintGcode implements ShouldQueue
 {
@@ -67,47 +54,71 @@ class PrintGcode implements ShouldQueue
 
     private FilesystemAdapter $storage;
 
-    private string  $uid;
-    private string  $filePath;
-    private User    $owner;
-    private mixed   $gcode;
-    private string  $lastMovementMode;
-    private int     $runningTimeoutSecs;
-    private int     $commandTimeoutSecs;
-    private int     $minPollIntervalSecs;
-    private int     $jobBackupInterval;
-    private int     $captureIntervalSecs;
-    private int     $streamMaxLengthBytes;
+    private string $uid;
+
+    private string $filePath;
+
+    private User $owner;
+
+    private mixed $gcode;
+
+    private string $lastMovementMode;
+
+    private int $runningTimeoutSecs;
+
+    private int $commandTimeoutSecs;
+
+    private int $minPollIntervalSecs;
+
+    private int $jobBackupInterval;
+
+    private int $captureIntervalSecs;
+
+    private ?array $serialPluginHooks = null;
+
+    private int $streamMaxLengthBytes;
 
     private int $lineNumber = 0;
+
     private int $lineNumberCount;
+
     private int $layerCount;
 
     private Printer $printer;
 
     private bool $shouldRecord;
 
-    protected int   $lastSnapshot;
+    protected int $lastSnapshot;
+
     protected array $recordableCameras;
 
     const LOG_CHANNEL = 'gcode-printer';
 
-    const PRINTER_REFRESH_INTERVAL_SECS  = 5;
+    const PRINTER_REFRESH_INTERVAL_SECS = 5;
+
     const TERMINAL_REFRESH_INTERVAL_SECS = 1; // TODO: make sure that it doesn't go over Reverb's buffer size limit
 
     const COLOR_SWAP_DEFAULT_X = 0; // mm
+
     const COLOR_SWAP_DEFAULT_Y = 0; // mm
+
     const COLOR_SWAP_DEFAULT_Z = 50; // mm
 
-    const COLOR_SWAP_DEFAULT_RETRACTION_LENGTH  = 5;    // mm
-    const COLOR_SWAP_DEFAULT_LOAD_LENGTH        = 70;   // mm
-    const COLOR_SWAP_EXTRUDER_FEED_RATE         = 250;  // mm/min
-    const COLOR_SWAP_MOVEMENT_FEED_RATE         = 500;  // mm/min
+    const COLOR_SWAP_DEFAULT_RETRACTION_LENGTH = 5;    // mm
 
-    const STREAM_BUFFER_SIZE_MIN_LINES   = 100;  // lines
-    const STREAM_BUFFER_SIZE_MAX_LINES   = 1000; // lines
+    const COLOR_SWAP_DEFAULT_LOAD_LENGTH = 70;   // mm
+
+    const COLOR_SWAP_EXTRUDER_FEED_RATE = 250;  // mm/min
+
+    const COLOR_SWAP_MOVEMENT_FEED_RATE = 500;  // mm/min
+
+    const STREAM_BUFFER_SIZE_MIN_LINES = 100;  // lines
+
+    const STREAM_BUFFER_SIZE_MAX_LINES = 1000; // lines
+
     const STREAM_BUFFER_CHUNK_SIZE_LINES = 250;  // lines
-    const STREAM_BUFFER_INTERVAL_SECS    = 10;   // seconds
+
+    const STREAM_BUFFER_INTERVAL_SECS = 10;   // seconds
 
     /**
      * Create a new job instance.
@@ -118,32 +129,32 @@ class PrintGcode implements ShouldQueue
     {
         $this->queue = 'prints';
 
-        $this->uid      = uniqid( more_entropy: true );
-        $this->owner    = $owner;
-        $this->printer  = Printer::find( $printerId );
+        $this->uid = uniqid(more_entropy: true);
+        $this->owner = $owner;
+        $this->printer = Printer::find($printerId);
 
-        if (!$this->printer) {
+        if (! $this->printer) {
             throw new InitializationException('The selected printer doesn\'t exist.');
         }
 
-        if (!$this->printer->activeFile) {
+        if (! $this->printer->activeFile) {
             throw new InitializationException('This printer doesn\'t have an active file.');
         }
 
         $this->filePath = $this->printer->activeFile;
 
-        $this->runningTimeoutSecs   = Configuration::get('runningTimeoutSecs');
-        $this->commandTimeoutSecs   = Configuration::get('commandTimeoutSecs');
-        $this->minPollIntervalSecs  = Configuration::get('lastSeenPollIntervalSecs');
-        $this->jobBackupInterval    = Configuration::get('jobBackupInterval');
-        $this->captureIntervalSecs  = $this->owner->settings['recording']['captureInterval'];
+        $this->runningTimeoutSecs = Configuration::get('runningTimeoutSecs');
+        $this->commandTimeoutSecs = Configuration::get('commandTimeoutSecs');
+        $this->minPollIntervalSecs = Configuration::get('lastSeenPollIntervalSecs');
+        $this->jobBackupInterval = Configuration::get('jobBackupInterval');
+        $this->captureIntervalSecs = $this->owner->settings['recording']['captureInterval'];
         $this->streamMaxLengthBytes = Configuration::get('streamMaxLengthBytes');
 
-        $this->printer->setCurrentLine( 0 );
-        $this->printer->setCurrentLayer( 0 );
-        $this->printer->setLastCommand( null );
+        $this->printer->setCurrentLine(0);
+        $this->printer->setCurrentLayer(0);
+        $this->printer->setLastCommand(null);
 
-        $this->shouldRecord      = $this->owner->settings['recording']['enabled'];
+        $this->shouldRecord = $this->owner->settings['recording']['enabled'];
         $this->recordableCameras = [];
     }
 
@@ -154,58 +165,65 @@ class PrintGcode implements ShouldQueue
      */
     public function finished(bool $resetPrinter = false)
     {
-        $log = Log::channel( self::LOG_CHANNEL );
+        $log = Log::channel(self::LOG_CHANNEL);
 
-        $this->printer->setCurrentLine( 0 );
-        $this->printer->setMaxLine( 0 );
+        $this->printer->setCurrentLine(0);
+        $this->printer->setMaxLine(0);
 
         if ($resetPrinter) {
-            $serial = new Serial(
-                fileName:  $this->printer->node,
-                baudRate:  $this->printer->baudRate,
-                printerId: $this->printer->_id,
-                timeout:   $this->commandTimeoutSecs,
-                terminalAutoAppend: false
-            );
+            $serial = null;
 
-            // Send command sequence for board reset
-            foreach ([
-                'M108',      // break and continue (get out of M0/M1)
-                'M77',       // stop print job timer
-                'M73 P0',    // reset print progress
-                'M486 C',    // cancel objects
-                'M107',      // turn off fan
-                'M140 S0',   // turn off heatbed
-                'M104 S0',   // turn off temperature
-                'M84 X Y E', // disable motors
-                'M999'       // restart from STOP (emergency abort)
+            try {
+                $serial = new Serial(
+                    fileName: $this->printer->node,
+                    baudRate: $this->printer->baudRate,
+                    printerId: $this->printer->_id,
+                    timeout: $this->commandTimeoutSecs,
+                    terminalAutoAppend: false,
+                    pluginHooks: $this->getSerialPluginHooks()
+                );
+
+                // Send command sequence for board reset
+                foreach ([
+                    'M108',      // break and continue (get out of M0/M1)
+                    'M77',       // stop print job timer
+                    'M73 P0',    // reset print progress
+                    'M486 C',    // cancel objects
+                    'M107',      // turn off fan
+                    'M140 S0',   // turn off heatbed
+                    'M104 S0',   // turn off temperature
+                    'M84 X Y E', // disable motors
+                    'M999',       // restart from STOP (emergency abort)
 
                 /**
                  * More Hellbot quirks, yay! :)
-                 * 
+                 *
                  * M999 is being sent here because apparently, Hellbot printers
                  * REALLY dislike the way in that WPrint 3D sends commands in
                  * rapid succession. That is, after completing a print job, the
                  * printer might be stuck unable to warm up again (probably a
                  * buffer overflow somewhere in the custom firmware).
-                 * 
+                 *
                  * This command tells the printer that everything is fine and
                  * that, in fact, nothing would've been lost throughout said
                  * transaction.
-                */
-            ] as $command) {
-                try {
-                    $serial->query( $command );
-                } catch (Exception $exception) {
-                    $log->warning(
-                        __METHOD__ . ': failed to send command: ' . $exception->getMessage() . PHP_EOL .
-                        $exception->getTraceAsString()
-                    );
+                 */
+                ] as $command) {
+                    try {
+                        $serial->query($command);
+                    } catch (Exception $exception) {
+                        $log->warning(
+                            __METHOD__.': failed to send command: '.$exception->getMessage().PHP_EOL.
+                            $exception->getTraceAsString()
+                        );
+                    }
                 }
+            } finally {
+                $serial?->close();
             }
 
-            $this->printer->lastLine     = null;
-            $this->printer->activeFile   = null;
+            $this->printer->lastLine = null;
+            $this->printer->activeFile = null;
             $this->printer->hasActiveJob = false;
         }
 
@@ -218,12 +236,18 @@ class PrintGcode implements ShouldQueue
         $this->printer->resume();
 
         // Report that the job has finished.
-        PrintJobFinished::dispatch( $this->printer->_id );
+        PrintJobFinished::dispatch($this->printer->_id);
+        app(PluginHookDispatcher::class)->dispatch('print.job.finished', [
+            'printerId' => $this->printer->_id,
+            'filePath' => $this->filePath,
+            'jobUid' => $this->uid,
+            'resetPrinter' => $resetPrinter,
+        ]);
 
         // Dispatch video rendering job (if recording was enabled).
         if ($this->shouldRecord) {
             foreach ($this->recordableCameras as $camera) {
-                Log::info( 'RenderVideo: dispatch! - ' . $camera->_id );
+                Log::info('RenderVideo: dispatch! - '.$camera->_id);
 
                 RenderVideo::dispatch(
                     $this->owner,               // owner
@@ -242,25 +266,30 @@ class PrintGcode implements ShouldQueue
     /**
      * Handle a job failure.
      *
-     * @param  Throwable  $exception
      * @return void
      */
     public function failed(Throwable $exception)
     {
-        $log = Log::channel( self::LOG_CHANNEL );
+        $log = Log::channel(self::LOG_CHANNEL);
 
         $log->critical(
-            $exception->getMessage() . PHP_EOL .
+            $exception->getMessage().PHP_EOL.
             $exception->getTraceAsString()
         );
 
         $this->printer->lastJobHasFailed = true;
 
         try {
-            PrintJobFailed::dispatch( $this->printer->_id );
+            PrintJobFailed::dispatch($this->printer->_id);
+            app(PluginHookDispatcher::class)->dispatch('print.job.failed', [
+                'printerId' => $this->printer->_id,
+                'filePath' => $this->filePath,
+                'jobUid' => $this->uid,
+                'message' => $exception->getMessage(),
+            ]);
         } catch (Exception $exception) {
             $log->warning(
-                'PrintJobFailed: dispatch error: ' . $exception->getMessage() . PHP_EOL .
+                'PrintJobFailed: dispatch error: '.$exception->getMessage().PHP_EOL.
                 $exception->getTraceAsString()
             );
         }
@@ -268,14 +297,15 @@ class PrintGcode implements ShouldQueue
         $this->finished(resetPrinter: false);
     }
 
-    private function updatePrintedFile(): void {
+    private function updatePrintedFile(): void
+    {
         $printedFile = File::where('path', $this->filePath)->first();
 
-        if (!$printedFile) {
-            $printedFile = new File();
-            $printedFile->path   = $this->filePath;
+        if (! $printedFile) {
+            $printedFile = new File;
+            $printedFile->path = $this->filePath;
             $printedFile->prints = 0;
-            $printedFile->size   = $this->storage->size($this->filePath);
+            $printedFile->size = $this->storage->size($this->filePath);
             $printedFile->save();
         }
 
@@ -283,10 +313,11 @@ class PrintGcode implements ShouldQueue
         $printedFile->save();
     }
 
-    private function retrySerialConnection(Exception $previousException, Serial &$serial, Logger &$log): string {
+    private function retrySerialConnection(Exception $previousException, Serial &$serial, Logger &$log): string
+    {
         /*
          * NOTE:
-         * 
+         *
          * On low-end devices, the CPU load could cause the false impression of
          * the printer being frozen or crashed (the serial connection went out
          * of sync), because of that, we'll try to fetch the statistics of the
@@ -294,11 +325,11 @@ class PrintGcode implements ShouldQueue
          * will be automatically resumed.
          */
 
-        $log->warning('Timed out, looks like we haven\'t received a newline after the output of the last command. Let\'s try to get the statistics before giving up... Message: ' . $previousException->getMessage());
+        $log->warning('Timed out, looks like we haven\'t received a newline after the output of the last command. Let\'s try to get the statistics before giving up... Message: '.$previousException->getMessage());
 
         try {
             $log->info('Trying to re-establish serial connection...');
-            
+
             $log->info('A timing issue caused the serial connection to hang temporarily, trying again though, showed that the printer is still alive. Continuing print...');
 
             return $serial->query('M105');
@@ -307,7 +338,8 @@ class PrintGcode implements ShouldQueue
         }
     }
 
-    private function bufferChunk(mixed $stream, array &$buffer) {
+    private function bufferChunk(mixed $stream, array &$buffer)
+    {
         if (count($buffer) <= self::STREAM_BUFFER_SIZE_MIN_LINES) {
             $readLineCount = 0;
 
@@ -316,14 +348,16 @@ class PrintGcode implements ShouldQueue
                 &&
                 (
                     $line = readStreamLine(
-                        stream:    $stream,
+                        stream: $stream,
                         maxLength: $this->streamMaxLengthBytes
                     )
                 )
             ) {
-                $command = getGCode( $line );
+                $command = getGCode($line);
 
-                if (!$command) continue;
+                if (! $command) {
+                    continue;
+                }
 
                 if ($command == 'G90' || $command == 'G91') {
                     $this->lastMovementMode = $command;
@@ -331,7 +365,7 @@ class PrintGcode implements ShouldQueue
 
                 if ($command == 'M600' || str_starts_with($command, 'M600 ')) {
                     $appendedCommands = convertColorSwapToSequence(
-                        command:          $command,
+                        command: $command,
                         lastMovementMode: $this->lastMovementMode
                     );
 
@@ -341,7 +375,7 @@ class PrintGcode implements ShouldQueue
 
                     unset($appendedCommands);
 
-                    $this->printer->setMaxLine( $this->lineNumberCount );
+                    $this->printer->setMaxLine($this->lineNumberCount);
 
                     continue;
                 }
@@ -350,7 +384,9 @@ class PrintGcode implements ShouldQueue
 
                 $readLineCount++;
 
-                if (count($buffer) >= self::STREAM_BUFFER_SIZE_MAX_LINES) { break; }
+                if (count($buffer) >= self::STREAM_BUFFER_SIZE_MAX_LINES) {
+                    break;
+                }
             }
         }
     }
@@ -362,8 +398,14 @@ class PrintGcode implements ShouldQueue
      */
     public function handle()
     {
-        $log = Log::channel( self::LOG_CHANNEL );
-        $log->info( "Job started: printing \"{$this->filePath}\"" );
+        $log = Log::channel(self::LOG_CHANNEL);
+        $log->info("Job started: printing \"{$this->filePath}\"");
+        app(PluginHookDispatcher::class)->dispatch('print.job.started', [
+            'printerId' => $this->printer->_id,
+            'filePath' => $this->filePath,
+            'jobUid' => $this->uid,
+            'ownerId' => $this->owner->_id,
+        ]);
 
         $this->storage = Storage::disk('gcode');
 
@@ -382,53 +424,53 @@ class PrintGcode implements ShouldQueue
 
             $log->info("Aborted: incompatible file type \"{$fileMimeType}\".");
 
-            $this->finished( resetPrinter: true );
+            $this->finished(resetPrinter: true);
 
             return;
         }
 
-        $gcodeStat = new GcodeStat( Storage::disk('gcode')->path($this->filePath) );
+        $gcodeStat = new GcodeStat(Storage::disk('gcode')->path($this->filePath));
 
         $stopTimestampSecs = null;
 
         try {
-            $log->debug( __METHOD__ . ': trying to estimate print time...' );
+            $log->debug(__METHOD__.': trying to estimate print time...');
 
             $expectedPrintTimeSecs = $gcodeStat->getPrintTimeSeconds();
 
-            $log->info( __METHOD__ . ": this print should take about {$expectedPrintTimeSecs} seconds." );
+            $log->info(__METHOD__.": this print should take about {$expectedPrintTimeSecs} seconds.");
 
             $stopTimestampSecs = time() + $expectedPrintTimeSecs;
         } catch (Exception $exception) {
             $log->warning(
-                __METHOD__ . ': couldn\'t query estimated print time: ' . $exception->getMessage() . PHP_EOL .
+                __METHOD__.': couldn\'t query estimated print time: '.$exception->getMessage().PHP_EOL.
                 $exception->getTraceAsString()
             );
         }
 
-        $this->gcode = $this->storage->getDriver()->readStream( $this->filePath );
+        $this->gcode = $this->storage->getDriver()->readStream($this->filePath);
 
-        if (!$this->printer->node) {
+        if (! $this->printer->node) {
             throw new Exception('This printer doesn\'t have a node assigned.');
         }
 
         $statisticsQueryIntervalSecs = Configuration::get('jobStatisticsQueryIntervalSecs');
-        $autoSerialIntervalSecs      = Configuration::get('autoSerialIntervalSecs');
+        $autoSerialIntervalSecs = Configuration::get('autoSerialIntervalSecs');
 
         $log->info("Waiting {$autoSerialIntervalSecs} seconds before starting the job for the serial queue to clean up...");
 
         sleep($autoSerialIntervalSecs);
 
-        $this->lineNumber      = $this->printer->getCurrentLine();
+        $this->lineNumber = $this->printer->getCurrentLine();
         $this->lineNumberCount = 0;
-        $this->layerCount      = 0;
+        $this->layerCount = 0;
 
         $lastMovementMode = null;
 
         // count lines
         while (
             $line = readStreamLine(
-                stream:    $this->gcode,
+                stream: $this->gcode,
                 maxLength: $this->streamMaxLengthBytes
             )
         ) {
@@ -438,16 +480,18 @@ class PrintGcode implements ShouldQueue
                 $lastMovementMode = $line;
             }
 
-            if (!Str::startsWith($line, 'G0') && !Str::startsWith($line, 'G1')) { continue; }
+            if (! Str::startsWith($line, 'G0') && ! Str::startsWith($line, 'G1')) {
+                continue;
+            }
 
-            $nextVirtualPosition = movementToXYZE( $line );
+            $nextVirtualPosition = movementToXYZE($line);
 
-            if (!isset($nextVirtualPosition['z'])) {
+            if (! isset($nextVirtualPosition['z'])) {
                 $nextVirtualPosition['z'] = 0;
             }
 
-            if (!isset($virtualPosition)) {
-                $virtualPosition = [ 'z' => 0 ];
+            if (! isset($virtualPosition)) {
+                $virtualPosition = ['z' => 0];
             }
 
             if ($lastMovementMode === null || $lastMovementMode == 'G90') {
@@ -467,344 +511,364 @@ class PrintGcode implements ShouldQueue
             }
         }
 
-        $this->printer->setMaxLayer( $this->layerCount );
+        $this->printer->setMaxLayer($this->layerCount);
 
         // back to line 0
-        rewind( $this->gcode );
+        rewind($this->gcode);
 
         $statistics = $this->printer->getStatistics();
 
         $serial = new Serial(
-            fileName:  $this->printer->node,
-            baudRate:  $this->printer->baudRate,
+            fileName: $this->printer->node,
+            baudRate: $this->printer->baudRate,
             printerId: $this->printer->_id,
-            timeout:   $this->commandTimeoutSecs,
-            terminalAutoAppend: false
+            timeout: $this->commandTimeoutSecs,
+            terminalAutoAppend: false,
+            pluginHooks: $this->getSerialPluginHooks()
         );
 
-        if ($this->shouldRecord) {
-            foreach ($this->printer->getRecordableCameras() as $camera) {
-                if ($camera->connected) {
-                    $this->recordableCameras[] = $camera;
-                }
-            }
-
-            $serial->everyBusyMillis(
-                clockName:  'lastSnapshot',
-                interval:   $this->captureIntervalSecs * 1000,
-                function:   function () {
-                    foreach ($this->recordableCameras as $camera) {
-                        $snapshotURL = $camera->getSnapshotURL();
-
-                        if ($snapshotURL) {
-                            SaveSnapshot::dispatch(
-                                $camera->index,             // index
-                                $camera->requiresLibCamera, // requiresLibCamera
-                                $snapshotURL,               // url
-                                $this->filePath,            // fileName
-                                $this->uid,                 // jobUID
-                                $this->captureIntervalSecs  // expectedIntervalSecs
-                            );
-                        }
+        try {
+            if ($this->shouldRecord) {
+                foreach ($this->printer->getRecordableCameras() as $camera) {
+                    if ($camera->connected) {
+                        $this->recordableCameras[] = $camera;
                     }
                 }
-            );
-        }
 
-        $buffer = [
-            'M75' // start print job timer
-        ];
+                $serial->everyBusyMillis(
+                    clockName: 'lastSnapshot',
+                    interval: $this->captureIntervalSecs * 1000,
+                    function: function () {
+                        foreach ($this->recordableCameras as $camera) {
+                            $snapshotURL = $camera->getSnapshotURL();
 
-        $this->lineNumberCount++;
-
-        $this->printer->setMaxLine( $this->lineNumberCount );
-
-        // default movement mode for Marlin is absolute
-        $this->lastMovementMode = 'G90';
-
-        $this->bufferChunk(
-            stream: $this->gcode,
-            buffer: $buffer
-        );
-
-        $lastStatsUpdate    = time();
-        $lastPrinterRefresh = time();
-
-        if ($this->jobBackupInterval != BackupInterval::NEVER) {
-            $lastBackup = time();
-
-            $this->printer->lastLine = $this->lineNumber;
-            $this->printer->save();
-        }
-
-        $wasPaused = false;
-
-        $absolutePosition = movementToXYZE(
-            $serial->query('M114') // current absolute position
-        );
-
-        $this->printer->setAbsolutePosition(
-            x:  $absolutePosition['x'] ?? null,
-            y:  $absolutePosition['y'] ?? null,
-            z:  $absolutePosition['z'] ?? null,
-            e:  $absolutePosition['e'] ?? null
-        );
-
-        $progressPercentage = 0;
-
-        tryToWaitForMapper($log);
-
-        $this->updatePrintedFile();
-
-        $lastSeen = $this->printer->getLastSeen();
-
-        $lastCommandUpdate  = time();
-        $lastPositionUpdate = time();
-
-        while ($buffer) {
-            $index = array_key_first($buffer);
-
-            $time = time();
-
-            $line = $buffer[ $index ];
-
-            $absolutePosition = $this->printer->getAbsolutePosition();
-
-            if ($line == ';' . FormatterCommands::GO_BACK) {
-                $line = "G0 X{$absolutePosition['x']} Y{$absolutePosition['y']} Z{$absolutePosition['z']} F" . self::COLOR_SWAP_MOVEMENT_FEED_RATE;
-            }
-
-            if ($line == ';' . FormatterCommands::RESTORE_EXTRUDER) {
-                $line = "G92 E{$absolutePosition['e']}";
-            }
-
-            if (!$this->printer->isRunning()) {
-                $log->debug('PAUSE');
-
-                $wasPaused = true;
-            }
-
-            while (!$this->printer->isRunning()) {
-                if ($this->printer->getPauseReason() == PauseReason::AUTOMATIC) {
-                    $received = $serial->query(
-                        command:    'M105',
-                        lineNumber: $this->lineNumber,
-                        maxLine:    $this->lineNumberCount
-                    );
-
-                    if (Str::contains($received, 'ok')) {
-                        $log->info('Resuming print...');
-
-                        $this->printer->resume();
-
-                        break;
-                    }
-
-                    $this->printer->refresh();
-
-                    sleep(1);
-                }
-
-                if (!$this->printer->activeFile) break;
-            }
-
-            if (!$this->printer->activeFile) break;
-
-            if ($wasPaused) {
-                $log->debug('RESUME');
-
-                $serial->query( 'M108' ); // break pause and continue unconditionally
-
-                $wasPaused = false;
-
-                $this->lineNumber = $this->printer->incrementCurrentLine();
-
-                continue;
-            }
-
-            if ($time - $lastPrinterRefresh > self::PRINTER_REFRESH_INTERVAL_SECS) {
-                $lastPrinterRefresh = time();
-
-                $this->printer->refresh();
-
-                if (!$this->printer->activeFile) {
-                    $serial->tryToAppendNow();
-
-                    $log->info('Job aborted.');
-
-                    $this->finished( resetPrinter: true );
-
-                    return;
-                }
-            }
-
-            // Handle user pauses
-            if ($line == 'M0' || $line == 'M1') {
-                $this->printer->pause( PauseReason::AUTOMATIC );
-
-                $log->debug('PAUSE: ' . $line);
-            }
-
-            $log->debug('PENDING: ' . $line);
-
-            $received = $serial->query(
-                command:      $line,
-                lineNumber:   $this->lineNumber,
-                maxLine:      $this->lineNumberCount
-            );
-
-            $log->debug('PROG: ' . $this->lineNumber . ' / ' . $this->lineNumberCount);
-
-            if ($time - $lastSeen > $this->minPollIntervalSecs - 1) {
-                $lastSeen = $this->printer->updateLastSeen();
-            }
-
-            if ($time - $lastCommandUpdate >= self::TERMINAL_REFRESH_INTERVAL_SECS) {
-                $this->printer->setLastCommand( Marlin::getLabel($line) );
-
-                $serial->tryToAppendNow(
-                    lineNumber: $this->lineNumber,
-                    maxLine:    $this->lineNumberCount,
-                    isRunning:  true,
-                    statistics: $this->printer->getStatistics(),
-                    stopTimestampSecs: $stopTimestampSecs
-                );
-
-                $lastCommandUpdate = time();
-            }
-
-            if (time() - $lastStatsUpdate > $statisticsQueryIntervalSecs) {
-                $lastStatsUpdate = time();
-
-                $statistics = $this->printer->getStatistics();
-
-                if (isset( $statistics['extruders'] )) {
-                    foreach (array_keys($statistics['extruders']) as $extruderIndex) {
-                        try {
-                            $log->debug('Trying to refresh statistics...');
-
-                            $temperatureCommand = 'M105';
-
-                            if ($extruderIndex > 0) {
-                                $temperatureCommand .= ' T' . $extruderIndex;
+                            if ($snapshotURL) {
+                                SaveSnapshot::dispatch(
+                                    $camera->index,             // index
+                                    $camera->requiresLibCamera, // requiresLibCamera
+                                    $snapshotURL,               // url
+                                    $this->filePath,            // fileName
+                                    $this->uid,                 // jobUID
+                                    $this->captureIntervalSecs  // expectedIntervalSecs
+                                );
                             }
-
-                            $this->printer->setStatistics(
-                                lines:          $serial->query(
-                                    command:    $temperatureCommand,
-                                    lineNumber: $this->lineNumber,
-                                    maxLine:    $this->lineNumberCount
-                                ),
-                                extruderIndex:  $extruderIndex
-                            );
-                        } catch (TimedOutException $exception) {
-                            $this->retrySerialConnection($exception, $serial, $log);
                         }
                     }
-                }
+                );
             }
 
-            if ($line == 'G90' || $line == 'G91') {
-                $this->lastMovementMode = $line;
-            } else if (
-                (str_starts_with($line, 'G0') || str_starts_with($line, 'G1'))
-                &&
-                !str_ends_with($line, ';' . FormatterCommands::IGNORE_POSITION_CHANGE)
-            ) {
-                $previousPosition = $absolutePosition;
+            $buffer = [
+                'M75', // start print job timer
+            ];
 
-                if ($this->lastMovementMode == 'G90') { // absolute mode
-                    foreach (movementToXYZE( $line ) as $key => $value) {
-                        $absolutePosition[ $key ] = $value;
-                    }
-                } else if ($this->lastMovementMode == 'G91') { // relative mode
-                    foreach (movementToXYZE( $line ) as $key => $value) {
-                        $absolutePosition[ $key ] += $value;
-                    }
-                }
+            $this->lineNumberCount++;
 
-                if ($previousPosition['z'] != $absolutePosition['z']) {
-                    $this->printer->incrementCurrentLayer();
-                }
+            $this->printer->setMaxLine($this->lineNumberCount);
 
-                $log->debug('POS: ' . json_encode($absolutePosition));
-
-                if (
-                    $this->lineNumber == $this->lineNumberCount
-                    ||
-                    time() - $lastPositionUpdate >= 1
-                ) {
-                    $this->printer->setAbsolutePosition(
-                        x:  $absolutePosition['x'],
-                        y:  $absolutePosition['y'],
-                        z:  $absolutePosition['z'],
-                        e:  $absolutePosition['e']
-                    );
-                }
-            }
-
-            $lastProgressPercentage = round(
-                num:       ($this->lineNumber * 100) / $this->lineNumberCount,
-                precision: 2
-            );
-
-            if ($lastProgressPercentage > 0) {
-                $lastProgressPercentage = ceil($lastProgressPercentage);
-            }
-
-            if ($lastProgressPercentage > 100) {
-                $lastProgressPercentage = 100;
-            }
-
-            if ($lastProgressPercentage != $progressPercentage) {
-                $serial->query("M73 P{$lastProgressPercentage}");
-
-                $progressPercentage = $lastProgressPercentage;
-            }
-
-            if (Str::contains( $received, 'ok' )) {
-                $this->lineNumber = $this->printer->incrementCurrentLine();
-
-                if (
-                    $this->jobBackupInterval != BackupInterval::NEVER // if it's not disabled
-                    &&
-                    (
-                        $this->lineNumber == $this->lineNumberCount // and it's the last line
-                        ||
-                        (
-                            (
-                                $this->jobBackupInterval == BackupInterval::EVERY_SECOND // or the backup interval is set up to every second
-                                &&
-                                time() - $lastBackup >= 1
-                            )
-                            ||
-                            (
-                                $this->jobBackupInterval == BackupInterval::EVERY_5_MINUTES // or the backup interval is set to 5 minutes
-                                &&
-                                time() - $lastBackup > 5 * 60                               // and 5 minutes have passed
-                            )
-                        )
-                    )
-                ) {
-                    $this->printer->lastLine = $this->lineNumber;
-                    $this->printer->save();
-
-                    $lastBackup = time();
-                }
-            }
-
-            unset($buffer[ $index ]);
+            // default movement mode for Marlin is absolute
+            $this->lastMovementMode = 'G90';
 
             $this->bufferChunk(
                 stream: $this->gcode,
                 buffer: $buffer
             );
+
+            $lastStatsUpdate = time();
+            $lastPrinterRefresh = time();
+
+            if ($this->jobBackupInterval != BackupInterval::NEVER) {
+                $lastBackup = time();
+
+                $this->printer->lastLine = $this->lineNumber;
+                $this->printer->save();
+            }
+
+            $wasPaused = false;
+
+            $absolutePosition = movementToXYZE(
+                $serial->query('M114') // current absolute position
+            );
+
+            $this->printer->setAbsolutePosition(
+                x: $absolutePosition['x'] ?? null,
+                y: $absolutePosition['y'] ?? null,
+                z: $absolutePosition['z'] ?? null,
+                e: $absolutePosition['e'] ?? null
+            );
+
+            $progressPercentage = 0;
+
+            tryToWaitForMapper($log);
+
+            $this->updatePrintedFile();
+
+            $lastSeen = $this->printer->getLastSeen();
+
+            $lastCommandUpdate = time();
+            $lastPositionUpdate = time();
+
+            while ($buffer) {
+                $index = array_key_first($buffer);
+
+                $time = time();
+
+                $line = $buffer[$index];
+
+                $absolutePosition = $this->printer->getAbsolutePosition();
+
+                if ($line == ';'.FormatterCommands::GO_BACK) {
+                    $line = "G0 X{$absolutePosition['x']} Y{$absolutePosition['y']} Z{$absolutePosition['z']} F".self::COLOR_SWAP_MOVEMENT_FEED_RATE;
+                }
+
+                if ($line == ';'.FormatterCommands::RESTORE_EXTRUDER) {
+                    $line = "G92 E{$absolutePosition['e']}";
+                }
+
+                if (! $this->printer->isRunning()) {
+                    $log->debug('PAUSE');
+
+                    $wasPaused = true;
+                }
+
+                while (! $this->printer->isRunning()) {
+                    if ($this->printer->getPauseReason() == PauseReason::AUTOMATIC) {
+                        $received = $serial->query(
+                            command: 'M105',
+                            lineNumber: $this->lineNumber,
+                            maxLine: $this->lineNumberCount
+                        );
+
+                        if (Str::contains($received, 'ok')) {
+                            $log->info('Resuming print...');
+
+                            $this->printer->resume();
+
+                            break;
+                        }
+
+                        $this->printer->refresh();
+
+                        sleep(1);
+                    }
+
+                    if (! $this->printer->activeFile) {
+                        break;
+                    }
+                }
+
+                if (! $this->printer->activeFile) {
+                    break;
+                }
+
+                if ($wasPaused) {
+                    $log->debug('RESUME');
+
+                    $serial->query('M108'); // break pause and continue unconditionally
+
+                    $wasPaused = false;
+
+                    $this->lineNumber = $this->printer->incrementCurrentLine();
+
+                    continue;
+                }
+
+                if ($time - $lastPrinterRefresh > self::PRINTER_REFRESH_INTERVAL_SECS) {
+                    $lastPrinterRefresh = time();
+
+                    $this->printer->refresh();
+
+                    if (! $this->printer->activeFile) {
+                        $serial->tryToAppendNow();
+                        $serial->close();
+
+                        $log->info('Job aborted.');
+
+                        $this->finished(resetPrinter: true);
+
+                        return;
+                    }
+                }
+
+                // Handle user pauses
+                if ($line == 'M0' || $line == 'M1') {
+                    $this->printer->pause(PauseReason::AUTOMATIC);
+
+                    $log->debug('PAUSE: '.$line);
+                }
+
+                $log->debug('PENDING: '.$line);
+
+                $received = $serial->query(
+                    command: $line,
+                    lineNumber: $this->lineNumber,
+                    maxLine: $this->lineNumberCount
+                );
+
+                $log->debug('PROG: '.$this->lineNumber.' / '.$this->lineNumberCount);
+
+                if ($time - $lastSeen > $this->minPollIntervalSecs - 1) {
+                    $lastSeen = $this->printer->updateLastSeen();
+                }
+
+                if ($time - $lastCommandUpdate >= self::TERMINAL_REFRESH_INTERVAL_SECS) {
+                    $this->printer->setLastCommand(Marlin::getLabel($line));
+
+                    $serial->tryToAppendNow(
+                        lineNumber: $this->lineNumber,
+                        maxLine: $this->lineNumberCount,
+                        isRunning: true,
+                        statistics: $this->printer->getStatistics(),
+                        stopTimestampSecs: $stopTimestampSecs
+                    );
+
+                    $lastCommandUpdate = time();
+                }
+
+                if (time() - $lastStatsUpdate > $statisticsQueryIntervalSecs) {
+                    $lastStatsUpdate = time();
+
+                    $statistics = $this->printer->getStatistics();
+
+                    if (isset($statistics['extruders'])) {
+                        foreach (array_keys($statistics['extruders']) as $extruderIndex) {
+                            try {
+                                $log->debug('Trying to refresh statistics...');
+
+                                $temperatureCommand = 'M105';
+
+                                if ($extruderIndex > 0) {
+                                    $temperatureCommand .= ' T'.$extruderIndex;
+                                }
+
+                                $this->printer->setStatistics(
+                                    lines: $serial->query(
+                                        command: $temperatureCommand,
+                                        lineNumber: $this->lineNumber,
+                                        maxLine: $this->lineNumberCount
+                                    ),
+                                    extruderIndex: $extruderIndex
+                                );
+                            } catch (TimedOutException $exception) {
+                                $this->retrySerialConnection($exception, $serial, $log);
+                            }
+                        }
+                    }
+                }
+
+                if ($line == 'G90' || $line == 'G91') {
+                    $this->lastMovementMode = $line;
+                } elseif (
+                    (str_starts_with($line, 'G0') || str_starts_with($line, 'G1'))
+                    &&
+                    ! str_ends_with($line, ';'.FormatterCommands::IGNORE_POSITION_CHANGE)
+                ) {
+                    $previousPosition = $absolutePosition;
+
+                    if ($this->lastMovementMode == 'G90') { // absolute mode
+                        foreach (movementToXYZE($line) as $key => $value) {
+                            $absolutePosition[$key] = $value;
+                        }
+                    } elseif ($this->lastMovementMode == 'G91') { // relative mode
+                        foreach (movementToXYZE($line) as $key => $value) {
+                            $absolutePosition[$key] += $value;
+                        }
+                    }
+
+                    if ($previousPosition['z'] != $absolutePosition['z']) {
+                        $this->printer->incrementCurrentLayer();
+                    }
+
+                    $log->debug('POS: '.json_encode($absolutePosition));
+
+                    if (
+                        $this->lineNumber == $this->lineNumberCount
+                        ||
+                        time() - $lastPositionUpdate >= 1
+                    ) {
+                        $this->printer->setAbsolutePosition(
+                            x: $absolutePosition['x'],
+                            y: $absolutePosition['y'],
+                            z: $absolutePosition['z'],
+                            e: $absolutePosition['e']
+                        );
+                    }
+                }
+
+                $lastProgressPercentage = round(
+                    num: ($this->lineNumber * 100) / $this->lineNumberCount,
+                    precision: 2
+                );
+
+                if ($lastProgressPercentage > 0) {
+                    $lastProgressPercentage = ceil($lastProgressPercentage);
+                }
+
+                if ($lastProgressPercentage > 100) {
+                    $lastProgressPercentage = 100;
+                }
+
+                if ($lastProgressPercentage != $progressPercentage) {
+                    $serial->query("M73 P{$lastProgressPercentage}");
+
+                    $progressPercentage = $lastProgressPercentage;
+                }
+
+                if (Str::contains($received, 'ok')) {
+                    $this->lineNumber = $this->printer->incrementCurrentLine();
+
+                    if (
+                        $this->jobBackupInterval != BackupInterval::NEVER // if it's not disabled
+                        &&
+                        (
+                            $this->lineNumber == $this->lineNumberCount // and it's the last line
+                            ||
+                            (
+                                (
+                                    $this->jobBackupInterval == BackupInterval::EVERY_SECOND // or the backup interval is set up to every second
+                                    &&
+                                    time() - $lastBackup >= 1
+                                )
+                                ||
+                                (
+                                    $this->jobBackupInterval == BackupInterval::EVERY_5_MINUTES // or the backup interval is set to 5 minutes
+                                    &&
+                                    time() - $lastBackup > 5 * 60                               // and 5 minutes have passed
+                                )
+                            )
+                        )
+                    ) {
+                        $this->printer->lastLine = $this->lineNumber;
+                        $this->printer->save();
+
+                        $lastBackup = time();
+                    }
+                }
+
+                unset($buffer[$index]);
+
+                $this->bufferChunk(
+                    stream: $this->gcode,
+                    buffer: $buffer
+                );
+            }
+
+            $serial->tryToAppendNow();
+            $serial->close();
+
+            $log->info('Job finished.');
+
+            $this->finished(resetPrinter: true);
+        } finally {
+            $serial->close();
+        }
+    }
+
+    private function getSerialPluginHooks(): array
+    {
+        if ($this->serialPluginHooks === null) {
+            $this->serialPluginHooks = app(PluginHookCompiler::class)->compileSerialHooks();
         }
 
-        $serial->tryToAppendNow();
-
-        $log->info('Job finished.');
-
-        $this->finished( resetPrinter: true );
+        return $this->serialPluginHooks;
     }
 }

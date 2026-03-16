@@ -3,60 +3,73 @@
 namespace App\Libraries;
 
 use App\Events\PrinterTerminalUpdated;
-
-use App\Models\Configuration;
-use App\Models\Printer;
-
 use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
-
+use App\Models\Configuration;
+use App\Models\Printer;
+use App\Plugins\PluginHookCompiler;
+use App\Support\FakeSerial\FakeSerialManager;
+use Closure;
+use Error;
 use Illuminate\Cache\Repository;
-
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockTimeoutException;
-
 use Illuminate\Log\Logger;
-
 use Illuminate\Support\Arr;
-
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-
-use Error;
 use Throwable;
 
-class Serial {
-
+class Serial
+{
     private $fd;
 
-    private string      $fileName;
-    private int         $baudRate;
-    private int         $terminalMaxLines;
+    private string $fileName;
 
-    private ?int        $maxTimeBetweenHeartbeatsSecs = null;
+    private int $baudRate;
 
-    private Repository  $lockCache;
-    private string      $lockKey;
+    private int $terminalMaxLines;
 
-    private ?string $printerId  = null;
-    private ?int    $timeout    = null;
+    private ?int $maxTimeBetweenHeartbeatsSecs = null;
+
+    private Repository $lockCache;
+
+    private string $lockKey;
+
+    private ?string $printerId = null;
+
+    private ?int $timeout = null;
 
     private ?Logger $log = null;
 
-    private string  $terminalBuffer     = '';
-    private bool    $terminalAutoAppend = true;
+    private string $terminalBuffer = '';
+
+    private bool $terminalAutoAppend = true;
 
     private array $clocks;
+
     private array $externalProperties;
+
     private array $onNewLineActions;
 
-    const TERMINAL_PATH   = '/dev';
+    private array $pluginHooks;
+
+    private array $pendingPluginLineHookContext = [];
+
+    private FakeSerialManager $fakeSerialManager;
+
+    private ?string $fakeSerialConnectionToken = null;
+
+    const TERMINAL_PATH = '/dev';
+
     const TERMINAL_PREFIX = 'tty';
 
     const CACHE_LOCK_SUFFIX = '_nodeLock';
-    const CACHE_LOCK_TTL    = 120; // seconds
 
-    const LIVE_BUFFER_WAIT_NANOS  = 8;               // nanoseconds (short sleep to save on CPU cycles)
+    const CACHE_LOCK_TTL = 120; // seconds
+
+    const LIVE_BUFFER_WAIT_NANOS = 8;               // nanoseconds (short sleep to save on CPU cycles)
+
     const EMPTY_BUFFER_WAIT_NANOS = 8 * 1000 * 1000; // milliseconds to nanoseconds (short sleep to save on CPU cycles)
 
     const WORKAROUND_HELLBOT_QUEUE_PATTERN = '/echo:enqueueing.*\nok T:.*\n/';
@@ -64,24 +77,25 @@ class Serial {
     /**
      * __construct
      *
-     * @param  string   $fileName           - the node file name (as in, if you're looking for 'ttyUSB0', you'd write 'USB0')
-     * @param  int      $baudRate           - the rate (in bits per second) on which data will be processed
-     * @param  ?int     $timeout            - the maximum amount of time that can be spent on a read
-     * @param  ?string  $printerId          - the ObjectId of the printer related to this transaction
-     * @param  bool     $terminalAutoAppend - whether the terminal should be auto-appended
-     * 
-     * @throws InitializationException
-     * 
+     * @param  string  $fileName  - the node file name (as in, if you're looking for 'ttyUSB0', you'd write 'USB0')
+     * @param  int  $baudRate  - the rate (in bits per second) on which data will be processed
+     * @param  ?int  $timeout  - the maximum amount of time that can be spent on a read
+     * @param  ?string  $printerId  - the ObjectId of the printer related to this transaction
+     * @param  bool  $terminalAutoAppend  - whether the terminal should be auto-appended
      * @return void
+     *
+     * @throws InitializationException
      */
-    public function __construct(string $fileName, int $baudRate, ?int $timeout = null, ?string $printerId = null, bool $terminalAutoAppend = true) {
-        $this->fileName  = $fileName;
-        $this->baudRate  = $baudRate;
+    public function __construct(string $fileName, int $baudRate, ?int $timeout = null, ?string $printerId = null, bool $terminalAutoAppend = true, array $pluginHooks = [])
+    {
+        $this->fileName = $fileName;
+        $this->baudRate = $baudRate;
         $this->printerId = $printerId;
 
         $this->lockCache = Cache::store();
+        $this->fakeSerialManager = app(FakeSerialManager::class);
 
-        $this->lockKey   = $this->fileName . self::CACHE_LOCK_SUFFIX;
+        $this->lockKey = $this->fileName.self::CACHE_LOCK_SUFFIX;
 
         if (Configuration::get('debugSerial')) {
             $this->log = Log::channel('serial');
@@ -97,109 +111,163 @@ class Serial {
             $this->timeout = Configuration::get('commandTimeoutSecs');
         }
 
-        if (!$this->fd) {
+        if (! $this->fd && $this->fakeSerialConnectionToken === null) {
             throw new InitializationException('Failed to open connection.');
         }
 
         $this->terminalAutoAppend = $terminalAutoAppend;
 
-        $this->clocks                = [];
-        $this->externalProperties    = [];
-        $this->onNewLineActions      = [];
+        $this->clocks = [];
+        $this->externalProperties = [];
+        $this->onNewLineActions = [];
+        $this->pluginHooks = $this->resolvePluginHooks($pluginHooks);
+
+        $this->registerPluginHooks();
 
         if ($this->log !== null) {
-            $this->log->debug( __METHOD__ . ': created instance with params: ' . json_encode(func_get_args()) );
+            $this->log->debug(__METHOD__.': created instance with params: '.json_encode(func_get_args()));
         }
 
         $this->maxTimeBetweenHeartbeatsSecs = Configuration::get('lastSeenThresholdSecs');
     }
 
-    public function __destruct() {
-        if (!$this->terminalAutoAppend) {
+    private function resolvePluginHooks(array $pluginHooks = []): array
+    {
+        if ($pluginHooks === []) {
+            $pluginHooks = app(PluginHookCompiler::class)->compileSerialHooks();
+        }
+
+        return [
+            'serial.command.before_send' => $this->resolvePluginHookCallable($pluginHooks['serial.command.before_send'] ?? null),
+            'serial.line.received' => $this->resolvePluginHookCallable($pluginHooks['serial.line.received'] ?? null),
+            'serial.command.response_received' => $this->resolvePluginHookCallable($pluginHooks['serial.command.response_received'] ?? null),
+        ];
+    }
+
+    private function resolvePluginHookCallable(?callable $pluginHook = null): Closure
+    {
+        if ($pluginHook !== null) {
+            return Closure::fromCallable($pluginHook);
+        }
+
+        return static fn (array $context = []): array => [];
+    }
+
+    private function registerPluginHooks(): void
+    {
+        $this->onNewLine(function (): void {
+            if (empty($this->pendingPluginLineHookContext)) {
+                return;
+            }
+
+            $this->dispatchPluginHook('serial.line.received', $this->pendingPluginLineHookContext);
+        });
+    }
+
+    private function dispatchPluginHook(string $hook, array $context = []): array
+    {
+        return ($this->pluginHooks[$hook])($context);
+    }
+
+    public function __destruct()
+    {
+        if (! $this->terminalAutoAppend) {
             $this->tryToAppendNow();
         }
 
+        $this->close();
+    }
+
+    public function close(): void
+    {
+        if ($this->fakeSerialConnectionToken !== null) {
+            $this->fakeSerialManager->disconnect($this->fileName, $this->fakeSerialConnectionToken);
+            $this->fakeSerialConnectionToken = null;
+        }
+
         if ($this->fd) {
-            dio_close( $this->fd );
+            dio_close($this->fd);
+            $this->fd = null;
         }
     }
 
     /**
      * getProperty
      *
-     * @param string $key A dot notation-based property key. 
-     * 
+     * @param  string  $key  A dot notation-based property key.
      * @return mixed|null
      */
-    public function getProperty(string $key) {
+    public function getProperty(string $key)
+    {
         return Arr::get(
-            array:  $this->externalProperties,
-            key:    $key
+            array: $this->externalProperties,
+            key: $key
         );
     }
 
     /**
-      * setProperty
-      *
-      * @param  string $key   A dot notation-based property key. 
-      * @param  mixed  $value A value of any kind
-      * 
-      * @return array of properties
-      */
-    public function setProperty(string $key, mixed $value) {
+     * setProperty
+     *
+     * @param  string  $key  A dot notation-based property key.
+     * @param  mixed  $value  A value of any kind
+     * @return array of properties
+     */
+    public function setProperty(string $key, mixed $value)
+    {
         return Arr::set(
-            array:  $this->externalProperties,
-            key:    $key,
-            value:  $value
+            array: $this->externalProperties,
+            key: $key,
+            value: $value
         );
     }
-    
+
     /**
      * onNewLine
-     * 
+     *
      * DO NOT RUN long-running sentences, use this event to dispatch jobs or
      * to handle extremely fast calls.
      *
-     * @param  callable $function A function to chain
+     * @param  callable  $function  A function to chain
      * @return void
      */
-    public function onNewLine(callable $function) {
+    public function onNewLine(callable $function)
+    {
         $this->onNewLineActions[] = $function;
     }
-    
+
     /**
      * everyBusyMillis
-     * 
+     *
      * DO NOT RUN long-running sentences, use this event to dispatch jobs or
      * to handle extremely fast calls.
-     * 
+     *
      * These clocks are tried and run while busy on long-running tasks such as
      * query().
      *
-     * @param  string   $clockName The name of the clock
-     * @param  int      $interval  The interval in which $function should be run (in milliseconds)
-     * @param  callable $function  The function to run
-     * 
+     * @param  string  $clockName  The name of the clock
+     * @param  int  $interval  The interval in which $function should be run (in milliseconds)
+     * @param  callable  $function  The function to run
      * @return void
      */
-    public function everyBusyMillis(string $clockName, int $interval, callable $function) {
-        $this->clocks[ $clockName ] = [
-            'lastRun'  => millis(),
+    public function everyBusyMillis(string $clockName, int $interval, callable $function)
+    {
+        $this->clocks[$clockName] = [
+            'lastRun' => millis(),
             'tickRate' => $interval,
-            'callable' => $function
+            'callable' => $function,
         ];
     }
-    
+
     /**
      * tickClocks
-     * 
+     *
      * Try to run queued callables in $this->clocks.
-     * 
-     * @param  int $millis optional, pass pre-rendered for better performance
-     * 
+     *
+     * @param  int  $millis  optional, pass pre-rendered for better performance
      * @return void
      */
-    private function tickClocks($millis = null) {
+    private function tickClocks($millis = null)
+    {
         foreach ($this->clocks as $key => $clock) {
             if ($millis === null) {
                 $millis = millis();
@@ -207,24 +275,24 @@ class Serial {
 
             if ($millis - $clock['lastRun'] > $clock['tickRate']) {
                 if ($this->log) {
-                    $this->log->debug( __METHOD__ . ": {$key}: the clock has ticked! - millis = {$millis}, lastRun = {$clock['lastRun']}, tickRate = {$clock['tickRate']}" );
+                    $this->log->debug(__METHOD__.": {$key}: the clock has ticked! - millis = {$millis}, lastRun = {$clock['lastRun']}, tickRate = {$clock['tickRate']}");
                 }
 
-                $this->clocks[ $key ]['lastRun'] = $millis;
+                $this->clocks[$key]['lastRun'] = $millis;
 
-                try { $clock['callable'](); }
-                catch (Throwable $throwable) {
+                try {
+                    $clock['callable']();
+                } catch (Throwable $throwable) {
                     if ($this->log) {
                         $this->log->error(
-                            __METHOD__ . ': couldn\'t run queued callable: ' . $throwable->getMessage() . PHP_EOL .
+                            __METHOD__.': couldn\'t run queued callable: '.$throwable->getMessage().PHP_EOL.
                             $throwable->getTraceAsString()
                         );
                     }
-                }
-                catch (Error $error) {
+                } catch (Error $error) {
                     if ($this->log) {
                         $this->log->error(
-                            __METHOD__ . ': A PHP core error occurred while trying to run a queued callable: ' . $error->getMessage() . PHP_EOL .
+                            __METHOD__.': A PHP core error occurred while trying to run a queued callable: '.$error->getMessage().PHP_EOL.
                             $error->getTraceAsString()
                         );
                     }
@@ -235,22 +303,21 @@ class Serial {
 
     /**
      * blockWhileLocking
-     * 
+     *
      * Blocks the current thread while trying to acquire a lock, then, returns
      * an instance of Lock that supports release().
-     *
-     * @return Lock
      */
-    private function blockWhileLocking(): Lock {
-        $lock = $this->lockCache->lock( $this->lockKey, self::CACHE_LOCK_TTL );
+    private function blockWhileLocking(): Lock
+    {
+        $lock = $this->lockCache->lock($this->lockKey, self::CACHE_LOCK_TTL);
 
-        if (!$lock->get()) {
+        if (! $lock->get()) {
             try {
-                $lock->block( self::CACHE_LOCK_TTL );
+                $lock->block(self::CACHE_LOCK_TTL);
             } catch (LockTimeoutException $lockTimeoutException) {
                 if ($this->log) {
                     $this->log->warning(
-                        __METHOD__ . ': timed out waiting for the serial port to free up, the lock will be released: ' . $lockTimeoutException->getMessage() . PHP_EOL .
+                        __METHOD__.': timed out waiting for the serial port to free up, the lock will be released: '.$lockTimeoutException->getMessage().PHP_EOL.
                         $lockTimeoutException->getTraceAsString()
                     );
                 }
@@ -264,27 +331,34 @@ class Serial {
         return $lock;
     }
 
-    private function configure() {
+    private function configure()
+    {
         $lock = $this->blockWhileLocking();
 
         try {
+            if ($this->fakeSerialManager->nodeExists($this->fileName)) {
+                $this->fakeSerialConnectionToken = $this->fakeSerialManager->connect($this->fileName, $this->baudRate);
+
+                return;
+            }
+
             $this->fd = dio_open(
-                self::TERMINAL_PATH . '/' . self::TERMINAL_PREFIX . $this->fileName, // filename
+                self::TERMINAL_PATH.'/'.self::TERMINAL_PREFIX.$this->fileName, // filename
                 O_RDWR | O_NONBLOCK | O_ASYNC                                        // flags
             );
 
             dio_fcntl($this->fd, F_SETFL, O_NONBLOCK | O_ASYNC);
 
             dio_tcsetattr($this->fd, [
-                'baud'   => $this->baudRate,
-                'bits'   => 8,
-                'stop'   => 1,
-                'parity' => 0
+                'baud' => $this->baudRate,
+                'bits' => 8,
+                'stop' => 1,
+                'parity' => 0,
             ]);
         } catch (Throwable $exception) {
             if ($this->log) {
                 $this->log->error(
-                    "{$this->fileName}: couldn't configure: {$exception->getMessage()}". PHP_EOL.
+                    "{$this->fileName}: couldn't configure: {$exception->getMessage()}".PHP_EOL.
                     PHP_EOL.
                     $exception->getTraceAsString()
                 );
@@ -296,19 +370,22 @@ class Serial {
         }
     }
 
-    private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, mixed $stopTimestampSecs = null) : void {
+    private function appendLog(string $message, ?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, mixed $stopTimestampSecs = null): void
+    {
         if (
-            !$this->printerId
+            ! $this->printerId
             ||
-            !trim($message)
-        ) return;
-
-        if ($this->log) {
-            $this->log->debug( __METHOD__ . ': appending log: ' . $message );
+            ! trim($message)
+        ) {
+            return;
         }
 
-        if (!$stopTimestampSecs) {
-            Log::debug(__METHOD__ . ': stopTimestampSecs is not numeric: ' . json_encode($stopTimestampSecs));
+        if ($this->log) {
+            $this->log->debug(__METHOD__.': appending log: '.$message);
+        }
+
+        if (! $stopTimestampSecs) {
+            Log::debug(__METHOD__.': stopTimestampSecs is not numeric: '.json_encode($stopTimestampSecs));
 
             $stopTimestampSecs = null;
         }
@@ -328,7 +405,7 @@ class Serial {
         } catch (Throwable $throwable) {
             if ($this->log) {
                 $this->log->warning(
-                    __METHOD__ . ': PrinterTerminalUpdated: event dispatch failure: ' . $throwable->getMessage() . PHP_EOL .
+                    __METHOD__.': PrinterTerminalUpdated: event dispatch failure: '.$throwable->getMessage().PHP_EOL.
                     $throwable->getTraceAsString()
                 );
             }
@@ -337,47 +414,185 @@ class Serial {
         $this->terminalBuffer = '';
     }
 
-    private function sendCommand(string $command, ?int $lineNumber = null, ?int $maxLine = null) {
+    private function sendCommand(string $command, ?int $lineNumber = null, ?int $maxLine = null)
+    {
+        $this->dispatchPluginHook('serial.command.before_send', [
+            'printerId' => $this->printerId,
+            'command' => $command,
+            'lineNumber' => $lineNumber,
+            'maxLine' => $maxLine,
+        ]);
+
         if ($this->log) {
-            $this->log->debug('dio_write: ' . $command);
+            $this->log->debug('dio_write: '.$command);
         }
 
         if ($this->printerId) {
-            $terminalMessage = ' > ' . $command . PHP_EOL;
+            $terminalMessage = ' > '.$command.PHP_EOL;
 
             $this->terminalBuffer .= $terminalMessage;
 
             if ($this->terminalAutoAppend) {
                 $this->appendLog(
-                    message:    $this->terminalBuffer,
+                    message: $this->terminalBuffer,
                     lineNumber: $lineNumber,
-                    maxLine:    $maxLine
+                    maxLine: $maxLine
                 );
             }
         }
 
-        dio_write($this->fd, $command . PHP_EOL);
+        if ($this->fakeSerialConnectionToken === null) {
+            dio_write($this->fd, $command.PHP_EOL);
+        }
 
         if ($this->log) {
             $this->log->debug('SENT');
         }
     }
-    
+
+    private function isTemperatureMessage(string $message): bool
+    {
+        return strpos($message, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false;
+    }
+
+    private function appendIncomingLine(string $message, ?string $command = null, ?int $lineNumber = null, ?int $maxLine = null): void
+    {
+        $message = trim($message);
+
+        if ($message === '' || ! $this->printerId) {
+            return;
+        }
+
+        if ($this->isTemperatureMessage($message)) {
+            $extruderIndex = 0;
+
+            if ($command !== null && strpos($command, 'M105 T') !== false) {
+                $extruderIndex = (int) str_replace(
+                    search: 'M105 T',
+                    replace: '',
+                    subject: $command
+                );
+            }
+
+            Printer::setStatisticsOf(
+                printerId: $this->printerId,
+                lines: $message,
+                extruderIndex: $extruderIndex
+            );
+        }
+
+        $this->terminalBuffer .= $message.PHP_EOL;
+
+        if (
+            $this->terminalAutoAppend
+            ||
+            strpos($message, 'busy') !== false
+            ||
+            $this->isTemperatureMessage($message)
+        ) {
+            $this->appendLog(
+                message: $this->terminalBuffer,
+                lineNumber: $lineNumber,
+                maxLine: $maxLine
+            );
+        }
+
+        $this->pendingPluginLineHookContext = [
+            'printerId' => $this->printerId,
+            'command' => $command,
+            'line' => $message,
+            'lineNumber' => $lineNumber,
+            'maxLine' => $maxLine,
+        ];
+
+        foreach ($this->onNewLineActions as $callable) {
+            try {
+                $callable();
+            } catch (Throwable $throwable) {
+                if ($this->log) {
+                    $this->log->error(
+                        __METHOD__.': onNewLineActions: couldn\'t run queued callable: '.$throwable->getMessage().PHP_EOL.
+                        $throwable->getTraceAsString()
+                    );
+                }
+            }
+        }
+
+        $this->pendingPluginLineHookContext = [];
+    }
+
+    private function queryFakeSerial(?string $command = null, ?int $lineNumber = null, ?int $maxLine = null, ?int $timeout = null): string
+    {
+        if ($this->fakeSerialConnectionToken === null) {
+            throw new InitializationException('The fake serial printer is not connected.');
+        }
+
+        $startedAt = microtime(true);
+
+        $result = $this->fakeSerialManager->transact(
+            node: $this->fileName,
+            baudRate: $this->baudRate,
+            token: $this->fakeSerialConnectionToken,
+            command: $command ?? '',
+            timeout: $timeout
+        );
+
+        $response = [];
+
+        foreach ($result['lines'] as $line) {
+            $delayMs = (int) ($line['delayMs'] ?? 0);
+
+            if ($delayMs > 0) {
+                time_nanosleep(
+                    seconds: intdiv($delayMs, 1000),
+                    nanoseconds: ($delayMs % 1000) * 1000 * 1000
+                );
+            }
+
+            $this->tickClocks();
+
+            if ($timeout && (microtime(true) - $startedAt) >= $timeout) {
+                throw new TimedOutException("timed out while waiting for a newline after {$timeout} seconds were spent trying to get a response.");
+            }
+
+            $message = $line['text'] ?? '';
+
+            $response[] = $message;
+            $this->appendIncomingLine(
+                message: $message,
+                command: $command,
+                lineNumber: $lineNumber,
+                maxLine: $maxLine
+            );
+        }
+
+        $fullResponse = trim(implode(PHP_EOL, $response));
+
+        $this->dispatchPluginHook('serial.command.response_received', [
+            'printerId' => $this->printerId,
+            'command' => $command,
+            'response' => $fullResponse,
+            'lineNumber' => $lineNumber,
+            'maxLine' => $maxLine,
+        ]);
+
+        return $fullResponse;
+    }
+
     /**
      * readUntilBlank
      *
-     * @param  ?int $timeout - custom timeout
-     * 
-     * @return string
+     * @param  ?int  $timeout  - custom timeout
      */
-    private function readUntilBlank(?int $timeout = null, ?int $lineNumber = null, ?int $maxLine = null, ?string $command = null) : string {
-        if (!$timeout) {
+    private function readUntilBlank(?int $timeout = null, ?int $lineNumber = null, ?int $maxLine = null, ?string $command = null): string
+    {
+        if (! $timeout) {
             $timeout = $this->timeout;
         }
 
         $result = '';
 
-        $sTime     = time();
+        $sTime = time();
         $blankTime = millis();
 
         $lastLineIndex = 0;
@@ -391,39 +606,39 @@ class Serial {
 
             if ($read) {
                 if ($this->log) {
-                    $this->log->debug('dio_read: ' . $read);
+                    $this->log->debug('dio_read: '.$read);
                 }
 
                 $result .= $read;
 
                 /*
                  * Workaround for Hellbot's broken firmware:
-                 * 
+                 *
                  * Automatic interval-based enqueueing of M105.
-                 * 
+                 *
                  * We're gonna remove it in order to avoid having such output
                  * break the parser.
-                 * 
+                 *
                  * If the command is M105, however, we're gonna consider this a
                  * true "ok", since we can't really tell the difference. Oops!
-                 * 
+                 *
                  * tl;dr: Hellbot, please, fix it. :)
-                 * 
+                 *
                  * Example:
-                 * 
+                 *
                  * echo:enqueueing "M105"
                  * ok T:39.54 /40.00 B:16.71 /0.00 T0:39.54 /40.00 T1:39.21 /0.00 @:21 B@:0 @0:21 @1:0
                  */
-                if (!empty( $command ) && !str_starts_with($command, 'M105')) {
+                if (! empty($command) && ! str_starts_with($command, 'M105')) {
                     $result = preg_replace(
-                        pattern:     self::WORKAROUND_HELLBOT_QUEUE_PATTERN,
+                        pattern: self::WORKAROUND_HELLBOT_QUEUE_PATTERN,
                         replacement: '',
-                        subject:     $result
+                        subject: $result
                     );
                 }
 
-                $sTime      = time();
-                $blankTime  = $millis;
+                $sTime = time();
+                $blankTime = $millis;
 
                 if (
                     $this->printerId
@@ -436,15 +651,15 @@ class Serial {
                 ) {
                     $newLastLineIndex = false;
 
-                    if (isset( $result[ $lastLineIndex + 1 ] )) {
+                    if (isset($result[$lastLineIndex + 1])) {
                         $newLastLineIndex = strpos(
                             haystack: $result,
-                            needle:   PHP_EOL,
-                            offset:   $lastLineIndex + 1
+                            needle: PHP_EOL,
+                            offset: $lastLineIndex + 1
                         );
                     }
 
-                    if ($newLastLineIndex !== false)  {
+                    if ($newLastLineIndex !== false) {
                         $message = substr(
                             string: $result,
                             offset: $lastLineIndex,
@@ -452,115 +667,130 @@ class Serial {
                         );
 
                         // Is querying temperature?
-                        if (strpos( $message, Printer::MARLIN_TEMPERATURE_INDICATOR ) !== false) {
+                        if (strpos($message, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false) {
                             $extruderIndex = 0;
 
                             // Is selecting a specific extruder?
-                            if (strpos( $command, 'M105 T' ) !== false) {
+                            if (strpos($command, 'M105 T') !== false) {
                                 $extruderIndex = (int) str_replace(
-                                    search:  'M105 T',
+                                    search: 'M105 T',
                                     replace: '',
                                     subject: $command
                                 );
                             }
 
                             Printer::setStatisticsOf(
-                                printerId:      $this->printerId,
-                                lines:          $message,
-                                extruderIndex:  $extruderIndex
+                                printerId: $this->printerId,
+                                lines: $message,
+                                extruderIndex: $extruderIndex
                             );
                         }
 
                         $this->terminalBuffer .= $message;
 
                         // Prevent missing newlines between messages
-                        if ($message[ strlen($message) - 1 ] != PHP_EOL) {
+                        if ($message[strlen($message) - 1] != PHP_EOL) {
                             $this->terminalBuffer .= PHP_EOL;
                         }
 
                         if ($this->terminalAutoAppend || strpos($this->terminalBuffer, 'busy') !== false) {
                             $this->appendLog(
-                                message:    $this->terminalBuffer,
+                                message: $this->terminalBuffer,
                                 lineNumber: $lineNumber,
-                                maxLine:    $maxLine
+                                maxLine: $maxLine
                             );
                         }
 
                         $lastLineIndex = $newLastLineIndex;
 
+                        $this->pendingPluginLineHookContext = [
+                            'printerId' => $this->printerId,
+                            'command' => $command,
+                            'line' => trim($message),
+                            'lineNumber' => $lineNumber,
+                            'maxLine' => $maxLine,
+                        ];
+
                         foreach ($this->onNewLineActions as $callable) {
-                            try { $callable(); }
-                            catch (Throwable $throwable) {
+                            try {
+                                $callable();
+                            } catch (Throwable $throwable) {
                                 if ($this->log) {
                                     $this->log->error(
-                                        __METHOD__ . ': onNewLineActions: couldn\'t run queued callable: ' . $throwable->getMessage() . PHP_EOL .
+                                        __METHOD__.': onNewLineActions: couldn\'t run queued callable: '.$throwable->getMessage().PHP_EOL.
                                         $throwable->getTraceAsString()
                                     );
                                 }
                             }
                         }
+
+                        $this->pendingPluginLineHookContext = [];
                     }
                 }
 
                 $read = '';
-            } else if (!empty( $result )) {
+            } elseif (! empty($result)) {
                 $lastLine = substr(
                     string: $result,
-                    offset: strrpos( $result, PHP_EOL, 1 )
+                    offset: strrpos($result, PHP_EOL, 1)
                 );
 
-                if (!empty( $lastLine )) {
+                if (! empty($lastLine)) {
                     $lastLine = $result;
                 }
 
                 if (
-                    str_ends_with( $result, PHP_EOL )
+                    str_ends_with($result, PHP_EOL)
                     &&
                     (
-                        strpos( $result, 'ok' ) !== false // finished successfully
+                        strpos($result, 'ok') !== false // finished successfully
                         ||
                         (
                             (
-                                strpos( $lastLine, 'echo' )             !== false // (in last line) contains echo
+                                strpos($lastLine, 'echo') !== false // (in last line) contains echo
                                 &&
-                                strpos( $lastLine, 'echo:enqueueing' )  === false // (in last line) doesn't contain a queueing request
+                                strpos($lastLine, 'echo:enqueueing') === false // (in last line) doesn't contain a queueing request
                             )
                             &&
-                            strpos( $lastLine, 'paused' ) === false // (in last line) not paused for user
+                            strpos($lastLine, 'paused') === false // (in last line) not paused for user
                             &&
-                            strpos( $lastLine, 'busy' )   === false // (in last line) not busy
+                            strpos($lastLine, 'busy') === false // (in last line) not busy
                         )
                     )
                 ) {
-                    if ($this->log) $this->log->debug("End of output detected: ({$spentBlankingMs} ms without data).");
+                    if ($this->log) {
+                        $this->log->debug("End of output detected: ({$spentBlankingMs} ms without data).");
+                    }
 
                     break;
                 }
             }
 
-            $this->tickClocks( $millis );
+            $this->tickClocks($millis);
 
-            if ($timeout && (time() - $sTime >= $timeout)) break;
+            if ($timeout && (time() - $sTime >= $timeout)) {
+                break;
+            }
 
-            if (!$read) {
-                /* 
+            if (! $read) {
+                /*
                  * Halt thread while waiting for more data, then, call continue
                  * in order to try again.
                  */
                 time_nanosleep(
-                    seconds:     0,
+                    seconds: 0,
                     nanoseconds: self::EMPTY_BUFFER_WAIT_NANOS
                 );
             } else {
                 // Forcefully halt for LIVE_BUFFER_WAIT_NANOS
                 time_nanosleep(
-                    seconds:     0,
+                    seconds: 0,
                     nanoseconds: self::LIVE_BUFFER_WAIT_NANOS
                 );
             }
         }
 
-        $this->tickClocks( $millis );
+        $this->tickClocks($millis);
 
         $spentSecs = time() - $sTime;
 
@@ -569,16 +799,18 @@ class Serial {
         }
 
         if ($this->log) {
-            $this->log->debug( __METHOD__ . ': ' . json_encode($result) );
+            $this->log->debug(__METHOD__.': '.json_encode($result));
 
-            $this->log->debug('RECV: ' . $result);
+            $this->log->debug('RECV: '.$result);
         }
 
         if (
-            !isset($result[ $lastLineIndex ])
+            ! isset($result[$lastLineIndex])
             ||
-            $result[ $lastLineIndex ] != PHP_EOL
-        ) { $lastLineIndex = 0; }
+            $result[$lastLineIndex] != PHP_EOL
+        ) {
+            $lastLineIndex = 0;
+        }
 
         $terminalMessage = trim(
             substr(
@@ -588,74 +820,102 @@ class Serial {
         );
 
         if ($this->printerId) {
-            $this->terminalBuffer .= $terminalMessage . PHP_EOL;
+            $this->terminalBuffer .= $terminalMessage.PHP_EOL;
 
             if ($this->terminalAutoAppend) {
                 $this->appendLog(
-                    message:    $this->terminalBuffer,
+                    message: $this->terminalBuffer,
                     lineNumber: $lineNumber,
-                    maxLine:    $maxLine
+                    maxLine: $maxLine
                 );
             }
         }
 
+        $this->dispatchPluginHook('serial.command.response_received', [
+            'printerId' => $this->printerId,
+            'command' => $command,
+            'response' => trim($result),
+            'lineNumber' => $lineNumber,
+            'maxLine' => $maxLine,
+        ]);
+
         return trim($result);
     }
 
-    public function query(?string $command = null, ?int $lineNumber = null, ?int $maxLine = null, ?int $timeout = null) : string {
+    public function query(?string $command = null, ?int $lineNumber = null, ?int $maxLine = null, ?int $timeout = null): string
+    {
         $lock = $this->blockWhileLocking();
 
         $throwable = null;
-        
+
         try {
             $this->tickClocks();
 
             if ($command) {
-                $this->sendCommand( $command, $lineNumber, $maxLine );
+                $this->sendCommand($command, $lineNumber, $maxLine);
             }
 
-            $result = $this->readUntilBlank(
-                command:    $command,
-                timeout:    $timeout,
-                lineNumber: $lineNumber,
-                maxLine:    $maxLine
-            );
-        } catch (Throwable $throwable) {}
+            $result =
+                $this->fakeSerialConnectionToken !== null
+                    ? $this->queryFakeSerial(
+                        command: $command,
+                        timeout: $timeout,
+                        lineNumber: $lineNumber,
+                        maxLine: $maxLine
+                    )
+                    : $this->readUntilBlank(
+                        command: $command,
+                        timeout: $timeout,
+                        lineNumber: $lineNumber,
+                        maxLine: $maxLine
+                    );
+        } catch (Throwable $throwable) {
+        }
 
         $lock->release();
 
-        if ($throwable) throw $throwable;
+        if ($throwable) {
+            throw $throwable;
+        }
 
         return $result;
     }
 
-    public function tryToAppendNow(?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, mixed $stopTimestampSecs = null) {
-        if (!is_numeric($stopTimestampSecs)) {
-            Log::debug(__METHOD__ . ': stopTimestampSecs is not numeric: ' . json_encode($stopTimestampSecs));
+    public function tryToAppendNow(?int $lineNumber = null, ?int $maxLine = null, ?bool $isRunning = null, ?array $statistics = null, mixed $stopTimestampSecs = null)
+    {
+        if (! is_numeric($stopTimestampSecs)) {
+            Log::debug(__METHOD__.': stopTimestampSecs is not numeric: '.json_encode($stopTimestampSecs));
 
             $stopTimestampSecs = null;
         }
 
-        if ($this->terminalAutoAppend) return;
+        if ($this->terminalAutoAppend) {
+            return;
+        }
 
         if ($this->terminalBuffer) {
             $this->appendLog(
-                message:    $this->terminalBuffer,
+                message: $this->terminalBuffer,
                 lineNumber: $lineNumber,
-                maxLine:    $maxLine,
-                isRunning:  $isRunning,
+                maxLine: $maxLine,
+                isRunning: $isRunning,
                 statistics: $statistics,
                 stopTimestampSecs: $stopTimestampSecs
             );
         }
     }
 
-    public static function nodeExists(string $fileName) : bool {
-        return file_exists(
-            self::TERMINAL_PATH . '/' . self::TERMINAL_PREFIX . $fileName
-        );
+    public static function nodeExists(?string $fileName): bool
+    {
+        if (! is_string($fileName) || trim($fileName) === '') {
+            return false;
+        }
+
+        return
+            file_exists(
+                self::TERMINAL_PATH.'/'.self::TERMINAL_PREFIX.$fileName
+            )
+            ||
+            app(FakeSerialManager::class)->nodeExists($fileName);
     }
-
 }
-
-?>

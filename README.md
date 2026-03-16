@@ -72,12 +72,67 @@ Other OSes          | :grey_question: Untested (may work if they can run Docker)
 
 ## Dependencies
 - **Git**
-- **Docker** and **Docker Compose**
+- **Docker** and **Docker Compose**, or **Podman** with a Compose provider
 - **GNU/Linux** or **Windows 10** (or greater) with **WSL2** enabled (experimental)
 - **USBIPD-Win** (Windows only)
-- The Expo frontend source shipped in this repository under `frontend/`**<sup>\*\*</sup>**
+- The Expo frontend source shipped in this repository under `frontend/`**<sup>\*</sup>**
 
-**<sup>\*\*</sup>** Development and production assets now come from the same monorepo. Use the tracked `frontend/` directory directly when working on the UI.
+**<sup>\*</sup>** Development and production assets now come from the same monorepo. Use the tracked `frontend/` directory directly when working on the UI.
+
+## Plugins
+
+WPrint 3D now includes a plugin platform with:
+
+- `.w3dp` plugin packages
+- PHP and bridge runtimes
+- declarative, WebView, and custom bundle UI modes
+- in-app plugin management
+- unpacked live-source installs in the development stack
+- an Artisan CLI for scaffold, package, install, search, and diagnostics
+
+Start with the docs landing page at [docs/index.md](docs/index.md) when you want the hosted documentation structure instead of the repo overview or, alternatively, for a better navigation experience use our [public documentation site](https://docs.wprint3d.com) which is updated in sync with the repository. The plugin platform documentation includes a reference for the SDK, development guides, and example verification flows.
+
+If you want to build plugins, use this path:
+
+1. Read the plugin entrypoint docs in [docs/plugins.md](docs/plugins.md).
+2. Follow the full authoring walkthrough in [docs/plugin-development-guide.md](docs/plugin-development-guide.md).
+3. Use the signing guides when you start distributing packages:
+   - [docs/plugin-signing-for-developers.md](docs/plugin-signing-for-developers.md)
+   - [docs/plugin-signature-verification-for-users.md](docs/plugin-signature-verification-for-users.md)
+   - [docs/plugin-registry-signing-review.md](docs/plugin-registry-signing-review.md)
+4. Use the scaffold command to start a new plugin:
+
+   `./plugin.sh make`
+
+   Generate a signing key when you are ready to distribute packages:
+
+   `./plugin.sh keygen`
+
+5. Study the reference examples:
+   - [examples/plugins/hello-world](examples/plugins/hello-world): smallest PHP + declarative starter
+   - [examples/plugins/host-metrics](examples/plugins/host-metrics): baseline host-rendered plugin
+   - [docs/plugin-shape-matrix-e2e.md](docs/plugin-shape-matrix-e2e.md): every supported runtime/UI shape
+6. Use the plugin-local `AGENTS.md` files inside each example directory when modifying or extending those examples.
+
+Plugin development currently expects a full `wprint3d-core` source checkout. The repository is small, and the supported authoring loop depends on that checkout for `./plugin.sh`, the live development mounts, browser E2E, and `.w3dp` packaging/signing.
+
+Typical release commands from the repo root:
+
+```bash
+./plugin.sh pack examples/plugins/hello-world --wizard
+./plugin.sh verify examples/plugins/hello-world/builds/hello-world.w3dp
+./plugin.sh verify examples/plugins/hello-world/builds/hello-world.w3dp --require-trusted
+./plugin.sh restore examples/plugins/hello-world/builds/hello-world.w3dp --output plugins/hello-world-fork
+```
+
+When running `./run.sh -e dev`, unpacked plugins can be installed directly from the live development sources exposed inside the containers. New plugins scaffold into repo [plugins](plugins), while the bundled samples live in [examples/plugins](examples/plugins). The `Install unpacked` flow shows both sources so you can iterate on your own plugin without packaging it first.
+
+Use `./plugin.sh` for host-side plugin commands when you do not have a matching PHP runtime installed locally. The wrapper reuses WPrint 3D's Podman/Docker detection and runs `php artisan plugin:*` inside the backend container.
+Use `./plugin.sh status` when you need to confirm which backend container it found, whether developer mode is effectively enabled, and whether the live unpacked plugin mount is visible from that container.
+
+Production backend images intentionally exclude `examples/plugins` so sample plugins do not ship in the runtime image. Use the development stack or a source checkout when you need the example plugins for testing, packaging, or demos.
+
+For public-registry inclusion, the temporary process is simple: keep the plugin in its own repository, open a PR against the public registry with that repository URL, and then wait for the WPrint 3D team to reach out. We will document the registry workflow in more detail once the foundation is finalized.
 
 ## System requirements
 - Any **dual-core CPU** running at, at least, **1 GHz**
@@ -88,14 +143,16 @@ Other OSes          | :grey_question: Untested (may work if they can run Docker)
 
 ## Getting started
 - **If you're running Windows, go to the "[Preparing your Windows host](https://github.com/wprint3d/wprint3d?tab=readme-ov-file#preparing-your-windows-host)" section first.**
-- [Install docker](https://docs.docker.com/desktop/install/linux-install/) as explained in the linked guide.
-- [Give yourself permission to run Docker commands](https://docs.docker.com/engine/install/linux-postinstall/) by following the guide linked here, this is extremely important because we'll need to set up a few [privileged containers](https://docs.docker.com/engine/reference/commandline/run/#-full-container-capabilities---privileged).
+- Install either [Docker](https://docs.docker.com/desktop/install/linux-install/) or Podman plus a Compose provider on your host.
+- If you're using Docker, [give yourself permission to run Docker commands](https://docs.docker.com/engine/install/linux-postinstall/) by following the guide linked here, this is extremely important because we'll need to set up a few [privileged containers](https://docs.docker.com/engine/reference/commandline/run/#-full-container-capabilities---privileged).
 - Clone this repository wherever you want, just make sure you'd have write permission with the user you're currently logged in.
 
     `git clone -b alpha https://github.com/wprint3d/wprint3d`
 - Change to the created directory by running `cd wprint3d`.
 - Now, using your favorite text editor, create a new file called `.env` and copy the contents of `.env.example` into it. If you're planning on running **WPrint 3D** on a **Raspberry Pi**, consider copying `.env.rpi` instead as it's been specifically optimized to run faster on its hardware.
 - That's it! Plug your printer in any USB port you like and turn it on! Now, run `bash run.sh` to get going. The first run might take a few minutes, so you'll probably want to find something else to do in the meantime.
+- `run.sh` now prefers Podman when it is installed. On supported Linux hosts, it will attempt to install `podman` plus a Compose provider automatically when Podman is missing. For this project, Podman is now driven in rootful mode by default so the development stack can keep binding `80/443`, access USB devices, and run the existing privileged containers without the rootless low-port limitations. Set `WPRINT3D_AUTO_INSTALL_PODMAN=0` if you need to skip the automatic install path, or `WPRINT3D_PODMAN_ROOTFUL=0` if you explicitly want to opt back into rootless Podman.
+- If you're migrating an existing checkout from Docker to Podman, old `frontend/node_modules` files may still be owned by `root`. That can make the `web` container fail during `pnpm install` with `EPERM` errors. `run.sh` now warns about that condition and can re-own `frontend/node_modules` back to your current user before startup. You can force that repair with `WPRINT3D_REOWN_FRONTEND_NODE_MODULES=1`, or skip the prompt with `WPRINT3D_REOWN_FRONTEND_NODE_MODULES=0`.
 - **If you're running Windows, go to the "[Next steps on your Windows host](https://github.com/wprint3d/wprint3d?tab=readme-ov-file#next-steps-on-your-windows-host)" section.**
 - Once it's done, type `ifconfig` and copy the IP address of your machine. Type that IP address into the address bar of your browser, i.e.: https://192.168.0.2
 - Follow the on-screen instructions.

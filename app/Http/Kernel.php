@@ -21,6 +21,7 @@ class Kernel extends HttpKernel
         \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
         \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+        \App\Http\Middleware\SetLocaleFromRequest::class,
     ];
 
     /**
@@ -41,7 +42,7 @@ class Kernel extends HttpKernel
         ],
 
         'api' => [
-            'throttle:500,1',
+            'throttle:1500,1',
 
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             // \Illuminate\Routing\Middleware\ThrottleRequests::class.':api', // temporarily disabled

@@ -8,9 +8,11 @@ import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import UserPrinterControlMovementButton from "./UserPrinterControlMovementButton";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 import { useCache } from "../hooks/useCache";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const UserPrinterControlMovement = ({ styles, isSmallTablet, isSmallLaptop }) => {
     const cache = useCache();
+    const { t } = useLocalization();
 
     const { colors } = useTheme();
 
@@ -54,9 +56,11 @@ const UserPrinterControlMovement = ({ styles, isSmallTablet, isSmallLaptop }) =>
             afterMutation();
 
             enqueueSnackbar({
-                message: 'Failed to send command: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("printer.controls.failedToSendCommand", {
+                    reason: (error.response?.data?.message ?? error.message).toLowerCase(),
+                }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
         }
     });
@@ -95,7 +99,7 @@ const UserPrinterControlMovement = ({ styles, isSmallTablet, isSmallLaptop }) =>
     return (
         <>
             <Text style={{ color: colors.primary, textAlign: 'center', paddingVertical: 4 }} variant="titleSmall">
-                Movement
+                {t("printer.controls.movement")}
             </Text>
             <Divider />
 
@@ -229,7 +233,7 @@ const UserPrinterControlMovement = ({ styles, isSmallTablet, isSmallLaptop }) =>
                     height: xyControlsLayout.height - yLabelLayout.height + (yLabelLayout.y / 2) - 6
                 }}>
                     <Text style={{ color: colors.primary, textAlign: 'center', paddingVertical: 4 }}>
-                        Feedrate
+                        {t("printer.controls.feedrate")}
                     </Text>
                     <Slider
                         style={{ width: '100%' }}
@@ -243,11 +247,11 @@ const UserPrinterControlMovement = ({ styles, isSmallTablet, isSmallLaptop }) =>
                         thumbTintColor={colors.primary}
                     />
                     <Text style={{ color: colors.primary, textAlign: 'center', paddingVertical: 4 }}>
-                        {feedrate} units/s
+                        {t("printer.controls.unitsPerSecond", { value: feedrate })}
                     </Text>
 
                     <Text style={{ color: colors.primary, textAlign: 'center', paddingVertical: 4, marginTop: 16 }}>
-                        Distance
+                        {t("printer.controls.distance")}
                     </Text>
                     <Slider
                         style={{ width: '100%' }}
@@ -261,7 +265,7 @@ const UserPrinterControlMovement = ({ styles, isSmallTablet, isSmallLaptop }) =>
                         thumbTintColor={colors.primary}
                     />
                     <Text style={{ color: colors.primary, textAlign: 'center', paddingVertical: 4 }}>
-                        {distance} mm
+                        {t("printer.controls.millimeters", { value: distance })}
                     </Text>
                 </View>
             </View>

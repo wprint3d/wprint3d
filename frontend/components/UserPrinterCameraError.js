@@ -3,8 +3,11 @@ import { View } from "react-native";
 import { HelperText, Icon, List, Text } from "react-native-paper";
 
 import UserPrinterCameraInformation from "./UserPrinterCameraInformation";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 export default function UserPrinterCameraError({ icon, message, error = null, suggestions = [], onLayout, height }) {
+    const { t } = useLocalization();
+
     return (
         <UserPrinterCameraInformation onLayout={onLayout} height={height}>
             <View style={{
@@ -25,7 +28,7 @@ export default function UserPrinterCameraError({ icon, message, error = null, su
                 <View style={{ maxWidth: '100%', marginTop: 10 }}>
                     {error && <HelperText>{error}</HelperText>}
 
-                    <List.Accordion title="Troubleshooting options" style={{ padding: 0 }} theme={{ colors: { background: 'transparent' } }}>
+                    <List.Accordion title={t("camera.troubleshootingOptions")} style={{ padding: 0 }} theme={{ colors: { background: 'transparent' } }}>
                         {suggestions.map((suggestion, index) => <List.Item description={`- ${suggestion}`} key={index} />)}
                     </List.Accordion>
                 </View>

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Host Metrics</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #11131a;
+      --surface: #161c24;
+      --surface-strong: #1d2530;
+      --surface-variant: #243041;
+      --outline: #314155;
+      --text: #f3f4f7;
+      --muted: #b8c0cf;
+      --primary: #84b9ff;
+      --secondary: #99d5c6;
+      --tertiary: #f1b6ff;
+      --track: rgba(255, 255, 255, 0.12);
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+      --error: #ff7b7b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(132, 185, 255, 0.12), transparent 32%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.08), transparent 24%),
+        var(--background);
+      color: var(--text);
+      padding: 22px;
+    }
+
+    .shell {
+      max-width: 760px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero {
+      border-radius: 22px;
+      border: 1px solid color-mix(in srgb, var(--outline) 82%, transparent);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 94%, transparent), var(--surface));
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero__row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 6px 0 0;
+      font-size: clamp(24px, 4vw, 34px);
+      line-height: 1.05;
+    }
+
+    .description {
+      margin: 0;
+      color: var(--muted);
+      max-width: 56ch;
+      line-height: 1.55;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      background: color-mix(in srgb, var(--surface-variant) 74%, transparent);
+      border: 1px solid color-mix(in srgb, var(--outline) 72%, transparent);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      border-radius: 18px;
+      padding: 16px;
+      background: color-mix(in srgb, var(--surface-variant) 78%, transparent);
+      border: 1px solid color-mix(in srgb, var(--outline) 82%, transparent);
+      display: grid;
+      gap: 12px;
+    }
+
+    .metric__header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .metric__label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .metric__value {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .progress {
+      height: 11px;
+      border-radius: 999px;
+      background: var(--track);
+      overflow: hidden;
+    }
+
+    .progress > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      width: 0;
+      transition: width 180ms ease;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 72%, white), var(--primary));
+    }
+
+    .progress--ram > span {
+      background: linear-gradient(90deg, color-mix(in srgb, var(--secondary) 72%, white), var(--secondary));
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status__dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--primary);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 18%, transparent);
+      animation: pulse 1.6s infinite ease-in-out;
+    }
+
+    .status--error .status__dot {
+      background: var(--error);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--error) 18%, transparent);
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(0.82); opacity: 0.75; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero__row">
+        <div>
+          <p class="eyebrow" id="mode-label">Plugin surface</p>
+          <h1 id="title">Host Metrics</h1>
+        </div>
+        <div class="chip" id="badge">Loading</div>
+      </div>
+
+      <p class="description" id="description">
+        This elevated plugin UI fetches the same host metrics as the declarative example and reuses the host theme tokens passed in by WPrint 3D.
+      </p>
+
+      <div class="metrics">
+        <article class="metric">
+          <div class="metric__header">
+            <span class="metric__label">CPU</span>
+            <strong class="metric__value" id="cpu-value">--%</strong>
+          </div>
+          <div class="progress"><span id="cpu-bar"></span></div>
+        </article>
+
+        <article class="metric">
+          <div class="metric__header">
+            <span class="metric__label">RAM</span>
+            <strong class="metric__value" id="ram-value">--%</strong>
+          </div>
+          <div class="progress progress--ram"><span id="ram-bar"></span></div>
+        </article>
+      </div>
+
+      <div class="status" id="status">
+        <span class="status__dot"></span>
+        <span id="status-text">Loading metrics…</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const theme = safeParse(params.get("theme"), {});
+    const pluginName = params.get("pluginName") || "Host Metrics";
+    const extensionMode = params.get("extensionMode") || "webview";
+    const actionId = params.get("actionId") || "host_metrics";
+    const pluginApiBase = params.get("pluginApiBase") || "/backend/api/plugins";
+
+    applyTheme(theme);
+
+    document.getElementById("title").textContent = pluginName;
+    document.getElementById("mode-label").textContent = extensionMode === "custom_bundle"
+      ? "Custom bundle surface"
+      : "WebView surface";
+    document.getElementById("badge").textContent = extensionMode === "custom_bundle"
+      ? "Custom bundle"
+      : "WebView";
+
+    async function loadMetrics() {
+      setStatus("Loading metrics…");
+
+      try {
+        const response = await fetch(`${pluginApiBase}/actions/${actionId}`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "X-XSRF-TOKEN": getCookie("XSRF-TOKEN"),
+          },
+          body: JSON.stringify({ payload: {} })
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.message || "Unable to load metrics.");
+        }
+
+        const metrics = payload.data || payload;
+        const cpu = clamp(metrics?.cpu?.usedPercentage);
+        const ram = clamp(metrics?.ram?.usedPercentage);
+
+        document.getElementById("cpu-value").textContent = `${Math.round(cpu)}%`;
+        document.getElementById("ram-value").textContent = `${Math.round(ram)}%`;
+        document.getElementById("cpu-bar").style.width = `${cpu}%`;
+        document.getElementById("ram-bar").style.width = `${ram}%`;
+
+        setStatus(`Updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
+      } catch (error) {
+        setStatus(error.message || "Unable to load metrics.", true);
+      }
+    }
+
+    function setStatus(message, isError = false) {
+      const status = document.getElementById("status");
+      const label = document.getElementById("status-text");
+
+      status.classList.toggle("status--error", Boolean(isError));
+      label.textContent = message;
+    }
+
+    function applyTheme(theme) {
+      const root = document.documentElement;
+      const colors = {
+        "--background": theme.background,
+        "--surface": theme.surface,
+        "--surface-strong": theme.elevation?.level2 || theme.surfaceVariant,
+        "--surface-variant": theme.surfaceVariant,
+        "--outline": theme.outlineVariant || theme.outline,
+        "--text": theme.onSurface,
+        "--muted": theme.onSurfaceVariant,
+        "--primary": theme.primary,
+        "--secondary": theme.secondary,
+        "--tertiary": theme.tertiary,
+        "--error": theme.error
+      };
+
+      Object.entries(colors).forEach(([name, value]) => {
+        if (value) {
+          root.style.setProperty(name, value);
+        }
+      });
+    }
+
+    function clamp(value) {
+      const numeric = Number(value);
+
+      if (!Number.isFinite(numeric)) {
+        return 0;
+      }
+
+      return Math.max(0, Math.min(100, numeric));
+    }
+
+    function safeParse(value, fallback) {
+      if (!value) {
+        return fallback;
+      }
+
+      try {
+        return JSON.parse(value);
+      } catch (_error) {
+        return fallback;
+      }
+    }
+
+    function getCookie(name) {
+      const prefix = `${name}=`;
+
+      for (const part of document.cookie.split(";")) {
+        const trimmed = part.trim();
+
+        if (trimmed.startsWith(prefix)) {
+          return decodeURIComponent(trimmed.slice(prefix.length));
+        }
+      }
+
+      return "";
+    }
+
+    loadMetrics();
+    window.setInterval(loadMetrics, 10000);
+  </script>
+</body>
+</html>

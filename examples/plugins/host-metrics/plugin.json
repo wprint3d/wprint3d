@@ -1,0 +1,118 @@
+{
+  "id": "wprint3d.host-metrics",
+  "name": "Host Metrics",
+  "version": "0.1.0",
+  "sdkVersion": 1,
+  "sdkRevision": 1,
+  "minCoreVersion": "0.0.0",
+  "description": "Adds compact CPU and RAM progress bars to the top navigation bar with a declarative settings tab.",
+  "author": "WPrint 3D",
+  "icon": "memory",
+  "runtime": {
+    "type": "php",
+    "entry": "plugin.php"
+  },
+  "permissions": [
+    "host.metrics.read",
+    "ui.navbar_widget",
+    "ui.settings_tab"
+  ],
+  "components": [
+    {
+      "id": "hostMetricsPanel",
+      "kind": "remote_component",
+      "schema": {
+        "component": "section",
+        "title": {
+          "$prop": "title",
+          "default": "Host telemetry"
+        },
+        "subtitle": {
+          "$prop": "subtitle",
+          "default": "Remote component API"
+        },
+        "children": [
+          {
+            "component": "text",
+            "text": "{{description}}"
+          },
+          {
+            "component": "progress_cluster",
+            "dataActionId": {
+              "$prop": "dataActionId",
+              "default": "host_metrics"
+            },
+            "pollIntervalMs": {
+              "$prop": "pollIntervalMs",
+              "default": 10000
+            },
+            "items": [
+              {
+                "id": "cpu",
+                "label": "CPU",
+                "valueKey": "cpu.usedPercentage"
+              },
+              {
+                "id": "ram",
+                "label": "RAM",
+                "valueKey": "ram.usedPercentage"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "actions": [
+    {
+      "id": "host_metrics",
+      "label": "Read host metrics",
+      "handler": "actions/host_metrics.php"
+    }
+  ],
+  "uiExtensions": [
+    {
+      "id": "host-metrics-settings",
+      "surface": "settings_tab",
+      "mode": "declarative",
+      "title": "Host Metrics",
+      "schema": {
+        "component": "remote_component",
+        "componentId": "hostMetricsPanel",
+        "props": {
+          "title": "Host telemetry",
+          "subtitle": "PHP runtime + remote component UI",
+          "description": "This settings tab is rendered by WPrint 3D's cross-platform remote component API, so the same manifest component works on web and native.",
+          "dataActionId": "host_metrics",
+          "pollIntervalMs": 10000
+        }
+      }
+    },
+    {
+      "id": "host-metrics-navbar",
+      "surface": "navbar_widget",
+      "mode": "declarative",
+      "title": "Host Metrics",
+      "schema": {
+        "component": "progress_cluster",
+        "dataActionId": "host_metrics",
+        "pollIntervalMs": 10000,
+        "items": [
+          {
+            "id": "cpu",
+            "label": "CPU",
+            "valueKey": "cpu.usedPercentage"
+          },
+          {
+            "id": "ram",
+            "label": "RAM",
+            "valueKey": "ram.usedPercentage"
+          }
+        ]
+      }
+    }
+  ],
+  "signature": {
+    "algorithm": "none"
+  }
+}

@@ -16,5 +16,7 @@
 **/proxy/internal/*
 **/Dockerfile.*
 **/*.md
+**/examples/plugins
+**/examples/plugins/**
 **/dev
 **/vendor

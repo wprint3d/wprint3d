@@ -10,9 +10,11 @@ import TextBold from "./TextBold";
 import VideoPlayer from "./modules/VideoPlayer";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 import { useEcho } from "../hooks/useEcho";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop }) => {
     const echo = useEcho();
+    const { t } = useLocalization();
 
     const { enqueueSnackbar } = useSnackbar();
 
@@ -51,9 +53,9 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
             console.debug('UserPrinterRecordings: deleteRecordingMutation: success');
 
             enqueueSnackbar({
-                message: 'Recording deleted successfully!',
+                message: t("recordings.deletedSuccess"),
                 variant: 'success',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
 
             recordingsQuery.refetch();
@@ -62,9 +64,9 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
             console.error('UserPrinterRecordings: deleteRecordingMutation: error:', error);
 
             enqueueSnackbar({
-                message: 'Failed to delete recording: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("recordings.deleteError", { reason: (error.response?.data?.message ?? error.message).toLowerCase() }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
         }
     });
@@ -120,7 +122,7 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
     }, [ lastRenderEvent ]);
 
     if (recordingsQuery.isLoading) {
-        return <UserPaneLoadingIndicator message={'Loading recordings'} />;
+        return <UserPaneLoadingIndicator message={t("recordings.loading")} />;
     }
 
     return (
@@ -130,7 +132,10 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
                 icon={({size}) => (<Icon source="progress-wrench" size={size} />)}
                 style={{ marginBottom: 10 }}
             >
-                Rendering <TextBold>{lastRenderEvent?.fileName}</TextBold> ({lastRenderEvent?.progress}% complete)...
+                {t("recordings.renderingProgress", {
+                    name: lastRenderEvent?.fileName ?? "",
+                    progress: lastRenderEvent?.progress ?? 0,
+                })}
                 <ProgressBar progress={lastRenderEvent?.progress / 100} />
             </Banner>
 
@@ -141,12 +146,8 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
                         <Text variant="bodyMedium" style={{ textAlign: 'center', marginTop: 10 }}>
                             {
                                 isRecordingEnabled
-                                    ? 'Nothing here so far, select a file and get going!'
-                                    : <>
-                                        Recording is disabled. {'\n'}
-                                        {'\n'}
-                                        To start recording, enable the feature from <TextBold>Settings</TextBold> {'>'} <TextBold>Recording</TextBold>.
-                                    </>
+                                    ? t("recordings.emptyEnabled")
+                                    : t("recordings.emptyDisabled")
                             }
                         </Text>
                     </View>
@@ -171,7 +172,7 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
             <SimpleDialog
                 visible={playerDialogVisible}
                 setVisible={setPlayerDialogVisible}
-                title={`Playing: ${selectedRecording?.name ?? ''}`}
+                title={t("recordings.playingTitle", { name: selectedRecording?.name ?? "" })}
                 content={<VideoPlayer source={selectedRecording?.url} />}
                 style={{ maxWidth: '100%', width: '95%' }}
                 actions={
@@ -180,7 +181,7 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
                             mode="text"
                             onPress={() => setPlayerDialogVisible(false)}
                         >
-                            Close
+                            {t("notifications.close")}
                         </Button>
                     </>
                 }
@@ -190,10 +191,10 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
             <SimpleDialog
                 visible={deleteDialogVisible}
                 setVisible={setDeleteDialogVisible}
-                title="Do you really want to delete this recording?"
+                title={t("recordings.deleteConfirmTitle")}
                 content={
                     <Text variant="bodyMedium">
-                        "<TextBold variant="bodyMedium">{selectedRecording?.name ?? ''}</TextBold>" will be permanently deleted.
+                        {t("recordings.deleteConfirmBody", { name: selectedRecording?.name ?? "" })}
                     </Text>
                 }
                 actions={
@@ -202,7 +203,7 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
                             mode="text"
                             onPress={() => setDeleteDialogVisible(false)}
                         >
-                            Cancel
+                            {t("notifications.cancel")}
                         </Button>
                         <Button
                             mode="contained"
@@ -214,7 +215,7 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
                                 deleteRecordingMutation.mutate({ recording: selectedRecording });
                             }}
                         >
-                            Delete
+                            {t("notifications.delete")}
                         </Button>
                     </>
                 }

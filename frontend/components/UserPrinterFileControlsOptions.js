@@ -3,9 +3,11 @@ import { useState } from 'react';
 import { Menu, Icon, useTheme } from 'react-native-paper';
 
 import SmallButton from './SmallButton';
+import { useLocalization } from '../includes/LocalizationProvider';
 
 export default function UserPrinterFileControlsOptions({ disabled, setIsRequestingDelete, setIsRequestingRename }) {
   const { colors } = useTheme();
+  const { t } = useLocalization();
 
   const [ isVisible, setIsVisible ] = useState(false);
 
@@ -33,12 +35,12 @@ export default function UserPrinterFileControlsOptions({ disabled, setIsRequesti
               borderTopLeftRadius:    0,
               borderBottomLeftRadius: 0
             }}
-          > Options </SmallButton>
+          > {t("files.options")} </SmallButton>
         }
         anchorPosition='bottom'
       >
-        <Menu.Item leadingIcon="trash-can"  onPress={() => { closeMenu(); setIsRequestingDelete(true) }} title="Delete" />
-        <Menu.Item leadingIcon="rename-box" onPress={() => { closeMenu(); setIsRequestingRename(true) }} title="Rename" />
+        <Menu.Item leadingIcon="trash-can"  onPress={() => { closeMenu(); setIsRequestingDelete(true) }} title={t("files.delete")} />
+        <Menu.Item leadingIcon="rename-box" onPress={() => { closeMenu(); setIsRequestingRename(true) }} title={t("files.rename")} />
       </Menu>
     </>
   );

@@ -6,9 +6,11 @@ import { Button, Text, TextInput, ActivityIndicator, Picker, useTheme, Divider, 
 import DropDown from 'react-native-paper-dropdown';
 import { useSnackbar } from 'react-native-paper-snackbar-stack';
 import API from '../includes/API';
+import { useLocalization } from '../includes/LocalizationProvider';
 
 const UserPrinterControlTemperature = ({ connectionStatus }) => {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const { enqueueSnackbar } = useSnackbar();
 
@@ -31,9 +33,11 @@ const UserPrinterControlTemperature = ({ connectionStatus }) => {
         onSuccess:   afterMutation,
         onError:     (error) => {
             enqueueSnackbar({
-                message: 'Failed to send command: ' + (error.response?.data?.message ?? error.message).toLowerCase(),
+                message: t("printer.controls.failedToSendCommand", {
+                    reason: (error.response?.data?.message ?? error.message).toLowerCase(),
+                }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
 
             afterMutation();
@@ -82,14 +86,14 @@ const UserPrinterControlTemperature = ({ connectionStatus }) => {
     return (
         <>
             <Text style={{ color: colors.primary, textAlign: 'center', paddingVertical: 4, marginTop: 16 }} variant="titleSmall">
-                Temperature
+                {t("printer.controls.temperature")}
             </Text>
             <Divider />
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 16 }}>
                 <View style={{ minWidth: 100, maxWidth: 150, width: '50%', flexDirection: 'column', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
                     <Text style={{ color: colors.primary, textAlign: 'center', paddingVertical: 4 }}>
-                        Hotend (°C)
+                        {t("printer.controls.hotend")}
                     </Text>
                     <TextInput
                         mode="outlined"
@@ -109,7 +113,7 @@ const UserPrinterControlTemperature = ({ connectionStatus }) => {
 
                 <View style={{ minWidth: 100, maxWidth: 150, width: '50%', flexDirection: 'column', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
                     <Text style={{ color: colors.primary, textAlign: 'center', paddingVertical: 4 }}>
-                        Bed (°C)
+                        {t("printer.controls.bed")}
                     </Text>
                     <TextInput
                         mode="outlined"

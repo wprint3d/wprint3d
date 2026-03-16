@@ -8,9 +8,15 @@ import { InteractionManager, View } from "react-native";
 import SimpleDialog from "./SimpleDialog";
 import { useEcho } from "../hooks/useEcho";
 import NavBarMenuSystemUpdater from "./NavBarMenuSystemUpdater";
+import { useLocalization } from "../includes/LocalizationProvider";
+import {
+    localizeSystemEnumOptions,
+    localizeSystemSettingDefinition,
+} from "../utils/systemSettingsLocalization";
 
 const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar, checkForUpdatesMutation }) => {
     const theme = useTheme();
+    const { t } = useLocalization();
 
     const [ settings,     setSettings     ] = useState({}),
           [ hasChanges,   setHasChanges   ] = useState(false),
@@ -61,9 +67,12 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
             console.error('NavBarMenuSettingsModalSystem: saveChangeMutation: onError:', error, key);
 
             enqueueSnackbar({
-                message: `Failed to save changes to "${settings[key].hint}": ${(error?.response?.data?.message ?? error.message).toLowerCase()}.`,
+                message: t("settings.saveSettingError", {
+                    name: settings[key].hint,
+                    reason: (error?.response?.data?.message ?? error.message).toLowerCase(),
+                }),
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("notifications.gotIt") }
             });
         },
     });
@@ -98,6 +107,7 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
                 return;
             }
 
+            nextSettings[key] = localizeSystemSettingDefinition(nextSettings[key], t);
             nextSettings[key].initialValue = nextSettings[key].value;
             nextSettings[key].value        = settings[key]?.value ?? nextSettings[key].value;
         });
@@ -109,7 +119,7 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
                 (key) => nextSettings[key].enum
             )
         );
-    }, [ configList.data ]);
+    }, [ configList.data, DATA_TYPES, t ]);
 
     useEffect(() => {
         console.debug('NavBarMenuSettingsModalSystem: enumList:', enumList);
@@ -119,11 +129,11 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
         const nextEnumOptions = {};
     
         Object.keys(enumList?.data?.data).forEach((key) => {
-            nextEnumOptions[key] = enumList?.data?.data[key];
+            nextEnumOptions[key] = localizeSystemEnumOptions(key, enumList?.data?.data[key], t);
         });
 
         setEnumOptions(nextEnumOptions);
-    }, [ enumList.data ]);
+    }, [ enumList.data, t ]);
 
     useEffect(() => {
         console.debug('NavBarMenuSettingsModalSystem: enumOptions (useEffect => enumOptions):', enumOptions);
@@ -145,22 +155,22 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
         if (hasChanges || !saveChangeMutation.isSuccess) { return; }
 
         enqueueSnackbar({
-            message: 'Successfully saved changes!',
+            message: t("settings.saveChangesSuccess"),
             variant: 'success',
-            action:  { label: 'Got it' }
+            action:  { label: t("notifications.gotIt") }
         });
-    }, [ hasChanges ]);
+    }, [ hasChanges, saveChangeMutation.isSuccess, t ]);
 
     if (dataTypesList.isFetching) {
-        return <UserPaneLoadingIndicator message={`Loading data types...`}      />;
+        return <UserPaneLoadingIndicator message={t("settings.loadingDataTypes")}      />;
     }
 
     if (configList.isFetching) {
-        return <UserPaneLoadingIndicator message={`Loading system settings...`} />;
+        return <UserPaneLoadingIndicator message={t("settings.loadingSystemSettings")} />;
     }
 
     if (enumList.isFetching) {
-        return <UserPaneLoadingIndicator message={`Loading enum options...`}    />;
+        return <UserPaneLoadingIndicator message={t("settings.loadingEnumOptions")}    />;
     }
 
     let sections = {};
@@ -216,7 +226,7 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
                     open={isFabOpen}
                     visible={true}
                     icon={isFabOpen ? 'close' : 'plus'}
-                    label='Options'
+                    label={t("settings.options")}
                     actions={[
                         {
                             icon: 'update',
@@ -226,7 +236,7 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
                                         ? theme.colors.onPrimary
                                         : theme.colors.primary
                             },
-                            label: 'Check for updates',
+                            label: t("settings.checkForUpdates"),
                             onPress: () => {
                                 console.debug('Check for updates');
 
@@ -243,16 +253,16 @@ const NavBarMenuSettingsModalSystem = ({ isSmallTablet, isSmallLaptop, enqueueSn
                                         ? theme.colors.onPrimary
                                         : theme.colors.primary
                             },
-                            label: 'Save changes',
+                            label: t("settings.saveChanges"),
                             onPress: () => {
                                 console.debug('Save changes');
 
                                 if (!hasChanges || saveChangeMutation.isPending) {
                                     if (!hasChanges) {
                                         enqueueSnackbar({
-                                            message: 'Nothing to do!',
+                                            message: t("settings.nothingToDo"),
                                             variant: 'info',
-                                            action:  { label: 'Got it' }
+                                            action:  { label: t("notifications.gotIt") }
                                         });
                                     }
 

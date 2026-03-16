@@ -221,6 +221,31 @@ return [
             'type' => DataType::BOOLEAN,
             'description' => 'Whether to enable the developer mode which shows a Development tab with tools for core and plugin developers. A page reload is required to apply changes to this setting.',
             'section' => 'Advanced settings'
+        ],
+        'fakeSerialEnabled' => [
+            'value' => false,
+            'hint' => 'Enable FakeSerial printer',
+            'type' => DataType::BOOLEAN,
+            'description' => 'Whether to plug in the development-only FakeSerial printer.',
+            'section' => 'Advanced settings',
+            'visible' => false
+        ],
+        'fakeSerialBaudRate' => [
+            'value' => 115200,
+            'hint' => 'FakeSerial baud rate',
+            'type' => DataType::INTEGER,
+            'description' => 'The baud rate exposed by the development-only FakeSerial printer.',
+            'section' => 'Advanced settings',
+            'visible' => false
+        ],
+        'fakeSerialNode' => [
+            'value' => 'FAKE0',
+            'hint' => 'FakeSerial node',
+            'type' => DataType::STRING,
+            'description' => 'The virtual serial node name used by the development-only FakeSerial printer.',
+            'section' => 'Advanced settings',
+            'visible' => false,
+            'writeable' => false
         ]
 
     ]

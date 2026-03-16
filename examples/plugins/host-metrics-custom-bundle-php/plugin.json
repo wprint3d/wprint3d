@@ -1,0 +1,85 @@
+{
+  "id": "wprint3d.host-metrics-custom-bundle-php",
+  "name": "Host Metrics Bundle",
+  "version": "0.1.0",
+  "sdkVersion": 1,
+  "sdkRevision": 1,
+  "minCoreVersion": "0.0.0",
+  "description": "Host metrics example using the PHP runtime and a custom bundle settings page.",
+  "author": "WPrint 3D",
+  "icon": "memory",
+  "runtime": {
+    "type": "php",
+    "entry": "plugin.php"
+  },
+  "permissions": [
+    "host.metrics.read",
+    "ui.navbar_widget",
+    "ui.settings_tab",
+    "ui.custom_bundle"
+  ],
+  "actions": [
+    {
+      "id": "host_metrics",
+      "label": "Read host metrics",
+      "handler": "actions/host_metrics.php"
+    }
+  ],
+  "uiExtensions": [
+    {
+      "id": "host-metrics-settings",
+      "surface": "settings_tab",
+      "mode": "custom_bundle",
+      "title": "Host Metrics",
+      "bundle": {
+        "url": "asset://ui/settings.html"
+      },
+      "components": [
+        "hostMetricsCard"
+      ],
+      "dataActionId": "host_metrics"
+    },
+    {
+      "id": "host-metrics-navbar",
+      "surface": "navbar_widget",
+      "mode": "declarative",
+      "title": "Host Metrics",
+      "schema": {
+        "component": "progress_cluster",
+        "dataActionId": "host_metrics",
+        "pollIntervalMs": 10000,
+        "items": [
+          {
+            "id": "cpu",
+            "label": "CPU",
+            "valueKey": "cpu.usedPercentage"
+          },
+          {
+            "id": "ram",
+            "label": "RAM",
+            "valueKey": "ram.usedPercentage"
+          }
+        ]
+      }
+    }
+  ],
+  "assets": [
+    {
+      "path": "ui/settings.html"
+    },
+    {
+      "path": "components/host-metrics-card.js"
+    }
+  ],
+  "components": [
+    {
+      "id": "hostMetricsCard",
+      "kind": "browser_module",
+      "entry": "asset://components/host-metrics-card.js",
+      "exports": "mount"
+    }
+  ],
+  "signature": {
+    "algorithm": "none"
+  }
+}

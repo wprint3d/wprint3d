@@ -7,6 +7,7 @@ import { ActivityIndicator, Badge, Divider, IconButton, List, Portal, Text, Tool
 import Markdown from '@ronradtke/react-native-markdown-display';
 import API from "../../includes/API";
 import { useEcho } from "../../hooks/useEcho";
+import { useLocalization } from "../../includes/LocalizationProvider";
 
 const Item = ({ notification, onDelete, colors, markManyAsReadMutation }) => {
     if (!notification) return null;
@@ -78,6 +79,7 @@ const NotificationsCenter = ({
     headerHeight
 }) => {
     const echo = useEcho();
+    const { t } = useLocalization();
 
     const { colors } = useTheme();
 
@@ -347,11 +349,11 @@ const NotificationsCenter = ({
                             }}
                             onLayout={event => setLayout(event.nativeEvent.layout)}
                         >
-                            <Text style={{ marginBottom: 10, color: colors.text }}>Notifications</Text>
+                            <Text style={{ marginBottom: 10, color: colors.text }}>{t("notifications.centerTitle")}</Text>
                             <List.Section style={{ flexGrow: 1, flexShrink: 1, overflowY: 'scroll' }}>
                                 {notificationsQuery.isFetching &&
                                     <List.Item
-                                        title="Loading notifications..."
+                                        title={t("notifications.loading")}
                                         titleStyle={{ textAlign: 'right' }}
                                         style={{ paddingLeft: 16 }}
                                         left={() => <ActivityIndicator />}
@@ -360,7 +362,7 @@ const NotificationsCenter = ({
 
                                 {(!notificationsQuery.isFetching && ids.length === 0) &&
                                     <List.Item
-                                        description="You don't have any notifications yet."
+                                        description={t("notifications.empty")}
                                         descriptionNumberOfLines={4}
                                         style={{ paddingVertical: 3 }}
                                         contentStyle={{ paddingLeft: 0 }}

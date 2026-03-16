@@ -10,9 +10,11 @@ import { useSnackbar } from 'react-native-paper-snackbar-stack';
 import SimpleDialog from './SimpleDialog';
 import NotificationsCenter from './modules/NotificationsCenter';
 import { useEcho } from '../hooks/useEcho';
+import { useLocalization } from '../includes/LocalizationProvider';
 
 export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, setColorScheme, headerHeight, enqueueSnackbar = () => {} }) {
   const { colors } = useTheme();
+  const { t } = useLocalization();
 
   const window = useWindowDimensions();
 
@@ -68,54 +70,58 @@ export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, 
             anchor={<Appbar.Action icon="dots-vertical" onPress={openMenu} />}
             anchorPosition='bottom'
           >
-            <Menu.Item title="Profile"  leadingIcon="account" onPress={() => { closeMenu(); setShowProfileModal(true);  }} />
-            <Menu.Item title="Settings" leadingIcon="cog"     onPress={() => { closeMenu(); setShowSettingsModal(true); }} />
+            <Menu.Item title={t("navbar.profile")}  leadingIcon="account" onPress={() => { closeMenu(); setShowProfileModal(true);  }} />
+            <Menu.Item title={t("navbar.settings")} leadingIcon="cog"     onPress={() => { closeMenu(); setShowSettingsModal(true); }} />
             <Divider />
-            <Menu.Item title="Sign out" leadingIcon="logout"  onPress={() => { closeMenu(); setShowLogoutDialog(true);  }} />
+            <Menu.Item title={t("navbar.signOut")} leadingIcon="logout"  onPress={() => { closeMenu(); setShowLogoutDialog(true);  }} />
           </Menu>
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Button icon="account" mode="text" style={{ marginHorizontal: 5 }} onPress={() => setShowProfileModal(true)}>
-              Profile
+              {t("navbar.profile")}
             </Button>
             <Button icon="cog"     mode="text" style={{ marginHorizontal: 5 }} onPress={() => setShowSettingsModal(true)}>
-              Settings
+              {t("navbar.settings")}
             </Button>
             <Button icon="logout"  mode="text" style={{ marginHorizontal: 5 }} onPress={() => setShowLogoutDialog(true)}>
-              Sign out
+              {t("navbar.signOut")}
             </Button>
           </View>
         )
       }
 
-      <NavBarMenuProfileModal
-        isVisible={showProfileModal}
-        setIsVisible={setShowProfileModal}
-        onDismiss={() => setShowProfileModal(false)}
-        isSmallTablet={isSmallTablet}
-        isSmallLaptop={isSmallLaptop}
-        colorScheme={colorScheme}
-        setColorScheme={setColorScheme}
-      />
+      {showProfileModal && (
+        <NavBarMenuProfileModal
+          isVisible={showProfileModal}
+          setIsVisible={setShowProfileModal}
+          onDismiss={() => setShowProfileModal(false)}
+          isSmallTablet={isSmallTablet}
+          isSmallLaptop={isSmallLaptop}
+          colorScheme={colorScheme}
+          setColorScheme={setColorScheme}
+        />
+      )}
 
-      <NavBarMenuSettingsModal
-        isVisible={showSettingsModal}
-        setIsVisible={setShowSettingsModal}
-        isSmallTablet={isSmallTablet}
-        isSmallLaptop={isSmallLaptop}
-      />
+      {showSettingsModal && (
+        <NavBarMenuSettingsModal
+          isVisible={showSettingsModal}
+          setIsVisible={setShowSettingsModal}
+          isSmallTablet={isSmallTablet}
+          isSmallLaptop={isSmallLaptop}
+        />
+      )}
 
       <SimpleDialog
         visible={showLogoutDialog}
         setVisible={setShowLogoutDialog}
-        title="Sign out"
+        title={t("navbar.confirmSignOutTitle")}
         left={<Icon source="logout" size={24} />}
-        content={<Text>Are you sure you want to sign out?</Text>}
+        content={<Text>{t("navbar.confirmSignOutBody")}</Text>}
         style={{ maxWidth: 480 }}
         actions={
           <>
             <Button mode="text" onPress={() => setShowLogoutDialog(false)}>
-              Cancel
+              {t("navbar.cancel")}
             </Button>
 
             <Button
@@ -124,7 +130,7 @@ export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, 
               style={{ backgroundColor: colors.onBackground }}
               theme={{ colors: { primary: colors.background } }}
             >
-              Sign out
+              {t("navbar.signOut")}
             </Button>
           </>
         }

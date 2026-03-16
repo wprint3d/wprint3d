@@ -1,0 +1,111 @@
+{
+  "id": "wprint3d.hello-world",
+  "name": "Hello World",
+  "version": "0.1.0",
+  "sdkVersion": 1,
+  "sdkRevision": 4,
+  "minCoreVersion": "0.0.0",
+  "description": "A reference plugin that demonstrates the default declarative UI mode and host.* component registry.",
+  "author": "WPrint 3D",
+  "icon": "hand-wave-outline",
+  "runtime": {
+    "type": "php",
+    "entry": "plugin.php"
+  },
+  "permissions": [
+    "printer.read",
+    "ui.settings_tab",
+    "ui.printer_panel"
+  ],
+  "hooks": {
+    "app.boot": {
+      "handler": "hooks/on_boot.php"
+    }
+  },
+  "assets": [
+    {
+      "path": "translations/es.json"
+    }
+  ],
+  "i18n": {
+    "defaultLocale": "en",
+    "files": {
+      "es": "asset://translations/es.json",
+      "es_AR": "asset://translations/es.json"
+    }
+  },
+  "actions": [
+    {
+      "id": "ping",
+      "label": "Ping",
+      "handler": "actions/ping.php"
+    }
+  ],
+  "uiExtensions": [
+    {
+      "id": "settings",
+      "surface": "settings_tab",
+      "mode": "declarative",
+      "title": "Hello World Settings",
+      "schema": {
+        "component": "host.section",
+        "title": "Lightweight declarative UI",
+        "subtitle": "Default template for low-memory hardware",
+        "children": [
+          {
+            "component": "host.heading",
+            "variant": "titleMedium",
+            "text": "Host component registry"
+          },
+          {
+            "component": "host.caption",
+            "text": "This plugin uses WPrint 3D's default host-rendered UI path."
+          },
+          {
+            "component": "host.chip_group",
+            "items": [
+              {
+                "id": "surface",
+                "text": "settings_tab",
+                "icon": "cog-outline"
+              },
+              {
+                "id": "mode",
+                "text": "declarative",
+                "icon": "view-dashboard-outline"
+              }
+            ]
+          },
+          {
+            "component": "host.button",
+            "label": "Ping plugin",
+            "actionId": "ping"
+          }
+        ]
+      }
+    },
+    {
+      "id": "panel",
+      "surface": "printer_panel",
+      "mode": "declarative",
+      "title": "Printer panel",
+      "schema": {
+        "component": "host.surface",
+        "children": [
+          {
+            "component": "host.heading",
+            "variant": "titleMedium",
+            "text": "Hello panel"
+          },
+          {
+            "component": "host.caption",
+            "text": "Plugins can add printer-specific panels without shipping a custom frontend bundle."
+          }
+        ]
+      }
+    }
+  ],
+  "signature": {
+    "algorithm": "none"
+  }
+}

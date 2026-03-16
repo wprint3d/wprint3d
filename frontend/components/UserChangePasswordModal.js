@@ -6,6 +6,7 @@ import TextBold from "./TextBold";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import API from "../includes/API";
 import BackButton from "./modules/BackButton";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const UserChangePasswordModal = ({ visible, onDismiss, isSmallTablet, extraHint, fromFirstLogin = false }) => {
     const queryClient = useQueryClient();
@@ -13,6 +14,7 @@ const UserChangePasswordModal = ({ visible, onDismiss, isSmallTablet, extraHint,
     const { enqueueSnackbar } = useSnackbar();
 
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword,     setNewPassword    ] = useState('');
@@ -36,9 +38,9 @@ const UserChangePasswordModal = ({ visible, onDismiss, isSmallTablet, extraHint,
             queryClient.refetchQueries({ queryKey: ['checkLogin'] });
 
             enqueueSnackbar({
-                message: 'Your password has been changed successfully!',
+                message: t("password.saved"),
                 variant: 'success',
-                action: { label: 'Dismiss', onPress: () => {} }
+                action: { label: t("password.dismiss"), onPress: () => {} }
             });
 
             doDismiss();
@@ -47,9 +49,9 @@ const UserChangePasswordModal = ({ visible, onDismiss, isSmallTablet, extraHint,
             console.error('UserChangePasswordModal.saveChangeMutation', error);
 
             enqueueSnackbar({
-                message: error?.response?.data?.message || 'An error occurred while saving the change',
+                message: error?.response?.data?.message || t("password.saveError"),
                 variant: 'error',
-                action: { label: 'Dismiss', onPress: () => {} }
+                action: { label: t("password.dismiss"), onPress: () => {} }
             })
         }
     });
@@ -71,7 +73,7 @@ const UserChangePasswordModal = ({ visible, onDismiss, isSmallTablet, extraHint,
     return (
         <Portal>
             <SnackbarProvider maxSnack={4}>
-                <Modal visible={visible} onDismiss={onDismiss}
+                <Modal visible={visible} onDismiss={doDismiss}
                     contentContainerStyle={{
                         backgroundColor: colors.elevation.level1,
                         alignSelf: 'center',
@@ -88,21 +90,21 @@ const UserChangePasswordModal = ({ visible, onDismiss, isSmallTablet, extraHint,
                             <Icon source="key" size={24} />
                             <View style={{ marginLeft: 8, flexDirection: 'row' }}>
                                 <Text>
-                                    <TextBold>Change your password</TextBold>
+                                    <TextBold>{t("password.title")}</TextBold>
                                 </Text>
                             </View>
                         </Text>
                         <Text style={{ marginTop: 24, marginBottom: 8, textAlign: 'center' }}>
                             {extraHint
                                 ? extraHint
-                                : 'Enter your current password and the new password in order to update it.'
+                                : t("password.description")
                             }
                         </Text>
                     </View>
                     <View style={{ padding: 8 }}>
                         <TextInput
                             mode="outlined"
-                            label="Current password"
+                            label={t("password.currentPassword")}
                             value={currentPassword}
                             onChangeText={setCurrentPassword}
                             secureTextEntry={!showPassword}
@@ -112,7 +114,7 @@ const UserChangePasswordModal = ({ visible, onDismiss, isSmallTablet, extraHint,
                         />
                         <TextInput
                             mode="outlined"
-                            label="New password"
+                            label={t("password.newPassword")}
                             value={newPassword}
                             onChangeText={setNewPassword}
                             secureTextEntry={!showPassword}
@@ -122,7 +124,7 @@ const UserChangePasswordModal = ({ visible, onDismiss, isSmallTablet, extraHint,
                         />
                         <TextInput
                             mode="outlined"
-                            label="Repeat new password"
+                            label={t("password.repeatNewPassword")}
                             value={repeatPassword}
                             onChangeText={setRepeatPassword}
                             secureTextEntry={!showPassword}
@@ -134,7 +136,7 @@ const UserChangePasswordModal = ({ visible, onDismiss, isSmallTablet, extraHint,
                         {!fromFirstLogin && (
                             <View style={{ flexDirection: 'row', justifyContent: 'center', paddingVertical: 8 }}>
                                 <Checkbox.Item
-                                    label="Log out other devices"
+                                    label={t("password.logoutOtherDevices")}
                                     status={logoutOtherDevices ? 'checked' : 'unchecked'}
                                     onPress={() => setLogoutOtherDevices(!logoutOtherDevices)}
                                 />
@@ -150,7 +152,7 @@ const UserChangePasswordModal = ({ visible, onDismiss, isSmallTablet, extraHint,
                         >
                             <Icon source="content-save" size={16} color={colors.onPrimary} />
                             <Text style={{ marginLeft: 4, color: colors.onPrimary }}>
-                                Save change
+                                {t("password.saveChange")}
                             </Text>
                         </Button>
                     </View>

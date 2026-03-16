@@ -8,9 +8,11 @@ import { TextInput, Button, ActivityIndicator, HelperText, useTheme, Icon } from
 import Backend from '../includes/Backend';
 
 import API from '../includes/API';
+import { useLocalization } from '../includes/LocalizationProvider';
 
 const Login = ({ appName, style }) => {
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     return (
         <View style={style}>
@@ -28,9 +30,9 @@ const Login = ({ appName, style }) => {
                             styles.message,
                             { color: colors.onBackground }
                         ]}>
-                            Welcome back!{'\n'}
+                            {t("login.welcomeBack")}{'\n'}
                             {'\n'}
-                            You can now log in to your account.
+                            {t("login.prompt")}
                         </Text>
                     </View>
 
@@ -42,6 +44,7 @@ const Login = ({ appName, style }) => {
 };
 
 const Form = ({ colors }) => {
+    const { t } = useLocalization();
     const [ email,       setEmail        ] = useState('');
     const [ password,    setPassword     ] = useState('');
     const [ loginError,  setLoginError   ] = useState('');
@@ -72,7 +75,7 @@ const Form = ({ colors }) => {
 
     const handleLoginRequest = () => {
         if (email.length == 0 || password.length == 0) {
-            setLoginError('Both a username or an e-mail address and a password must be provided.');
+            setLoginError(t("login.validationError"));
 
             return;
         }
@@ -115,7 +118,7 @@ const Form = ({ colors }) => {
                 <ActivityIndicator animating={true} />
 
                 <Reanimated.View style={styles.messageContainer} entering={FadeIn.duration(500)}>
-                    <Text style={styles.message}>Preparing login form...</Text>
+                    <Text style={styles.message}>{t("login.preparingForm")}</Text>
                 </Reanimated.View>
             </Reanimated.View>
         );
@@ -135,9 +138,9 @@ const Form = ({ colors }) => {
                 <TextInput
                     value={email}
                     onChangeText={email => setEmail(email)}
-                    label="Username or e-mail address"
+                    label={t("login.identifierLabel")}
                     mode="outlined"
-                    placeholder="Enter username or email"
+                    placeholder={t("login.identifierPlaceholder")}
                     disabled={loginMutation.isPending}
                     onKeyPress={handleKeyPress}
                 />
@@ -146,8 +149,8 @@ const Form = ({ colors }) => {
             <Reanimated.View entering={FadeIn.duration(500)}>
                 <HelperText type="info" style={{ marginVertical: 3 }}>
                     {SHOW_LOGIN_HINTS
-                        ? <Text>The default username is <Text style={styles.textBold}>admin</Text>.</Text>
-                        : <Text>Type your username or e-mail address.</Text>
+                        ? <Text>{t("login.defaultUsernameHint", { username: "admin" })}</Text>
+                        : <Text>{t("login.identifierHint")}</Text>
                     }
                 </HelperText>
             </Reanimated.View>
@@ -156,9 +159,9 @@ const Form = ({ colors }) => {
                 <TextInput
                     value={password}
                     onChangeText={password => setPassword(password)}
-                    label="Password"
+                    label={t("login.passwordLabel")}
                     mode="outlined"
-                    placeholder="Enter password"
+                    placeholder={t("login.passwordPlaceholder")}
                     secureTextEntry
                     disabled={loginMutation.isPending}
                     onKeyPress={handleKeyPress}
@@ -168,8 +171,8 @@ const Form = ({ colors }) => {
             <Reanimated.View entering={FadeIn.duration(500)}>
                 <HelperText type="info" style={{ marginVertical: 3 }}>
                     {SHOW_LOGIN_HINTS
-                        ? <Text>The default passsword is <Text style={styles.textBold}>admin</Text>.</Text>
-                        : <Text>Forgot your password? <Text style={styles.textBold}>Contact your administrator.</Text></Text>
+                        ? <Text>{t("login.defaultPasswordHint", { password: "admin" })}</Text>
+                        : <Text>{t("login.forgotPasswordHint")}</Text>
                     }
                 </HelperText>
             </Reanimated.View>
@@ -195,8 +198,8 @@ const Form = ({ colors }) => {
                         <Text style={{ marginLeft: 4 }}>
                             {
                                 loginMutation.isPending
-                                    ? 'Logging in...'
-                                    : 'Log in'
+                                    ? t("login.submitting")
+                                    : t("login.submit")
                             }
                         </Text>
                     </View>
@@ -258,7 +261,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row'
     },
     formSubmitButtonLoader: { paddingRight: 4 },
-    textBold: { fontWeight: 'bold' }
 });
 
 export default Login;

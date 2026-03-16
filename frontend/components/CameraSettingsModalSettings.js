@@ -4,9 +4,11 @@ import { View } from "react-native";
 import { List, Switch, Text } from "react-native-paper";
 import DropDown from "react-native-paper-dropdown";
 import API from "../includes/API";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const CameraSettingsModalConfiguration = ({ camera, enqueueSnackbar }) => {
     const queryClient = useQueryClient();
+    const { t } = useLocalization();
 
     console.debug('CameraSettingsModalConfiguration: camera:', camera);
 
@@ -28,9 +30,9 @@ const CameraSettingsModalConfiguration = ({ camera, enqueueSnackbar }) => {
             console.error('CameraSettingsModalConfiguration: toggleCameraEnabledMutation: onError:', error, variables, context);
 
             enqueueSnackbar({
-                message: `An error occurred while ${variables.enabled ? 'enabling' : 'disabling'} the camera: ${(error?.response?.data?.message ?? 'unknown error').toLowerCase()}`,
+                message: `${variables.enabled ? t("camera.enabled") : t("camera.delete").toLowerCase()} camera: ${(error?.response?.data?.message ?? 'unknown error').toLowerCase()}`,
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("password.dismiss") }
             });
         }
     });
@@ -51,9 +53,9 @@ const CameraSettingsModalConfiguration = ({ camera, enqueueSnackbar }) => {
             console.error('CameraSettingsModalConfiguration: setFormatMutation: onError:', error, variables, context);
 
             enqueueSnackbar({
-                message: `An error occurred while setting the camera format: ${(error?.response?.data?.message ?? 'unknown error').toLowerCase()}`,
+                message: `${t("camera.format")}: ${(error?.response?.data?.message ?? 'unknown error').toLowerCase()}`,
                 variant: 'error',
-                action:  { label: 'Got it' }
+                action:  { label: t("password.dismiss") }
             });
         }
     });
@@ -63,7 +65,7 @@ const CameraSettingsModalConfiguration = ({ camera, enqueueSnackbar }) => {
     const [ enabled, setEnabled ] = useState(camera?.enabled);
     const [ format,  setFormat  ] = useState(camera?.format);
 
-    const parseBoolean = (value) => value ? 'Yes' : 'No';
+    const parseBoolean = (value) => value ? t("camera.yes") : t("camera.no");
 
     const handleFormatChange = (format) => {
         console.debug('CameraSettingsModalConfiguration: handleFormatChange:', format);
@@ -73,11 +75,11 @@ const CameraSettingsModalConfiguration = ({ camera, enqueueSnackbar }) => {
 
     return (
         <View>
-            <List.Section title="Status">
-                <List.Item title="Connected" description={parseBoolean(camera?.connected)} />
+            <List.Section title={t("camera.statusSection")}>
+                <List.Item title={t("camera.connected")} description={parseBoolean(camera?.connected)} />
 
                 <List.Item
-                    title="Enabled"
+                    title={t("camera.enabled")}
                     description={parseBoolean(enabled)}
                     right={() => (
                         <Switch
@@ -88,14 +90,14 @@ const CameraSettingsModalConfiguration = ({ camera, enqueueSnackbar }) => {
                     )}
                 />
             </List.Section>
-            <List.Section title="Quality">
+            <List.Section title={t("camera.qualitySection")}>
                 <List.Item
-                    title="Format"
-                    description="The resolution and frame rate of the camera."
+                    title={t("camera.format")}
+                    description={t("camera.formatDescription")}
                     right={() => (
                         <View style={{ maxWidth: 200 }}>
                             <DropDown
-                                label=" "
+                                label={t("camera.format")}
                                 mode="outlined"
                                 value={format}
                                 setValue={handleFormatChange}
@@ -108,15 +110,15 @@ const CameraSettingsModalConfiguration = ({ camera, enqueueSnackbar }) => {
                     )}
                 />
             </List.Section>
-            <List.Section title="Miscellaneous">
-                <List.Item title="Requires libcamera" description={parseBoolean(camera?.requiresLibCamera)} />
-                <List.Item title="URL" description={camera?.url} />
+            <List.Section title={t("camera.miscSection")}>
+                <List.Item title={t("camera.requiresLibcamera")} description={parseBoolean(camera?.requiresLibCamera)} />
+                <List.Item title={t("camera.url")} description={camera?.url} />
             </List.Section>
-            {!(camera?.supportsMjpeg ?? true) && (
-                <List.Section title="Warning">
+            {!(camera?.supportsMjpeg ?? true) && (camera?.streamsMjpeg ?? true) && (
+                <List.Section title={t("camera.warningSection")}>
                     <List.Item
-                        title="This camera does not support MJPEG encoding"
-                        description="To avoid performance issues, the camera will be updated every 1.5 seconds. Please consider using a camera that supports MJPEG."
+                        title={t("camera.mjpegWarningTitle")}
+                        description={t("camera.mjpegWarningDescription")}
                         left={() => <List.Icon icon="alert" color="red" style={{ marginLeft: 16 }} />}
                     />
                 </List.Section>

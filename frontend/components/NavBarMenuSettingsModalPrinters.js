@@ -7,8 +7,10 @@ import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import PrinterSettingsModal from "./PrinterSettingsModal";
 import { useEffect, useState } from "react";
 import API from "../includes/API";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalPrinters = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
+    const { t } = useLocalization();
     const printersList = useQuery({
         queryKey: ['printersList'],
         queryFn:  () => API.get('/printers')
@@ -39,11 +41,11 @@ const NavBarMenuSettingsModalPrinters = ({ isSmallTablet, isSmallLaptop, enqueue
         return (
             <NavBarMenuSettingsModalPlaceholderItem
                 icon="usb-port"
-                message="No printers available"
+                message={t("settings.noPrinters")}
                 troubleshootingOptions={[
-                    'Reset the USB controller',
-                    'Re-seat the printer\'s USB plug into the port',
-                    'Restart the host'
+                    t("settings.printerTroubleshootingResetUsb"),
+                    t("settings.printerTroubleshootingReseat"),
+                    t("settings.printerTroubleshootingRestartHost")
                 ]}
             />
         );
@@ -53,7 +55,7 @@ const NavBarMenuSettingsModalPrinters = ({ isSmallTablet, isSmallLaptop, enqueue
         <>
         {
             printersList.isFetching && !printers.length
-                ? <UserPaneLoadingIndicator key={-1} message={`Loading printers list...`} />
+                ? <UserPaneLoadingIndicator key={-1} message={t("settings.loadingPrinters")} />
                 : (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                         {

@@ -9,9 +9,11 @@ import TextBold from './TextBold';
 import UserPaneLoadingIndicator from './UserPaneLoadingIndicator';
 import NavBarMenuSettingsModalPlaceholderItem from './NavBarMenuSettingsModalPlaceholderItem';
 import { useEcho } from '../hooks/useEcho';
+import { useLocalization } from '../includes/LocalizationProvider';
 
 const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus }) => {
     const queryClient = useQueryClient();
+    const { t } = useLocalization();
 
     const echo = useEcho();
 
@@ -64,9 +66,9 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
         mutationFn: () => API.post('/user/printer/selected/print/recover', { startFrom: maxLine }),
         onSuccess:  () => {
             enqueueSnackbar({
-                message: 'Success recovering print job!',
+                message: t("printer.recovery.recoverSuccess"),
                 variant: 'success',
-                action: { label: 'Got it' }
+                action: { label: t("notifications.gotIt") }
             });
 
             setIsVisible(false);
@@ -76,9 +78,11 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
         },
         onError:    (error) => {
             enqueueSnackbar({
-                message: `Failed to recover print job: ${error.response?.data?.message || 'Unknown error'}`,
+                message: t("printer.recovery.recoverError", {
+                    reason: error.response?.data?.message || error.message || "unknown error",
+                }),
                 variant: 'error',
-                action: { label: 'Dismiss' }
+                action: { label: t("notifications.dismiss") }
             });
         }
     });
@@ -87,18 +91,20 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
         mutationFn: () => API.delete('/user/printer/selected/print/recover'),
         onSuccess:  () => {
             enqueueSnackbar({
-                message: 'The recovery process has been cancelled!',
+                message: t("printer.recovery.cancelRecoverySuccess"),
                 variant: 'success',
-                action: { label: 'Got it' }
+                action: { label: t("notifications.gotIt") }
             });
 
             setIsVisible(false);
         },
         onError:    (error) => {
             enqueueSnackbar({
-                message: `Failed to cancel recovery process: ${error.response?.data?.message || 'Unknown error'}`,
+                message: t("printer.recovery.cancelRecoveryError", {
+                    reason: error.response?.data?.message || error.message || "unknown error",
+                }),
                 variant: 'error',
-                action: { label: 'Dismiss' }
+                action: { label: t("notifications.dismiss") }
             });
         }
     });
@@ -108,7 +114,7 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
     };
 
     const handleRecover = () => {
-        setRecoveryStage('Waiting for server...');
+        setRecoveryStage(t("printer.recovery.waitingForServer"));
         setRecoveryProgress(0);
 
         startRecoveryMutation.mutate();
@@ -194,11 +200,11 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
                 setRecoveryStage(() => {
                     switch (event.stage) {
                         case RECOVERY_STAGES?.COUNT_LINES:
-                            return 'Counting lines...';
+                            return t("printer.recovery.countingLines");
                         case RECOVERY_STAGES?.PARSE_FILE:
-                            return 'Parsing file...';
+                            return t("printer.recovery.parsingFile");
                         default:
-                            return 'Waiting for server...';
+                            return t("printer.recovery.waitingForServer");
                     }
                 });
             }
@@ -285,32 +291,32 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
                 >
                     <View style={{ justifyContent: 'center', alignItems: 'center' }}>
                         <Text variant='headlineLarge'>
-                            Print job recovery
+                            {t("printer.recovery.title")}
                         </Text>
 
                         {(jobBackupInterval.isLoading || backupIntervals.isLoading || recoveryStages.isLoading) ? (
-                            <UserPaneLoadingIndicator message={'Loading recovery settings...'} />
+                            <UserPaneLoadingIndicator message={t("printer.recovery.loadingSettings")} />
                         ) : (
                             jobBackupInterval.isError || backupIntervals.isError || recoveryStages.isError ? (
                                 <NavBarMenuSettingsModalPlaceholderItem
                                     icon={'alert-circle-outline'}
-                                    message={`Failed to load recovery settings: \n\n${
+                                    message={t("printer.recovery.loadSettingsError", { reason: (
                                         jobBackupInterval.error?.response?.data?.message
                                         ||
                                         backupIntervals.error?.response?.data?.message
                                         ||
                                         recoveryStages.error?.response?.data?.message
-                                    }`}
+                                    ) })}
                                 />
                         ) : (
                             SELECTED_INTERVAL === BACKUP_INTERVALS?.NEVER ? (
                                 <NavBarMenuSettingsModalPlaceholderItem
                                     icon='alert-circle-outline'
-                                    message='Unfortunately, the last print job has failed and the recovery process is not enabled. Please contact your administrator for further assistance.'
+                                    message={t("printer.recovery.disabled")}
                                     actions={
                                         <>
                                             <Button mode="contained" onPress={handleSkip} style={{ marginTop: 16 }}>
-                                                <Icon source="skip-next" color={colors.onPrimary} size={16} /> Close
+                                                <Icon source="skip-next" color={colors.onPrimary} size={16} /> {t("notifications.close")}
                                             </Button>
                                         </>
                                     }
@@ -320,10 +326,10 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
                                     <Divider style={{ width: '85%', marginVertical: 20 }} />
                                 
                                     <Text variant='headlineSmall' style={{ marginBottom: 16 }}>
-                                        What does your print look like?
+                                        {t("printer.recovery.previewTitle")}
                                     </Text>
                                     <Text style={{ marginBottom: 20 }}>
-                                        Adjust the preview until it more closely resembles the current physical state of the failed print.
+                                        {t("printer.recovery.previewDescription")}
                                     </Text>
                                 
                                     <View style={{ flexDirection: 'row', justifyContent: 'center', width: '100%', flexWrap: 'wrap', flex: 1 }}>
@@ -354,7 +360,7 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
                                                                             {
                                                                                 recoveryProgress < 100
                                                                                     ? recoveryStage
-                                                                                    : 'Finishing up...'
+                                                                                    : t("printer.recovery.finishingUp")
                                                                             }
                                                                         </Text>
 
@@ -389,7 +395,7 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
                                                                         onPress={() => handleRecover()}
                                                                         style={{ marginHorizontal: 8 }}
                                                                     >
-                                                                        <Icon source="play" color={colors.onPrimary} size={16} /> Continue from line {maxLine}
+                                                                        <Icon source="play" color={colors.onPrimary} size={16} /> {t("printer.recovery.continueFromLine", { line: maxLine })}
                                                                     </Button>
 
                                                                     <Button
@@ -408,19 +414,17 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
                                         </View>
 
                                         <Text style={{ marginTop: 16, textAlign: 'center', maxWidth: 640 }}>
-                                            If the preview doesn't look like your print, try adjusting the line number by clicking the arrows above.
-                                            {'\n\n'}
-                                            Each click will move the preview one line forward or backward.
+                                            {t("printer.recovery.adjustDescription")}
                                         </Text>
                                     </View>
                                 
                                     <Divider style={{ width: '85%', marginVertical: 20 }} />
                                 
                                     <Text variant='headlineSmall' style={{ marginBottom: 16 }}>
-                                        About the recovery process
+                                        {t("printer.recovery.aboutTitle")}
                                     </Text>
                                     <Text style={{ maxWidth: 860, textAlign: 'center' }}>
-                                        Consider that the recovery process will home both the <TextBold>X</TextBold> and <TextBold>Y</TextBold> axes, if you've manually manipulated the <TextBold>Z-axis</TextBold>, please consider skipping this recovery session as it'll probably get your piece knocked out of the build plate or stay printing mid-air.
+                                        {t("printer.recovery.aboutDescription")}
                                     </Text>
                                     <View style={{ flexDirection: 'row', justifyContent: 'center', width: '100%' }}>
                                         <Button
@@ -429,7 +433,7 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
                                             disabled={IS_LOADING}
                                             onPress={handleSkip} style={{ marginVertical: 24 }}
                                         >
-                                            <Icon source="skip-next" color={colors.onPrimary} size={16} /> Cancel recovery
+                                            <Icon source="skip-next" color={colors.onPrimary} size={16} /> {t("printer.recovery.cancelRecovery")}
                                         </Button>
                                     </View>
                                 </View>

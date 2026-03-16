@@ -4,9 +4,11 @@ import { Button, TextInput } from "react-native-paper";
 import SimpleDialog from "./SimpleDialog";
 import API from "../includes/API";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalPresetsEditDialog = ({ material = null, visible, setVisible }) => {
     const queryClient = useQueryClient();
+    const { t } = useLocalization();
 
     const { enqueueSnackbar } = useSnackbar();
 
@@ -14,9 +16,9 @@ const NavBarMenuSettingsModalPresetsEditDialog = ({ material = null, visible, se
         console.error('NavBarMenuSettingsModalPresetsEditDialog: handleErrors:', error);
 
         enqueueSnackbar({
-            message: 'An error occurred: ' + (error?.response?.data?.message ?? 'unknown error').toLowerCase(),
+            message: t("presets.saveError", { reason: (error?.response?.data?.message ?? 'unknown error').toLowerCase() }),
             variant: 'error',
-            action:  { label: 'Got it' }
+            action:  { label: t("notifications.gotIt") }
         });
     };
 
@@ -70,34 +72,34 @@ const NavBarMenuSettingsModalPresetsEditDialog = ({ material = null, visible, se
 
     return (
         <SimpleDialog
-            title={material ? `Edit ${material.name}` : 'Add new material'}
+            title={material ? t("presets.editTitle", { name: material.name }) : t("presets.addTitle")}
             visible={visible}
             setVisible={setVisible}
             style={{ maxWidth: 350 }}
             actions={
                 <>
-                    <Button onPress={() => setVisible(false)}>Cancel</Button>
-                    <Button onPress={() => saveMaterial()}>Save</Button>
+                    <Button onPress={() => setVisible(false)}>{t("presets.cancel")}</Button>
+                    <Button onPress={() => saveMaterial()}>{t("presets.save")}</Button>
                 </>
             }
             content={
                 <>
                     <TextInput
-                        label="Material"
+                        label={t("presets.materialLabel")}
                         mode="outlined"
                         onChangeText={value => setName(value)}
                         value={name}
                     />
 
                     <TextInput
-                        label="Hotend temperature"
+                        label={t("presets.hotendTemperatureLabel")}
                         mode="outlined"
                         onChangeText={value => setHotendTemperature(value)}
                         value={hotendTemperature}
                     />
 
                     <TextInput
-                        label="Bed temperature"
+                        label={t("presets.bedTemperatureLabel")}
                         mode="outlined"
                         onChangeText={value => setBedTemperature(value)}
                         value={bedTemperature}
