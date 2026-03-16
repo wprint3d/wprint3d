@@ -613,30 +613,28 @@ migrate_docker_volumes_to_podman() {
 
     # Guard 1: only run when Podman is the active runtime.
     if [[ "${HOST_CONTAINER_RUNTIME:-}" != 'podman' ]]; then
+        echo "Warning: Container runtime is '${HOST_CONTAINER_RUNTIME:-unknown}', not Podman; skipping volume migration." >&2;
+
         return 0;
     fi;
 
     # Guard 2: Docker CLI must be available.
     if ! command -v docker > /dev/null 2>&1; then
+        echo 'Warning: Docker CLI not found; skipping volume migration.' >&2;
+
         return 0;
     fi;
 
     # Guard 3: Docker daemon must be reachable (5-second timeout).
     if ! timeout 5 docker info > /dev/null 2>&1; then
+        echo 'Warning: Docker daemon is not reachable; skipping volume migration.' >&2;
+
         return 0;
     fi;
 
     # Resolve volume name prefixes.
     local src_prefix="${WPRINT3D_DOCKER_PROJECT_NAME:-wprint3d}";
     local dst_prefix="${COMPOSE_PROJECT_NAME:-$(basename "$SCRIPT_PATH")}";
-
-    # Collision guard: refuse to self-copy.
-    if [[ "$src_prefix" == "$dst_prefix" ]]; then
-        echo "Warning: Docker and Podman volume prefixes are identical ('${src_prefix}')." >&2;
-        echo 'Volume migration skipped to avoid self-copy.' >&2;
-
-        return 0;
-    fi;
 
     # Validate / normalise $env argument.
     case "$env" in
