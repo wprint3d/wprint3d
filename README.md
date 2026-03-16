@@ -90,6 +90,8 @@ WPrint 3D now includes a plugin platform with:
 - unpacked live-source installs in the development stack
 - an Artisan CLI for scaffold, package, install, search, and diagnostics
 
+Start with the docs landing page at [docs/index.md](docs/index.md) when you want the hosted documentation structure instead of the repo overview or, alternatively, for a better navigation experience use our [public documentation site](https://docs.wprint3d.com) which is updated in sync with the repository. The plugin platform documentation includes a reference for the SDK, development guides, and example verification flows.
+
 If you want to build plugins, use this path:
 
 1. Read the plugin entrypoint docs in [docs/plugins.md](docs/plugins.md).
