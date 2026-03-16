@@ -240,29 +240,6 @@ else
             # Flush cached files
             php artisan optimize:clear;
 
-            # Detect and install in-development packages
-            for vendor in $(ls /var/www/dev); do
-                for package in $(ls /var/www/dev/"$vendor"); do
-                    touch '/var/www/dev/'"$vendor"'/'"$package"'/.wp3d_plugin_dev';
-
-                    composer config repositories."$vendor"'/'"$package" '{ "type": "path", "url": "/var/www/dev/'"$vendor"'/'"$package"'", "options": { "symlink": true } }';
-                    composer require "$vendor"'/'"$package @dev";
-                done;
-            done;
-
-            # Detect removed in-development plugins (broken symlinks)
-            for package in $(find vendor -mindepth 1 -maxdepth 2 -type l -xtype l | sed 's/vendor\///'); do
-                echo '================================================================================';
-                echo '=> '"$package"' will be removed: the symlink is broken.';
-                echo '================================================================================';
-
-                composer remove "$package";
-                composer config --unset repositories."$package";
-            done;
-
-            # Discover and load plugins
-            php artisan discover:plugins;
-
             # If the Git repository is present, get the version from `git rev-parse`.
             if [[ -f '/var/www/.git/HEAD' ]] && [[ "${DEVELOPER_MODE}" == 'true' ]]; then
                 git rev-parse --short HEAD > /var/www/internal/app_ver;
