@@ -189,7 +189,7 @@ services:
       - mapper
       - yv-streamer-software
   yv-streamer-software:
-    image: wprint3d/yv-streamer-software:latest
+    image: docker.io/wprint3d/yv-streamer-software:latest
     restart: always
     logging:
       driver: local
