@@ -632,6 +632,21 @@ migrate_docker_volumes_to_podman() {
         return 0;
     fi;
 
+    # Bring down any running Docker services so their ports are free for Podman.
+    local compose_file='docker-compose.yml';
+
+    if [[ "$env" == 'dev' ]]; then
+        compose_file='docker-compose-development.yml';
+    fi;
+
+    if [[ -f "${SCRIPT_PATH}/${compose_file}" ]]; then
+        if docker compose -f "${SCRIPT_PATH}/${compose_file}" ps -q 2>/dev/null | grep -q .; then
+            echo 'Stopping running Docker services before migration...';
+
+            docker compose -f "${SCRIPT_PATH}/${compose_file}" down 2>&1 || true;
+        fi;
+    fi;
+
     # Resolve volume name prefixes.
     local src_prefix="${WPRINT3D_DOCKER_PROJECT_NAME:-wprint3d}";
     local dst_prefix="${COMPOSE_PROJECT_NAME:-$(basename "$SCRIPT_PATH")}";
