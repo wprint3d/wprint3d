@@ -4,6 +4,7 @@ import path from "node:path";
 const packageRoot = path.resolve("node_modules/react-native-paper-tabs");
 const useLatestCallbackRoot = path.resolve("node_modules/use-latest-callback");
 const reactNativePaperRoot = path.resolve("node_modules/react-native-paper");
+const snackbarStackRoot = path.resolve("node_modules/react-native-paper-snackbar-stack");
 
 const replaceOnce = (contents, from, to, errorMessage) => {
   if (to && contents.includes(to)) {
@@ -465,6 +466,25 @@ for (const definition of reactNativePaperPatches) {
   }
 
   writeFileSync(targetPath, contents, "utf8");
+}
+
+const snackbarStackPackageJsonPath = path.join(snackbarStackRoot, "package.json");
+const snackbarStackPackageJson = JSON.parse(readFileSync(snackbarStackPackageJsonPath, "utf8"));
+
+if (
+  snackbarStackPackageJson.main !== "src/index.ts" ||
+  snackbarStackPackageJson.module !== "src/index.ts" ||
+  snackbarStackPackageJson.types !== "src/index.ts"
+) {
+  snackbarStackPackageJson.main = "src/index.ts";
+  snackbarStackPackageJson.module = "src/index.ts";
+  snackbarStackPackageJson.types = "src/index.ts";
+
+  writeFileSync(
+    snackbarStackPackageJsonPath,
+    `${JSON.stringify(snackbarStackPackageJson, null, 2)}\n`,
+    "utf8"
+  );
 }
 
 const useLatestCallbackPath = path.join(useLatestCallbackRoot, "lib/src/index.js");
