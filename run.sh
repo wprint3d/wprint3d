@@ -9,6 +9,16 @@ cd "$SCRIPT_PATH";
 
 source "${SCRIPT_PATH}/internal/container-runtime.sh";
 
+normalize_compose_logging_driver() {
+    local compose_file="${1:-docker-compose.yml}";
+
+    if [[ ! -f "$compose_file" ]]; then
+        return 0;
+    fi;
+
+    sed -i 's/driver: local/driver: ${CONTAINER_LOG_DRIVER:-local}/g' "$compose_file";
+}
+
 offer_frontend_node_modules_reownership() {
     local node_modules_path='frontend/node_modules';
     local reown_choice="${WPRINT3D_REOWN_FRONTEND_NODE_MODULES:-ask}";
@@ -139,6 +149,8 @@ if [[ "$2" != 'dev' ]]; then
         fi;
 
         mv -v "$TEMP_FILE" 'docker-compose.yml';
+
+        normalize_compose_logging_driver 'docker-compose.yml';
 
         echo 'The docker-compose.yml file was updated.';
 

@@ -18,7 +18,7 @@ assert_contains() {
 }
 
 podman_output="$(
-    ROOT_DIR="$ROOT_DIR" /bin/bash -c '
+    ROOT_DIR="$ROOT_DIR" WPRINT3D_PODMAN_ROOTFUL=0 /bin/bash -c '
         source "$ROOT_DIR/internal/container-runtime.sh"
 
         detect_host_container_runtime() {
