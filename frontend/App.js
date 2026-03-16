@@ -3,8 +3,6 @@
 
 import "@expo/metro-runtime";
 
-import { registerRootComponent } from "expo";
-
 import {
   QueryClient,
   QueryClientProvider
@@ -76,5 +74,3 @@ const styles = StyleSheet.create({
     overflow: 'auto'
   }
 })
-
-registerRootComponent(App);

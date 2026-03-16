@@ -90,22 +90,26 @@ export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, 
         )
       }
 
-      <NavBarMenuProfileModal
-        isVisible={showProfileModal}
-        setIsVisible={setShowProfileModal}
-        onDismiss={() => setShowProfileModal(false)}
-        isSmallTablet={isSmallTablet}
-        isSmallLaptop={isSmallLaptop}
-        colorScheme={colorScheme}
-        setColorScheme={setColorScheme}
-      />
+      {showProfileModal && (
+        <NavBarMenuProfileModal
+          isVisible={showProfileModal}
+          setIsVisible={setShowProfileModal}
+          onDismiss={() => setShowProfileModal(false)}
+          isSmallTablet={isSmallTablet}
+          isSmallLaptop={isSmallLaptop}
+          colorScheme={colorScheme}
+          setColorScheme={setColorScheme}
+        />
+      )}
 
-      <NavBarMenuSettingsModal
-        isVisible={showSettingsModal}
-        setIsVisible={setShowSettingsModal}
-        isSmallTablet={isSmallTablet}
-        isSmallLaptop={isSmallLaptop}
-      />
+      {showSettingsModal && (
+        <NavBarMenuSettingsModal
+          isVisible={showSettingsModal}
+          setIsVisible={setShowSettingsModal}
+          isSmallTablet={isSmallTablet}
+          isSmallLaptop={isSmallLaptop}
+        />
+      )}
 
       <SimpleDialog
         visible={showLogoutDialog}

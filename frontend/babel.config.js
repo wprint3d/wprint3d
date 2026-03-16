@@ -6,8 +6,7 @@ module.exports = function(api) {
     plugins: [
       'module:react-native-dotenv',
       'react-native-paper/babel',
-      '@babel/plugin-proposal-export-namespace-from',
-      'react-native-reanimated/plugin'
+      '@babel/plugin-transform-export-namespace-from'
     ]
   };
 };
