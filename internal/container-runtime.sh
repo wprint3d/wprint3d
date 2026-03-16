@@ -625,8 +625,8 @@ migrate_docker_volumes_to_podman() {
         return 0;
     fi;
 
-    # Guard 3: Docker daemon must be reachable (5-second timeout).
-    if ! timeout 5 docker info > /dev/null 2>&1; then
+    # Guard 3: Docker daemon must be reachable (no timeout).
+    if ! docker info > /dev/null 2>&1; then
         echo 'Warning: Docker daemon is not reachable; skipping volume migration.' >&2;
 
         return 0;
