@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useState }   from 'react';
-import { View, Text, StyleSheet }       from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import Reanimated, { FadeIn } from 'react-native-reanimated';
 
 import { TextInput, Button, ActivityIndicator, HelperText, useTheme, Icon } from 'react-native-paper';
@@ -13,13 +13,16 @@ import { useLocalization } from '../includes/LocalizationProvider';
 const Login = ({ appName, style }) => {
     const { colors } = useTheme();
     const { t } = useLocalization();
+    const { width } = useWindowDimensions();
+    const isSmallScreen = width < 480;
 
     return (
-        <View style={style}>
+        <View style={[style, { width }]}>
             <Reanimated.View style={styles.container} entering={FadeIn.duration(500)}>
-                <Reanimated.View style={styles.content} entering={FadeIn.duration(500)}>
+                <Reanimated.View style={[styles.content, isSmallScreen && styles.contentSmall]} entering={FadeIn.duration(500)}>
                     <Text style={[
                         styles.title,
+                        isSmallScreen && styles.titleSmall,
                         { color: colors.onBackground }
                     ]}>
                         {appName}
@@ -36,14 +39,14 @@ const Login = ({ appName, style }) => {
                         </Text>
                     </View>
 
-                    <Form colors={colors} />
+                    <Form colors={colors} isSmallScreen={isSmallScreen} />
                 </Reanimated.View>
             </Reanimated.View>
         </View>
     );
 };
 
-const Form = ({ colors }) => {
+const Form = ({ colors, isSmallScreen }) => {
     const { t } = useLocalization();
     const [ email,       setEmail        ] = useState('');
     const [ password,    setPassword     ] = useState('');
@@ -125,8 +128,9 @@ const Form = ({ colors }) => {
     }
 
     return (
-        <Reanimated.View 
+        <Reanimated.View
             style={[styles.formContainer,
+                isSmallScreen && styles.formContainerSmall,
                 {
                     backgroundColor: colors.elevation.level1,
                     borderColor:     colors.elevation.level4
@@ -219,14 +223,19 @@ const styles = StyleSheet.create({
     content: {
         paddingHorizontal: 20,
         paddingVertical: 10,
-        width: '100%'
+        width: '100%',
+    },
+    contentSmall: {
+        paddingHorizontal: 12,
     },
     title: {
-        fontSize: 36,
+        fontSize: 48,
         fontWeight: 'bold',
         marginBottom: 10,
         textAlign: 'center',
-        fontSize: 48
+    },
+    titleSmall: {
+        fontSize: 32,
     },
     centeredText: { textAlign: 'center' },
     spinnerContainer: {
@@ -251,6 +260,10 @@ const styles = StyleSheet.create({
         width: 500,
         maxWidth: '100%',
         alignSelf: 'center'
+    },
+    formContainerSmall: {
+        padding: 16,
+        borderRadius: 8,
     },
     formSubmitButton: {
         marginTop: 10,
