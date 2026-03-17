@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 
 
 BASE_URL = os.environ.get("BASE_URL", "https://127.0.0.1")
-SCREENSHOT_DIR = Path(os.environ.get("SCREENSHOT_DIR", "/home/facuarmo/wprint3d-core/docs/assets/plugins"))
+SCREENSHOT_DIR = Path(os.environ.get("SCREENSHOT_DIR", str(Path(__file__).resolve().parent.parent / "docs" / "assets" / "plugins")))
 
 
 def save(page, name: str) -> None:

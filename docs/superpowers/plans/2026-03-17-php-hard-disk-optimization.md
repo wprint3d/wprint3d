@@ -37,7 +37,7 @@
 - [ ] **Step 1: Create the hardware detection script**
 
 ```bash
-cat > /home/facuarmo/wprint3d-core/internal/detect-hardware.sh << 'SCRIPT_EOF'
+cat > /path/to/wprint3d-core/internal/detect-hardware.sh << 'SCRIPT_EOF'
 #!/bin/bash
 # Hardware detection for PHP performance optimization
 # Detects storage type and available memory to optimize caching strategy
@@ -128,21 +128,21 @@ SCRIPT_EOF
 - [ ] **Step 2: Make the script executable**
 
 ```bash
-chmod +x /home/facuarmo/wprint3d-core/internal/detect-hardware.sh
+chmod +x /path/to/wprint3d-core/internal/detect-hardware.sh
 ```
 
 - [ ] **Step 3: Test the hardware detection script**
 
 ```bash
 # Test storage detection
-bash -c 'source /home/facuarmo/wprint3d-core/internal/detect-hardware.sh && echo "Storage: $WPRINT3D_STORAGE_TYPE"'
+bash -c 'source /path/to/wprint3d-core/internal/detect-hardware.sh && echo "Storage: $WPRINT3D_STORAGE_TYPE"'
 ```
 
 Expected output: `Storage: ssd` or `Storage: hdd` or `Storage: sdcard` or `Storage: unknown`
 
 ```bash
 # Test memory detection
-bash -c 'source /home/facuarmo/wprint3d-core/internal/detect-hardware.sh && echo "Memory: ${WPRINT3D_AVAILABLE_MEMORY_MB}MB"'
+bash -c 'source /path/to/wprint3d-core/internal/detect-hardware.sh && echo "Memory: ${WPRINT3D_AVAILABLE_MEMORY_MB}MB"'
 ```
 
 Expected output: `Memory: XXXXMB` (where XXXX is a number)
@@ -173,7 +173,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Create the OPcache configuration template**
 
 ```bash
-cat > /home/facuarmo/wprint3d-core/internal/php-opcache.ini.template << 'INI_EOF'
+cat > /path/to/wprint3d-core/internal/php-opcache.ini.template << 'INI_EOF'
 ; OPcache configuration for wprint3d performance optimization
 ; This file is loaded by PHP via the conf.d directory
 ; Environment variables are substituted by setup-php-opcache.sh
@@ -266,7 +266,7 @@ INI_EOF
 - [ ] **Step 2: Create the OPcache setup script**
 
 ```bash
-cat > /home/facuarmo/wprint3d-core/internal/setup-php-opcache.sh << 'SCRIPT_EOF'
+cat > /path/to/wprint3d-core/internal/setup-php-opcache.sh << 'SCRIPT_EOF'
 #!/bin/bash
 # Generates php-opcache.ini from template using environment variable substitution
 # PHP INI files don't support ${VAR} syntax, so we use envsubst
@@ -293,13 +293,13 @@ fi
 exit 0
 SCRIPT_EOF
 
-chmod +x /home/facuarmo/wprint3d-core/internal/setup-php-opcache.sh
+chmod +x /path/to/wprint3d-core/internal/setup-php-opcache.sh
 ```
 
 - [ ] **Step 3: Verify the files were created**
 
 ```bash
-ls -la /home/facuarmo/wprint3d-core/internal/php-opcache.ini.template /home/facuarmo/wprint3d-core/internal/setup-php-opcache.sh
+ls -la /path/to/wprint3d-core/internal/php-opcache.ini.template /path/to/wprint3d-core/internal/setup-php-opcache.sh
 ```
 
 Expected: Both files listed with appropriate permissions
@@ -329,7 +329,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Create the preload script**
 
 ```bash
-cat > /home/facuarmo/wprint3d-core/internal/php-opcache-preload.php << 'PHP_EOF'
+cat > /path/to/wprint3d-core/internal/php-opcache-preload.php << 'PHP_EOF'
 <?php
 /**
  * Laravel OPcache Preload Script
@@ -414,7 +414,7 @@ PHP_EOF
 - [ ] **Step 2: Verify the preload script was created**
 
 ```bash
-head -20 /home/facuarmo/wprint3d-core/internal/php-opcache-preload.php
+head -20 /path/to/wprint3d-core/internal/php-opcache-preload.php
 ```
 
 Expected: First 20 lines of the preload PHP script with proper opening tag
@@ -444,7 +444,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Create the ramdisk setup script**
 
 ```bash
-cat > /home/facuarmo/wprint3d-core/internal/ramdisk-setup.sh << 'SCRIPT_EOF'
+cat > /path/to/wprint3d-core/internal/ramdisk-setup.sh << 'SCRIPT_EOF'
 #!/bin/bash
 # Selective ramdisk setup for hot-path PHP files
 # Creates tmpfs mount for frequently-accessed directories
@@ -589,13 +589,13 @@ SCRIPT_EOF
 - [ ] **Step 2: Make the script executable**
 
 ```bash
-chmod +x /home/facuarmo/wprint3d-core/internal/ramdisk-setup.sh
+chmod +x /path/to/wprint3d-core/internal/ramdisk-setup.sh
 ```
 
 - [ ] **Step 3: Verify script syntax**
 
 ```bash
-bash -n /home/facuarmo/wprint3d-core/internal/ramdisk-setup.sh
+bash -n /path/to/wprint3d-core/internal/ramdisk-setup.sh
 ```
 
 Expected: No output (syntax check passed)
@@ -625,7 +625,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Create the application cache setup script**
 
 ```bash
-cat > /home/facuarmo/wprint3d-core/internal/app-cache-setup.sh << 'SCRIPT_EOF'
+cat > /path/to/wprint3d-core/internal/app-cache-setup.sh << 'SCRIPT_EOF'
 #!/bin/bash
 # Optional application-level caching setup
 # Enabled via WPRINT3D_APP_CACHE_ENABLED=true
@@ -684,13 +684,13 @@ SCRIPT_EOF
 - [ ] **Step 2: Make the script executable**
 
 ```bash
-chmod +x /home/facuarmo/wprint3d-core/internal/app-cache-setup.sh
+chmod +x /path/to/wprint3d-core/internal/app-cache-setup.sh
 ```
 
 - [ ] **Step 3: Verify script syntax**
 
 ```bash
-bash -n /home/facuarmo/wprint3d-core/internal/app-cache-setup.sh
+bash -n /path/to/wprint3d-core/internal/app-cache-setup.sh
 ```
 
 Expected: No output (syntax check passed)
@@ -719,7 +719,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Read the current run.sh to find exact integration point**
 
 ```bash
-head -15 /home/facuarmo/wprint3d-core/internal/run.sh
+head -15 /path/to/wprint3d-core/internal/run.sh
 ```
 
 Expected output: First 15 lines showing the structure around line 7-8
@@ -766,7 +766,7 @@ fi
 - [ ] **Step 3: Verify the changes were applied correctly**
 
 ```bash
-head -40 /home/facuarmo/wprint3d-core/internal/run.sh | tail -35
+head -40 /path/to/wprint3d-core/internal/run.sh | tail -35
 ```
 
 Expected: The new optimization section should appear between the service-status.sh sourcing and the temporary files removal.
@@ -774,7 +774,7 @@ Expected: The new optimization section should appear between the service-status.
 - [ ] **Step 4: Test run.sh syntax**
 
 ```bash
-bash -n /home/facuarmo/wprint3d-core/internal/run.sh
+bash -n /path/to/wprint3d-core/internal/run.sh
 ```
 
 Expected: No output (syntax check passed)
@@ -808,7 +808,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Read current Dockerfile.dev to find exact integration point**
 
 ```bash
-grep -n "limits.ini" /home/facuarmo/wprint3d-core/Dockerfile.dev
+grep -n "limits.ini" /path/to/wprint3d-core/Dockerfile.dev
 ```
 
 Expected output: Line number where limits.ini is copied (around line 196-197)
@@ -869,14 +869,14 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Create hardware detection test script**
 
 ```bash
-cat > /home/facuarmo/wprint3d-core/internal/test-hardware-detection.sh << 'TEST_EOF'
+cat > /path/to/wprint3d-core/internal/test-hardware-detection.sh << 'TEST_EOF'
 #!/bin/bash
 # Test script for hardware detection functionality
 
 echo "=== Testing Hardware Detection Script ==="
 
 # Source the detection script
-source /home/facuarmo/wprint3d-core/internal/detect-hardware.sh
+source /path/to/wprint3d-core/internal/detect-hardware.sh
 
 # Test environment variables are set
 echo "Storage Type: ${WPRINT3D_STORAGE_TYPE:-NOT_SET}"
@@ -914,13 +914,13 @@ echo "PASS: All hardware detection tests passed"
 exit 0
 TEST_EOF
 
-chmod +x /home/facuarmo/wprint3d-core/internal/test-hardware-detection.sh
+chmod +x /path/to/wprint3d-core/internal/test-hardware-detection.sh
 ```
 
 - [ ] **Step 2: Run the hardware detection test**
 
 ```bash
-bash /home/facuarmo/wprint3d-core/internal/test-hardware-detection.sh
+bash /path/to/wprint3d-core/internal/test-hardware-detection.sh
 ```
 
 Expected: `PASS: All hardware detection tests passed`
@@ -928,7 +928,7 @@ Expected: `PASS: All hardware detection tests passed`
 - [ ] **Step 3: Create OPcache verification script**
 
 ```bash
-cat > /home/facuarmo/wprint3d-core/internal/test-opcache.php << 'TEST_EOF'
+cat > /path/to/wprint3d-core/internal/test-opcache.php << 'TEST_EOF'
 <?php
 /**
  * Test script to verify OPcache configuration
@@ -994,7 +994,7 @@ TEST_EOF
 - [ ] **Step 4: Test OPcache configuration**
 
 ```bash
-php /home/facuarmo/wprint3d-core/internal/test-opcache.php
+php /path/to/wprint3d-core/internal/test-opcache.php
 ```
 
 Expected: OPcache status and configuration displayed
@@ -1023,8 +1023,8 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Check if config/cache.php exists and read current contents**
 
 ```bash
-if [[ -f /home/facuarmo/wprint3d-core/config/cache.php ]]; then
-    head -50 /home/facuarmo/wprint3d-core/config/cache.php
+if [[ -f /path/to/wprint3d-core/config/cache.php ]]; then
+    head -50 /path/to/wprint3d-core/config/cache.php
 else
     echo "config/cache.php does not exist yet - will be created by Laravel"
 fi
@@ -1035,8 +1035,8 @@ Expected: Either the cache configuration file contents or a message that it will
 - [ ] **Step 2: Check if 'fast' store already exists**
 
 ```bash
-if [[ -f /home/facuarmo/wprint3d-core/config/cache.php ]]; then
-    grep -n "'fast'" /home/facuarmo/wprint3d-core/config/cache.php || echo "No 'fast' store found"
+if [[ -f /path/to/wprint3d-core/config/cache.php ]]; then
+    grep -n "'fast'" /path/to/wprint3d-core/config/cache.php || echo "No 'fast' store found"
 fi
 ```
 
@@ -1079,9 +1079,9 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Create user-facing documentation**
 
 ```bash
-mkdir -p /home/facuarmo/wprint3d-core/docs
+mkdir -p /path/to/wprint3d-core/docs
 
-cat > /home/facuarmo/wprint3d-core/docs/php-optimization.md << 'DOCS_EOF'
+cat > /path/to/wprint3d-core/docs/php-optimization.md << 'DOCS_EOF'
 # PHP Performance Optimization
 
 This document describes the PHP performance optimizations implemented in wprint3d-core for systems running on hard-disk or SD-card storage.
@@ -1184,7 +1184,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Verify all files are present**
 
 ```bash
-ls -la /home/facuarmo/wprint3d-core/internal/{detect-hardware.sh,php-opcache.ini,php-opcache-preload.php,ramdisk-setup.sh,app-cache-setup.sh}
+ls -la /path/to/wprint3d-core/internal/{detect-hardware.sh,php-opcache.ini,php-opcache-preload.php,ramdisk-setup.sh,app-cache-setup.sh}
 ```
 
 Expected: All 5 files listed with proper permissions

@@ -55,7 +55,7 @@ class PluginPackCommandTest extends TestCase
     {
         $source = '/var/www/plugins-dev/acme-demo';
         $expectedOutput = '/var/www/plugins-dev/acme-demo/builds/acme-demo.w3dp';
-        $signingKey = '/home/facuarmo/.config/wprint3d/plugin-signing/acme.pem';
+        $signingKey = '/tmp/test-plugin-signing/acme.pem';
 
         $packager = Mockery::mock(PluginPackager::class);
         $packager->shouldReceive('build')
@@ -74,7 +74,7 @@ class PluginPackCommandTest extends TestCase
     {
         $source = '/var/www/plugins-dev/acme-demo';
         $expectedOutput = '/var/www/plugins-dev/acme-demo/builds/acme-demo.w3dp';
-        $signingKey = '/home/facuarmo/.config/wprint3d/plugin-signing/acme.pem';
+        $signingKey = '/tmp/test-plugin-signing/acme.pem';
         $passphraseFile = tempnam(sys_get_temp_dir(), 'plugin-pack-passphrase-');
 
         file_put_contents($passphraseFile, "secret-from-file\n");
