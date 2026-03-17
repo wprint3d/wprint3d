@@ -80,19 +80,9 @@ stdout_logfile=/tmp/supervisor/logs/cron.log
 stderr_logfile=/tmp/supervisor/logs/cron.log
 ```
 
-**`/tmp/supervisor/short-schedule.conf`:**
-```ini
-[program:short-schedule]
-command=php artisan short-schedule:run
-autorestart=true
-startsecs=0
-stdout_logfile=/tmp/supervisor/logs/short-schedule.log
-stderr_logfile=/tmp/supervisor/logs/short-schedule.log
-```
-
 Note: `crontab /var/www/internal/cron/crontab` must be called before supervisord starts (in the shared init phase when scheduler is in the role list).
 
-Note: `short-schedule:run` runs once and exits. With `autorestart=true` and `startsecs=0`, supervisord treats immediate exits as normal and restarts the process, replicating the existing `while true` loop behavior. Without `startsecs=0`, supervisord would consider an immediate exit as a crash and eventually enter `FATAL` state.
+Note: The `KIND=short` branch in `run.sh` (which ran `short-schedule:run`) is dead code — the `short-schedule:run` artisan command does not exist in this codebase. It is removed as part of this change.
 
 #### concurrency-scheduler role generates:
 
@@ -251,7 +241,7 @@ worker:
 - Verify single-role `ROLE=ws-server` still works identically
 - Verify multi-role `ROLE=scheduler,concurrency-scheduler,ws-server` starts all processes under supervisord
 - Verify shared init runs once (cache:clear, queue:flush, queue:restart)
-- Verify cron and short-schedule both run simultaneously in multi-role mode
+- Verify cron runs in multi-role mode
 - Verify Reverb starts on port 6001 in multi-role mode
 - Verify queue workers start with correct QUEUES configuration in multi-role mode
 - Verify ramdisk is created once for the combined worker container

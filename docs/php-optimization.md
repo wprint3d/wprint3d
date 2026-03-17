@@ -64,7 +64,7 @@ Not all container roles benefit from a ramdisk. Roles using long-running residen
 | **server** (Octane) | Skip | Swoole/RoadRunner keeps classes resident |
 | **concurrency-scheduler** | Enable | Supervisor respawns `queue:work` workers |
 | **ws-server** | Enable | Crash-restart loop spawns fresh PHP |
-| **scheduler** | Enable | Each cron/short-schedule run is a fresh PHP process |
+| **scheduler** | Enable | Each cron job is a fresh PHP process |
 | **mapper** | Skip | Long-running udev monitor |
 | **streamer** | Skip | Native binaries, not PHP |
 

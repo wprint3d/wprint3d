@@ -33,7 +33,7 @@ Not all container roles benefit from a ramdisk. Roles that use long-running resi
 | **concurrency-scheduler** | `concurrent:run-indefinitely` + supervisord managing `queue:work` workers with `autorestart=true` | **Enable** | Supervisor respawns `queue:work` workers on crash/restart — each respawn bootstraps Laravel from scratch. `queue:restart` is also called at startup (line 349) |
 | **ws-server** | `reverb:start` in a `while true` crash-restart loop | **Enable** | Each crash/restart spawns a fresh PHP process that re-reads from disk |
 | **mapper** | udev monitor + sporadic `artisan` calls on hardware events | **Skip** | Long-running monitor; artisan calls are infrequent (hardware plug/unplug) |
-| **scheduler** (short) | `while true; do php artisan short-schedule:run; done` | **Enable** | Each iteration spawns a fresh PHP process that re-reads from disk |
+| **scheduler** | `cron -f` spawning fresh PHP per job | **Enable** | Every cron execution is a fresh PHP process |
 | **scheduler** (cron) | `cron -f` spawning fresh PHP per job | **Enable** | Every cron execution is a fresh PHP process |
 | **streamer** | Native binaries (ustreamer/camera-streamer) | **Skip** | Not PHP — no vendor reads at all |
 
