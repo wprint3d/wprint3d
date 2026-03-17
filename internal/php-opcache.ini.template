@@ -1,0 +1,86 @@
+; OPcache configuration for wprint3d performance optimization
+; This file is loaded by PHP via the conf.d directory
+; Environment variables are substituted by setup-php-opcache.sh
+
+; ============================================================================
+; Core OPcache Settings
+; ============================================================================
+
+; Enable OPcache for both web and CLI (Artisan commands)
+opcache.enable=1
+opcache.enable_cli=1
+
+; Memory allocated for OPcache - 128MB sufficient for Laravel
+opcache.memory_consumption=128
+
+; Maximum number of PHP files that can be cached
+opcache.max_accelerated_files=20000
+
+; Use large memory pool to reduce memory fragmentation
+opcache.huge_code_pages=1
+
+; ============================================================================
+; Revalidation Settings (Environment-Aware)
+; ============================================================================
+; Note: These values are substituted at runtime by setup-php-opcache.sh
+; For production: revalidate_freq=0, validate_timestamps=0
+; For development: revalidate_freq=2, validate_timestamps=1
+
+; How often to check file timestamps (in seconds)
+; 0 = never check (production), 2 = check every 2 seconds (development)
+opcache.revalidate_freq=${WPRINT3D_OPCACHE_REVALIDATE_FREQ}
+
+; Whether to validate file timestamps
+; 0 = disable (production), 1 = enable (development)
+opcache.validate_timestamps=${WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS}
+
+; ============================================================================
+; JIT Compilation Settings (PHP 8.4+)
+; ============================================================================
+
+; JIT buffer size - 64MB for compiling hot functions
+opcache.jit_buffer_size=64M
+
+; JIT mode - tracing is best for long-running server processes
+opcache.jit=tracing
+
+; JIT optimization level - maximum optimization
+opcache.jit_optimization_level=0x7FFFFFFF
+
+; ============================================================================
+; Preload Settings
+; ============================================================================
+
+; User to run preloaded code as (non-root for security)
+opcache.preload_user=www-data
+
+; Preload script path - ENABLED for performance
+opcache.preload=/var/www/internal/php-opcache-preload.php
+
+; ============================================================================
+; String Interning
+; ============================================================================
+
+; Memory for interned strings (class names, variable names, etc.)
+opcache.interned_strings_buffer=16M
+
+; ============================================================================
+; Other Settings
+; ============================================================================
+
+; Save comments for code generation tools and stack traces
+opcache.save_comments=1
+
+; Fast shutdown - reduces memory cleanup overhead
+opcache.fast_shutdown=1
+
+; Create file cache directory if it doesn't exist (fallback)
+opcache.file_cache=/tmp/opcache
+opcache.file_cache_only=0
+opcache.file_cache_consistency_checks=1
+
+; Protect against memory corruption
+opcache.protect_memory=1
+
+; Prevent code injection through user-defined functions
+opcache.disable_obfuscator_protection=0
