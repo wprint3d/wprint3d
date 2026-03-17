@@ -264,11 +264,7 @@ if [[ "$ENV" == 'dev' ]]; then
 elif [[ "$ENV" == 'production' ]]; then
     echo 'Starting production environment...';
 
-    if [[ "$HOST_CONTAINER_RUNTIME" == 'podman' ]]; then
-        remove_podman_stale_project_containers 'wprint3d';
-    fi;
-
-    run_host_compose up -d --remove-orphans;
+    run_host_compose up -d --remove-orphans --force-recreate;
 
     ensure_podman_forward_rules;
 fi;
