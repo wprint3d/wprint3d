@@ -6,6 +6,10 @@ export PATH="$PATH":"$HOME"/bin;
 
 source /var/www/internal/service-status.sh;
 
+# Create the base storage directories (must happen before ramdisk setup
+# so all directories exist on disk before being copied to tmpfs)
+mkdir -p /var/www/storage/{app/{gcode,recordings,public,plugins},framework/{cache,data,views},logs};
+
 # ============================================================================
 # PHP Performance Optimization Setup
 # ============================================================================
@@ -41,9 +45,6 @@ fi
 
 # Remove any temporary files that might have been left behind
 rm -fv /tmp/*.txt /var/www/internal/startup/*.txt;
-
-# Create the base storage directories
-mkdir -p /var/www/storage/{app,framework/{cache,data,views},logs};
 
 waitForSecrets() {
     echo 'Waiting for environment variables to become available...';
