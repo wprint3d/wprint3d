@@ -150,6 +150,7 @@ class CameraController extends Controller
         }
 
         [$resolution, $framerate] = array_pad(explode('@', (string) ($camera->format ?? '')), 2, '');
+        $framerate = (string) (int) ((float) $framerate);
         $yvPort = env('YV_STREAMER_SOFTWARE_PORT', 8080);
 
         $newBlock =

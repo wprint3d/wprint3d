@@ -664,7 +664,7 @@ else
                                 printf "\n\tproxy_set_header Host \$host;"                      >> $TMP_CAMERAS_CONF;
                                 printf "\n\tproxy_set_header X-Node ${NODE};"          >> $TMP_CAMERAS_CONF;
                                 printf "\n\tproxy_set_header X-Resolution ${RESOLUTION};" >> $TMP_CAMERAS_CONF;
-                                printf "\n\tproxy_set_header X-Framerate ${FRAMERATE};" >> $TMP_CAMERAS_CONF;
+                                printf "\n\tproxy_set_header X-Framerate $(printf "$FRAMERATE" | sed 's/\..*//' | sed 's/,.*//');" >> $TMP_CAMERAS_CONF;
                                 printf "\n\tproxy_set_header X-Capture-Encoding ${CAPTURE_ENCODING};" >> $TMP_CAMERAS_CONF;
                                 printf "\n\tproxy_buffering      off;"                         >> $TMP_CAMERAS_CONF;
                                 printf "\n\tproxy_ignore_headers X-Accel-Buffering;"            >> $TMP_CAMERAS_CONF;
