@@ -4,6 +4,7 @@ copyright = "2026, WPrint 3D"
 
 extensions = [
     "myst_parser",
+    "sphinxcontrib.mermaid",
 ]
 
 templates_path = []
