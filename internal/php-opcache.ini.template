@@ -17,7 +17,8 @@ opcache.memory_consumption=128
 opcache.max_accelerated_files=20000
 
 ; Use large memory pool to reduce memory fragmentation
-opcache.huge_code_pages=1
+; Disabled because it breaks on some arm64 platforms (e.g. Apple M1/M2)
+opcache.huge_code_pages=0
 
 ; ============================================================================
 ; Revalidation Settings (Environment-Aware)
