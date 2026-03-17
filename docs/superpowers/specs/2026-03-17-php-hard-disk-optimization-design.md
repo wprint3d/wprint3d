@@ -114,12 +114,27 @@ WPRINT3D_AVAILABLE_MEMORY_MB=<integer>
 | `opcache.validate_timestamps` | 0 | 1 | Prod: disable; Dev: enable |
 | `opcache.jit_buffer_size` | 64M | 64M | JIT compilation |
 | `opcache.jit` | tracing | tracing | Best for long-running processes |
+| `opcache.preload_user` | www-data | www-data | Security: run as non-root |
+| `opcache.interned_strings_buffer` | 16M | 16M | Cache common strings |
 
 **Production vs Development Behavior**:
 
 In production, OPcache never revalidates file timestamps. Code changes require a container restart, which is the correct deployment pattern for containerized applications.
 
+**Important Notes**:
+- **PHP 8.4 JIT Behavior**: If JIT compilation fails to initialize, PHP will exit with a fatal error on startup. The setup script should catch this and fall back to JIT disabled mode.
+- **Development Workflow**: In development mode with `enable_cli=1`, code changes to core Laravel files may not take effect immediately. Developers should run `php artisan clear-compiled` or restart the container when making significant changes.
+
 ### 3. Laravel Core Preloading (`php-opcache-preload.php`)
+
+**Configuration in `php-opcache.ini`**:
+
+```ini
+opcache.preload_user=www-data
+opcache.preload=/var/www/internal/php-opcache-preload.php
+```
+
+**Preloaded Components**:
 
 Preloads the following Laravel framework components:
 - Illuminate\Foundation
@@ -133,13 +148,15 @@ Preloads the following Laravel framework components:
 
 ### 4. Selective Ramdisk Manager (`ramdisk-setup.sh`)
 
+**Important**: The ramdisk is **ephemeral** - all data stored on it is lost when the container restarts. This is acceptable for cache and compiled views as they can be regenerated, but no critical application state should be stored in these directories.
+
 **Ramdisk Contents**:
 
-| Directory | Size | Reason |
-|-----------|------|--------|
-| `bootstrap/cache/` | 1-5MB | Compiled services.php, routes.php |
-| `storage/framework/cache/` | 5-20MB | Application cache data |
-| `storage/framework/views/` | 5-50MB | Compiled Blade templates |
+| Directory | Size | Reason | Persistence |
+|-----------|------|--------|-------------|
+| `bootstrap/cache/` | 1-5MB | Compiled services.php, routes.php | Regenerated on startup |
+| `storage/framework/cache/` | 5-20MB | Application cache data | Ephemeral by design |
+| `storage/framework/views/` | 5-50MB | Compiled Blade templates | Regenerated on first use |
 
 **Memory Sizing**:
 
