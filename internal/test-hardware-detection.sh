@@ -4,7 +4,8 @@
 echo "=== Testing Hardware Detection Script ==="
 
 # Source the detection script
-source /home/facuarmo/wprint3d-core/internal/detect-hardware.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/detect-hardware.sh"
 
 # Test environment variables are set
 echo "Storage Type: ${WPRINT3D_STORAGE_TYPE:-NOT_SET}"
