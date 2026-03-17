@@ -251,6 +251,9 @@ if [[ "$HOST_CONTAINER_RUNTIME" == 'docker' ]]; then
     done;
 fi;
 
+# Clean up any containers stuck in improper states before starting
+force_cleanup_stuck_containers;
+
 if [[ "$ENV" == 'dev' ]]; then
     echo 'Starting development environment...';
 

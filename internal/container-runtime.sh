@@ -750,6 +750,114 @@ migrate_docker_volumes_to_podman() {
     done;
 }
 
+force_cleanup_stuck_containers() {
+    # Force-kill and remove ALL project containers to ensure clean slate
+    # This handles Podman's corrupted container state after server restart
+    # by using container IDs directly instead of names, bypassing name-based lookups
+    if [[ "${HOST_CONTAINER_RUNTIME:-}" != 'podman' ]]; then
+        return 0;
+    fi
+
+    # Derive the Compose project name
+    local compose_project="${COMPOSE_PROJECT_NAME:-$(basename "$SCRIPT_PATH")}";
+    compose_project="${compose_project,,}";
+    while [[ -n "$compose_project" ]] && [[ "${compose_project:0:1}" =~ [^a-zA-Z0-9] ]]; do
+        compose_project="${compose_project:1}";
+    done
+
+    # Get ALL containers for this project (using both ID and name for robustness)
+    local container_ids=();
+    local container_names=();
+    local cid cname;
+
+    while IFS='|' read -r cid cname; do
+        [[ -z "$cid" ]] && continue;
+        container_ids+=("$cid");
+        [[ -n "$cname" ]] && container_names+=("$cname");
+    done < <(run_host_container_cli ps -a --filter "label=com.docker.compose.project=${compose_project}" \
+              --format '{{ .ID }}|{{ .Names }}' 2>/dev/null)
+
+    if [[ ${#container_ids[@]} -eq 0 ]]; then
+        return 0;
+    fi
+
+    echo "Force cleaning up ${#container_ids[@]} project container(s)..."
+
+    # Step 1: Try container prune first - handles abnormal states better
+    run_host_container_cli container prune -f > /dev/null 2>&1 || true
+
+    # Re-check after prune - some containers might have been removed
+    local pruned_ids=()
+    while IFS='|' read -r cid cname; do
+        [[ -z "$cid" ]] && continue;
+        pruned_ids+=("$cid");
+    done < <(run_host_container_cli ps -a --filter "label=com.docker.compose.project=${compose_project}" \
+              --format '{{ .ID }}|{{ .Names }}' 2>/dev/null)
+
+    if [[ ${#pruned_ids[@]} -eq 0 ]]; then
+        echo "All containers removed via prune."
+        return 0
+    fi
+
+    echo "Found ${#pruned_ids[@]} remaining container(s) after prune..."
+
+    # Step 2: Force kill using container IDs (bypasses name lookup issues)
+    for cid in "${pruned_ids[@]}"; do
+        run_host_container_cli kill "$cid" > /dev/null 2>&1 || true
+    done
+
+    # Step 3: Wait for termination, then force remove using IDs
+    local wait_count=0
+    local max_wait=15
+    while [[ $wait_count -lt $max_wait ]]; do
+        local remaining=0
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue;
+            remaining=$((remaining + 1))
+        done < <(run_host_container_cli ps -a --filter "label=com.docker.compose.project=${compose_project}" \
+                  --format '{{ .ID }}' 2>/dev/null)
+
+        if [[ $remaining -eq 0 ]]; then
+            break
+        fi
+        sleep 1
+        wait_count=$((wait_count + 1))
+    done
+
+    # Step 4: Force remove using container IDs directly (bypasses state checks)
+    for cid in "${pruned_ids[@]}"; do
+        run_host_container_cli rm -f "$cid" > /dev/null 2>&1 || true
+    done
+
+    # Step 5: Final cleanup - check what remains
+    local remaining=0
+    local remaining_ids=()
+    local remaining_names=()
+    while IFS='|' read -r cid cname; do
+        [[ -z "$cid" ]] && continue;
+        remaining=$((remaining + 1))
+        remaining_ids+=("$cid")
+        remaining_names+=("$cname")
+    done < <(run_host_container_cli ps -a --filter "label=com.docker.compose.project=${compose_project}" \
+              --format '{{ .ID }}|{{ .Names }}' 2>/dev/null)
+
+    if [[ $remaining -gt 0 ]]; then
+        echo "Warning: $remaining container(s) still stuck in libpod database after all cleanup attempts."
+        echo "Stuck containers:"
+        local i
+        for ((i=0; i<remaining; i++)); do
+            echo "  - ${remaining_ids[$i]} (${remaining_names[$i]:-unknown})"
+        done
+
+        # Nuclear option: force-remove ALL containers on the system
+        # This is necessary for headless devices where manual intervention is not possible
+        echo "Attempting nuclear cleanup (removing all containers)..."
+        run_host_container_cli rm -f --all > /dev/null 2>&1 || true
+    fi
+
+    echo "Cleanup complete."
+}
+
 ensure_podman_forward_rules() {
     # Only needed for rootful Podman — rootless uses a user-space proxy that
     # binds host-side sockets and never touches the FORWARD chain.
