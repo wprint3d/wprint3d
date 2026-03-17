@@ -541,6 +541,33 @@ repair_frontend_node_modules_permissions() {
     run_with_elevation chown -R "${current_user}:${current_group}" "$node_modules_path";
 }
 
+remove_podman_stale_project_containers() {
+    local project_name="${1}";
+    local container_name container_image_id image_ref latest_image_id;
+
+    while IFS= read -r container_name; do
+        [[ -z "$container_name" ]] && continue;
+
+        container_image_id=$(run_host_container_cli inspect "$container_name" \
+            --format '{{.ImageID}}' 2>/dev/null) || continue;
+
+        image_ref=$(run_host_container_cli inspect "$container_name" \
+            --format '{{.Config.Image}}' 2>/dev/null) || continue;
+
+        latest_image_id=$(run_host_container_cli image inspect "$image_ref" \
+            --format '{{.Id}}' 2>/dev/null) || continue;
+
+        if [[ "$container_image_id" != "$latest_image_id" ]]; then
+            echo "Image updated for ${container_name}, removing stale container...";
+
+            run_host_container_cli stop "$container_name" 2>/dev/null || true;
+            run_host_container_cli rm   "$container_name" 2>/dev/null || true;
+        fi;
+    done < <(run_host_container_cli ps -a \
+        --filter "label=com.docker.compose.project=${project_name}" \
+        --format '{{.Names}}');
+}
+
 run_host_compose() {
     if [[ "${HOST_CONTAINER_RUNTIME:-}" == 'podman' ]] && [[ "${HOST_PODMAN_ROOTFUL:-0}" == '1' ]]; then
         run_podman_rootful_command compose "$@";

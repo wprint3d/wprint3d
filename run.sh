@@ -265,7 +265,7 @@ elif [[ "$ENV" == 'production' ]]; then
     echo 'Starting production environment...';
 
     if [[ "$HOST_CONTAINER_RUNTIME" == 'podman' ]]; then
-        run_host_container_cli container prune -f --filter 'label=com.docker.compose.project=wprint3d' 2>/dev/null || true;
+        remove_podman_stale_project_containers 'wprint3d';
     fi;
 
     run_host_compose up -d --remove-orphans;
