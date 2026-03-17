@@ -14,14 +14,16 @@
 
 **New Files to Create:**
 - `internal/detect-hardware.sh` - Hardware detection (storage type, RAM)
-- `internal/php-opcache.ini` - OPcache configuration with environment variable support
+- `internal/php-opcache.ini.template` - OPcache configuration template (environment variables substituted at runtime)
+- `internal/setup-php-opcache.sh` - Generates actual php-opcache.ini from template using envsubst
 - `internal/php-opcache-preload.php` - Laravel core preloading script
 - `internal/ramdisk-setup.sh` - Selective ramdisk setup with cleanup
 - `internal/app-cache-setup.sh` - Optional application-level caching
+- `config/cache.php` - Modified to add Redis fast store (if not already present)
 
 **Files to Modify:**
-- `internal/run.sh:8-20` - Add PHP optimization setup section after service-status.sh sourcing
-- `Dockerfile.dev:198-217` - Copy new files into image after limits.ini
+- `internal/run.sh:8-28` - Add PHP optimization setup section after service-status.sh sourcing
+- `Dockerfile.dev:198-220` - Copy new files into image after limits.ini
 
 ---
 
@@ -160,19 +162,21 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
 ---
 
-## Task 2: Create PHP OPcache Configuration
+## Task 2: Create PHP OPcache Configuration Template and Setup Script
 
 **Files:**
-- Create: `internal/php-opcache.ini`
+- Create: `internal/php-opcache.ini.template`
+- Create: `internal/setup-php-opcache.sh`
 
-**Purpose:** Configure OPcache with environment variable support for production/development modes.
+**Purpose:** Create OPcache configuration template and a script that generates the actual INI file at runtime using environment variable substitution (PHP INI files don't support `${VAR}` syntax natively).
 
-- [ ] **Step 1: Create the OPcache configuration file**
+- [ ] **Step 1: Create the OPcache configuration template**
 
 ```bash
-cat > /home/facuarmo/wprint3d-core/internal/php-opcache.ini << 'INI_EOF'
+cat > /home/facuarmo/wprint3d-core/internal/php-opcache.ini.template << 'INI_EOF'
 ; OPcache configuration for wprint3d performance optimization
 ; This file is loaded by PHP via the conf.d directory
+; Environment variables are substituted by setup-php-opcache.sh
 
 ; ============================================================================
 ; Core OPcache Settings
@@ -194,17 +198,17 @@ opcache.huge_code_pages=1
 ; ============================================================================
 ; Revalidation Settings (Environment-Aware)
 ; ============================================================================
-; Note: Environment variables are substituted by run.sh before PHP starts
+; Note: These values are substituted at runtime by setup-php-opcache.sh
 ; For production: revalidate_freq=0, validate_timestamps=0
 ; For development: revalidate_freq=2, validate_timestamps=1
 
 ; How often to check file timestamps (in seconds)
 ; 0 = never check (production), 2 = check every 2 seconds (development)
-opcache.revalidate_freq=${WPRINT3D_OPCACHE_REVALIDATE_FREQ:-0}
+opcache.revalidate_freq=${WPRINT3D_OPCACHE_REVALIDATE_FREQ}
 
 ; Whether to validate file timestamps
 ; 0 = disable (production), 1 = enable (development)
-opcache.validate_timestamps=${WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS:-0}
+opcache.validate_timestamps=${WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS}
 
 ; ============================================================================
 ; JIT Compilation Settings (PHP 8.4+)
@@ -226,8 +230,8 @@ opcache.jit_optimization_level=0x7FFFFFFF
 ; User to run preloaded code as (non-root for security)
 opcache.preload_user=www-data
 
-; Preload script path (set dynamically based on role)
-; opcache.preload=/var/www/internal/php-opcache-preload.php
+; Preload script path - ENABLED for performance
+opcache.preload=/var/www/internal/php-opcache-preload.php
 
 ; ============================================================================
 ; String Interning
@@ -246,8 +250,8 @@ opcache.save_comments=1
 ; Fast shutdown - reduces memory cleanup overhead
 opcache.fast_shutdown=1
 
-; Enable file cache fallback (if OPcache memory is exhausted)
-opcache.file_cache=/tmp/opcache/file_cache
+; Create file cache directory if it doesn't exist (fallback)
+opcache.file_cache=/tmp/opcache
 opcache.file_cache_only=0
 opcache.file_cache_consistency_checks=1
 
@@ -259,24 +263,56 @@ opcache.disable_obfuscator_protection=0
 INI_EOF
 ```
 
-- [ ] **Step 2: Verify the configuration file was created correctly**
+- [ ] **Step 2: Create the OPcache setup script**
 
 ```bash
-cat /home/facuarmo/wprint3d-core/internal/php-opcache.ini
+cat > /home/facuarmo/wprint3d-core/internal/setup-php-opcache.sh << 'SCRIPT_EOF'
+#!/bin/bash
+# Generates php-opcache.ini from template using environment variable substitution
+# PHP INI files don't support ${VAR} syntax, so we use envsubst
+
+TEMPLATE_FILE="/var/www/internal/php-opcache.ini.template"
+OUTPUT_FILE="/usr/local/etc/php/conf.d/opcache.ini"
+
+# Default values if not set
+export WPRINT3D_OPCACHE_REVALIDATE_FREQ="${WPRINT3D_OPCACHE_REVALIDATE_FREQ:-0}"
+export WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS="${WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS:-0}"
+
+# Create file cache directory
+mkdir -p /tmp/opcache
+
+# Generate actual INI file from template
+if [[ -f "$TEMPLATE_FILE" ]]; then
+    envsubst < "$TEMPLATE_FILE" > "$OUTPUT_FILE"
+    echo "OPcache configuration generated at $OUTPUT_FILE" >&2
+else
+    echo "ERROR: Template file not found: $TEMPLATE_FILE" >&2
+    exit 1
+fi
+
+exit 0
+SCRIPT_EOF
+
+chmod +x /home/facuarmo/wprint3d-core/internal/setup-php-opcache.sh
 ```
 
-Expected: Full contents of the OPcache configuration file displayed
-
-- [ ] **Step 3: Commit the OPcache configuration**
+- [ ] **Step 3: Verify the files were created**
 
 ```bash
-git add internal/php-opcache.ini
-git commit -m "feat: add PHP OPcache configuration for performance
+ls -la /home/facuarmo/wprint3d-core/internal/php-opcache.ini.template /home/facuarmo/wprint3d-core/internal/setup-php-opcache.sh
+```
 
-Configures OPcache with environment-aware revalidation settings.
-Production mode disables timestamp validation for maximum performance.
-Development mode enables quick iteration. Includes JIT compilation
-and Laravel preloading support.
+Expected: Both files listed with appropriate permissions
+
+- [ ] **Step 4: Commit the OPcache configuration**
+
+```bash
+git add internal/php-opcache.ini.template internal/setup-php-opcache.sh
+git commit -m "feat: add PHP OPcache configuration with runtime generation
+
+Uses envsubst to substitute environment variables at runtime since
+PHP INI files don't support ${VAR} syntax natively. Includes JIT
+compilation and Laravel preloading support.
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ```
@@ -676,7 +712,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ## Task 6: Integrate Optimization Scripts into run.sh
 
 **Files:**
-- Modify: `internal/run.sh:8-20`
+- Modify: `internal/run.sh:8-28`
 
 **Purpose:** Call the optimization scripts early in container startup.
 
@@ -690,63 +726,52 @@ Expected output: First 15 lines showing the structure around line 7-8
 
 - [ ] **Step 2: Add PHP optimization section to run.sh**
 
-Create a temporary patch file:
+Using the Edit tool, insert the following section after line 7 (after `source /var/www/internal/service-status.sh;`):
 
 ```bash
-cat > /tmp/run-sh-patch.txt << 'PATCH_EOF'
---- a/internal/run.sh
-+++ b/internal/run.sh
-@@ -5,6 +5,28 @@ source /var/www/internal/service-status.sh;
+# ============================================================================
+# PHP Performance Optimization Setup
+# ============================================================================
 
- # Remove any temporary files that might have been left behind
- rm -fv /tmp/*.txt /var/www/internal/startup/*.txt;
-+
-+# ============================================================================
-+# PHP Performance Optimization Setup
-+# ============================================================================
-+
-+# Set OPcache revalidation based on environment (early, before PHP runs)
-+if [[ "${DEVELOPER_MODE}" == 'true' ]]; then
-+    export WPRINT3D_OPCACHE_REVALIDATE_FREQ=2
-+    export WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS=1
-+else
-+    export WPRINT3D_OPCACHE_REVALIDATE_FREQ=0
-+    export WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS=0
-+fi
-+
-+# Source hardware detection
-+if [[ -f '/var/www/internal/detect-hardware.sh' ]]; then
-+    source /var/www/internal/detect-hardware.sh
-+fi
-+
-+# Setup selective ramdisk if available
-+if [[ -f '/var/www/internal/ramdisk-setup.sh' ]]; then
-+    bash /var/www/internal/ramdisk-setup.sh
-+fi
-+
-+# Setup optional application caching
-+if [[ -f '/var/www/internal/app-cache-setup.sh' ]]; then
-+    bash /var/www/internal/app-cache-setup.sh
-+fi
+# Set OPcache revalidation based on environment (early, before PHP runs)
+if [[ "${DEVELOPER_MODE}" == 'true' ]]; then
+    export WPRINT3D_OPCACHE_REVALIDATE_FREQ=2
+    export WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS=1
+else
+    export WPRINT3D_OPCACHE_REVALIDATE_FREQ=0
+    export WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS=0
+fi
 
- # Create the base storage directories
- mkdir -p /var/www/storage/{app,framework/{cache,data,views},logs};
-PATCH_EOF
+# Generate OPcache configuration from template (substitutes env vars)
+if [[ -f '/var/www/internal/setup-php-opcache.sh' ]]; then
+    bash /var/www/internal/setup-php-opcache.sh
+fi
+
+# Source hardware detection
+if [[ -f '/var/www/internal/detect-hardware.sh' ]]; then
+    source /var/www/internal/detect-hardware.sh
+fi
+
+# Setup selective ramdisk if available
+if [[ -f '/var/www/internal/ramdisk-setup.sh' ]]; then
+    bash /var/www/internal/ramdisk-setup.sh
+fi
+
+# Setup optional application caching
+if [[ -f '/var/www/internal/app-cache-setup.sh' ]]; then
+    bash /var/www/internal/app-cache-setup.sh
+fi
 ```
 
-- [ ] **Step 3: Apply the patch using Edit tool**
-
-The Edit tool will modify `internal/run.sh` to insert the optimization section after line 7.
-
-- [ ] **Step 4: Verify the changes were applied correctly**
+- [ ] **Step 3: Verify the changes were applied correctly**
 
 ```bash
-head -35 /home/facuarmo/wprint3d-core/internal/run.sh | tail -30
+head -40 /home/facuarmo/wprint3d-core/internal/run.sh | tail -35
 ```
 
 Expected: The new optimization section should appear between the service-status.sh sourcing and the temporary files removal.
 
-- [ ] **Step 5: Test run.sh syntax**
+- [ ] **Step 4: Test run.sh syntax**
 
 ```bash
 bash -n /home/facuarmo/wprint3d-core/internal/run.sh
@@ -754,14 +779,18 @@ bash -n /home/facuarmo/wprint3d-core/internal/run.sh
 
 Expected: No output (syntax check passed)
 
-- [ ] **Step 6: Commit the run.sh changes**
+- [ ] **Step 5: Commit the run.sh changes**
 
 ```bash
 git add internal/run.sh
 git commit -m "feat: integrate PHP performance optimization into run.sh
 
-Adds hardware detection, ramdisk setup, and application caching
-to container startup process. Sets OPcache revalidation
+Adds hardware detection, OPcache setup, ramdisk setup, and application
+caching to container startup process. Sets OPcache revalidation
+based on DEVELOPER_MODE environment variable.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+```
 based on DEVELOPER_MODE environment variable.
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
@@ -772,7 +801,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ## Task 7: Update Dockerfile.dev
 
 **Files:**
-- Modify: `Dockerfile.dev:198-217`
+- Modify: `Dockerfile.dev:198-220`
 
 **Purpose:** Copy new optimization files into the container image.
 
@@ -789,8 +818,9 @@ Expected output: Line number where limits.ini is copied (around line 196-197)
 Find the section after `ADD ./internal/limits.ini` and add:
 
 ```dockerfile
-# Copy PHP OPcache configuration
-COPY ./internal/php-opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+# Copy PHP OPcache configuration template and setup script
+COPY ./internal/php-opcache.ini.template /var/www/internal/php-opcache.ini.template
+COPY ./internal/setup-php-opcache.sh /var/www/internal/setup-php-opcache.sh
 COPY ./internal/php-opcache-preload.php /var/www/internal/php-opcache-preload.php
 
 # Copy hardware detection and optimization scripts
@@ -799,7 +829,8 @@ COPY ./internal/ramdisk-setup.sh /var/www/internal/ramdisk-setup.sh
 COPY ./internal/app-cache-setup.sh /var/www/internal/app-cache-setup.sh
 
 # Make scripts executable
-RUN chmod +x /var/www/internal/detect-hardware.sh \
+RUN chmod +x /var/www/internal/setup-php-opcache.sh \
+              /var/www/internal/detect-hardware.sh \
               /var/www/internal/ramdisk-setup.sh \
               /var/www/internal/app-cache-setup.sh
 ```
@@ -807,7 +838,7 @@ RUN chmod +x /var/www/internal/detect-hardware.sh \
 - [ ] **Step 3: Verify Dockerfile.dev syntax**
 
 ```bash
-docker build -f Dockerfile.dev --check /home/facuarmo/wprint3d-core 2>&1 | head -20
+docker build -f Dockerfile.dev --check 2>&1 | head -20
 ```
 
 Expected: Docker parses the Dockerfile without syntax errors
@@ -818,9 +849,9 @@ Expected: Docker parses the Dockerfile without syntax errors
 git add Dockerfile.dev
 git commit -m "feat: add PHP optimization files to container image
 
-Copies OPcache configuration, preload script, and optimization
-scripts into the container image. Makes scripts executable
-during build.
+Copies OPcache configuration template, setup script, preload script,
+and optimization scripts into the container image. Makes scripts
+executable during build.
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ```
@@ -982,7 +1013,63 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
 ---
 
-## Task 9: Create Documentation
+## Task 9: Add Redis Fast Cache Store Configuration
+
+**Files:**
+- Modify: `config/cache.php`
+
+**Purpose:** Add a 'fast' cache store that uses Redis for frequently-accessed data, as specified in the design document.
+
+- [ ] **Step 1: Check if config/cache.php exists and read current contents**
+
+```bash
+if [[ -f /home/facuarmo/wprint3d-core/config/cache.php ]]; then
+    head -50 /home/facuarmo/wprint3d-core/config/cache.php
+else
+    echo "config/cache.php does not exist yet - will be created by Laravel"
+fi
+```
+
+Expected: Either the cache configuration file contents or a message that it will be created by Laravel
+
+- [ ] **Step 2: Check if 'fast' store already exists**
+
+```bash
+if [[ -f /home/facuarmo/wprint3d-core/config/cache.php ]]; then
+    grep -n "'fast'" /home/facuarmo/wprint3d-core/config/cache.php || echo "No 'fast' store found"
+fi
+```
+
+Expected: Either the line number of the 'fast' store or confirmation that it doesn't exist
+
+- [ ] **Step 3: Add 'fast' cache store to config/cache.php**
+
+If the 'fast' store doesn't exist, add it to the stores array. Use the Edit tool to insert after the existing stores array. The store should look like:
+
+```php
+'fast' => [
+    'driver' => env('CACHE_FAST_DRIVER', 'redis'),
+    'connection' => env('CACHE_FAST_CONNECTION', 'cache'),
+    'lock_connection' => env('CACHE_FAST_LOCK_CONNECTION', 'default'),
+],
+```
+
+- [ ] **Step 4: Commit the cache configuration changes**
+
+```bash
+git add config/cache.php
+git commit -m "feat: add Redis fast cache store to configuration
+
+Adds a 'fast' cache store using Redis for frequently-accessed data.
+This provides an additional caching layer for optimal performance
+when WPRINT3D_APP_CACHE_ENABLED is set.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 10: Create Documentation
 
 **Files:**
 - Create: `docs/php-optimization.md`
@@ -1088,7 +1175,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
 ---
 
-## Task 10: Final Integration Testing
+## Task 11: Final Integration Testing
 
 **Files:**
 - No new files
