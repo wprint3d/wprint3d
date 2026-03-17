@@ -91,6 +91,12 @@ return [
             'driver' => 'octane',
         ],
 
+        'fast' => [
+            'driver' => env('CACHE_FAST_DRIVER', 'redis'),
+            'connection' => env('CACHE_FAST_CONNECTION', 'cache'),
+            'lock_connection' => env('CACHE_FAST_LOCK_CONNECTION', 'default'),
+        ],
+
     ],
 
     /*
