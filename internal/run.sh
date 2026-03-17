@@ -545,6 +545,16 @@ else
                             CAPTURE_ENCODING='';
                         fi;
 
+                        # If a non-MJPEG camera has no recorded encoding (stale DB from an older image),
+                        # default it to YUYV — the most common raw format for UVC cameras.
+                        # Attempting ustreamer in this state causes a device select() timeout.
+                        if [[ "$SUPPORTS_MJPEG" -eq 0 ]] && [[ "$REQUIRES_LIB_CAMERA" -eq 0 ]] && [[ -z "$CAPTURE_ENCODING" ]]; then
+                            echo "WARN: captureEncoding is missing for a non-MJPEG camera ($NODE); defaulting to YUYV." >&2;
+
+                            CAPTURE_ENCODING='YUYV';
+                            STREAMS_MJPEG=1;
+                        fi;
+
                         if [[ "$SUPPORTS_MJPEG" -eq 0 ]] && [[ "$REQUIRES_LIB_CAMERA" -eq 0 ]] && [[ "$STREAMS_MJPEG" -eq 1 ]]; then
                             USES_SOFTWARE_STREAMER=1;
 
