@@ -6,6 +6,39 @@ export PATH="$PATH":"$HOME"/bin;
 
 source /var/www/internal/service-status.sh;
 
+# ============================================================================
+# PHP Performance Optimization Setup
+# ============================================================================
+
+# Set OPcache revalidation based on environment (early, before PHP runs)
+if [[ "${DEVELOPER_MODE}" == 'true' ]]; then
+    export WPRINT3D_OPCACHE_REVALIDATE_FREQ=2
+    export WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS=1
+else
+    export WPRINT3D_OPCACHE_REVALIDATE_FREQ=0
+    export WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS=0
+fi
+
+# Generate OPcache configuration from template (substitutes env vars)
+if [[ -f '/var/www/internal/setup-php-opcache.sh' ]]; then
+    bash /var/www/internal/setup-php-opcache.sh
+fi
+
+# Source hardware detection
+if [[ -f '/var/www/internal/detect-hardware.sh' ]]; then
+    source /var/www/internal/detect-hardware.sh
+fi
+
+# Setup selective ramdisk if available
+if [[ -f '/var/www/internal/ramdisk-setup.sh' ]]; then
+    bash /var/www/internal/ramdisk-setup.sh
+fi
+
+# Setup optional application caching
+if [[ -f '/var/www/internal/app-cache-setup.sh' ]]; then
+    bash /var/www/internal/app-cache-setup.sh
+fi
+
 # Remove any temporary files that might have been left behind
 rm -fv /tmp/*.txt /var/www/internal/startup/*.txt;
 
