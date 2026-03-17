@@ -93,15 +93,15 @@ preflight_checks() {
     local available_mem="${WPRINT3D_AVAILABLE_MEMORY_MB:-0}"
     local force_ramdisk="${WPRINT3D_FORCE_RAMDISK:-auto}"
 
-    # Check developer mode
-    if [[ "${DEVELOPER_MODE:-}" == "true" ]]; then
-        log_info "Developer mode active, skipping ramdisk"
+    # Explicit force takes precedence over everything (except insufficient RAM)
+    if [[ "$force_ramdisk" == "0" ]]; then
+        log_info "Ramdisk explicitly disabled via WPRINT3D_FORCE_RAMDISK=0"
         return 1
     fi
 
-    # Check if explicitly disabled
-    if [[ "$force_ramdisk" == "0" ]]; then
-        log_info "Ramdisk explicitly disabled via WPRINT3D_FORCE_RAMDISK=0"
+    # Check developer mode (skipped when force=1)
+    if [[ "${DEVELOPER_MODE:-}" == "true" ]] && [[ "$force_ramdisk" != "1" ]]; then
+        log_info "Developer mode active, skipping ramdisk (set WPRINT3D_FORCE_RAMDISK=1 to override)"
         return 1
     fi
 

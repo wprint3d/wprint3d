@@ -126,14 +126,14 @@ This ensures writes to persistent directories always go to disk, while everythin
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `WPRINT3D_FORCE_RAMDISK` | `0` = disable, `1` = force (even on SSD), `auto` = auto-detect | `auto` |
+| `WPRINT3D_FORCE_RAMDISK` | `0` = disable, `1` = force (even on SSD or dev mode), `auto` = auto-detect | `auto` |
 | `WPRINT3D_STORAGE_TYPE` | Set by `detect-hardware.sh`: `hdd`, `ssd`, `sdcard`, `mmcblk`, `unknown` | `unknown` |
 | `WPRINT3D_AVAILABLE_MEMORY_MB` | Set by `detect-hardware.sh`: available RAM in MB | `0` |
-| `DEVELOPER_MODE` | When `true`, ramdisk is skipped entirely | unset |
+| `DEVELOPER_MODE` | When `true`, ramdisk is skipped (unless `WPRINT3D_FORCE_RAMDISK=1`) | unset |
 
 ### Developer Mode Behavior
 
-When `DEVELOPER_MODE=true`, the ramdisk is skipped entirely. This is **new logic** not present in the current `ramdisk-setup.sh`. Developers mount code via volume binds and need file changes to reflect immediately without container restarts. OPcache with `validate_timestamps=1` still provides some performance benefit.
+When `DEVELOPER_MODE=true`, the ramdisk is skipped by default. Developers mount code via volume binds and need file changes to reflect immediately without container restarts. OPcache with `validate_timestamps=1` still provides some performance benefit. To test the ramdisk in dev mode, set `WPRINT3D_FORCE_RAMDISK=1`.
 
 ### Graceful Fallback
 

@@ -15,9 +15,9 @@ The optimization system uses a layered approach:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `WPRINT3D_FORCE_RAMDISK` | `auto` | Set to `1` to force ramdisk (even on SSD), `0` to disable |
+| `WPRINT3D_FORCE_RAMDISK` | `auto` | Set to `1` to force ramdisk (even on SSD or in dev mode), `0` to disable |
 | `WPRINT3D_APP_CACHE_ENABLED` | `false` | Enable application-level caching |
-| `DEVELOPER_MODE` | `false` | When `true`, skips ramdisk and enables faster OPcache revalidation |
+| `DEVELOPER_MODE` | `false` | When `true`, skips ramdisk (unless forced) and enables faster OPcache revalidation |
 
 ## Performance Improvements
 
