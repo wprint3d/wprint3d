@@ -19,6 +19,8 @@ myst_enable_extensions = [
     "colon_fence",
 ]
 
+myst_fence_as_directive = ["mermaid"]
+
 html_title = "WPrint 3D Documentation"
 html_theme = "sphinx_rtd_theme"
 html_static_path = []
