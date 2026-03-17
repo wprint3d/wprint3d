@@ -144,6 +144,7 @@ Route::middleware(['auth:sanctum', 'password.ensure_changed'])->group(function (
 
         Route::post('/enable', [CameraController::class, 'enable']);
         Route::post('/disable', [CameraController::class, 'disable']);
+        Route::post('/refresh-stream', [CameraController::class, 'refreshStream']);
     });
 
     Route::get('/files', [FilesController::class,   'index']);
