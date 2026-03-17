@@ -101,8 +101,9 @@ An `AtomicBool` flag `frame_consumed` is added to `CameraWorker`:
 
 This means `app.rs` **does** change: the `mjpeg_stream_response` function
 needs access to the worker's `frame_consumed` flag.  The `subscribe()` method
-is extended to return both the `watch::Receiver<Bytes>` and an
-`Arc<AtomicBool>` handle to the consumed flag.
+is extended to return a tuple
+`(watch::Receiver<Bytes>, Arc<AtomicBool>)` — the receiver and a handle to
+the consumed flag.
 
 **Logging:** Frame skips are counted and reported at `debug!` level every
 300 frames (matching the existing frame-count logging cadence).
@@ -134,10 +135,11 @@ When enabled:
 1. Encoding duration is measured with `std::time::Instant`.
 2. Frame budget = `1000 ms / framerate`.
 3. Adjustment rules (applied after 3 consecutive frames in the same
-   direction to avoid oscillation):
+   direction to avoid oscillation; the consecutive-frame counter resets
+   whenever the direction changes or a "hold" result occurs):
    - Encoding > 70 % of budget → quality −5 (floor 30).
    - Encoding < 40 % of budget → quality +5 (ceiling 80).
-   - Otherwise → hold.
+   - Otherwise → hold (resets counter).
 4. When disabled, quality is fixed at 80.
 
 **Logging:** Quality changes emit a `debug!` log with the old and new values.
