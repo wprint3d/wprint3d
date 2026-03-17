@@ -259,8 +259,12 @@ if [[ "$ENV" == 'dev' ]]; then
     else
         run_host_compose -f docker-compose-development.yml up -d --remove-orphans;
     fi;
+
+    ensure_podman_forward_rules;
 elif [[ "$ENV" == 'production' ]]; then
     echo 'Starting production environment...';
 
     run_host_compose up -d --remove-orphans;
+
+    ensure_podman_forward_rules;
 fi;

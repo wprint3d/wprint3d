@@ -746,3 +746,50 @@ migrate_docker_volumes_to_podman() {
         echo "Migrated Docker volume '${src}' to Podman volume '${dst}'.";
     done;
 }
+
+ensure_podman_forward_rules() {
+    # Only needed for rootful Podman — rootless uses a user-space proxy that
+    # binds host-side sockets and never touches the FORWARD chain.
+    if [[ "${HOST_CONTAINER_RUNTIME:-}" != 'podman' ]]; then
+        return 0;
+    fi;
+
+    if ! podman_rootful_enabled; then
+        return 0;
+    fi;
+
+    # The NETAVARK_FORWARD chain is created by netavark when containers start.
+    # If it doesn't exist yet there is nothing to fix.
+    if ! run_with_elevation iptables -t filter -L NETAVARK_FORWARD > /dev/null 2>&1; then
+        return 0;
+    fi;
+
+    # Derive the Compose project name the same way migrate_docker_volumes_to_podman does.
+    local compose_project="${COMPOSE_PROJECT_NAME:-$(basename "$SCRIPT_PATH")}";
+    compose_project="${compose_project,,}";
+    while [[ -n "$compose_project" ]] && [[ "${compose_project:0:1}" =~ [^a-zA-Z0-9] ]]; do
+        compose_project="${compose_project:1}";
+    done;
+
+    # Resolve the podman network name (Compose uses <project>_default).
+    local network_name="${compose_project}_default";
+
+    # Get the subnet for this network so the ACCEPT rule is scoped correctly.
+    local subnet;
+    subnet=$(run_host_container_cli network inspect "$network_name" 2>/dev/null \
+        | python3 -c "import json,sys; d=json.load(sys.stdin)[0]; print(d['subnets'][0]['subnet'])" 2>/dev/null);
+
+    if [[ -z "$subnet" ]]; then
+        return 0;
+    fi;
+
+    # netavark 1.4.x creates DNAT rules in PREROUTING for externally-arriving
+    # packets but omits FORWARD ACCEPT rules for state NEW.  External traffic
+    # (e.g. from a device on the LAN) therefore reaches the FORWARD chain with
+    # no matching rule and is silently dropped.  Insert the missing rule once.
+    if ! run_with_elevation iptables -t filter -C NETAVARK_FORWARD \
+            -d "$subnet" -j ACCEPT > /dev/null 2>&1; then
+        run_with_elevation iptables -t filter -I NETAVARK_FORWARD 1 \
+            -d "$subnet" -j ACCEPT;
+    fi;
+}
