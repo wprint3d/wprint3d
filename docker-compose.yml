@@ -1,6 +1,6 @@
 services:
   proxy:
-    image: wprint3d/wprint3d-proxy
+    image: docker.io/wprint3d/wprint3d-proxy:latest
     restart: always
     logging:
       driver: local
@@ -21,7 +21,7 @@ services:
       - ws-server
       - backend
   backend:
-    image: wprint3d/wprint3d
+    image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
       driver: local
@@ -48,7 +48,7 @@ services:
       - redis
       - mongo
   web:
-    image: wprint3d/wprint3d-frontend
+    image: docker.io/wprint3d/wprint3d-frontend:latest
     restart: always
     tty: true
     stdin_open: true
@@ -57,7 +57,7 @@ services:
       - redis
       - mongo
   scheduler:
-    image: wprint3d/wprint3d
+    image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
       driver: local
@@ -80,7 +80,7 @@ services:
       - redis
       - mongo
   mapper:
-    image: wprint3d/wprint3d
+    image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
       driver: local
@@ -106,7 +106,7 @@ services:
       - redis
       - mongo
   concurrency-scheduler:
-    image: wprint3d/wprint3d
+    image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
       driver: local
@@ -131,7 +131,7 @@ services:
       - redis
       - mongo
   ws-server:
-    image: wprint3d/wprint3d
+    image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
       driver: local
@@ -155,7 +155,7 @@ services:
       - redis
       - mongo
   streamer:
-    image: wprint3d/wprint3d
+    image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
       driver: local
@@ -208,7 +208,7 @@ services:
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
   redis:
-    image: redis:7.2.5
+    image: docker.io/library/redis:7.2.5
     restart: always
     logging:
       driver: local
@@ -219,7 +219,7 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
     command: redis-server --save "" --appendonly no
   mongo:
-    image: mongo:4.4.6
+    image: docker.io/library/mongo:4.4.6
     restart: always
     logging:
       driver: local
@@ -230,7 +230,7 @@ services:
     volumes:
       - mongo:/data/db
   memcached:
-    image: memcached
+    image: docker.io/library/memcached:latest
     restart: always
     logging:
       driver: local
