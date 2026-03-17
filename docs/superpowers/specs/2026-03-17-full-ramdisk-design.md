@@ -22,6 +22,23 @@ Mirror the **entire `/var/www`** directory to a tmpfs ramdisk, excluding directo
 
 ## Design
 
+### Role-Based Ramdisk Eligibility
+
+Not all container roles benefit from a ramdisk. Roles that use long-running resident processes (where classes are loaded once and stay in memory) gain nothing from ramdisk — the disk is only read once at startup regardless.
+
+| Role | Process Model | Ramdisk? | Reason |
+| ------ | -------------- | ---------- | -------- |
+| **server** (Octane) | `octane:start` — Swoole/RoadRunner keeps classes resident | **Skip** | Classes already preloaded in the most efficient way possible |
+| **server** (non-Octane) | `artisan serve` — dev server | **Skip** | Only used in dev mode, which already skips ramdisk |
+| **concurrency-scheduler** | `concurrent:run-indefinitely` — forked `while(true)` workers via `ParallelTasks` | **Skip** | Long-running resident workers, classes loaded once per fork |
+| **ws-server** | `reverb:start` — WebSocket server in a restart loop | **Skip** | Long-running resident process (Reverb keeps classes in memory) |
+| **mapper** | udev monitor + sporadic `artisan` calls on hardware events | **Skip** | Long-running monitor; artisan calls are infrequent (hardware plug/unplug) |
+| **scheduler** (short) | `while true; do php artisan short-schedule:run; done` | **Enable** | Each iteration spawns a fresh PHP process that re-reads from disk |
+| **scheduler** (cron) | `cron -f` spawning fresh PHP per job | **Enable** | Every cron execution is a fresh PHP process |
+| **streamer** | Native binaries (ustreamer/camera-streamer) | **Skip** | Not PHP — no vendor reads at all |
+
+The ramdisk script checks the `ROLE` environment variable and only proceeds for eligible roles (currently: `scheduler`). All other roles skip ramdisk setup with an informational log message.
+
 ### Self-Sizing Ramdisk
 
 Rather than maintaining a hardcoded size table, the ramdisk sizes itself dynamically:
@@ -29,7 +46,7 @@ Rather than maintaining a hardcoded size table, the ramdisk sizes itself dynamic
 1. **Measure** the actual size of `/var/www` (excluding persistent directories) using `du -sb`
 2. **Add 10% headroom** for runtime-generated files (compiled views, cached configs, temp files)
 3. **Gate check**: only proceed if available RAM >= 2x the calculated ramdisk size. The 2x multiplier is conservative — it ensures the OS, PHP-FPM, MongoDB, Redis, and other services retain at least as much RAM as the ramdisk consumes. On a 1GB system with a 132MB ramdisk, 264MB is reserved for the gate check, leaving ~736MB for everything else
-4. **Skip on SSD** unless explicitly forced via `WPRINT3D_FORCE_RAMDISK=1`. Storage types `hdd`, `sdcard`, and `unknown` all proceed with ramdisk creation (SD cards are slow like HDDs)
+4. **Skip on SSD** unless explicitly forced via `WPRINT3D_FORCE_RAMDISK=1`. Storage types `hdd`, `sdcard`, `mmcblk`, and `unknown` all proceed with ramdisk creation (these are all slow-I/O storage)
 5. **Skip in developer mode** (`DEVELOPER_MODE=true`) since developers need file changes to reflect immediately (this is **new logic**, not present in the current script)
 
 ### Assumptions
@@ -110,7 +127,7 @@ This ensures writes to persistent directories always go to disk, while everythin
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `WPRINT3D_FORCE_RAMDISK` | `0` = disable, `1` = force (even on SSD), `auto` = auto-detect | `auto` |
-| `WPRINT3D_STORAGE_TYPE` | Set by `detect-hardware.sh`: `hdd`, `ssd`, `sdcard`, `unknown` | `unknown` |
+| `WPRINT3D_STORAGE_TYPE` | Set by `detect-hardware.sh`: `hdd`, `ssd`, `sdcard`, `mmcblk`, `unknown` | `unknown` |
 | `WPRINT3D_AVAILABLE_MEMORY_MB` | Set by `detect-hardware.sh`: available RAM in MB | `0` |
 | `DEVELOPER_MODE` | When `true`, ramdisk is skipped entirely | unset |
 
@@ -139,8 +156,18 @@ The tmpfs mount uses `nr_inodes=0` (unlimited) since `vendor/` alone can contain
 
 ### Modified Files
 
-1. **`internal/ramdisk-setup.sh`** — Full rewrite with new self-sizing logic
-2. **`internal/run.sh`** — Replace the existing mkdir on line 46:
+1. **`internal/ramdisk-setup.sh`** — Full rewrite with new self-sizing logic, including role-based eligibility check
+2. **`internal/detect-hardware.sh`** — Fix mmcblk/microSD detection. Currently, mmcblk devices have `rotational=0` (flash-based) and are misclassified as `ssd` before the `mmcblk` fallback check runs. Fix: check for `mmcblk` in the device name **before** reading the rotational flag, so microSD is correctly classified as slow storage:
+
+   ```bash
+   # Check for mmcblk (microSD/eMMC) BEFORE rotational flag
+   if [[ "$disk_name" == mmcblk* ]]; then
+       echo "mmcblk"
+       return 0
+   fi
+   ```
+
+3. **`internal/run.sh`** — Replace the existing mkdir on line 46:
 
    ```bash
    # OLD (line 46):
@@ -164,10 +191,13 @@ The rewrite replaces the existing script; no new files are needed.
 - Verify developer mode skips ramdisk entirely
 - Verify insufficient RAM skips ramdisk with warning
 - Verify SSD detection skips ramdisk unless forced
+- Verify mmcblk devices are correctly detected (not misclassified as SSD)
 - Verify `composer install` works correctly on ramdisk
 - Verify application starts and functions correctly with ramdisk active
 - Verify logs persist after container restart
 - Verify error rollback correctly unmounts bind mounts in reverse order
+- Verify role-based skip: server (Octane), concurrency-scheduler, ws-server, mapper, and streamer roles all skip ramdisk
+- Verify role-based enable: scheduler role creates ramdisk
 
 ## Sizing Examples
 
