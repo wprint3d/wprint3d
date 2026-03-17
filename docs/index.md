@@ -35,4 +35,5 @@ octoprint-navbartemp-public-registry-guide
 
 fake-serial-printer
 fake-serial-marlin-coverage
+php-optimization
 ```
