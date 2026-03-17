@@ -20,6 +20,13 @@ detect_storage_type() {
         disk_name=$(basename "$device" 2>/dev/null | sed 's/[0-9]*$//g' | sed 's/p[0-9]*$//g')
     fi
 
+    # Check for mmcblk (microSD/eMMC) BEFORE rotational flag
+    # These devices report rotational=0 (flash-based) but are slow I/O
+    if [[ -n "$disk_name" ]] && [[ "$disk_name" == mmcblk* ]]; then
+        echo "mmcblk"
+        return 0
+    fi
+
     # Check rotational flag to distinguish HDD from SSD
     if [[ -n "$disk_name" ]] && [[ -f "/sys/block/$disk_name/queue/rotational" ]]; then
         local rotational=$(cat "/sys/block/$disk_name/queue/rotational" 2>/dev/null)

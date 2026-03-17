@@ -23,7 +23,7 @@ fi
 
 # Validate storage type is one of expected values
 case "$WPRINT3D_STORAGE_TYPE" in
-    hdd|ssd|sdcard|unknown)
+    hdd|ssd|sdcard|mmcblk|unknown)
         echo "PASS: Storage type is valid"
         ;;
     *)
