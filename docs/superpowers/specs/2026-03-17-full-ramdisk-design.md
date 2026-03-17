@@ -30,14 +30,14 @@ Not all container roles benefit from a ramdisk. Roles that use long-running resi
 | ------ | -------------- | ---------- | -------- |
 | **server** (Octane) | `octane:start` — Swoole/RoadRunner keeps classes resident | **Skip** | Classes already preloaded in the most efficient way possible |
 | **server** (non-Octane) | `artisan serve` — dev server | **Skip** | Only used in dev mode, which already skips ramdisk |
-| **concurrency-scheduler** | `concurrent:run-indefinitely` — forked `while(true)` workers via `ParallelTasks` | **Skip** | Long-running resident workers, classes loaded once per fork |
-| **ws-server** | `reverb:start` — WebSocket server in a restart loop | **Skip** | Long-running resident process (Reverb keeps classes in memory) |
+| **concurrency-scheduler** | `concurrent:run-indefinitely` + supervisord managing `queue:work` workers with `autorestart=true` | **Enable** | Supervisor respawns `queue:work` workers on crash/restart — each respawn bootstraps Laravel from scratch. `queue:restart` is also called at startup (line 349) |
+| **ws-server** | `reverb:start` in a `while true` crash-restart loop | **Enable** | Each crash/restart spawns a fresh PHP process that re-reads from disk |
 | **mapper** | udev monitor + sporadic `artisan` calls on hardware events | **Skip** | Long-running monitor; artisan calls are infrequent (hardware plug/unplug) |
 | **scheduler** (short) | `while true; do php artisan short-schedule:run; done` | **Enable** | Each iteration spawns a fresh PHP process that re-reads from disk |
 | **scheduler** (cron) | `cron -f` spawning fresh PHP per job | **Enable** | Every cron execution is a fresh PHP process |
 | **streamer** | Native binaries (ustreamer/camera-streamer) | **Skip** | Not PHP — no vendor reads at all |
 
-The ramdisk script checks the `ROLE` environment variable and only proceeds for eligible roles (currently: `scheduler`). All other roles skip ramdisk setup with an informational log message.
+The ramdisk script checks the `ROLE` environment variable and only proceeds for eligible roles (`scheduler`, `concurrency-scheduler`, `ws-server`). Roles that skip ramdisk (`server`, `mapper`, `streamer`) log an informational message explaining why.
 
 ### Self-Sizing Ramdisk
 
@@ -196,8 +196,8 @@ The rewrite replaces the existing script; no new files are needed.
 - Verify application starts and functions correctly with ramdisk active
 - Verify logs persist after container restart
 - Verify error rollback correctly unmounts bind mounts in reverse order
-- Verify role-based skip: server (Octane), concurrency-scheduler, ws-server, mapper, and streamer roles all skip ramdisk
-- Verify role-based enable: scheduler role creates ramdisk
+- Verify role-based skip: server (Octane), mapper, and streamer roles skip ramdisk
+- Verify role-based enable: scheduler, concurrency-scheduler, and ws-server roles create ramdisk
 
 ## Sizing Examples
 
