@@ -68,6 +68,8 @@ Not all container roles benefit from a ramdisk. Roles using long-running residen
 | **mapper** | Skip | Long-running udev monitor |
 | **streamer** | Skip | Native binaries, not PHP |
 
+**Multi-role mode:** When `ROLE` contains a comma-separated list (e.g., `ROLE=scheduler,concurrency-scheduler,ws-server`), all processes run under supervisord in a single container sharing one ramdisk. The default `docker-compose.yml` uses this mode via the `worker` service, reducing RAM usage by ~260MB compared to running three separate containers with individual ramdisks.
+
 ### What's on Ramdisk vs. Disk
 
 **On ramdisk (entire `/var/www` minus exclusions):**
