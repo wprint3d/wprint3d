@@ -196,6 +196,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 # Copy PHP limits configuration
 ADD ./internal/limits.ini /usr/local/etc/php/conf.d/limits.ini
 
+# Copy PHP OPcache configuration template and setup script
+COPY ./internal/php-opcache.ini.template /var/www/internal/php-opcache.ini.template
+COPY ./internal/setup-php-opcache.sh /var/www/internal/setup-php-opcache.sh
+COPY ./internal/php-opcache-preload.php /var/www/internal/php-opcache-preload.php
+
+# Copy hardware detection and optimization scripts
+COPY ./internal/detect-hardware.sh /var/www/internal/detect-hardware.sh
+COPY ./internal/ramdisk-setup.sh /var/www/internal/ramdisk-setup.sh
+COPY ./internal/app-cache-setup.sh /var/www/internal/app-cache-setup.sh
+
+# Make scripts executable
+RUN chmod +x /var/www/internal/setup-php-opcache.sh \
+              /var/www/internal/detect-hardware.sh \
+              /var/www/internal/ramdisk-setup.sh \
+              /var/www/internal/app-cache-setup.sh
+
 WORKDIR /var/www
 
 RUN mkdir -p /usr/local/bin &&\
