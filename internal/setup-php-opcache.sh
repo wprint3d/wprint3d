@@ -19,7 +19,8 @@ export WPRINT3D_OPCACHE_PRELOAD=""
 # Disable JIT for server role — JIT tracing mode causes OpenSwoole request hangs.
 # Bytecode caching (OPcache core) still provides the main performance benefit.
 # JIT is fine for CLI workers (scheduler, ws-server) since they don't use Swoole.
-if [[ "${ROLE:-}" == 'server' ]] || [[ "${ROLE:-}" == *server* && "${OCTANE_ENABLED:-}" == 'true' ]]; then
+# Match "server" as exact role in comma-separated ROLE (e.g. "server,scheduler,ws-server")
+if [[ ",${ROLE:-}," == *",server,"* ]]; then
     export WPRINT3D_OPCACHE_JIT="off"
     export WPRINT3D_OPCACHE_JIT_BUFFER_SIZE="0"
 else
