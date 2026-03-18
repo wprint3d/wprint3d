@@ -80,6 +80,10 @@ services:
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
       - ${PWD}:${PWD}
+    networks:
+      default:
+        aliases:
+          - ws-server
     depends_on:
       - redis
       - mongo
