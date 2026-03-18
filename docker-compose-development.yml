@@ -25,7 +25,7 @@ services:
       - 6001:6001
     depends_on:
       - web
-      - ws-server
+      - backend
   backend:
     build:
       context: .
@@ -38,13 +38,14 @@ services:
         mode: non-blocking
     privileged: true
     environment:
-      - ROLE=server
+      - ROLE=server,scheduler,concurrency-scheduler,ws-server
       - DEVELOPER_MODE=true
-      - REVERB_HOST=ws-server
       - COMPOSE_DIR=${PWD}
       - CONTAINER_CLI=${IN_CONTAINER_CLI:-docker}
       - CONTAINER_COMPOSE_COMMAND=${IN_CONTAINER_COMPOSE_COMMAND:-docker-compose}
       - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
+      - QUEUES=default:1,recordings:1,broadcasts:2,prints,previews,snapshots
+      - SLEEP=5
     volumes:
       - .:/var/www
       - ${PWD}:${PWD}
@@ -73,29 +74,6 @@ services:
       - backend
       - redis
       - mongo
-  scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    restart: always
-    logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
-      options:
-        max-size: "1m"
-        mode: non-blocking
-    privileged: true
-    environment:
-      - ROLE=scheduler
-      - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
-    volumes:
-      - .:/var/www
-      - ${PWD}:${PWD}
-      - ./examples/plugins:/var/www/plugins-dev
-      - /dev/bus/usb:/dev/bus/usb
-      - /dev:/dev
-    depends_on:
-      - redis
-      - mongo
   mapper:
     build:
       context: .
@@ -120,59 +98,6 @@ services:
       - /sys/class:/sys/class
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
-    depends_on:
-      - redis
-      - mongo
-  concurrency-scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    restart: always
-    logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
-      options:
-        max-size: "1m"
-        mode: non-blocking
-    privileged: true
-    environment:
-      - ROLE=concurrency-scheduler
-      - QUEUES=default:1,recordings:1,broadcasts:2,prints,previews,snapshots, # <queue-name>:<min-number-of-workers, default=0>
-      - SLEEP=5
-      - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
-    volumes:
-      - .:/var/www
-      - ${PWD}:${PWD}
-      - ./examples/plugins:/var/www/plugins-dev
-      - /dev/bus/usb:/dev/bus/usb
-      - /dev:/dev
-    depends_on:
-      - redis
-      - mongo
-  ws-server:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    restart: always
-    logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
-      options:
-        max-size: "1m"
-        mode: non-blocking
-    environment:
-      - ROLE=ws-server
-      - DEVELOPER_MODE=true
-      - COMPOSE_DIR=${PWD}
-      - CONTAINER_CLI=${IN_CONTAINER_CLI:-docker}
-      - CONTAINER_COMPOSE_COMMAND=${IN_CONTAINER_COMPOSE_COMMAND:-docker-compose}
-      - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
-    volumes:
-      - .:/var/www
-      - ${PWD}:${PWD}
-      - ./examples/plugins:/var/www/plugins-dev
-      - /dev/bus/usb:/dev/bus/usb
-      - /dev:/dev
-      - ${CONTAINER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
-      - /proc:/proc
     depends_on:
       - redis
       - mongo
