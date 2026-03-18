@@ -45,22 +45,27 @@ log_error() {
     echo "[ramdisk-setup ERROR] $*" >&2
 }
 
-# Check if current role is eligible for ramdisk
+# Check if current role (or any role in comma-separated list) is eligible for ramdisk
 check_role_eligible() {
-    local role="${ROLE:-}"
+    local role_str="${ROLE:-}"
 
-    if [[ -z "$role" ]]; then
+    if [[ -z "$role_str" ]]; then
         log_info "No ROLE set, skipping ramdisk"
         return 1
     fi
 
-    for eligible in "${ELIGIBLE_ROLES[@]}"; do
-        if [[ "$role" == "$eligible" ]]; then
-            return 0
-        fi
+    local IFS=','
+    read -ra roles <<< "$role_str"
+
+    for role in "${roles[@]}"; do
+        for eligible in "${ELIGIBLE_ROLES[@]}"; do
+            if [[ "$role" == "$eligible" ]]; then
+                return 0
+            fi
+        done
     done
 
-    log_info "Role '$role' uses resident processes, ramdisk not needed"
+    log_info "No eligible role found in '$role_str', ramdisk not needed"
     return 1
 }
 
