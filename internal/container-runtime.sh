@@ -446,10 +446,15 @@ ensure_podman_socket() {
         run_with_elevation mkdir -p "$(dirname "$CONTAINER_SOCKET_PATH")";
 
         if command -v systemctl > /dev/null 2>&1; then
+            run_with_elevation systemctl daemon-reload > /dev/null 2>&1 || true;
             run_with_elevation systemctl enable --now podman.socket > /dev/null 2>&1 || true;
         fi;
 
-        if [[ ! -S "$CONTAINER_SOCKET_PATH" ]] && ! pgrep -f "podman system service .*${CONTAINER_SOCKET_PATH}" > /dev/null 2>&1; then
+        if [[ ! -S "$CONTAINER_SOCKET_PATH" ]]; then
+            local stale_pid;
+            stale_pid="$(pgrep -f "podman system service .*${CONTAINER_SOCKET_PATH}" 2>/dev/null)" && \
+                run_with_elevation kill "$stale_pid" > /dev/null 2>&1 && sleep 0.5;
+
             run_with_elevation sh -c 'nohup podman system service --time=0 "unix://'"${CONTAINER_SOCKET_PATH}"'" > /tmp/wprint3d-podman-service.log 2>&1 &';
         fi;
     else
@@ -459,19 +464,23 @@ ensure_podman_socket() {
             systemctl --user start podman.socket > /dev/null 2>&1 || true;
         fi;
 
-        if [[ ! -S "$CONTAINER_SOCKET_PATH" ]] && ! pgrep -f "podman system service .*${CONTAINER_SOCKET_PATH}" > /dev/null 2>&1; then
+        if [[ ! -S "$CONTAINER_SOCKET_PATH" ]]; then
+            local stale_pid;
+            stale_pid="$(pgrep -f "podman system service .*${CONTAINER_SOCKET_PATH}" 2>/dev/null)" && \
+                kill "$stale_pid" > /dev/null 2>&1 && sleep 0.5;
+
             nohup podman system service --time=0 "unix://${CONTAINER_SOCKET_PATH}" > /tmp/wprint3d-podman-service.log 2>&1 &
         fi;
     fi;
 
     local socket_attempt=1;
 
-    while [[ "$socket_attempt" -le 20 ]]; do
+    while [[ "$socket_attempt" -le 40 ]]; do
         if [[ -S "$CONTAINER_SOCKET_PATH" ]]; then
             return 0;
         fi;
 
-        sleep 0.25;
+        sleep 0.5;
         socket_attempt=$((socket_attempt + 1));
     done;
 
