@@ -18,7 +18,6 @@ services:
       - ${EXTERNAL_WEB_SOCKET_PORT:-6001}:6001
     depends_on:
       - web
-      - ws-server
       - backend
   backend:
     image: docker.io/wprint3d/wprint3d:latest
@@ -30,8 +29,10 @@ services:
         mode: non-blocking
     privileged: true
     environment:
-      - ROLE=server
+      - ROLE=server,scheduler,concurrency-scheduler,ws-server
       - COMPOSE_DIR=${PWD}
+      - QUEUES=default:1,recordings:1,broadcasts:2,prints,previews,snapshots
+      - SLEEP=5
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
@@ -54,33 +55,6 @@ services:
     stdin_open: true
     depends_on:
       - backend
-      - redis
-      - mongo
-  ws-server:
-    image: docker.io/wprint3d/wprint3d:latest
-    restart: always
-    logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
-      options:
-        max-size: "1m"
-        mode: non-blocking
-    privileged: true
-    environment:
-      - ROLE=scheduler,concurrency-scheduler,ws-server
-      - COMPOSE_DIR=${PWD}
-      - QUEUES=default:1,recordings:1,broadcasts:2,prints,previews,snapshots
-      - SLEEP=5
-    volumes:
-      - /dev/bus/usb:/dev/bus/usb
-      - /dev:/dev
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /proc:/proc
-      - storage:/var/www/storage
-      - proxy:/var/www/proxy/internal
-      - startup:/var/www/internal/startup
-      - ./wprint3d-config:/var/www/.external-configs
-      - ${PWD}:${PWD}
-    depends_on:
       - redis
       - mongo
   mapper:

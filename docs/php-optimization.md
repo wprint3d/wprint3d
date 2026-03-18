@@ -68,7 +68,7 @@ Most PHP-based roles benefit from a ramdisk. Even long-running processes like Oc
 | **mapper** | Skip | Long-running udev monitor, not PHP-heavy |
 | **streamer** | Skip | Native binaries, not PHP |
 
-**Multi-role mode:** When `ROLE` contains a comma-separated list (e.g., `ROLE=scheduler,concurrency-scheduler,ws-server`), all processes run under supervisord in a single container sharing one ramdisk. The default `docker-compose.yml` uses this mode via the `ws-server` service, reducing RAM usage by ~260MB compared to running three separate containers with individual ramdisks.
+**Multi-role mode:** When `ROLE` contains a comma-separated list (e.g., `ROLE=server,scheduler,concurrency-scheduler,ws-server`), all processes run under supervisord in a single container sharing one ramdisk. The default `docker-compose.yml` uses this mode via the `backend` service, which runs all four PHP-based roles in a single container with one shared ramdisk (~116MB).
 
 ### What's on Ramdisk vs. Disk
 

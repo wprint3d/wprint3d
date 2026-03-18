@@ -209,20 +209,6 @@ runDeferredTasks() {
     php artisan app:check-for-updates;
 }
 
-if [[ "$ROLE" == 'server' ]]; then
-    generateSecrets;
-fi;
-
-waitForSecrets;
-
-wait-for-it mongo:27017 -t 0;
-
-echo 'Waiting for Redis to be ready...';
-
-while ! redis-cli -h redis get '' 2>&1 > /dev/null; do
-    sleep 1;
-done;
-
 # Parse ROLE into array (supports comma-separated multi-role)
 IFS=',' read -ra ROLES <<< "${ROLE:-}"
 
@@ -237,6 +223,20 @@ has_role() {
     return 1
 }
 
+if has_role "server"; then
+    generateSecrets;
+fi;
+
+waitForSecrets;
+
+wait-for-it mongo:27017 -t 0;
+
+echo 'Waiting for Redis to be ready...';
+
+while ! redis-cli -h redis get '' 2>&1 > /dev/null; do
+    sleep 1;
+done;
+
 if [[ -z $ROLE ]]; then
     echo "End of script reached, this container will run as a dummy and, as such, it won't actually do anything.";
 
@@ -245,7 +245,7 @@ else
     while true; do
         MACHINE_UUID='';
 
-        if [[ "$ROLE" != 'server' ]]; then
+        if ! has_role "server"; then
             echo 'Waiting for composer dependencies to become available...';
 
             while ! php artisan 2>&1 > /dev/null; do
@@ -269,6 +269,91 @@ else
         if [[ ${#ROLES[@]} -gt 1 ]]; then
             # Multi-role mode: shared init + supervisord
             echo "Multi-role mode: ${ROLE}"
+
+            # Server-specific init (if server is one of the roles)
+            if has_role "server"; then
+                refreshDockerLog &
+
+                # Reset proxy configuration for the recordings
+                truncate --size 0 /var/www/proxy/internal/recordings.conf;
+
+                # Disable permissions checks for the Git repository
+                git config --global --add safe.directory /var/www;
+
+                # Downloads the required dependencies if they're not already
+                # present or if DEVELOPER_MODE is enabled
+                if ! php artisan > /dev/null 2>&1 || [[ "${DEVELOPER_MODE}" == 'true' ]]; then
+                    if ! composer install; then
+                        exit 1; # crash and wait for self-restart
+                    fi;
+                fi;
+
+                # Flush cached files
+                php artisan optimize:clear;
+
+                # If the Git repository is present, get the version from `git rev-parse`.
+                if [[ -f '/var/www/.git/HEAD' ]] && [[ "${DEVELOPER_MODE}" == 'true' ]]; then
+                    git rev-parse --short HEAD > /var/www/internal/app_ver;
+                fi;
+
+                printf '' > /var/www/internal/startup/startup.txt;
+
+                MACHINE_UUID=$(php artisan get:machine-uuid);
+
+                if [[ "$MACHINE_UUID" == '' ]]; then
+                    MACHINE_UUID=$(php artisan make:machine-uuid);
+
+                    echo 'A machine UUID was generated: '"$MACHINE_UUID";
+                else
+                    echo 'Machine UUID loaded: '"$MACHINE_UUID";
+                fi;
+
+                # Reset config file
+                printf ''                                                        > /tmp/recordings.conf;
+                printf "\nlocation /recordings/$MACHINE_UUID {"                 >> /tmp/recordings.conf;
+                printf "\n\trewrite  ^/recordings/$MACHINE_UUID(.*) /$1 break;" >> /tmp/recordings.conf;
+                printf "\n\troot     /public/recordings;"                       >> /tmp/recordings.conf;
+                printf "\n}"                                                    >> /tmp/recordings.conf;
+
+                CURRENT_SUM="$(md5sum /var/www/proxy/internal/recordings.conf | cut -d ' ' -f 1)"
+                NEW_SUM="$(md5sum /tmp/recordings.conf | cut -d ' ' -f 1)";
+
+                if [[ "$CURRENT_SUM" != "$NEW_SUM" ]]; then
+                    echo "Proxy server change detected, reloading... CSUM = ${CURRENT_SUM}, NSUM = ${NEW_SUM}" >&2;
+
+                    cp -fv /tmp/recordings.conf /var/www/proxy/internal/recordings.conf >&2;
+
+                    for container_id in $(docker ps --filter name=proxy --format '{{ .ID }}'); do
+                        docker exec -t $container_id nginx -s reload;
+                    done;
+                fi;
+
+                refreshThirdPartyLicenses &
+
+                # TODO: This is just for development and testing purposes and
+                #       should be removed for production.
+                echo "Creating the sample user (if it doesn't exist)...";
+                php artisan create:sample-user;
+
+                echo "Running migrations...";
+                php artisan migrate --force;
+
+                if [[ "${DEVELOPER_MODE}" == 'true' ]]; then
+                    echo "Generating Marlin labels...";
+                    php artisan make:marlin-labels;
+                fi;
+
+                echo "Resetting stalled jobs...";
+                php artisan reset:active-jobs;
+
+                echo 'Declare default configurations...';
+                php artisan make:default-configuration;
+
+                echo 'Declare the Docker Compose directory...';
+                php artisan make:compose-path-config;
+
+                runDeferredTasks &
+            fi;
 
             # Shared housekeeping (runs once)
             php artisan cache:clear

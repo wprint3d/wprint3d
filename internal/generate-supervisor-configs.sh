@@ -44,6 +44,24 @@ stderr_logfile=/dev/null
 EOF
             ;;
 
+        server)
+            # Determine serve command based on Octane setting
+            if grep -q 'OCTANE_ENABLED=true' /var/www/.env 2>/dev/null; then
+                SERVE_CMD="php artisan octane:start --host 0.0.0.0 --port 80"
+            else
+                SERVE_CMD="php artisan serve --host 0.0.0.0 --port 80"
+            fi
+
+            cat > "$SUPERVISOR_CONF_DIR/octane.conf" <<EOF
+[program:octane]
+command=${SERVE_CMD}
+directory=/var/www
+autorestart=true
+stdout_logfile=/tmp/supervisor/logs/octane.log
+stderr_logfile=/tmp/supervisor/logs/octane.log
+EOF
+            ;;
+
         ws-server)
             cat > "$SUPERVISOR_CONF_DIR/reverb.conf" <<'EOF'
 [program:reverb]
