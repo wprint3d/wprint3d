@@ -55,8 +55,9 @@ opcache.jit_optimization_level=0x7FFFFFFF
 ; User to run preloaded code as (non-root for security)
 opcache.preload_user=www-data
 
-; Preload script path - ENABLED for performance
-opcache.preload=/var/www/internal/php-opcache-preload.php
+; Preload script path - disabled for Octane (Swoole keeps classes resident)
+; Enabled for worker roles (scheduler, ws-server) where processes restart
+opcache.preload=${WPRINT3D_OPCACHE_PRELOAD}
 
 ; ============================================================================
 ; String Interning
