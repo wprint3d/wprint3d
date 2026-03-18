@@ -21,8 +21,8 @@ Use this file as the default operating guide before making changes.
 
 ## Working Rules
 
-- Treat this as a hardware-aware project. Many flows depend on Docker, USB device access, webcams, MongoDB, Redis, and privileged containers.
-- Prefer minimal, targeted changes. Do not rewrite broad runtime scripts or Docker topology unless the task requires it.
+- Treat this as a hardware-aware project. Many flows depend on Podman, USB device access, webcams, MongoDB, Redis, and privileged containers.
+- Prefer minimal, targeted changes. Do not rewrite broad runtime scripts or Podman topology unless the task requires it.
 - Preserve existing code style. Backend PHP uses the current Laravel project conventions with semicolons and existing spacing patterns. Frontend code uses the repo's current JS/React Native style rather than introducing a new formatter opinion.
 - Do not use absolute filesystem paths in documentation. Prefer repo-relative links such as `docs/plugins.md`, repo-relative commands such as `./plugin.sh pack ...`, and sibling-repo references like `../plugin-registry` only when a path truly leaves this repository.
 - Do not edit generated or runtime-managed artifacts unless the task is explicitly about them:
@@ -74,9 +74,9 @@ Use this file as the default operating guide before making changes.
   ```bash
   ./run.sh
   ```
-- Work directly with Docker Compose development services:
+- Work directly with Podman Compose development services:
   ```bash
-  docker compose -f docker-compose-development.yml up -d
+  podman-compose -f docker-compose-development.yml up -d
   ```
 
 ### Frontend
@@ -101,7 +101,7 @@ Run these from `frontend/`.
 - For backend-only changes, run at least the most relevant `php artisan test` target.
 - For formatting-sensitive backend changes, run `./vendor/bin/pint --test` or `./vendor/bin/pint`.
 - For frontend changes, there is no dedicated lint/test script in `frontend/package.json` yet. Use the most relevant runtime validation instead, usually `pnpm exec expo start --clear` or `pnpm exec expo export -p web`.
-- If Docker, USB, camera, or privileged-container requirements prevent full verification, say exactly what could not be validated.
+- If Podman, USB, camera, or privileged-container requirements prevent full verification, say exactly what could not be validated.
 
 ## Project-Specific Notes
 
