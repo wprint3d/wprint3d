@@ -18,7 +18,7 @@ services:
       - ${EXTERNAL_WEB_SOCKET_PORT:-6001}:6001
     depends_on:
       - web
-      - ws-server
+      - worker
       - backend
   backend:
     image: docker.io/wprint3d/wprint3d:latest
@@ -56,7 +56,7 @@ services:
       - backend
       - redis
       - mongo
-  scheduler:
+  worker:
     image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
@@ -66,11 +66,15 @@ services:
         mode: non-blocking
     privileged: true
     environment:
-      - ROLE=scheduler
+      - ROLE=scheduler,concurrency-scheduler,ws-server
       - COMPOSE_DIR=${PWD}
+      - QUEUES=default:1,recordings:1,broadcasts:2,prints,previews,snapshots
+      - SLEEP=5
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
       - storage:/var/www/storage
       - proxy:/var/www/proxy/internal
       - startup:/var/www/internal/startup
@@ -97,55 +101,6 @@ services:
       - /sys/class:/sys/class
       - /sys/devices:/sys/devices
       - /run/udev:/run/udev:ro
-      - storage:/var/www/storage
-      - proxy:/var/www/proxy/internal
-      - startup:/var/www/internal/startup
-      - ./wprint3d-config:/var/www/.external-configs
-      - ${PWD}:${PWD}
-    depends_on:
-      - redis
-      - mongo
-  concurrency-scheduler:
-    image: docker.io/wprint3d/wprint3d:latest
-    restart: always
-    logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
-      options:
-        max-size: "1m"
-        mode: non-blocking
-    privileged: true
-    environment:
-      - ROLE=concurrency-scheduler
-      - COMPOSE_DIR=${PWD}
-      - QUEUES=default:1,recordings:1,broadcasts:2,prints,previews,snapshots # <queue-name>:<min-number-of-workers, default=0>
-      - SLEEP=5
-    volumes:
-      - /dev/bus/usb:/dev/bus/usb
-      - /dev:/dev
-      - storage:/var/www/storage
-      - proxy:/var/www/proxy/internal
-      - startup:/var/www/internal/startup
-      - ./wprint3d-config:/var/www/.external-configs
-      - ${PWD}:${PWD}
-    depends_on:
-      - redis
-      - mongo
-  ws-server:
-    image: docker.io/wprint3d/wprint3d:latest
-    restart: always
-    logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
-      options:
-        max-size: "1m"
-        mode: non-blocking
-    environment:
-      - ROLE=ws-server
-      - COMPOSE_DIR=${PWD}
-    volumes:
-      - /dev/bus/usb:/dev/bus/usb
-      - /dev:/dev
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /proc:/proc
       - storage:/var/www/storage
       - proxy:/var/www/proxy/internal
       - startup:/var/www/internal/startup
