@@ -55,7 +55,7 @@ waitForSecrets() {
 
         touch /var/www/.external-configs/.env;
 
-        ln -s /var/www/.external-configs/.env /var/www/.env;
+        ln -sf /var/www/.external-configs/.env /var/www/.env;
     fi;
 
     # Wait for the .env file to be created and populated
@@ -71,7 +71,7 @@ generateSecrets() {
 
         touch /var/www/.external-configs/.env;
 
-        ln -s /var/www/.external-configs/.env /var/www/.env;
+        ln -sf /var/www/.external-configs/.env /var/www/.env;
     fi;
 
     # If the secrets already exist, skip the generation process
@@ -86,7 +86,7 @@ generateSecrets() {
         return;
     fi;
 
-    if ! php artisan 2>&1 > /dev/null; then
+    if ! php artisan > /dev/null 2>&1; then
         echo 'Composer dependencies are missing, installing...';
 
         composer install;
@@ -298,12 +298,10 @@ else
 
             # Downloads the required dependencies if they're not already
             # present or if DEVELOPER_MODE is enabled
-            if ! php artisan 2>&1 > /dev/null || [[ "${DEVELOPER_MODE}" == 'true' ]]; then
-                composer install;
-            fi;
-
-            if [[ $? -ne 0 ]]; then
-                exit 1; # crash and wait for self-restart
+            if ! php artisan > /dev/null 2>&1 || [[ "${DEVELOPER_MODE}" == 'true' ]]; then
+                if ! composer install; then
+                    exit 1; # crash and wait for self-restart
+                fi;
             fi;
 
             # Flush cached files
