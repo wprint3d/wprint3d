@@ -22,8 +22,11 @@ declare -a PERSISTENT_DIRS=(
     ".external-configs"
 )
 
-# Roles eligible for ramdisk (processes that respawn fresh PHP)
+# Roles eligible for ramdisk
+# Even long-running processes (Octane/Swoole) benefit: cold start on HDD
+# requires reading ~116MB of vendor files from disk before classes go resident
 declare -a ELIGIBLE_ROLES=(
+    "server"
     "scheduler"
     "concurrency-scheduler"
     "ws-server"

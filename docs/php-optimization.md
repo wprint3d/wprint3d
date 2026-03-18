@@ -57,15 +57,15 @@ The ramdisk mirrors the **entire `/var/www`** directory to `tmpfs` at container 
 
 ### Role-Based Eligibility
 
-Not all container roles benefit from a ramdisk. Roles using long-running resident processes (where classes are loaded once and stay in memory) skip ramdisk setup:
+Most PHP-based roles benefit from a ramdisk. Even long-running processes like Octane benefit because cold start on HDD requires reading ~116MB of vendor files before classes go resident:
 
 | Role | Ramdisk | Reason |
 | ---- | ------- | ------ |
-| **server** (Octane) | Skip | Swoole/RoadRunner keeps classes resident |
+| **server** (Octane) | Enable | Cold start reads all vendor files from disk |
 | **concurrency-scheduler** | Enable | Supervisor respawns `queue:work` workers |
 | **ws-server** | Enable | Crash-restart loop spawns fresh PHP |
 | **scheduler** | Enable | Each cron job is a fresh PHP process |
-| **mapper** | Skip | Long-running udev monitor |
+| **mapper** | Skip | Long-running udev monitor, not PHP-heavy |
 | **streamer** | Skip | Native binaries, not PHP |
 
 **Multi-role mode:** When `ROLE` contains a comma-separated list (e.g., `ROLE=scheduler,concurrency-scheduler,ws-server`), all processes run under supervisord in a single container sharing one ramdisk. The default `docker-compose.yml` uses this mode via the `ws-server` service, reducing RAM usage by ~260MB compared to running three separate containers with individual ramdisks.
