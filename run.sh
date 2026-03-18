@@ -143,12 +143,12 @@ if [[ "$2" != 'dev' ]]; then
         fi;
 
         if [[ -f 'docker-compose.yml' ]]; then
-            mv -v 'docker-compose.yml' 'docker-compose.yml.bak';
+            mv -fv 'docker-compose.yml' 'docker-compose.yml.bak';
 
             echo 'The old docker-compose.yml file was renamed to docker-compose.yml.bak.';
         fi;
 
-        mv -v "$TEMP_FILE" 'docker-compose.yml';
+        mv -fv "$TEMP_FILE" 'docker-compose.yml';
 
         normalize_compose_logging_driver 'docker-compose.yml';
 
