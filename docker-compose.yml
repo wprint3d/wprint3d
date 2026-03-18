@@ -18,7 +18,7 @@ services:
       - ${EXTERNAL_WEB_SOCKET_PORT:-6001}:6001
     depends_on:
       - web
-      - worker
+      - ws-server
       - backend
   backend:
     image: docker.io/wprint3d/wprint3d:latest
@@ -56,7 +56,7 @@ services:
       - backend
       - redis
       - mongo
-  worker:
+  ws-server:
     image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
@@ -80,10 +80,6 @@ services:
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
       - ${PWD}:${PWD}
-    networks:
-      default:
-        aliases:
-          - ws-server
     depends_on:
       - redis
       - mongo
