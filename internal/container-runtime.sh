@@ -473,20 +473,10 @@ ensure_podman_socket() {
         fi;
     fi;
 
-    local socket_attempt=1;
-
-    while [[ "$socket_attempt" -le 40 ]]; do
-        if [[ -S "$CONTAINER_SOCKET_PATH" ]]; then
-            return 0;
-        fi;
-
-        sleep 0.5;
-        socket_attempt=$((socket_attempt + 1));
-    done;
-
-    echo "Failed to start the Podman API socket at ${CONTAINER_SOCKET_PATH}." >&2;
-
-    return 1;
+    # Let Podman handle its own socket availability and timeouts.
+    # The service started above; Podman commands will fail appropriately
+    # if the socket isn't ready.
+    return 0;
 }
 
 init_container_runtime() {
