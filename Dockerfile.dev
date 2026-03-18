@@ -2,7 +2,7 @@ FROM docker.io/library/php:8.4.12-bookworm
 
 # Basic dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        coreutils git curl redis-tools inotify-tools gnupg inetutils-ping \
+        coreutils gettext-base git curl redis-tools inotify-tools gnupg inetutils-ping \
         udev ffmpeg unzip supervisor psmisc jq uuid-runtime cron fswebcam \
         procps usbutils libzip-dev libmemcached-dev libyaml-dev libuv1-dev \
         libcurl4-openssl-dev libxml2-dev libzip-dev libevent-dev \

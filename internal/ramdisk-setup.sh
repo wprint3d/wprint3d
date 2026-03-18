@@ -2,6 +2,7 @@
 # Selective ramdisk setup for hot-path PHP files
 # Creates tmpfs mount for frequently-accessed directories
 # Falls back gracefully if insufficient memory
+# NOTE: In container environment, ramdisk persists until container stops
 
 # Configuration
 RAMDISK_MOUNT="/tmp/wprint3d-ramdisk"
@@ -24,34 +25,33 @@ log_error() {
     echo "[ramdisk-setup ERROR] $*" >&2
 }
 
-# Cleanup function - called on exit
-cleanup_ramdisk() {
-    log_info "Cleaning up ramdisk..."
-
-    # Unmount bind mounts first (in reverse order)
-    for i in "${!RAMDISK_DIRS[@]}"; do
-        local index=$((${#RAMDISK_DIRS[@]} - 1 - i))
-        local entry="${RAMDISK_DIRS[$index]}"
-        local dir="${entry%%:*}"
-
-        if mountpoint -q "$dir" 2>/dev/null; then
-            umount "$dir" 2>/dev/null && log_info "Unmounted $dir" || true
-        fi
-    done
-
-    # Unmount the main ramdisk
+# Cleanup function - only for error scenarios
+# In normal container operation, ramdisk persists until container stops
+cleanup_on_error() {
+    # Only cleanup if setup failed (ramdisk exists but mounts failed)
     if mountpoint -q "$RAMDISK_MOUNT" 2>/dev/null; then
-        umount "$RAMDISK_MOUNT" 2>/dev/null && log_info "Unmounted ramdisk" || true
-    fi
+        local has_bind_mounts=0
 
-    # Remove mount point
-    if [[ -d "$RAMDISK_MOUNT" ]]; then
-        rmdir "$RAMDISK_MOUNT" 2>/dev/null && log_info "Removed ramdisk mount point" || true
+        # Check if any bind mounts succeeded
+        for entry in "${RAMDISK_DIRS[@]}"; do
+            local dir="${entry%%:*}"
+            if mountpoint -q "$dir" 2>/dev/null; then
+                has_bind_mounts=1
+                break
+            fi
+        done
+
+        # Only cleanup if no bind mounts succeeded (setup failed)
+        if [[ "$has_bind_mounts" -eq 0 ]]; then
+            log_info "Setup failed, cleaning up partial ramdisk..."
+            umount "$RAMDISK_MOUNT" 2>/dev/null || true
+            rmdir "$RAMDISK_MOUNT" 2>/dev/null || true
+        fi
     fi
 }
 
-# Register cleanup on exit
-trap cleanup_ramdisk EXIT INT TERM
+# Register cleanup only on interrupt/error (not normal exit)
+trap cleanup_on_error INT TERM
 
 # Main setup function
 setup_ramdisk() {
@@ -129,7 +129,7 @@ setup_ramdisk() {
         fi
     done
 
-    log_info "Ramdisk setup complete"
+    log_info "Ramdisk setup complete - persisting until container stops"
     return 0
 }
 
