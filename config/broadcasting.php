@@ -36,7 +36,7 @@ return [
             'secret'    => env('PUSHER_APP_SECRET'),
             'app_id'    => env('PUSHER_APP_ID', 'wp3d'),
             'options'   => [
-                'host'      => 'ws-server',
+                'host'      => env('REVERB_HOST', 'localhost'),
                 'port'      => 6001,
                 'scheme'    => 'http',
                 'encrypted' => false,

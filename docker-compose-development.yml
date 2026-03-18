@@ -40,6 +40,7 @@ services:
     environment:
       - ROLE=server
       - DEVELOPER_MODE=true
+      - REVERB_HOST=ws-server
       - COMPOSE_DIR=${PWD}
       - CONTAINER_CLI=${IN_CONTAINER_CLI:-docker}
       - CONTAINER_COMPOSE_COMMAND=${IN_CONTAINER_COMPOSE_COMMAND:-docker-compose}
