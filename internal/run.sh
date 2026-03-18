@@ -223,6 +223,20 @@ while ! redis-cli -h redis get '' 2>&1 > /dev/null; do
     sleep 1;
 done;
 
+# Parse ROLE into array (supports comma-separated multi-role)
+IFS=',' read -ra ROLES <<< "${ROLE:-}"
+
+# Check if a specific role is in the ROLES array
+has_role() {
+    local target="$1"
+    for r in "${ROLES[@]}"; do
+        if [[ "$r" == "$target" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 if [[ -z $ROLE ]]; then
     echo "End of script reached, this container will run as a dummy and, as such, it won't actually do anything.";
 
@@ -252,7 +266,28 @@ else
             fi;
         fi;
 
-        if [[ "$ROLE" == 'server' ]]; then
+        if [[ ${#ROLES[@]} -gt 1 ]]; then
+            # Multi-role mode: shared init + supervisord
+            echo "Multi-role mode: ${ROLE}"
+
+            # Shared housekeeping (runs once)
+            php artisan cache:clear
+            php artisan queue:flush
+            php artisan queue:restart
+
+            # Install crontab if scheduler is in the role list
+            if has_role "scheduler"; then
+                crontab /var/www/internal/cron/crontab
+            fi
+
+            # Generate supervisor configs for all roles
+            bash /var/www/internal/generate-supervisor-configs.sh "${ROLES[@]}"
+
+            # Start supervisord in foreground (blocks, keeps container alive)
+            echo "Starting supervisord with roles: ${ROLE}"
+            supervisord -c /var/www/internal/supervisor/supervisord.conf
+
+        elif [[ "$ROLE" == 'server' ]]; then
             refreshDockerLog &
 
             # Reset proxy configuration for the recordings
@@ -349,20 +384,11 @@ else
             php artisan queue:flush;
             php artisan queue:restart;
 
-            echo 'Starting the supervisor...';
-            mkdir -p /tmp/supervisor/logs;
+            # Generate supervisor configs and run in foreground
+            bash /var/www/internal/generate-supervisor-configs.sh concurrency-scheduler
+
+            echo 'Starting supervisord...';
             supervisord -c /var/www/internal/supervisor/supervisord.conf;
-            echo 'Supervisor started!';
-
-            php artisan concurrent:run-indefinitely &
-
-            while true; do
-                for log in /tmp/supervisor/logs/*.log; do
-                    truncate --size 512K "$log"
-                done;
-
-                sleep 60;
-            done;
         elif [[ "$ROLE" == 'ws-server' ]]; then
             while true; do
                 php artisan reverb:start --host 0.0.0.0 --port 6001;
@@ -488,15 +514,9 @@ else
                     done;
             done;
         elif [[ "$ROLE" == 'scheduler' ]]; then
-            if [[ "$KIND" == 'short' ]]; then
-                while true; do
-                    php artisan short-schedule:run;
-                done;
-            else
-                crontab /var/www/internal/cron/crontab;
+            crontab /var/www/internal/cron/crontab;
 
-                cron -f;
-            fi;
+            cron -f;
         elif [[ "$ROLE" == 'streamer' ]]; then
             # TODO: Holy fuck, we should improve this code for readability.
             #       Not even Sonnet 4.3 would do something so atrocious.
