@@ -130,8 +130,8 @@ preflight_checks() {
         return 1
     fi
 
-    # Add 10% headroom
-    local ramdisk_size_bytes=$(( data_size_bytes + data_size_bytes / 10 ))
+    # Add 25% headroom (tar/filesystem overhead needs more than 10%)
+    local ramdisk_size_bytes=$(( data_size_bytes + data_size_bytes / 4 ))
     local ramdisk_size_mb=$(( ramdisk_size_bytes / 1024 / 1024 ))
 
     # Ensure at least 1MB (avoid zero-size tmpfs)

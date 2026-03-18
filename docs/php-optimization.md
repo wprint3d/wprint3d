@@ -28,14 +28,14 @@ On hard-disk systems, expect:
 
 ## Memory Requirements
 
-The ramdisk self-sizes based on the actual size of `/var/www` (excluding persistent data). It adds 10% headroom and requires at least 2x the ramdisk size in available RAM.
+The ramdisk self-sizes based on the actual size of `/var/www` (excluding persistent data). It adds 25% headroom (to cover tar/filesystem overhead) and requires at least 2x the ramdisk size in available RAM.
 
-| `/var/www` size | Ramdisk size (1.10x) | Min RAM required (2x) |
+| `/var/www` size | Ramdisk size (1.25x) | Min RAM required (2x) |
 | --------------- | ------------------- | -------------------- |
-| 120MB | 132MB | 264MB |
-| 150MB | 165MB | 330MB |
-| 200MB | 220MB | 440MB |
-| 300MB | 330MB | 660MB |
+| 120MB | 150MB | 300MB |
+| 150MB | 188MB | 376MB |
+| 200MB | 250MB | 500MB |
+| 300MB | 375MB | 750MB |
 
 If available RAM is below the 2x threshold, the ramdisk is skipped and the app runs from disk with OPcache only.
 

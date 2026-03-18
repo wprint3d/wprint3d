@@ -9,13 +9,18 @@ OUTPUT_FILE="/usr/local/etc/php/conf.d/opcache.ini"
 export WPRINT3D_OPCACHE_REVALIDATE_FREQ="${WPRINT3D_OPCACHE_REVALIDATE_FREQ:-0}"
 export WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS="${WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS:-0}"
 
-# Disable OPcache preload for server role (Octane/Swoole keeps classes resident,
-# and preload conflicts with Swoole's event loop in CLI context)
-if [[ "${ROLE:-}" == 'server' ]]; then
-    export WPRINT3D_OPCACHE_PRELOAD=""
-else
-    export WPRINT3D_OPCACHE_PRELOAD="/var/www/internal/php-opcache-preload.php"
-fi
+# Disable OPcache preload for roles that don't benefit from it:
+# - server: Octane/Swoole keeps classes resident, preload conflicts with Swoole
+# - mapper: Long-running udev monitor, not PHP
+# - streamer: Native binaries, not PHP
+case "${ROLE:-}" in
+    server|mapper|streamer)
+        export WPRINT3D_OPCACHE_PRELOAD=""
+        ;;
+    *)
+        export WPRINT3D_OPCACHE_PRELOAD="/var/www/internal/php-opcache-preload.php"
+        ;;
+esac
 
 # Create file cache directory
 mkdir -p /tmp/opcache
