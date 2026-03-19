@@ -46,7 +46,7 @@ EOF
 
         server)
             # Determine serve command based on Octane setting
-            if grep -q 'OCTANE_ENABLED=true' /var/www/.env 2>/dev/null; then
+            if [[ "$(php artisan get:env OCTANE_ENABLED 2>/dev/null)" == 'true' ]]; then
                 SERVE_CMD="php artisan octane:start --host 0.0.0.0 --port 80"
             else
                 SERVE_CMD="php artisan serve --host 0.0.0.0 --port 80"

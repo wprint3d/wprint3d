@@ -38,6 +38,51 @@ detect_sudo_askpass_program() {
     return 1;
 }
 
+sudo_requires_authentication() {
+    local stderr_output="${1:-}";
+
+    [[ "$stderr_output" == *'a password is required'* ]] \
+        || [[ "$stderr_output" == *'a terminal is required'* ]] \
+        || [[ "$stderr_output" == *'no tty present and no askpass program specified'* ]] \
+        || [[ "$stderr_output" == *'sorry, you must have a tty to run sudo'* ]];
+}
+
+RUN_WITH_SUDO_NONINTERACTIVE_AUTH_REQUIRED=0;
+
+run_with_sudo_noninteractive() {
+    local stderr_file;
+    local exit_code;
+    local stderr_output='';
+
+    RUN_WITH_SUDO_NONINTERACTIVE_AUTH_REQUIRED=0;
+
+    stderr_file="$(mktemp)";
+
+    sudo -n "$@" 2> "$stderr_file";
+    exit_code=$?;
+
+    if [[ -f "$stderr_file" ]]; then
+        stderr_output="$(cat "$stderr_file")";
+        rm -f "$stderr_file";
+    fi;
+
+    if [[ "$exit_code" -eq 0 ]]; then
+        return 0;
+    fi;
+
+    if sudo_requires_authentication "$stderr_output"; then
+        RUN_WITH_SUDO_NONINTERACTIVE_AUTH_REQUIRED=1;
+
+        return "$exit_code";
+    fi;
+
+    if [[ -n "$stderr_output" ]]; then
+        printf '%s\n' "$stderr_output" >&2;
+    fi;
+
+    return "$exit_code";
+}
+
 apt_lock_is_held() {
     local apt_lock_paths=(
         /var/lib/dpkg/lock-frontend
@@ -84,6 +129,7 @@ wait_for_apt_lock() {
 
 run_with_elevation() {
     local askpass_program;
+    local sudo_exit_code;
 
     if [[ "${EUID:-1}" -eq 0 ]]; then
         "$@";
@@ -92,10 +138,15 @@ run_with_elevation() {
     fi;
 
     if command -v sudo > /dev/null 2>&1; then
-        if sudo -n true > /dev/null 2>&1; then
-            sudo "$@";
+        run_with_sudo_noninteractive "$@";
+        sudo_exit_code=$?;
 
-            return $?;
+        if [[ "$sudo_exit_code" -eq 0 ]]; then
+            return 0;
+        fi;
+
+        if [[ "${RUN_WITH_SUDO_NONINTERACTIVE_AUTH_REQUIRED:-0}" -ne 1 ]]; then
+            return "$sudo_exit_code";
         fi;
 
         if { exec 3<> /dev/tty; } 2> /dev/null; then
@@ -144,13 +195,25 @@ run_with_elevation() {
 
 prime_elevated_access() {
     local askpass_program;
+    local sudo_exit_code;
 
     if [[ "${EUID:-1}" -eq 0 ]]; then
         return 0;
     fi;
 
     if command -v sudo > /dev/null 2>&1; then
-        if sudo -n true > /dev/null 2>&1; then
+        if [[ "$#" -gt 0 ]]; then
+            run_with_sudo_noninteractive "$@" > /dev/null;
+            sudo_exit_code=$?;
+
+            if [[ "$sudo_exit_code" -eq 0 ]]; then
+                return 0;
+            fi;
+
+            if [[ "${RUN_WITH_SUDO_NONINTERACTIVE_AUTH_REQUIRED:-0}" -ne 1 ]]; then
+                return "$sudo_exit_code";
+            fi;
+        elif sudo -n true > /dev/null 2>&1; then
             return 0;
         fi;
 
@@ -332,6 +395,12 @@ detect_host_compose_command() {
 
     case "$runtime" in
         podman)
+            if command -v podman-compose > /dev/null 2>&1; then
+                DETECTED_HOST_COMPOSE_COMMAND='podman-compose';
+
+                return 0;
+            fi;
+
             compose_output="$(run_podman_host_command compose version 2>&1)" || compose_output='';
 
             if [[ "$compose_output" != '' ]] && [[ "$compose_output" != *'Executing external compose provider'* ]]; then
@@ -342,12 +411,6 @@ detect_host_compose_command() {
 
             if [[ "$compose_output" == *'Executing external compose provider'* ]]; then
                 echo 'Detected a Docker-backed external compose provider behind `podman compose`.' >&2;
-            fi;
-
-            if command -v podman-compose > /dev/null 2>&1; then
-                DETECTED_HOST_COMPOSE_COMMAND='podman-compose';
-
-                return 0;
             fi;
 
             if install_podman_compose_automatically; then
@@ -577,10 +640,11 @@ run_podman_host_command() {
 run_podman_rootful_command() {
     local command="$1";
     shift;
-
-    local env_args=("PATH=$PATH" "PWD=$PWD");
+    local env_file='';
+    local cleanup_env_file=0;
     local var_name;
     local passthrough_vars=(
+        PWD
         CONTAINER_SOCKET_PATH
         CONTAINER_LOG_DRIVER
         IN_CONTAINER_CLI
@@ -590,25 +654,38 @@ run_podman_rootful_command() {
         HOST_PODMAN_ROOTFUL
     );
 
-    for var_name in "${passthrough_vars[@]}"; do
-        if [[ -n "${!var_name+x}" ]]; then
-            env_args+=("${var_name}=${!var_name}");
-        fi;
-    done;
-
     if [[ "$command" == 'compose' ]]; then
         if [[ "${HOST_COMPOSE_COMMAND:-}" == 'podman-compose' ]]; then
-            run_with_elevation env "${env_args[@]}" podman-compose "$@";
+            env_file="$(mktemp)";
+            cleanup_env_file=1;
 
-            return $?;
+            if [[ -f "${SCRIPT_PATH}/.env" ]]; then
+                cat "${SCRIPT_PATH}/.env" > "$env_file";
+                printf '\n' >> "$env_file";
+            fi;
+
+            for var_name in "${passthrough_vars[@]}"; do
+                if [[ -n "${!var_name+x}" ]]; then
+                    printf '%s=%s\n' "$var_name" "${!var_name}" >> "$env_file";
+                fi;
+            done;
+
+            run_with_elevation podman-compose --env-file "$env_file" "$@";
+            local compose_exit_code=$?;
+
+            if [[ "$cleanup_env_file" -eq 1 ]] && [[ -f "$env_file" ]]; then
+                rm -f "$env_file";
+            fi;
+
+            return "$compose_exit_code";
         fi;
 
-        run_with_elevation env "${env_args[@]}" podman compose "$@";
+        run_with_elevation podman compose "$@";
 
         return $?;
     fi;
 
-    run_with_elevation env "${env_args[@]}" podman "$command" "$@";
+    run_with_elevation podman "$command" "$@";
 }
 
 migrate_docker_volumes_to_podman() {

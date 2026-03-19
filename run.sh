@@ -95,21 +95,36 @@ ensure_podman_development_ports_supported() {
 }
 
 prepare_startup_elevation() {
-    local needs_elevation='false';
+    local needs_generic_elevation='false';
+    local needs_podman_probe='false';
 
     if podman_rootful_enabled; then
-        needs_elevation='true';
+        if command -v podman > /dev/null 2>&1; then
+            needs_podman_probe='true';
+        else
+            needs_generic_elevation='true';
+        fi;
     fi;
 
     if [[ -r /proc/sys/fs/inotify/max_user_watches ]] && [[ $(cat /proc/sys/fs/inotify/max_user_watches) -lt 65536 ]]; then
-        needs_elevation='true';
+        needs_generic_elevation='true';
     fi;
 
-    if [[ "$needs_elevation" != 'true' ]]; then
+    if [[ "$needs_generic_elevation" == 'true' ]]; then
+        prime_elevated_access;
+
+        return $?;
+    fi;
+
+    if [[ "$needs_podman_probe" == 'true' ]]; then
+        prime_elevated_access podman info --format '{{.Host.Security.Rootless}}';
+
+        return $?;
+    fi;
+
+    if [[ "$needs_generic_elevation" != 'true' ]] && [[ "$needs_podman_probe" != 'true' ]]; then
         return 0;
     fi;
-
-    prime_elevated_access;
 }
 
 if [[ "$2" != 'dev' ]]; then

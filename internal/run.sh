@@ -18,9 +18,11 @@ mkdir -p /var/www/storage/{app/{gcode,recordings,public,plugins},framework/{cach
 if [[ "${DEVELOPER_MODE}" == 'true' ]]; then
     export WPRINT3D_OPCACHE_REVALIDATE_FREQ=2
     export WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS=1
+    export WPRINT3D_OPCACHE_ENABLE_CLI=0
 else
     export WPRINT3D_OPCACHE_REVALIDATE_FREQ=0
     export WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS=0
+    export WPRINT3D_OPCACHE_ENABLE_CLI=1
 fi
 
 # Generate OPcache configuration from template (substitutes env vars)

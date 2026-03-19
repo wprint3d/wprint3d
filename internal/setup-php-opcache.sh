@@ -2,12 +2,22 @@
 # Generates php-opcache.ini from template using environment variable substitution
 # PHP INI files don't support ${VAR} syntax, so we use envsubst
 
-TEMPLATE_FILE="/var/www/internal/php-opcache.ini.template"
-OUTPUT_FILE="/usr/local/etc/php/conf.d/opcache.ini"
+TEMPLATE_FILE="${TEMPLATE_FILE:-/var/www/internal/php-opcache.ini.template}"
+OUTPUT_FILE="${OUTPUT_FILE:-/usr/local/etc/php/conf.d/opcache.ini}"
 
 # Default values if not set
 export WPRINT3D_OPCACHE_REVALIDATE_FREQ="${WPRINT3D_OPCACHE_REVALIDATE_FREQ:-0}"
 export WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS="${WPRINT3D_OPCACHE_VALIDATE_TIMESTAMPS:-0}"
+
+if [[ -z "${WPRINT3D_OPCACHE_ENABLE_CLI+x}" ]]; then
+    if [[ "${DEVELOPER_MODE:-false}" == 'true' ]]; then
+        export WPRINT3D_OPCACHE_ENABLE_CLI="0"
+    else
+        export WPRINT3D_OPCACHE_ENABLE_CLI="1"
+    fi
+else
+    export WPRINT3D_OPCACHE_ENABLE_CLI
+fi
 
 # Disable OPcache preload for all roles:
 # - server: Octane/Swoole keeps classes resident, preload conflicts with Swoole

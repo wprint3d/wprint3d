@@ -8,7 +8,7 @@
 
 ; Enable OPcache for both web and CLI (Artisan commands)
 opcache.enable=1
-opcache.enable_cli=1
+opcache.enable_cli=${WPRINT3D_OPCACHE_ENABLE_CLI}
 
 ; Memory allocated for OPcache - 128MB sufficient for Laravel
 opcache.memory_consumption=128
