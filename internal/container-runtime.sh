@@ -10,7 +10,7 @@ podman_rootful_enabled() {
 
 DETECTED_HOST_CONTAINER_RUNTIME='';
 DETECTED_HOST_COMPOSE_COMMAND='';
-HOST_PODMAN_ROOTFUL=0;
+HOST_PODMAN_ROOTFUL="${HOST_PODMAN_ROOTFUL:-0}";
 
 has_graphical_session() {
     [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]];
