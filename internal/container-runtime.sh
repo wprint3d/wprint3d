@@ -11,6 +11,7 @@ podman_rootful_enabled() {
 DETECTED_HOST_CONTAINER_RUNTIME='';
 DETECTED_HOST_COMPOSE_COMMAND='';
 HOST_PODMAN_ROOTFUL="${HOST_PODMAN_ROOTFUL:-0}";
+PODMAN_COMPOSE_SUPPORTS_ENV_FILE="${PODMAN_COMPOSE_SUPPORTS_ENV_FILE:-}";
 
 has_graphical_session() {
     [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]];
@@ -637,12 +638,39 @@ run_podman_host_command() {
     podman "$@";
 }
 
+podman_compose_supports_env_file() {
+    local help_output='';
+
+    if [[ -n "${PODMAN_COMPOSE_SUPPORTS_ENV_FILE:-}" ]]; then
+        [[ "$PODMAN_COMPOSE_SUPPORTS_ENV_FILE" == '1' ]];
+
+        return $?;
+    fi;
+
+    help_output="$(run_with_elevation podman-compose --help 2>&1)" || {
+        PODMAN_COMPOSE_SUPPORTS_ENV_FILE='0';
+
+        return 1;
+    };
+
+    if printf '%s\n' "$help_output" | grep -q -- '--env-file'; then
+        PODMAN_COMPOSE_SUPPORTS_ENV_FILE='1';
+
+        return 0;
+    fi;
+
+    PODMAN_COMPOSE_SUPPORTS_ENV_FILE='0';
+
+    return 1;
+}
+
 run_podman_rootful_command() {
     local command="$1";
     shift;
     local env_file='';
     local compose_exit_code=0;
     local var_name;
+    local -a env_prefix=();
     local compose_passthrough_vars=(
         PWD
         CONTAINER_SOCKET_PATH
@@ -653,20 +681,34 @@ run_podman_rootful_command() {
 
     if [[ "$command" == 'compose' ]]; then
         if [[ "${HOST_COMPOSE_COMMAND:-}" == 'podman-compose' ]]; then
-            env_file="$(mktemp)" || return 1;
+            if podman_compose_supports_env_file; then
+                env_file="$(mktemp)" || return 1;
+
+                for var_name in "${compose_passthrough_vars[@]}"; do
+                    if [[ -n "${!var_name+x}" ]]; then
+                        printf '%s=%s\n' "$var_name" "${!var_name}" >> "$env_file";
+                    fi;
+                done;
+
+                run_with_elevation podman-compose --env-file "$env_file" "$@";
+                compose_exit_code=$?;
+
+                rm -f "$env_file";
+
+                return "$compose_exit_code";
+            fi;
+
+            env_prefix=();
 
             for var_name in "${compose_passthrough_vars[@]}"; do
                 if [[ -n "${!var_name+x}" ]]; then
-                    printf '%s=%s\n' "$var_name" "${!var_name}" >> "$env_file";
+                    env_prefix+=("${var_name}=${!var_name}");
                 fi;
             done;
 
-            run_with_elevation podman-compose --env-file "$env_file" "$@";
-            compose_exit_code=$?;
+            run_with_elevation env "${env_prefix[@]}" podman-compose "$@";
 
-            rm -f "$env_file";
-
-            return "$compose_exit_code";
+            return $?;
         fi;
 
         run_with_elevation podman compose "$@";

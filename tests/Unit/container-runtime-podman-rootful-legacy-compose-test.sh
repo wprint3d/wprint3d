@@ -30,7 +30,7 @@ assert_not_contains() {
     fi
 }
 
-env_file_output="$(
+legacy_output="$(
     TEMP_BIN_DIR="$(mktemp -d)"
     COMMAND_LOG="$TEMP_BIN_DIR/commands.log"
 
@@ -39,7 +39,8 @@ env_file_output="$(
 
 if [[ "$1" == "--help" ]]; then
     cat <<'HELP'
-usage: podman-compose [-h] [-v] [--env-file env_file] [-f file] [-p PROJECT_NAME]
+usage: podman-compose [-h] [-v] [-f file] [-p PROJECT_NAME]
+                      [--podman-path PODMAN_PATH] [--podman-args args]
                       [--dry-run]
                       {help,version,pull,push,build,up,down,ps,run,exec,start,stop,restart,logs}
                       ...
@@ -64,23 +65,6 @@ if [[ "$1" == "-n" ]]; then
 fi
 
 echo "$*" >> "$COMMAND_LOG"
-
-if [[ "$1" == "env" ]]; then
-    echo "sudo: a password is required" >&2
-    exit 1
-fi
-
-if [[ "$1" == --preserve-env=* ]]; then
-    echo "sudo: sorry, you are not allowed to set the following environment variables: PWD" >&2
-    exit 1
-fi
-
-if [[ "$1" == "podman-compose" ]] && [[ "$2" == "--env-file" ]]; then
-    printf 'env_file_contents_begin\n'
-    cat "$3"
-    printf 'env_file_contents_end\n'
-fi
-
 exec "$@"
 EOF
 
@@ -105,7 +89,6 @@ EOF
         export CONTAINER_LOG_DRIVER=k8s-file
         export IN_CONTAINER_CLI=docker
         export IN_CONTAINER_COMPOSE_COMMAND=docker-compose
-        export SCRIPT_PATH="$ROOT_DIR"
 
         run_host_compose ps
 
@@ -113,18 +96,14 @@ EOF
     ' 2>&1
 )"
 
-assert_contains "$env_file_output" "provider_command=--env-file"
-assert_contains "$env_file_output" "provider_socket=/run/podman/podman.sock"
-assert_contains "$env_file_output" "provider_pwd=/home/facuarmo/wprint3d-core"
-assert_contains "$env_file_output" "podman-compose --help"
-assert_contains "$env_file_output" "env_file_contents_begin"
-assert_contains "$env_file_output" "PWD=/home/facuarmo/wprint3d-core"
-assert_contains "$env_file_output" "CONTAINER_SOCKET_PATH=/run/podman/podman.sock"
-assert_contains "$env_file_output" "CONTAINER_LOG_DRIVER=k8s-file"
-assert_contains "$env_file_output" "IN_CONTAINER_CLI=docker"
-assert_contains "$env_file_output" "IN_CONTAINER_COMPOSE_COMMAND=docker-compose"
-assert_contains "$env_file_output" "podman-compose --env-file"
-assert_not_contains "$env_file_output" "--preserve-env="
-assert_not_contains "$env_file_output" " env "
+assert_contains "$legacy_output" "provider_command=ps"
+assert_contains "$legacy_output" "provider_socket=/run/podman/podman.sock"
+assert_contains "$legacy_output" "provider_log_driver=k8s-file"
+assert_contains "$legacy_output" "provider_cli=docker"
+assert_contains "$legacy_output" "provider_compose=docker-compose"
+assert_contains "$legacy_output" "provider_pwd=/home/facuarmo/wprint3d-core"
+assert_contains "$legacy_output" "podman-compose --help"
+assert_contains "$legacy_output" "env PWD=/home/facuarmo/wprint3d-core CONTAINER_SOCKET_PATH=/run/podman/podman.sock CONTAINER_LOG_DRIVER=k8s-file IN_CONTAINER_CLI=docker IN_CONTAINER_COMPOSE_COMMAND=docker-compose podman-compose ps"
+assert_not_contains "$legacy_output" "--env-file"
 
-echo "container-runtime podman rootful env-file checks passed"
+echo "container-runtime podman rootful legacy compose checks passed"
