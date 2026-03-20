@@ -123,7 +123,7 @@ class PluginController extends Controller
             $file = $request->file('package');
 
             if (! $file || ! $file->isValid()) {
-                throw ValidationException::withMessages(['package' => 'The uploaded package is invalid.']);
+                throw ValidationException::withMessages(['package' => __('server.plugins.invalid_upload')]);
             }
 
             return $this->pluginManager->installFromArchive($file->getRealPath(), 'local_upload', [
@@ -137,7 +137,7 @@ class PluginController extends Controller
 
         if ($request->filled('unpackedPath')) {
             if (! $this->developmentModeEnabled()) {
-                throw new AuthorizationException('Unpacked plugin installs are only available in the development environment.');
+                throw new AuthorizationException(__('server.plugins.unpacked_install_development_only'));
             }
 
             return $this->pluginManager->installFromDevelopmentPath($request->string('unpackedPath')->toString());
@@ -152,7 +152,7 @@ class PluginController extends Controller
         }
 
         throw ValidationException::withMessages([
-            'package' => 'Provide a package upload, URL, unpackedPath, or registry pluginId.',
+            'package' => __('server.plugins.install_source_required'),
         ]);
     }
 

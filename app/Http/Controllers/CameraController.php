@@ -35,7 +35,7 @@ class CameraController extends Controller
         $camera = Camera::find($id);
 
         if ($camera->connected) {
-            throw ValidationException::withMessages([ 'id' => 'Cannot delete a connected camera' ]);
+            throw ValidationException::withMessages([ 'id' => __('server.cameras.cannot_delete_connected') ]);
         }
 
         $camera->delete();
@@ -52,13 +52,13 @@ class CameraController extends Controller
         $camera = Camera::find($id);
 
         if (!$camera) {
-            throw ValidationException::withMessages([ 'id' => 'No such camera' ]);
+            throw ValidationException::withMessages([ 'id' => __('server.cameras.not_found') ]);
         }
 
         $nextFormat = $request->get('format');
 
         if (!in_array($nextFormat, $camera->availableFormats)) {
-            throw ValidationException::withMessages([ 'format' => 'The camera doesn\'t support this format' ]);
+            throw ValidationException::withMessages([ 'format' => __('server.cameras.unsupported_format') ]);
         }
 
         $camera->format = $nextFormat;
@@ -114,7 +114,7 @@ class CameraController extends Controller
         $camera = Camera::find($id);
 
         if (! $camera) {
-            throw ValidationException::withMessages([ 'id' => 'No such camera' ]);
+            throw ValidationException::withMessages([ 'id' => __('server.cameras.not_found') ]);
         }
 
         $captureEncoding = strtoupper($request->get('captureEncoding'));

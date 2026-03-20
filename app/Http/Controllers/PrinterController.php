@@ -55,11 +55,11 @@ class PrinterController extends Controller
 
     private function checkConnectivityOrFail(?Printer $printer): void {
         if (!$printer) {
-            throw ValidationException::withMessages([ 'printer' => 'No such printer.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.not_found') ]);
         }
 
         if (!$printer->connected) {
-            throw ValidationException::withMessages([ 'printer' => 'Couldn\'t complete action: this printer is not connected.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.not_connected') ]);
         }
     }
 
@@ -102,11 +102,11 @@ class PrinterController extends Controller
         if (!$printer) { return response('', Response::HTTP_NOT_FOUND); }
 
         if ($printer->activeFile) {
-            throw ValidationException::withMessages([ 'printer' => 'Couldn\'t complete action: there\'s an active file.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.active_file_exists') ]);
         }
 
         if ($printer->connected) {
-            throw ValidationException::withMessages([ 'printer' => 'Couldn\'t complete action: this printer is connected.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.connected') ]);
         }
 
         $printer->delete();
@@ -118,7 +118,7 @@ class PrinterController extends Controller
         $material = $request->user()->materials()->find($materialId);
 
         if (!$material) {
-            throw ValidationException::withMessages([ 'materialId' => 'No such material.' ]);
+            throw ValidationException::withMessages([ 'materialId' => __('server.materials.not_found') ]);
         }
 
         $printer = $request->printer;
@@ -143,7 +143,7 @@ class PrinterController extends Controller
         $command = $request->input('command');
 
         if (empty( trim($command) )) {
-            throw ValidationException::withMessages([ 'command' => 'Can\'t queue an empty command.' ]);
+            throw ValidationException::withMessages([ 'command' => __('server.commands.empty') ]);
         }
 
         $printer = $request->printer;
@@ -292,11 +292,11 @@ class PrinterController extends Controller
         $printer = $request->printer;
 
         if (!$printer->connected) {
-            throw ValidationException::withMessages([ 'startLine' => 'Couldn\'t complete action: this printer is not connected.' ]);
+            throw ValidationException::withMessages([ 'startLine' => __('server.printers.not_connected') ]);
         }
 
         if (!$printer->activeFile) {
-            throw ValidationException::withMessages([ 'startLine' => 'Couldn\'t complete action: there\'s no active file.' ]);
+            throw ValidationException::withMessages([ 'startLine' => __('server.printers.no_active_file') ]);
         }
 
         $gcode = $this->gcodeStorage->getDriver()->readStream($printer->activeFile);
@@ -320,17 +320,17 @@ class PrinterController extends Controller
         }
 
         if (!$this->gcodeStorage->exists($fileName)) {
-            throw ValidationException::withMessages([ 'fileName' => 'No such file.' ]);
+            throw ValidationException::withMessages([ 'fileName' => __('server.files.not_found') ]);
         }
 
         $printer = $request->printer;
 
         if (!$printer->connected) {
-            throw ValidationException::withMessages([ 'fileName' => 'Couldn\'t complete action: this printer is not connected.' ]);
+            throw ValidationException::withMessages([ 'fileName' => __('server.printers.not_connected') ]);
         }
 
         if ($printer->activeFile) {
-            throw ValidationException::withMessages([ 'fileName' => 'Couldn\'t complete action: an active file is already present.' ]);
+            throw ValidationException::withMessages([ 'fileName' => __('server.printers.active_file_already_present') ]);
         }
 
         // Reset the printer's paused state in case it was left paused.
@@ -356,7 +356,7 @@ class PrinterController extends Controller
         $this->checkConnectivityOrFail($printer);
 
         if (!$printer->activeFile) {
-            throw ValidationException::withMessages([ 'printer' => 'Couldn\'t complete action: there\'s no active file.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.no_active_file') ]);
         }
 
         $printer->pause();
@@ -368,7 +368,7 @@ class PrinterController extends Controller
         $this->checkConnectivityOrFail($printer);
 
         if (!$printer->activeFile) {
-            throw ValidationException::withMessages([ 'printer' => 'Couldn\'t complete action: there\'s no active file.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.no_active_file') ]);
         }
 
         $printer->resume();
@@ -380,7 +380,7 @@ class PrinterController extends Controller
         $this->checkConnectivityOrFail($printer);
 
         if (!$printer->activeFile) {
-            throw ValidationException::withMessages([ 'printer' => 'Couldn\'t complete action: there\'s no active file.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.no_active_file') ]);
         }
 
         $printer->hasActiveJob = false;
@@ -412,7 +412,7 @@ class PrinterController extends Controller
         $this->checkConnectivityOrFail($printer);
 
         if (!$printer->activeFile) {
-            throw ValidationException::withMessages([ 'printer' => 'Couldn\'t complete action: there\'s no active file.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.no_active_file') ]);
         }
 
         $jobRestorationHomingTemperature = Configuration::get('jobRestorationHomingTemperature');
@@ -420,17 +420,17 @@ class PrinterController extends Controller
         $streamMaxLengthBytes = Configuration::get('streamMaxLengthBytes');
 
         if (mapperIsRunning()) {
-            throw ValidationException::withMessages([ 'printer' => 'Couldn\'t complete action: the mapper is running, please try again in a few seconds.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.mapper_running') ]);
         }
 
         $printer->refresh();
 
         if (!$printer->connected) {
-            throw ValidationException::withMessages([ 'printer' => 'Couldn\'t complete action: this printer is not connected.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.not_connected') ]);
         }
 
         if (!$printer->node) {
-            throw ValidationException::withMessages([ 'printer' => 'we don\'t know about this printer\'s node, please unplug the USB cable and plug it back in, then, wait a few seconds and try again.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.unknown_node') ]);
         }
 
         $preWarmUpCommands  = [];
@@ -585,7 +585,7 @@ class PrinterController extends Controller
 
                         unlink( $absolutePath );    // delete the file
 
-                        throw ValidationException::withMessages([ 'printer' => 'Failed to assert absolute position (not enough context in G-code).' ]);
+                        throw ValidationException::withMessages([ 'printer' => __('server.printers.failed_assert_absolute_position') ]);
                     }
                 }
             }
@@ -754,19 +754,19 @@ class PrinterController extends Controller
         $feedrate  = $request->input('feedrate');
 
         if (empty( trim($direction) )) {
-            throw ValidationException::withMessages([ 'direction' => 'Can\'t queue an empty direction.' ]);
+            throw ValidationException::withMessages([ 'direction' => __('server.directions.empty') ]);
         }
 
         if (!strlen($distance)) {
-            throw ValidationException::withMessages([ 'distance' => 'Can\'t queue a command without a distance.' ]);
+            throw ValidationException::withMessages([ 'distance' => __('server.commands.distance_required') ]);
         }
 
         if (!strlen($feedrate)) {
-            throw ValidationException::withMessages([ 'feedrate' => 'Can\'t queue a command without a feedrate.' ]);
+            throw ValidationException::withMessages([ 'feedrate' => __('server.commands.feedrate_required') ]);
         }
 
         if (!ControlDirection::hasKey($direction)) {
-            throw ValidationException::withMessages([ 'direction' => 'Invalid direction.' ]);
+            throw ValidationException::withMessages([ 'direction' => __('server.directions.invalid') ]);
         }
 
         $command = Str::replace(
@@ -778,7 +778,7 @@ class PrinterController extends Controller
         $printer = $request->printer;
 
         if (!$printer->connected) {
-            throw ValidationException::withMessages([ 'command' => 'Couldn\'t queue command: this printer is not connected.' ]);
+            throw ValidationException::withMessages([ 'command' => __('server.commands.not_connected') ]);
         }
 
         Log::info( __METHOD__ . ': ' . json_encode(request()->all()) );
@@ -796,17 +796,17 @@ class PrinterController extends Controller
         $distance = $request->input('distance');
 
         if (!strlen($extruder)) {
-            throw ValidationException::withMessages([ 'extruder' => 'Can\'t queue a command without an extruder.' ]);
+            throw ValidationException::withMessages([ 'extruder' => __('server.commands.extruder_required') ]);
         }
 
         if (!strlen($distance)) {
-            throw ValidationException::withMessages([ 'distance' => 'Can\'t queue a command without a distance.' ]);
+            throw ValidationException::withMessages([ 'distance' => __('server.commands.distance_required') ]);
         }
 
         $printer = $request->printer;
 
         if (!$printer->connected) {
-            throw ValidationException::withMessages([ 'direction' => 'Couldn\'t queue command: this printer is not connected.' ]);
+            throw ValidationException::withMessages([ 'direction' => __('server.commands.not_connected') ]);
         }
 
         $feedrate = Configuration::get('controlExtrusionFeedrate');
@@ -826,17 +826,17 @@ class PrinterController extends Controller
         $distance = $request->input('distance');
 
         if (!strlen($extruder)) {
-            throw ValidationException::withMessages([ 'extruder' => 'Can\'t queue a command without an extruder.' ]);
+            throw ValidationException::withMessages([ 'extruder' => __('server.commands.extruder_required') ]);
         }
 
         if (!strlen($distance)) {
-            throw ValidationException::withMessages([ 'distance' => 'Can\'t queue a command without a distance.' ]);
+            throw ValidationException::withMessages([ 'distance' => __('server.commands.distance_required') ]);
         }
 
         $printer = $request->printer;
 
         if (!$printer->connected) {
-            throw ValidationException::withMessages([ 'direction' => 'Couldn\'t queue command: this printer is not connected.' ]);
+            throw ValidationException::withMessages([ 'direction' => __('server.commands.not_connected') ]);
         }
 
         $feedrate = Configuration::get('controlExtrusionFeedrate');
@@ -855,17 +855,17 @@ class PrinterController extends Controller
         $temperature = $request->input('temperature');
 
         if (!strlen($temperature)) {
-            throw ValidationException::withMessages([ 'temperature' => 'Can\'t queue a command without a temperature.' ]);
+            throw ValidationException::withMessages([ 'temperature' => __('server.commands.temperature_required') ]);
         }
 
         if (!is_numeric($temperature)) {
-            throw ValidationException::withMessages([ 'temperature' => 'Temperature must be a number.' ]);
+            throw ValidationException::withMessages([ 'temperature' => __('server.commands.temperature_numeric') ]);
         }
 
         $printer = $request->printer;
 
         if (!$printer->connected) {
-            throw ValidationException::withMessages([ 'temperature' => 'Couldn\'t queue command: this printer is not connected.' ]);
+            throw ValidationException::withMessages([ 'temperature' => __('server.commands.not_connected') ]);
         }
 
         $printer->queueCommand("M104 S{$temperature}");
@@ -875,17 +875,17 @@ class PrinterController extends Controller
         $temperature = $request->input('temperature');
 
         if (!strlen($temperature)) {
-            throw ValidationException::withMessages([ 'temperature' => 'Can\'t queue a command without a temperature.' ]);
+            throw ValidationException::withMessages([ 'temperature' => __('server.commands.temperature_required') ]);
         }
 
         if (!is_numeric($temperature)) {
-            throw ValidationException::withMessages([ 'temperature' => 'Temperature must be a number.' ]);
+            throw ValidationException::withMessages([ 'temperature' => __('server.commands.temperature_numeric') ]);
         }
 
         $printer = $request->printer;
 
         if (!$printer->connected) {
-            throw ValidationException::withMessages([ 'temperature' => 'Couldn\'t queue command: this printer is not connected.' ]);
+            throw ValidationException::withMessages([ 'temperature' => __('server.commands.not_connected') ]);
         }
 
         $printer->queueCommand("M140 S{$temperature}");
@@ -917,7 +917,7 @@ class PrinterController extends Controller
         $video = $request->printer->videos()->find($recordingId);
 
         if (!$video) {
-            throw ValidationException::withMessages([ 'recordingId' => 'No such recording.' ]);
+            throw ValidationException::withMessages([ 'recordingId' => __('server.recordings.not_found') ]);
         }
 
         $disk = Storage::disk('recordings');
@@ -932,7 +932,7 @@ class PrinterController extends Controller
         $camera = Camera::find($cameraId);
 
         if (!$camera) {
-            throw ValidationException::withMessages([ 'cameraId' => 'No such camera.' ]);
+            throw ValidationException::withMessages([ 'cameraId' => __('server.cameras.not_found') ]);
         }
 
         $printer = $request->printer;
@@ -955,7 +955,7 @@ class PrinterController extends Controller
         $camera = Camera::find($cameraId);
 
         if (!$camera) {
-            throw ValidationException::withMessages([ 'cameraId' => 'No such camera.' ]);
+            throw ValidationException::withMessages([ 'cameraId' => __('server.cameras.not_found') ]);
         }
 
         $printer = $request->printer;
@@ -977,7 +977,7 @@ class PrinterController extends Controller
         $camera = Camera::find($cameraId);
 
         if (!$camera) {
-            throw ValidationException::withMessages([ 'cameraId' => 'No such camera.' ]);
+            throw ValidationException::withMessages([ 'cameraId' => __('server.cameras.not_found') ]);
         }
 
         $printer = $request->printer;
@@ -1000,7 +1000,7 @@ class PrinterController extends Controller
         $camera = Camera::find($cameraId);
 
         if (!$camera) {
-            throw ValidationException::withMessages([ 'cameraId' => 'No such camera.' ]);
+            throw ValidationException::withMessages([ 'cameraId' => __('server.cameras.not_found') ]);
         }
 
         $printer = $request->printer;

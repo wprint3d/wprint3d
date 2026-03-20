@@ -31,13 +31,13 @@ class UsersController extends Controller
 
     public function get(string $userId): User {
         if (!$this->me->role === UserRole::ADMINISTRATOR) {
-            throw ValidationException::withMessages([ 'role' => 'You don\'t have the required permissions.' ]);
+            throw ValidationException::withMessages([ 'role' => __('server.users.permission_denied') ]);
         }
 
         $user = User::find($userId);
 
         if (!$user) {
-            throw ValidationException::withMessages([ 'userId' => 'No such user.' ]);
+            throw ValidationException::withMessages([ 'userId' => __('server.users.not_found') ]);
         }
 
         return $user;
@@ -51,7 +51,7 @@ class UsersController extends Controller
         ]);
 
         if (!$this->me->role === UserRole::ADMINISTRATOR) {
-            throw ValidationException::withMessages([ 'role' => 'You don\'t have the required permissions.' ]);
+            throw ValidationException::withMessages([ 'role' => __('server.users.permission_denied') ]);
         }
 
         $name     = $request->get('username');
@@ -60,11 +60,11 @@ class UsersController extends Controller
         $password = Diceware::generate();
 
         if (User::where('name', $name)->exists()) {
-            throw ValidationException::withMessages([ 'username' => 'The specified name is already in use.' ]);
+            throw ValidationException::withMessages([ 'username' => __('server.users.name_in_use') ]);
         }
 
         if (User::where('email', $email)->exists()) {
-            throw ValidationException::withMessages([ 'email' => 'The specified email is already in use.' ]);
+            throw ValidationException::withMessages([ 'email' => __('server.users.email_in_use') ]);
         }
 
         $user = new User();
@@ -89,11 +89,11 @@ class UsersController extends Controller
         ]);
 
         if (!$this->me->role === UserRole::ADMINISTRATOR) {
-            throw ValidationException::withMessages([ 'role' => 'You don\'t have the required permissions.' ]);
+            throw ValidationException::withMessages([ 'role' => __('server.users.permission_denied') ]);
         }
 
         if (!User::find($userId)) {
-            throw ValidationException::withMessages([ 'userId' => 'No such user.' ]);
+            throw ValidationException::withMessages([ 'userId' => __('server.users.not_found') ]);
         }
 
         $userId = new ObjectId($userId);
@@ -103,17 +103,17 @@ class UsersController extends Controller
         $nextRole     = $request->get('role');
 
         if (User::where('name', $nextUsername)->where('_id', '!=', $userId)->exists()) {
-            throw ValidationException::withMessages([ 'name' => 'The specified name is already in use.' ]);
+            throw ValidationException::withMessages([ 'name' => __('server.users.name_in_use') ]);
         }
 
         if (User::where('email', $nextEmail)->where('_id', '!=', $userId)->exists()) {
-            throw ValidationException::withMessages([ 'email' => 'The specified email is already in use.' ]);
+            throw ValidationException::withMessages([ 'email' => __('server.users.email_in_use') ]);
         }
 
         $user = User::find($userId);
 
         if (($user->deletable ?? true) === false && $nextRole !== $user->role) {
-            throw ValidationException::withMessages([ 'role' => 'You can\'t change the role of this user.' ]);
+            throw ValidationException::withMessages([ 'role' => __('server.users.role_change_forbidden') ]);
         }
 
         $user->name  = $nextUsername;
@@ -126,11 +126,11 @@ class UsersController extends Controller
 
     public function resetPassword(Request $request, string $userId): array {
         if (!$this->me->role === UserRole::ADMINISTRATOR) {
-            throw ValidationException::withMessages([ 'role' => 'You don\'t have the required permissions.' ]);
+            throw ValidationException::withMessages([ 'role' => __('server.users.permission_denied') ]);
         }
 
         if (!User::find($userId)) {
-            throw ValidationException::withMessages([ 'userId' => 'No such user.' ]);
+            throw ValidationException::withMessages([ 'userId' => __('server.users.not_found') ]);
         }
 
         $password = Diceware::generate();
@@ -148,17 +148,17 @@ class UsersController extends Controller
 
     public function delete(string $userId): void {
         if (!$this->me->role === UserRole::ADMINISTRATOR) {
-            throw ValidationException::withMessages([ 'role' => 'You don\'t have the required permissions.' ]);
+            throw ValidationException::withMessages([ 'role' => __('server.users.permission_denied') ]);
         }
 
         if (!User::find($userId)) {
-            throw ValidationException::withMessages([ 'userId' => 'No such user.' ]);
+            throw ValidationException::withMessages([ 'userId' => __('server.users.not_found') ]);
         }
 
         $user = User::find($userId);
 
         if (($user->deletable ?? true) === false) {
-            throw ValidationException::withMessages([ 'userId' => 'You can\'t delete this user.' ]);
+            throw ValidationException::withMessages([ 'userId' => __('server.users.delete_forbidden') ]);
         }
 
         $user->delete();
@@ -166,7 +166,7 @@ class UsersController extends Controller
 
     public function index(): Collection {
         if (!$this->me->role === UserRole::ADMINISTRATOR) {
-            throw ValidationException::withMessages([ 'role' => 'You don\'t have the required permissions.' ]);
+            throw ValidationException::withMessages([ 'role' => __('server.users.permission_denied') ]);
         }
 
         return User::all();

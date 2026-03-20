@@ -72,14 +72,14 @@ class UserController extends Controller
             'temperatures.hotend' => 'required|integer',
             'temperatures.bed' => 'required|integer',
         ], [
-            'temperatures.hotend.required' => 'The hotend temperature is required.',
-            'temperatures.hotend.integer' => 'The hotend temperature must be an integer.',
-            'temperatures.bed.required' => 'The bed temperature is required.',
-            'temperatures.bed.integer' => 'The bed temperature must be an integer.',
+            'temperatures.hotend.required' => __('server.validation.hotend_required'),
+            'temperatures.hotend.integer' => __('server.validation.hotend_integer'),
+            'temperatures.bed.required' => __('server.validation.bed_required'),
+            'temperatures.bed.integer' => __('server.validation.bed_integer'),
         ]);
 
         if ($this->user->materials()->where('name', $request->get('name'))->exists()) {
-            throw ValidationException::withMessages(['name' => 'Another material with the same name already exists.']);
+            throw ValidationException::withMessages(['name' => __('server.materials.duplicate_name')]);
         }
 
         return $this->user->materials()->create([
@@ -104,16 +104,16 @@ class UserController extends Controller
             'temperatures.hotend' => 'required|integer',
             'temperatures.bed' => 'required|integer',
         ], [
-            'temperatures.hotend.required' => 'The hotend temperature is required.',
-            'temperatures.hotend.integer' => 'The hotend temperature must be an integer.',
-            'temperatures.bed.required' => 'The bed temperature is required.',
-            'temperatures.bed.integer' => 'The bed temperature must be an integer.',
+            'temperatures.hotend.required' => __('server.validation.hotend_required'),
+            'temperatures.hotend.integer' => __('server.validation.hotend_integer'),
+            'temperatures.bed.required' => __('server.validation.bed_required'),
+            'temperatures.bed.integer' => __('server.validation.bed_integer'),
         ]);
 
         $material = $this->user->materials()->find($id);
 
         if (! $material) {
-            throw ValidationException::withMessages(['id' => 'No such material.']);
+            throw ValidationException::withMessages(['id' => __('server.materials.not_found')]);
         }
 
         $material->name = $request->get('name');
@@ -137,7 +137,7 @@ class UserController extends Controller
         $material = $this->user->materials()->find($id);
 
         if (! $material) {
-            throw ValidationException::withMessages(['id' => 'No such material.']);
+            throw ValidationException::withMessages(['id' => __('server.materials.not_found')]);
         }
 
         $material->delete();
@@ -163,7 +163,7 @@ class UserController extends Controller
         $printer = Printer::find($request->get('id'));
 
         if (! $printer) {
-            throw ValidationException::withMessages(['id' => 'No such printer.']);
+            throw ValidationException::withMessages(['id' => __('server.printers.not_found')]);
         }
 
         return [
@@ -234,7 +234,7 @@ class UserController extends Controller
         }
 
         if (Printer::where('activeFile', $path)->exists()) {
-            throw ValidationException::withMessages(['fileName' => 'The file is currently in use.']);
+            throw ValidationException::withMessages(['fileName' => __('server.files.in_use')]);
         }
 
         Storage::disk('gcode')->delete($path);
@@ -270,13 +270,13 @@ class UserController extends Controller
         $disk = Storage::disk('gcode');
 
         if ($disk->exists($newName)) {
-            throw ValidationException::withMessages(['newName' => 'File already exists.']);
+            throw ValidationException::withMessages(['newName' => __('server.files.already_exists')]);
         }
 
         $didMove = $disk->move($oldName, $newName);
 
         if (! $didMove) {
-            throw ValidationException::withMessages(['oldName' => 'Couldn\'t rename file.']);
+            throw ValidationException::withMessages(['oldName' => __('server.files.rename_failed')]);
         }
 
         $file = File::where('fileName', $oldName)->first();
@@ -306,7 +306,7 @@ class UserController extends Controller
             $storedFileName = "{$subDirectory}/{$baseName}";
 
             if ($disk->exists($storedFileName)) {
-                throw ValidationException::withMessages(['files' => 'the file already exists.']);
+                throw ValidationException::withMessages(['files' => __('server.files.upload_already_exists')]);
             }
 
             $disk->put($storedFileName, $file->get());
@@ -335,7 +335,7 @@ class UserController extends Controller
         $disk = Storage::disk('gcode');
 
         if ($disk->exists($name)) {
-            throw ValidationException::withMessages(['name' => 'The directory already exists.']);
+            throw ValidationException::withMessages(['name' => __('server.directories.already_exists')]);
         }
 
         $disk->makeDirectory($name);
@@ -359,11 +359,11 @@ class UserController extends Controller
         $disk = Storage::disk('gcode');
 
         if (! $disk->exists($name)) {
-            throw ValidationException::withMessages(['name' => 'The directory doesn\'t exist.']);
+            throw ValidationException::withMessages(['name' => __('server.directories.not_found')]);
         }
 
         if (count($disk->files($name))) {
-            throw ValidationException::withMessages(['name' => 'The directory isn\'t empty.']);
+            throw ValidationException::withMessages(['name' => __('server.directories.not_empty')]);
         }
 
         $disk->deleteDirectory($name);
@@ -387,11 +387,11 @@ class UserController extends Controller
         $newPassword = $request->get('newPassword');
 
         if (! Hash::check($currentPassword, $this->user->password)) {
-            throw ValidationException::withMessages(['currentPassword' => 'The current password doesn\'t match with our records.']);
+            throw ValidationException::withMessages(['currentPassword' => __('server.password.current_password_mismatch')]);
         }
 
         if ($currentPassword === $newPassword) {
-            throw ValidationException::withMessages(['newPassword' => 'The new password must be different from the current one.']);
+            throw ValidationException::withMessages(['newPassword' => __('server.password.must_be_different')]);
         }
 
         if ($request->get('logoutOtherDevices')) {
@@ -429,7 +429,7 @@ class UserController extends Controller
         $notification = $this->user->notifications()->byId($id);
 
         if (! $notification) {
-            throw ValidationException::withMessages(['id' => 'No such notification.']);
+            throw ValidationException::withMessages(['id' => __('server.notifications.not_found')]);
         }
 
         $notification->markAsRead();
@@ -440,7 +440,7 @@ class UserController extends Controller
         $notification = $this->user->notifications()->byId($id);
 
         if (! $notification) {
-            throw ValidationException::withMessages(['id' => 'No such notification.']);
+            throw ValidationException::withMessages(['id' => __('server.notifications.not_found')]);
         }
 
         $notification->delete();

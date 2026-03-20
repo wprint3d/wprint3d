@@ -33,7 +33,7 @@ class EnsurePrinterIsAvailable
         $request->{'streamMaxLengthBytes'}  = Configuration::get('streamMaxLengthBytes');
 
         if (!$request->printer) {
-            throw ValidationException::withMessages([ 'printer' => 'No printer selected.' ]);
+            throw ValidationException::withMessages([ 'printer' => __('server.printers.not_selected') ]);
         }
 
         return $next($request);

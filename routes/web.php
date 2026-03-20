@@ -43,7 +43,7 @@ Route::middleware('web')->group(function () {
 
         if (!$user || !Hash::check($request->get('password'), $user->password)) {
             throw ValidationException::withMessages([
-                'email' => [ 'That combination of username or email address and password doesn\'t match our records.' ]
+                'email' => [ __('server.auth.invalid_credentials') ]
             ]);
         }
 
