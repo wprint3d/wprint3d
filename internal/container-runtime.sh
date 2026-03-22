@@ -640,8 +640,9 @@ run_podman_host_command() {
 run_podman_rootful_command() {
     local command="$1";
     shift;
+    local env_file='';
+    local cleanup_env_file=0;
     local var_name;
-    local -a env_prefix=();
     local passthrough_vars=(
         PWD
         CONTAINER_SOCKET_PATH
@@ -655,17 +656,28 @@ run_podman_rootful_command() {
 
     if [[ "$command" == 'compose' ]]; then
         if [[ "${HOST_COMPOSE_COMMAND:-}" == 'podman-compose' ]]; then
-            env_prefix=();
+            env_file="$(mktemp)";
+            cleanup_env_file=1;
+
+            if [[ -f "${SCRIPT_PATH}/.env" ]]; then
+                cat "${SCRIPT_PATH}/.env" > "$env_file";
+                printf '\n' >> "$env_file";
+            fi;
 
             for var_name in "${passthrough_vars[@]}"; do
                 if [[ -n "${!var_name+x}" ]]; then
-                    env_prefix+=("${var_name}=${!var_name}");
+                    printf '%s=%s\n' "$var_name" "${!var_name}" >> "$env_file";
                 fi;
             done;
 
-            run_with_elevation env "${env_prefix[@]}" podman-compose "$@";
+            run_with_elevation podman-compose --env-file "$env_file" "$@";
+            local compose_exit_code=$?;
 
-            return $?;
+            if [[ "$cleanup_env_file" -eq 1 ]] && [[ -f "$env_file" ]]; then
+                rm -f "$env_file";
+            fi;
+
+            return "$compose_exit_code";
         fi;
 
         run_with_elevation podman compose "$@";
