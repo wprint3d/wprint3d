@@ -277,6 +277,7 @@ class PrintGcode implements ShouldQueue
             $exception->getTraceAsString()
         );
 
+        $this->printer->hasActiveJob = false;
         $this->printer->lastJobHasFailed = true;
 
         try {
