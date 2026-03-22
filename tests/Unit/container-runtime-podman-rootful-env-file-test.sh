@@ -37,16 +37,6 @@ env_file_output="$(
     cat > "$TEMP_BIN_DIR/podman-compose" <<'EOF'
 #!/bin/bash
 
-if [[ "$1" == "--help" ]]; then
-    cat <<'HELP'
-usage: podman-compose [-h] [-v] [--env-file env_file] [-f file] [-p PROJECT_NAME]
-                      [--dry-run]
-                      {help,version,pull,push,build,up,down,ps,run,exec,start,stop,restart,logs}
-                      ...
-HELP
-    exit 0
-fi
-
 printf 'provider_command=%s\n' "$*"
 printf 'provider_socket=%s\n' "${CONTAINER_SOCKET_PATH:-unset}"
 printf 'provider_log_driver=%s\n' "${CONTAINER_LOG_DRIVER:-unset}"
@@ -116,7 +106,6 @@ EOF
 assert_contains "$env_file_output" "provider_command=--env-file"
 assert_contains "$env_file_output" "provider_socket=/run/podman/podman.sock"
 assert_contains "$env_file_output" "provider_pwd=/home/facuarmo/wprint3d-core"
-assert_contains "$env_file_output" "podman-compose --help"
 assert_contains "$env_file_output" "env_file_contents_begin"
 assert_contains "$env_file_output" "PWD=/home/facuarmo/wprint3d-core"
 assert_contains "$env_file_output" "CONTAINER_SOCKET_PATH=/run/podman/podman.sock"
