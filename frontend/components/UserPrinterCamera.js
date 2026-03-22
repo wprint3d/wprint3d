@@ -9,6 +9,7 @@ import UserPrinterCameraError from "./UserPrinterCameraError";
 import UserPrinterCameraInformation from "./UserPrinterCameraInformation";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import { useLocalization } from "../includes/LocalizationProvider";
+import { shouldPollCameraStream } from "../utils/cameraStream";
 
 const UserPrinterCamera = ({ url, isConnected, streamsMjpeg = true }) => {
     const image = useRef(null);
@@ -20,7 +21,6 @@ const UserPrinterCamera = ({ url, isConnected, streamsMjpeg = true }) => {
     const [ activeURL,  setActiveURL  ] = useState(null);
     const [ error,      setError      ] = useState(null);
     const [ isLoaded,   setIsLoaded   ] = useState(false);
-    const [ isUpdating, setIsUpdating ] = useState(true);
 
     useEffect(() => {
         if (
@@ -36,20 +36,8 @@ const UserPrinterCamera = ({ url, isConnected, streamsMjpeg = true }) => {
     }, [ url ] );
 
     useEffect(() => {
-        console.debug('UserPrinterCamera: isUpdating:', isUpdating);
-
-        if (streamsMjpeg) {
-            return; // Exit early if MJPEG is supported
-        }
-
-        const interval = setInterval(() => {
-            setActiveURL(`${url}?${new URLSearchParams({ action: 'stream', t: (new Date()).getTime() })}`);
-        }, 1500);
-
-        return () => {
-            clearInterval(interval); // Cleanup the interval when the component unmounts
-        };
-    }, [url, streamsMjpeg]); // Depend on `url` to update the interval if `url` changes
+        console.debug('UserPrinterCamera: shouldPollCameraStream:', shouldPollCameraStream(streamsMjpeg));
+    }, [ streamsMjpeg ]);
 
     useEffect(() => {
         console.debug('UserPrinterCamera: activeURL:', activeURL);
@@ -124,13 +112,11 @@ const UserPrinterCamera = ({ url, isConnected, streamsMjpeg = true }) => {
                         setError(error.error);
 
                         setIsLoaded(true);
-                        setIsUpdating(false);
                     }}
                     onLoad={event   => {
                         console.debug('UserPrinterCamera: event:', event);
 
                         setIsLoaded(true);
-                        setIsUpdating(false);
                     }}
                     style={{
                         height:     (isLoaded ? width / 2 : 0),
