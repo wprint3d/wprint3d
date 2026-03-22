@@ -670,7 +670,7 @@ run_podman_rootful_command() {
                 fi;
             done;
 
-            run_with_elevation podman-compose --env-file "$env_file" "$@";
+            run_with_elevation podman-compose "$@";
             local compose_exit_code=$?;
 
             if [[ "$cleanup_env_file" -eq 1 ]] && [[ -f "$env_file" ]]; then
