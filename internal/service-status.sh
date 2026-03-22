@@ -40,7 +40,7 @@ service_status_for_container() {
     elif [[ "$container_name" == *"scheduler"* ]] && [[ "$container_name" != *"concurrency"* ]]; then
         service_status_matches_process_list "$container_id" cron
     elif [[ "$container_name" == *"mapper"* ]]; then
-        service_status_matches_process_list "$container_id" udevadm || [[ "$(docker inspect --format '{{.State.Status}}' "$container_id" 2> /dev/null)" == 'running' ]]
+        service_status_matches_process_list "$container_id" udev
     elif [[ "$container_name" == *"yv-streamer-software"* ]]; then
         service_status_http_ok 'http://yv-streamer-software:8080/api/v1/health'
     elif [[ "$container_name" == *"streamer"* ]]; then
