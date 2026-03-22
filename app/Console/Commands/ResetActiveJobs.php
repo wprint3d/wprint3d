@@ -3,9 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Printer;
-
 use Illuminate\Console\Command;
-
 use Illuminate\Support\Facades\Log;
 
 class ResetActiveJobs extends Command
@@ -25,22 +23,28 @@ class ResetActiveJobs extends Command
     protected $description = 'Iterate through all available printers and disable all their active jobs. This is meant to be run on boot in order to detect inconsistent states: power outages, kernel panics, etc.';
 
     /**
-     * Execute the console command.
-     *
-     * @return int
+     * Retrieve the printers that should be reconciled at startup.
      */
-    public function handle()
+    protected function getPrinters(): iterable
+    {
+        return Printer::select('hasActiveJob')->cursor();
+    }
+
+    /**
+     * Execute the console command.
+     */
+    public function handle(): int
     {
         $log = Log::channel('jobs-reset');
 
-        foreach (Printer::select('hasActiveJob')->cursor() as $printer) {
+        foreach ($this->getPrinters() as $printer) {
             if (($printer->hasActiveJob ?? false) === false) {
                 $log->debug("[{$printer->_id}] No active job detected, skipping.");
 
                 continue;
             }
 
-            $printer->hasActiveJob     = false;
+            $printer->hasActiveJob = false;
             $printer->lastJobHasFailed = true;
             $printer->save();
 
