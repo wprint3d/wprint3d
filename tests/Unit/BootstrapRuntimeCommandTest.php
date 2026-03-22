@@ -16,24 +16,21 @@ class BootstrapRuntimeCommandTest extends TestCase
         {
             public array $calls = [];
 
-            private string $lastOutput = '';
-
             protected function callNestedCommand(string $command, array $parameters = []): int
             {
                 $this->calls[] = [$command, $parameters];
 
-                $this->lastOutput = match ($command) {
-                    'get:machine-uuid' => '',
-                    'make:machine-uuid' => 'generated-machine-uuid',
-                    default => '',
-                };
-
                 return Command::SUCCESS;
             }
 
-            protected function nestedCommandOutput(): string
+            protected function currentMachineUuid(): string
             {
-                return $this->lastOutput;
+                return '';
+            }
+
+            protected function createMachineUuid(): string
+            {
+                return 'generated-machine-uuid';
             }
 
             protected function isDeveloperMode(): bool
@@ -52,8 +49,6 @@ class BootstrapRuntimeCommandTest extends TestCase
         $this->assertSame(Command::SUCCESS, $result);
         $this->assertSame([
             ['optimize:clear', []],
-            ['get:machine-uuid', []],
-            ['make:machine-uuid', []],
             ['create:sample-user', []],
             ['migrate', ['--force' => true]],
             ['make:marlin-labels', []],
@@ -81,22 +76,16 @@ class BootstrapRuntimeCommandTest extends TestCase
         {
             public array $calls = [];
 
-            private string $lastOutput = '';
-
             protected function callNestedCommand(string $command, array $parameters = []): int
             {
                 $this->calls[] = [$command, $parameters];
 
-                $this->lastOutput = $command === 'get:machine-uuid'
-                    ? 'existing-machine-uuid'
-                    : '';
-
                 return Command::SUCCESS;
             }
 
-            protected function nestedCommandOutput(): string
+            protected function currentMachineUuid(): string
             {
-                return $this->lastOutput;
+                return 'existing-machine-uuid';
             }
 
             protected function isDeveloperMode(): bool
@@ -115,7 +104,6 @@ class BootstrapRuntimeCommandTest extends TestCase
         $this->assertSame(Command::SUCCESS, $result);
         $this->assertSame([
             ['optimize:clear', []],
-            ['get:machine-uuid', []],
             ['create:sample-user', []],
             ['migrate', ['--force' => true]],
             ['reset:active-jobs', []],

@@ -2,8 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Configuration;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class BootstrapRuntime extends Command
 {
@@ -44,10 +47,10 @@ class BootstrapRuntime extends Command
                 return Command::FAILURE;
             }
 
-            $machineUuid = trim((string) $this->runNestedCommand('get:machine-uuid'));
+            $machineUuid = trim($this->currentMachineUuid());
 
             if ($machineUuid === '') {
-                $machineUuid = trim((string) $this->runNestedCommand('make:machine-uuid'));
+                $machineUuid = trim($this->createMachineUuid());
 
                 if ($machineUuid === '') {
                     $this->logError('Failed to generate the machine UUID.');
@@ -129,6 +132,28 @@ class BootstrapRuntime extends Command
     protected function octaneEnabled(): bool
     {
         return filter_var(env('OCTANE_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    protected function currentMachineUuid(): string
+    {
+        return (string) (machineUUID() ?? '');
+    }
+
+    protected function createMachineUuid(): string
+    {
+        $configuration = Configuration::where('key', 'machineUUID')->first();
+
+        if (! $configuration) {
+            $configuration = new Configuration;
+        }
+
+        $configuration->key = 'machineUUID';
+        $configuration->value = Str::uuid()->toString();
+        $configuration->save();
+
+        Cache::put('machineUUID', $configuration->value);
+
+        return (string) $configuration->value;
     }
 
     protected function writeContextFile(string $path, array $context): void

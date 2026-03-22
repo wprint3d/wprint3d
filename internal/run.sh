@@ -158,7 +158,7 @@ refreshDockerLog() {
 
         if [[ -e '/tmp/startup.txt' ]]; then
             CUR_SUM=$(md5sum /tmp/startup.txt | cut -d ' ' -f 1);
-            OLD_SUM=$(md5sum /var/www/internal/startup/startup.txt | cut -d ' ' -f 1);
+            OLD_SUM=$(md5sum /var/www/internal/startup/startup.txt 2> /dev/null | cut -d ' ' -f 1);
 
             if [[ "$CUR_SUM" != "$OLD_SUM" ]]; then
                 cp -f /tmp/startup.txt /var/www/internal/startup/startup.txt;
@@ -167,7 +167,7 @@ refreshDockerLog() {
 
         if [[ -e '/tmp/services.txt' ]]; then
             CUR_SUM=$(md5sum /tmp/services.txt | cut -d ' ' -f 1);
-            OLD_SUM=$(md5sum /var/www/internal/startup/services.txt | cut -d ' ' -f 1);
+            OLD_SUM=$(md5sum /var/www/internal/startup/services.txt 2> /dev/null | cut -d ' ' -f 1);
 
             if [[ "$CUR_SUM" != "$OLD_SUM" ]]; then
                 cp -f /tmp/services.txt /var/www/internal/startup/services.txt;
