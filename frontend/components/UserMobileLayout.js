@@ -63,14 +63,17 @@ const UserMobileLayout = ({
     };
 
     return (
-        <BottomNavigation
-            barStyle={{ backgroundColor: colors.surface }}
-            navigationState={{ index, routes }}
-            onIndexChange={setIndex}
-            renderScene={renderScene}
-            shifting={true}
-            compact={true}
-        />
+        <View style={{ flex: 1, width: '100%', minHeight: 0 }}>
+            <BottomNavigation
+                style={{ flex: 1, width: '100%' }}
+                barStyle={{ backgroundColor: colors.surface }}
+                navigationState={{ index, routes }}
+                onIndexChange={setIndex}
+                renderScene={renderScene}
+                shifting={true}
+                compact={true}
+            />
+        </View>
     );
 }
 

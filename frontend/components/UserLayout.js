@@ -16,6 +16,7 @@ import { BottomNavigation, Text } from "react-native-paper";
 import JobRecoveryModal from "./JobRecoveryModal";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import UserMobileLayout from "./UserMobileLayout";
+import { getUserLayoutRootStyle } from "../utils/userLayout";
 
 export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop }) {
     const dimensions = useWindowDimensions();
@@ -73,6 +74,11 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
             : dimensions.height - navbarHeight - (BASE_PADDING * 2)
     );
 
+    const rootLayoutStyle = getUserLayoutRootStyle({
+        windowWidth: dimensions.width,
+        isSmallTablet
+    });
+
     return (
         <View style={[
             styles.root,
@@ -81,23 +87,7 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
                     ? { paddingHorizontal: (dimensions.width >= 1920 ? 128 : 32) }
                     : {}
             ),
-            {
-                flexWrap: (
-                    dimensions.width <= 425 // mobile large
-                        ? 'wrap'
-                        : 'nowrap'
-                ),
-                flexShrink: (
-                    isSmallTablet
-                        ? 0
-                        : 1
-                ),
-                padding: (
-                    isSmallTablet
-                        ? 0
-                        : 8
-                )
-            }
+            rootLayoutStyle
         ]}>
             <UserPrinterMapProgressSnackbar isRunningMapper={isRunningMapper} />
 
@@ -144,7 +134,6 @@ const styles = StyleSheet.create({
     root: {
         width: '100%',
         display: 'flex',
-        flexDirection: 'row',
         flexGrow: 1,
         gap: 8
     }

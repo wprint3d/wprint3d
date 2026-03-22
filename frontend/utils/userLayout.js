@@ -13,3 +13,13 @@ export function getLeftPaneWidth(windowWidth) {
 
     return "35%";
 }
+
+export function getUserLayoutRootStyle({ windowWidth, isSmallTablet }) {
+    return {
+        flexDirection: isSmallTablet ? "column" : "row",
+        alignItems: "stretch",
+        flexWrap: windowWidth <= 425 ? "wrap" : "nowrap",
+        flexShrink: isSmallTablet ? 0 : 1,
+        padding: isSmallTablet ? 0 : 8,
+    };
+}
