@@ -929,7 +929,16 @@ force_cleanup_stuck_containers() {
         # Nuclear option: force-remove ALL containers on the system
         # This is necessary for headless devices where manual intervention is not possible
         echo "Attempting nuclear cleanup (removing all containers)..."
-        run_host_container_cli rm -f --all > /dev/null 2>&1 || true
+        local all_container_ids=()
+        local nuclear_cid
+        while IFS= read -r nuclear_cid; do
+            [[ -z "$nuclear_cid" ]] && continue;
+            all_container_ids+=("$nuclear_cid");
+        done < <(run_host_container_cli ps -a --format '{{ .ID }}' 2>/dev/null)
+
+        for nuclear_cid in "${all_container_ids[@]}"; do
+            run_host_container_cli rm -f "$nuclear_cid" > /dev/null 2>&1 || true;
+        done
     fi
 
     echo "Cleanup complete."
