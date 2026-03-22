@@ -64,14 +64,6 @@ function parseTerminalTimestamp(dateString) {
     return Date.UTC(year, month - 1, day, hour, minute, second);
 }
 
-function terminalLinePriority(line) {
-    if (line.startsWith('>')) {
-        return 0;
-    }
-
-    return 1;
-}
-
 export function sortTerminalEntries(entries) {
     return entries
         .map((entry, index) => ({
@@ -90,12 +82,6 @@ export function sortTerminalEntries(entries) {
 
             if (left.timestamp === null && right.timestamp !== null) {
                 return 1;
-            }
-
-            const priorityDifference = terminalLinePriority(left.entry.line) - terminalLinePriority(right.entry.line);
-
-            if (priorityDifference !== 0) {
-                return priorityDifference;
             }
 
             return left.index - right.index;

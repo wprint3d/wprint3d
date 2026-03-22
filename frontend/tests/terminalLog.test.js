@@ -83,17 +83,29 @@ test('mergeTerminalEntries sorts delayed events by timestamp', () => {
     ]);
 });
 
-test('mergeTerminalEntries keeps input lines before output lines for the same timestamp', () => {
+test('mergeTerminalEntries preserves received order for same-timestamp print job batches', () => {
     const mergedEntries = mergeTerminalEntries(
         [],
         [
             {
                 date: '2026-03-15 22:17:07',
-                line: 'ok T:24.00 /0.00'
+                line: '> M114'
             },
             {
                 date: '2026-03-15 22:17:07',
-                line: '> M105'
+                line: 'X:-18.00 Y:-2.00 Z:0.00 E:0.00 Count X:-1440 Y:-160 Z:0'
+            },
+            {
+                date: '2026-03-15 22:17:07',
+                line: 'ok'
+            },
+            {
+                date: '2026-03-15 22:17:07',
+                line: '> M75'
+            },
+            {
+                date: '2026-03-15 22:17:07',
+                line: 'ok'
             }
         ],
         50
@@ -102,11 +114,23 @@ test('mergeTerminalEntries keeps input lines before output lines for the same ti
     assert.deepEqual(mergedEntries.map(({ date, line }) => ({ date, line })), [
         {
             date: '2026-03-15 22:17:07',
-            line: '> M105'
+            line: '> M114'
         },
         {
             date: '2026-03-15 22:17:07',
-            line: 'ok T:24.00 /0.00'
+            line: 'X:-18.00 Y:-2.00 Z:0.00 E:0.00 Count X:-1440 Y:-160 Z:0'
+        },
+        {
+            date: '2026-03-15 22:17:07',
+            line: 'ok'
+        },
+        {
+            date: '2026-03-15 22:17:07',
+            line: '> M75'
+        },
+        {
+            date: '2026-03-15 22:17:07',
+            line: 'ok'
         }
     ]);
 });
