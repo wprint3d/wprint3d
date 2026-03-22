@@ -5,6 +5,11 @@ import Reanimated, { FadeInDown, FadeOutUp } from "react-native-reanimated";
 import { useQuery } from "@tanstack/react-query";
 import API from "../includes/API";
 import { useLocalization } from "../includes/LocalizationProvider";
+import {
+  getPluginLoadingToastState,
+  PLUGIN_LOADING_SETTLE_DELAY_MS,
+  shouldFinalizePluginLoadingSession,
+} from "../utils/pluginLoading";
 
 const PluginLoadingContext = createContext({
   registerSurface: () => {},
@@ -148,8 +153,11 @@ export default function PluginLoadingProvider({ children }) {
   const [ surfaceCounts, setSurfaceCounts ] = useState({});
   const [ surfaceStatuses, setSurfaceStatuses ] = useState({});
   const [ pluginTasks, setPluginTasks ] = useState({});
+  const [ isToastSessionActive, setIsToastSessionActive ] = useState(false);
   const [ showCompletedToast, setShowCompletedToast ] = useState(false);
+  const [ lastActivityAt, setLastActivityAt ] = useState(null);
   const completionTimeoutRef = useRef(null);
+  const settleTimeoutRef = useRef(null);
 
   const activeSurfaces = useMemo(
     () => Object.entries(surfaceCounts).filter(([, count]) => count > 0).map(([surface]) => surface).sort(),
@@ -216,22 +224,93 @@ export default function PluginLoadingProvider({ children }) {
   const currentPlugin = trackedPlugins.find((plugin) => !isPluginSettled(plugin)) || null;
   const isLoading = activeSurfaces.length > 0
     && (pluginIndexQuery.isFetching || totalPlugins > loadedPlugins || pendingTaskPlugins.length > 0);
+  const loadingActivitySignature = useMemo(() => JSON.stringify({
+    activeSurfaces,
+    surfaceStatuses,
+    isFetching: pluginIndexQuery.isFetching,
+    pendingTaskPlugins: pendingTaskPlugins.map((plugin) => ({
+      id: plugin.id,
+      pendingKeys: plugin.pendingKeys,
+    })),
+    totalPlugins,
+    loadedPlugins,
+  }), [
+    activeSurfaces,
+    surfaceStatuses,
+    pluginIndexQuery.isFetching,
+    pendingTaskPlugins,
+    totalPlugins,
+    loadedPlugins,
+  ]);
 
   useEffect(() => {
-    if (!isLoading && totalPlugins > 0 && loadedPlugins === totalPlugins) {
-      setShowCompletedToast(true);
-      clearTimeout(completionTimeoutRef.current);
-      completionTimeoutRef.current = setTimeout(() => setShowCompletedToast(false), 1400);
+    if (!isLoading && totalPlugins <= 0) {
       return;
     }
+
+    setIsToastSessionActive(true);
+    setLastActivityAt(Date.now());
+  }, [ isLoading, loadingActivitySignature, totalPlugins ]);
+
+  useEffect(() => {
+    clearTimeout(settleTimeoutRef.current);
 
     if (isLoading) {
       setShowCompletedToast(false);
       clearTimeout(completionTimeoutRef.current);
+      return undefined;
     }
-  }, [ isLoading, loadedPlugins, totalPlugins ]);
 
-  useEffect(() => () => clearTimeout(completionTimeoutRef.current), []);
+    if (!isToastSessionActive) {
+      return undefined;
+    }
+
+    if (shouldFinalizePluginLoadingSession({
+      isLoading,
+      totalPlugins,
+      loadedPlugins,
+      lastActivityAt,
+    })) {
+      setShowCompletedToast(true);
+      clearTimeout(completionTimeoutRef.current);
+      completionTimeoutRef.current = setTimeout(() => {
+        setShowCompletedToast(false);
+        setIsToastSessionActive(false);
+      }, 1400);
+      return undefined;
+    }
+
+    if (totalPlugins <= 0 || loadedPlugins !== totalPlugins || !Number.isFinite(lastActivityAt)) {
+      return undefined;
+    }
+
+    const elapsedMs = Math.max(0, Date.now() - lastActivityAt);
+    const remainingMs = Math.max(0, PLUGIN_LOADING_SETTLE_DELAY_MS - elapsedMs);
+
+    settleTimeoutRef.current = setTimeout(() => {
+      setShowCompletedToast(true);
+      clearTimeout(completionTimeoutRef.current);
+      completionTimeoutRef.current = setTimeout(() => {
+        setShowCompletedToast(false);
+        setIsToastSessionActive(false);
+      }, 1400);
+    }, remainingMs);
+
+    return () => clearTimeout(settleTimeoutRef.current);
+  }, [ isLoading, isToastSessionActive, lastActivityAt, loadedPlugins, totalPlugins ]);
+
+  useEffect(() => () => {
+    clearTimeout(completionTimeoutRef.current);
+    clearTimeout(settleTimeoutRef.current);
+  }, []);
+
+  const toastState = getPluginLoadingToastState({
+    isLoading,
+    sessionActive: isToastSessionActive,
+    showCompletedToast,
+    totalPlugins,
+    loadedPlugins,
+  });
 
   const registerSurface = useCallback((surface) => {
     setSurfaceCounts((previous) => ({
@@ -344,8 +423,8 @@ export default function PluginLoadingProvider({ children }) {
     <PluginLoadingContext.Provider value={value}>
       {children}
       <PluginLoadingToast
-        visible={isLoading || showCompletedToast}
-        isComplete={!isLoading}
+        visible={toastState.visible}
+        isComplete={toastState.isComplete}
         totalPlugins={totalPlugins}
         loadedPlugins={loadedPlugins}
         currentPluginName={currentPlugin?.name || null}
