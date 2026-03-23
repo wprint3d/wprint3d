@@ -182,23 +182,7 @@ refreshDockerLog() {
 
 refreshThirdPartyLicenses() {
     echo "Refreshing third-party licenses...";
-
-    TPL_PATH='/var/www/THIRD_PARTY_LICENSES.txt';
-
-    cat '/var/www/_STATIC_THIRD_PARTY_LICENSES.txt' > $TPL_PATH;
-
-    printf '\n\n' >> $TPL_PATH;
-
-    for license in $(find {vendor,frontend/node_modules} -name '*LICENSE*'); do \
-        PROJECT_NAME=$(printf "$license" | sed -E 's/((vendor|frontend\/node_modules)\/)|(\/LICENSE.*)|(\/ORIGINAL.*)|(src\/)//g' | sort | uniq -u);
-
-        echo '================================================================================' >> $TPL_PATH;
-        echo "$PROJECT_NAME"                                                                    >> $TPL_PATH;
-        echo '================================================================================' >> $TPL_PATH;
-        echo ''                                                                                 >> $TPL_PATH;
-        cat "$license"                                                                          >> $TPL_PATH;
-        echo ''                                                                                 >> $TPL_PATH;
-    done;
+    bash /var/www/internal/refresh-third-party-licenses.sh /var/www;
 }
 
 runDeferredTasks() {
@@ -279,7 +263,9 @@ bootstrapServerRuntime() {
         done;
     fi;
 
-    refreshThirdPartyLicenses &
+    if [[ "${DEVELOPER_MODE}" == 'true' ]]; then
+        refreshThirdPartyLicenses &
+    fi;
     runDeferredTasks &
 
     return 0;
