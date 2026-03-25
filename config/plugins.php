@@ -156,6 +156,10 @@ return [
         'print.job.finished',
     ],
 
+    'app_boot' => [
+        'dispatch_on_http' => filter_var(env('PLUGIN_APP_BOOT_ON_HTTP', false), FILTER_VALIDATE_BOOL),
+    ],
+
     'ui' => [
         'surfaces' => [
             'settings_tab',

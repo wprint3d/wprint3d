@@ -45,20 +45,22 @@ EOF
             ;;
 
         server)
-            # Determine serve command based on Octane setting
-            if [[ "${WPRINT3D_OCTANE_ENABLED:-}" == 'true' ]]; then
+            # Determine serve command based on the selected server driver.
+            if [[ "${PHP_SERVER_DRIVER:-}" == 'fpm' ]]; then
+                SERVE_CMD="php-fpm -F -R"
+            elif [[ "${WPRINT3D_OCTANE_ENABLED:-}" == 'true' ]]; then
                 SERVE_CMD="php artisan octane:start --host 0.0.0.0 --port 80"
             else
                 SERVE_CMD="php artisan serve --host 0.0.0.0 --port 80"
             fi
 
-            cat > "$SUPERVISOR_CONF_DIR/octane.conf" <<EOF
-[program:octane]
+            cat > "$SUPERVISOR_CONF_DIR/server.conf" <<EOF
+[program:server]
 command=${SERVE_CMD}
 directory=/var/www
 autorestart=true
-stdout_logfile=/tmp/supervisor/logs/octane.log
-stderr_logfile=/tmp/supervisor/logs/octane.log
+stdout_logfile=/tmp/supervisor/logs/server.log
+stderr_logfile=/tmp/supervisor/logs/server.log
 EOF
             ;;
 

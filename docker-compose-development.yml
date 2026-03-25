@@ -10,7 +10,9 @@ services:
         max-size: "1m"
         mode: non-blocking
     volumes:
+      - .:/var/www:ro
       - ./proxy/nginxconfig.io:/etc/nginx/nginxconfig.io
+      - ./proxy/backend-upstream-fastcgi-dev.conf:/etc/nginx/backend-upstream.conf:ro
       - ./proxy/internal:/etc/nginx/internal
       - ./proxy/conf.d:/etc/nginx/conf.d
       - ./proxy/nginx.conf:/etc/nginx/nginx.conf
@@ -40,6 +42,7 @@ services:
     environment:
       - ROLE=server,scheduler,concurrency-scheduler,ws-server
       - DEVELOPER_MODE=true
+      - PHP_SERVER_DRIVER=fpm
       - COMPOSE_DIR=${PWD}
       - CONTAINER_CLI=${IN_CONTAINER_CLI:-docker}
       - CONTAINER_COMPOSE_COMMAND=${IN_CONTAINER_COMPOSE_COMMAND:-docker-compose}
@@ -49,6 +52,7 @@ services:
     volumes:
       - .:/var/www
       - ${PWD}:${PWD}
+      - ./internal/php-fpm-dev-www.conf:/usr/local/etc/php-fpm.d/zz-wprint3d-dev.conf:ro
       - ./examples/plugins:/var/www/plugins-dev
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
@@ -69,7 +73,7 @@ services:
     volumes:
       - ./frontend:/app
     ports:
-      - 8081:8081
+      - ${WEB_HOST_PORT:-8081}:8081
     depends_on:
       - backend
       - redis
@@ -177,7 +181,7 @@ services:
     volumes:
       - mongo:/data/db
     ports:
-      - 27017:27017
+      - ${MONGO_HOST_PORT:-27017}:27017
   memcached:
     image: docker.io/library/memcached:latest
     logging:

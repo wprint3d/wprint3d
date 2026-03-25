@@ -77,8 +77,8 @@ class ConfigurationController extends Controller
 
     public function wsConfig(): array {
         return [
-            'appKey' => env('PUSHER_APP_KEY'),
-            'port'   => env('EXTERNAL_WEB_SOCKET_PORT')
+            'appKey' => config('services.wprint3d_websocket.app_key'),
+            'port'   => config('services.wprint3d_websocket.port')
         ];
     }
 

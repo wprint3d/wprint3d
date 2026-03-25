@@ -1,4 +1,20 @@
-FROM docker.io/library/php:8.4.12-bookworm
+FROM docker.io/library/php:8.4.12-fpm-bookworm
+
+RUN cat > /etc/apt/sources.list.d/debian.sources <<'EOF'
+Types: deb
+URIs: https://snapshot.debian.org/archive/debian/20250908T000000Z
+Suites: bookworm bookworm-updates
+Components: main
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: https://snapshot.debian.org/archive/debian-security/20250908T000000Z
+Suites: bookworm-security
+Components: main
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+EOF
+
+RUN printf 'Acquire::Check-Valid-Until "false";\nAcquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' > /etc/apt/apt.conf.d/80-wprint3d-retries
 
 # Basic dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -195,6 +211,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 
 # Copy PHP limits configuration
 ADD ./internal/limits.ini /usr/local/etc/php/conf.d/limits.ini
+ADD ./internal/php-fpm-dev-www.conf /usr/local/etc/php-fpm.d/zz-wprint3d-dev.conf
 
 # Copy PHP OPcache configuration template and setup script
 COPY ./internal/php-opcache.ini.template /var/www/internal/php-opcache.ini.template

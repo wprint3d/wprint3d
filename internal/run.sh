@@ -360,7 +360,10 @@ else
                 exit 1; # crash and wait for self-restart
             fi;
 
-            if [[ "${WPRINT3D_OCTANE_ENABLED:-false}" == 'true' ]]; then
+            if [[ "${PHP_SERVER_DRIVER:-}" == 'fpm' ]]; then
+                echo 'Starting PHP-FPM server...';
+                php-fpm -F -R;
+            elif [[ "${WPRINT3D_OCTANE_ENABLED:-false}" == 'true' ]]; then
                 echo 'Starting Octane web server...';
                 php artisan octane:start --host 0.0.0.0 --port 80;
             else

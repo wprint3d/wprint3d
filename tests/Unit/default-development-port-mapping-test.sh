@@ -27,12 +27,12 @@ if ! rg -n '\- 6001:6001' docker-compose-development.yml > /dev/null; then
     exit 1
 fi
 
-if ! rg -n '\- 8081:8081' docker-compose-development.yml > /dev/null; then
-    echo 'Development compose file no longer binds the frontend to port 8081.'
+if ! rg -n '\- \$\{WEB_HOST_PORT:-8081\}:8081' docker-compose-development.yml > /dev/null; then
+    echo 'Development compose file no longer binds the frontend to the configurable host port with an 8081 default.'
     exit 1
 fi
 
-if ! rg -n '\- 27017:27017' docker-compose-development.yml > /dev/null; then
-    echo 'Development compose file no longer binds MongoDB to port 27017.'
+if ! rg -n '\- \$\{MONGO_HOST_PORT:-27017\}:27017' docker-compose-development.yml > /dev/null; then
+    echo 'Development compose file no longer binds MongoDB to the configurable host port with a 27017 default.'
     exit 1
 fi

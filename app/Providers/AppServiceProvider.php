@@ -26,6 +26,19 @@ use MongoDB\Laravel\Eloquent\Model;
 
 class AppServiceProvider extends ServiceProvider
 {
+    public static function shouldDispatchPluginAppBoot(
+        bool $isTestingEnvironment,
+        bool $hasMongoExtension,
+        bool $runningInConsole,
+        bool $dispatchOnHttp,
+    ): bool {
+        if ($isTestingEnvironment || ! $hasMongoExtension) {
+            return false;
+        }
+
+        return $runningInConsole || $dispatchOnHttp;
+    }
+
     /**
      * Register any application services.
      *
@@ -83,7 +96,12 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->booted(function () {
-            if (app()->environment('testing') || ! extension_loaded('mongodb')) {
+            if (! self::shouldDispatchPluginAppBoot(
+                isTestingEnvironment: app()->environment('testing'),
+                hasMongoExtension: extension_loaded('mongodb'),
+                runningInConsole: app()->runningInConsole(),
+                dispatchOnHttp: (bool) config('plugins.app_boot.dispatch_on_http', false),
+            )) {
                 return;
             }
 

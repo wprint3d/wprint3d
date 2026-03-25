@@ -31,4 +31,9 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'wprint3d_websocket' => [
+        'app_key' => env('PUSHER_APP_KEY'),
+        'port' => env('EXTERNAL_WEB_SOCKET_PORT'),
+    ],
+
 ];
