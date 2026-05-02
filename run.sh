@@ -197,6 +197,56 @@ run_docker_compose() {
     return 1
 }
 
+run_docker_compose_up() {
+    local output_file
+    local compose_args=("$@")
+    local compose_prefix=()
+    local arg
+    local status
+    local pipefail_was_enabled=0
+
+    output_file="$(mktemp --suffix=-wprint3d-compose-up)"
+
+    if set -o | grep -q '^pipefail[[:space:]]*on'; then
+        pipefail_was_enabled=1
+    fi
+
+    set -o pipefail
+    run_docker_compose "${compose_args[@]}" 2>&1 | tee "$output_file"
+    status="$?"
+
+    if [[ "$pipefail_was_enabled" -eq 0 ]]; then
+        set +o pipefail
+    fi
+
+    if [[ "$status" -eq 0 ]]; then
+        rm -f "$output_file"
+
+        return 0
+    fi
+
+    if ! grep -q 'AlreadyExists: task' "$output_file"; then
+        rm -f "$output_file"
+
+        return "$status"
+    fi
+
+    rm -f "$output_file"
+
+    for arg in "${compose_args[@]}"; do
+        if [[ "$arg" == 'up' ]]; then
+            break
+        fi
+
+        compose_prefix+=("$arg")
+    done
+
+    echo 'Docker reported a stale containerd task from a previous crash; recreating the compose stack and retrying...' >&2
+
+    run_docker_compose "${compose_prefix[@]}" down --remove-orphans || return 1
+    run_docker_compose "${compose_args[@]}"
+}
+
 ensure_docker_runtime || exit 1;
 run_docker_compose version > /dev/null || exit 1;
 
@@ -326,12 +376,12 @@ if [[ "$ENV" == 'dev' ]]; then
     echo 'Starting development environment...';
 
     if [[ -f 'docker-compose.override.yml' ]]; then
-        run_docker_compose -f docker-compose-development.yml -f docker-compose.override.yml up -d --remove-orphans;
+        run_docker_compose_up -f docker-compose-development.yml -f docker-compose.override.yml up -d --remove-orphans;
     else
-        run_docker_compose -f docker-compose-development.yml up -d --remove-orphans;
+        run_docker_compose_up -f docker-compose-development.yml up -d --remove-orphans;
     fi;
 elif [[ "$ENV" == 'production' ]]; then
     echo 'Starting production environment...';
 
-    run_docker_compose up -d --remove-orphans;
+    run_docker_compose_up up -d --remove-orphans;
 fi;
