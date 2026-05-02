@@ -87,12 +87,18 @@ cleanup_stale_podman_docker_socket() {
     local socket_paths="${WPRINT3D_DOCKER_SOCKET_PATHS:-/var/run/docker.sock /run/docker.sock}"
     local socket_path
     local found_stale_socket=0
+    local stopped_docker_socket=0
 
     for socket_path in $socket_paths; do
         if docker_socket_points_to_podman "$socket_path"; then
             found_stale_socket=1
 
             echo "Removing stale Podman-backed Docker socket symlink at ${socket_path}..." >&2
+
+            if [[ "$stopped_docker_socket" -eq 0 ]] && command -v systemctl > /dev/null 2>&1; then
+                run_as_root systemctl stop docker.service docker.socket > /dev/null 2>&1 || true
+                stopped_docker_socket=1
+            fi
 
             run_as_root rm -f "$socket_path" || return 1
         fi
@@ -101,6 +107,11 @@ cleanup_stale_podman_docker_socket() {
             found_stale_socket=1
 
             echo "Removing invalid Docker socket path at ${socket_path}..." >&2
+
+            if [[ "$stopped_docker_socket" -eq 0 ]] && command -v systemctl > /dev/null 2>&1; then
+                run_as_root systemctl stop docker.service docker.socket > /dev/null 2>&1 || true
+                stopped_docker_socket=1
+            fi
 
             run_as_root rm -rf "$socket_path" || return 1
         fi
@@ -111,6 +122,7 @@ cleanup_stale_podman_docker_socket() {
     fi
 
     if command -v systemctl > /dev/null 2>&1; then
+        run_as_root systemctl start docker.socket > /dev/null 2>&1 || true
         run_as_root systemctl restart docker > /dev/null 2>&1 || run_as_root systemctl start docker > /dev/null 2>&1 || return 1
     elif command -v service > /dev/null 2>&1; then
         run_as_root service docker restart > /dev/null 2>&1 || run_as_root service docker start > /dev/null 2>&1 || return 1
