@@ -103,6 +103,12 @@ if [[ $(cat /proc/sys/fs/inotify/max_user_watches) -lt 65536 ]]; then
     echo fs.inotify.max_user_watches=65536 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
 fi;
 
+# If this host previously ran WPrint 3D with Podman, copy its MongoDB
+# data volume back into Docker before Docker Compose starts MongoDB.
+if [[ -x "${SCRIPT_PATH}/internal/migrate-podman-mongo-volume-to-docker.sh" ]]; then
+    "${SCRIPT_PATH}/internal/migrate-podman-mongo-volume-to-docker.sh" "$ENV" || exit 1;
+fi;
+
 if [[ "$ENV" == 'dev' ]]; then
     if [[ ! -d 'frontend' ]]; then
         echo 'The frontend directory is missing. Restore it from git and try again.';
