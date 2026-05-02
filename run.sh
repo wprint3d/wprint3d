@@ -7,6 +7,50 @@ SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )";
 
 cd "$SCRIPT_PATH";
 
+docker_is_podman_wrapper() {
+    local version_output
+
+    version_output="$(docker --version 2>/dev/null || true)"
+
+    [[ "${version_output,,}" == *podman* ]]
+}
+
+ensure_docker_runtime() {
+    if ! command -v docker > /dev/null 2>&1 || ! docker --version > /dev/null 2>&1; then
+        echo 'Docker is not installed. Please install Docker Engine and try again.' >&2
+
+        return 1
+    fi
+
+    if docker_is_podman_wrapper; then
+        echo "The 'docker' command on this host is still the Podman compatibility wrapper." >&2
+        echo 'Remove podman-docker/the local Docker wrapper and install Docker Engine, then run this script again.' >&2
+
+        return 1
+    fi
+}
+
+run_docker_compose() {
+    if docker compose version > /dev/null 2>&1; then
+        docker compose "$@"
+
+        return $?
+    fi
+
+    if command -v docker-compose > /dev/null 2>&1 && docker-compose version > /dev/null 2>&1; then
+        docker-compose "$@"
+
+        return $?
+    fi
+
+    echo 'Docker Compose is not available to the Docker CLI. Install the Docker Compose plugin or docker-compose, then try again.' >&2
+
+    return 1
+}
+
+ensure_docker_runtime || exit 1;
+run_docker_compose version > /dev/null || exit 1;
+
 if [[ "$2" != 'dev' ]]; then
     if [[ ! -f 'docker-compose.yml' ]] || grep -q 'wprint3d' 'docker-compose.yml' || [[ ! -s 'docker-compose.yml' ]]; then
         if [[ ! -f 'docker-compose.yml' ]]; then
@@ -116,13 +160,13 @@ if [[ "$ENV" == 'dev' ]]; then
         exit 1;
     fi;
 
-    docker compose -f docker-compose-development.yml pull || exit 1;
+    run_docker_compose -f docker-compose-development.yml pull || exit 1;
 
     if [[ "$NO_BUILD" != 1 ]]; then
-        docker compose -f docker-compose-development.yml build --progress plain || exit 1;
+        run_docker_compose -f docker-compose-development.yml build --progress plain || exit 1;
     fi;
 elif [[ "$ENV" == 'production' ]]; then
-    docker compose pull || exit 1;
+    run_docker_compose pull || exit 1;
 fi;
 
 for container_name in $(docker ps --format '{{ .Names }}'  | grep buildx_buildkit_builder); do
@@ -133,12 +177,12 @@ if [[ "$ENV" == 'dev' ]]; then
     echo 'Starting development environment...';
 
     if [[ -f 'docker-compose.override.yml' ]]; then
-        docker compose -f docker-compose-development.yml -f docker-compose.override.yml up -d --remove-orphans;
+        run_docker_compose -f docker-compose-development.yml -f docker-compose.override.yml up -d --remove-orphans;
     else
-        docker compose -f docker-compose-development.yml up -d --remove-orphans;
+        run_docker_compose -f docker-compose-development.yml up -d --remove-orphans;
     fi;
 elif [[ "$ENV" == 'production' ]]; then
     echo 'Starting production environment...';
 
-    docker compose up -d --remove-orphans;
+    run_docker_compose up -d --remove-orphans;
 fi;
