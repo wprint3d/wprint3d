@@ -15,7 +15,84 @@ docker_is_podman_wrapper() {
     [[ "${version_output,,}" == *podman* ]]
 }
 
+run_as_root() {
+    if [[ "${EUID:-1}" -eq 0 ]]; then
+        "$@"
+
+        return $?
+    fi
+
+    if command -v sudo > /dev/null 2>&1; then
+        sudo "$@"
+
+        return $?
+    fi
+
+    echo "Root privileges are required to run: $*" >&2
+
+    return 1
+}
+
+docker_socket_points_to_podman() {
+    local socket_path="$1"
+    local link_target=''
+    local resolved_target=''
+
+    [[ -L "$socket_path" ]] || return 1
+
+    link_target="$(readlink "$socket_path" 2>/dev/null || true)"
+    resolved_target="$(readlink -f "$socket_path" 2>/dev/null || true)"
+
+    [[ "${link_target,,}" == *podman* || "${resolved_target,,}" == *podman* ]]
+}
+
+cleanup_stale_podman_docker_socket() {
+    local socket_paths="${WPRINT3D_DOCKER_SOCKET_PATHS:-/var/run/docker.sock /run/docker.sock}"
+    local socket_path
+    local found_stale_socket=0
+
+    for socket_path in $socket_paths; do
+        if docker_socket_points_to_podman "$socket_path"; then
+            found_stale_socket=1
+
+            echo "Removing stale Podman-backed Docker socket symlink at ${socket_path}..." >&2
+
+            run_as_root rm -f "$socket_path" || return 1
+        fi
+    done
+
+    if [[ "$found_stale_socket" -eq 0 ]]; then
+        return 0
+    fi
+
+    if command -v systemctl > /dev/null 2>&1; then
+        run_as_root systemctl restart docker > /dev/null 2>&1 || run_as_root systemctl start docker > /dev/null 2>&1 || return 1
+    elif command -v service > /dev/null 2>&1; then
+        run_as_root service docker restart > /dev/null 2>&1 || run_as_root service docker start > /dev/null 2>&1 || return 1
+    fi
+}
+
+cleanup_stale_podman_wprint3d_service() {
+    local unit_contents=''
+
+    command -v systemctl > /dev/null 2>&1 || return 0
+
+    unit_contents="$(systemctl cat wprint3d.service 2>/dev/null || true)"
+
+    if [[ "${unit_contents,,}" != *podman* ]]; then
+        return 0
+    fi
+
+    echo 'Disabling stale WPrint 3D Podman systemd service...' >&2
+
+    run_as_root systemctl disable --now wprint3d.service > /dev/null 2>&1 || true
+    run_as_root rm -f /etc/systemd/system/wprint3d.service /etc/systemd/system/multi-user.target.wants/wprint3d.service > /dev/null 2>&1 || true
+    run_as_root systemctl daemon-reload > /dev/null 2>&1 || true
+}
+
 ensure_docker_runtime() {
+    local docker_info_output
+
     if ! command -v docker > /dev/null 2>&1 || ! docker --version > /dev/null 2>&1; then
         echo 'Docker is not installed. Please install Docker Engine and try again.' >&2
 
@@ -25,6 +102,21 @@ ensure_docker_runtime() {
     if docker_is_podman_wrapper; then
         echo "The 'docker' command on this host is still the Podman compatibility wrapper." >&2
         echo 'Remove podman-docker/the local Docker wrapper and install Docker Engine, then run this script again.' >&2
+
+        return 1
+    fi
+
+    cleanup_stale_podman_wprint3d_service
+    cleanup_stale_podman_docker_socket || {
+        echo 'Failed to clean up the stale Podman Docker socket. Remove /var/run/docker.sock if it points to Podman, restart Docker, and try again.' >&2
+
+        return 1
+    }
+
+    if ! docker_info_output="$(docker info 2>&1)"; then
+        echo 'Docker is installed, but the Docker daemon is not reachable by this user.' >&2
+        echo "$docker_info_output" >&2
+        echo 'Make sure Docker Engine is running and that this shell has access to /var/run/docker.sock.' >&2
 
         return 1
     fi
