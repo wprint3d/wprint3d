@@ -63,10 +63,6 @@ volume_candidates() {
     done | awk 'NF && !seen[$0]++'
 }
 
-sudo_available_without_prompt() {
-    command_exists sudo && sudo -n true > /dev/null 2>&1
-}
-
 prime_sudo_if_interactive() {
     command_exists sudo || return 1
 
@@ -74,12 +70,14 @@ prime_sudo_if_interactive() {
         return 0
     fi
 
-    if [[ -t 0 ]]; then
-        log 'Administrator privileges are required to read rootful Podman volumes. sudo may prompt for your password.' >&2
-        sudo -v
+    if [[ -r /dev/tty && -w /dev/tty ]]; then
+        log 'Administrator privileges are required to read rootful Podman volumes. sudo may prompt for your password.' > /dev/tty
+        sudo -v < /dev/tty > /dev/tty
 
         return $?
     fi
+
+    log 'Rootful Podman volume lookup needs sudo, but no interactive terminal is available. Re-run after sudo -v or set WPRINT3D_PODMAN_ROOTFUL=0 to check rootless Podman only.' >&2
 
     return 1
 }
@@ -140,6 +138,75 @@ docker_volume_has_migration_label() {
     label_value="$(docker volume inspect --format '{{ index .Labels "'"${MIGRATION_LABEL}"'" }}' "$volume" 2> /dev/null || true)"
 
     [[ "$label_value" == 'true' ]]
+}
+
+volume_latest_mtime_command() {
+    cat <<'EOF'
+latest=0
+for ts in $(find /data -xdev -type f -exec stat -c %Y {} \; 2>/dev/null); do
+    case "$ts" in
+        ''|*[!0-9]*) continue ;;
+    esac
+
+    if [ "$ts" -gt "$latest" ]; then
+        latest="$ts"
+    fi
+done
+printf '%s\n' "$latest"
+EOF
+}
+
+podman_volume_latest_mtime() {
+    local podman_prefix="$1"
+    local volume="$2"
+    local output
+
+    if [[ "$podman_prefix" == 'sudo' ]]; then
+        output="$(sudo podman run --rm -v "${volume}:/data:ro" "$BUSYBOX_IMAGE" sh -c "$(volume_latest_mtime_command)" 2>/dev/null || true)"
+    else
+        output="$(podman run --rm -v "${volume}:/data:ro" "$BUSYBOX_IMAGE" sh -c "$(volume_latest_mtime_command)" 2>/dev/null || true)"
+    fi
+
+    if [[ "$output" =~ ^[0-9]+$ ]]; then
+        printf '%s\n' "$output"
+    else
+        printf '0\n'
+    fi
+}
+
+docker_volume_latest_mtime() {
+    local volume="$1"
+    local output
+
+    output="$(docker run --rm -v "${volume}:/data:ro" "$BUSYBOX_IMAGE" sh -c "$(volume_latest_mtime_command)" 2>/dev/null || true)"
+
+    if [[ "$output" =~ ^[0-9]+$ ]]; then
+        printf '%s\n' "$output"
+    else
+        printf '0\n'
+    fi
+}
+
+should_skip_because_docker_is_newer() {
+    local podman_prefix="$1"
+    local source_volume="$2"
+    local destination_volume="$3"
+    local source_latest
+    local destination_latest
+
+    docker_volume_exists "$destination_volume" || return 1
+
+    source_latest="$(podman_volume_latest_mtime "$podman_prefix" "$source_volume")"
+    destination_latest="$(docker_volume_latest_mtime "$destination_volume")"
+
+    if [[ "$destination_latest" -gt "$source_latest" ]]; then
+        log "Docker MongoDB volume '${destination_volume}' has newer data than Podman volume '${source_volume}'; skipping migration."
+        log "Set WPRINT3D_FORCE_PODMAN_MONGO_MIGRATION=1 if you intentionally want the Podman volume to overwrite Docker data."
+
+        return 0
+    fi
+
+    return 1
 }
 
 release_existing_docker_volume() {
@@ -249,6 +316,11 @@ main() {
 
     podman_prefix="${source_info%%|*}"
     source_volume="${source_info#*|}"
+
+    if [[ "${WPRINT3D_FORCE_PODMAN_MONGO_MIGRATION:-0}" != '1' ]] \
+        && should_skip_because_docker_is_newer "$podman_prefix" "$source_volume" "$destination_volume"; then
+        return 0
+    fi
 
     log "Migrating Podman MongoDB volume '${source_volume}' to Docker volume '${destination_volume}'..."
 
