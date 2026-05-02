@@ -161,9 +161,7 @@ class CameraController extends Controller
             "\n\tproxy_set_header X-Resolution {$resolution};" .
             "\n\tproxy_set_header X-Framerate {$framerate};" .
             "\n\tproxy_set_header X-Capture-Encoding {$camera->captureEncoding};" .
-            "\n\tproxy_buffering      off;" .
-            "\n\tproxy_ignore_headers X-Accel-Buffering;" .
-            "\n\tinclude               nginxconfig.io/proxy.conf;" .
+            "\n\tinclude               nginxconfig.io/stream-proxy.conf;" .
             "\n}";
 
         $current = file_get_contents($confPath);

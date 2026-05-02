@@ -699,7 +699,7 @@ else
                                 printf "\nlocation /video/$MACHINE_UUID/$PROXY_PREFIX/$INDEX {" >> $TMP_CAMERAS_CONF;
                                 printf "\n\tproxy_pass            http://streamer:${port}/;"    >> $TMP_CAMERAS_CONF;
                                 printf "\n\tproxy_set_header Host \$host;"                      >> $TMP_CAMERAS_CONF;
-                                printf "\n\tinclude               nginxconfig.io/proxy.conf;"   >> $TMP_CAMERAS_CONF;
+                                printf "\n\tinclude               nginxconfig.io/stream-proxy.conf;"   >> $TMP_CAMERAS_CONF;
                                 printf "\n}"                                                    >> $TMP_CAMERAS_CONF;
                             elif [[ "$USES_SOFTWARE_STREAMER" -eq 1 ]]; then
                                 printf "\nlocation /video/$MACHINE_UUID/$PROXY_PREFIX/$INDEX {"  >> $TMP_CAMERAS_CONF;
@@ -709,9 +709,7 @@ else
                                 printf "\n\tproxy_set_header X-Resolution ${RESOLUTION};" >> $TMP_CAMERAS_CONF;
                                 printf "\n\tproxy_set_header X-Framerate $(printf "$FRAMERATE" | sed 's/\..*//' | sed 's/,.*//');" >> $TMP_CAMERAS_CONF;
                                 printf "\n\tproxy_set_header X-Capture-Encoding ${CAPTURE_ENCODING};" >> $TMP_CAMERAS_CONF;
-                                printf "\n\tproxy_buffering      off;"                         >> $TMP_CAMERAS_CONF;
-                                printf "\n\tproxy_ignore_headers X-Accel-Buffering;"            >> $TMP_CAMERAS_CONF;
-                                printf "\n\tinclude               nginxconfig.io/proxy.conf;"  >> $TMP_CAMERAS_CONF;
+                                printf "\n\tinclude               nginxconfig.io/stream-proxy.conf;"  >> $TMP_CAMERAS_CONF;
                                 printf "\n}"                                                     >> $TMP_CAMERAS_CONF;
                             fi;
                         else # the camera has been disabled, kill and de-allocate resources
