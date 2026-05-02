@@ -23,7 +23,39 @@ run_as_root() {
     fi
 
     if command -v sudo > /dev/null 2>&1; then
-        sudo "$@"
+        if sudo -n true > /dev/null 2>&1; then
+            sudo "$@"
+
+            return $?
+        fi
+
+        if { exec 3<> /dev/tty; } 2> /dev/null; then
+            echo 'Administrator privileges are required to clean up stale Podman runtime state. sudo will prompt for your password.' >&3
+
+            sudo -v <&3 >&3 || {
+                exec 3<&-
+                exec 3>&-
+
+                return 1
+            }
+
+            sudo "$@" <&3
+
+            local sudo_exit_code=$?
+
+            exec 3<&-
+            exec 3>&-
+
+            return $sudo_exit_code
+        fi
+
+        echo "sudo access is required to run '${*}', but no interactive terminal is available for a password prompt." >&2
+
+        return 1
+    fi
+
+    if command -v doas > /dev/null 2>&1; then
+        doas "$@"
 
         return $?
     fi
@@ -32,7 +64,6 @@ run_as_root() {
 
     return 1
 }
-
 docker_socket_points_to_podman() {
     local socket_path="$1"
     local link_target=''

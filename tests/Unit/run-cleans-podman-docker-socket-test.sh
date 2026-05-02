@@ -49,6 +49,11 @@ cat > "$FAKE_BIN/sudo" <<'INNER'
 #!/bin/bash
 set -euo pipefail
 printf 'sudo %s\n' "$*" >> "$TEST_LOG_FILE"
+
+if [[ "$1" == '-n' && "$2" == 'true' ]]; then
+    exit 0
+fi
+
 exec "$@"
 INNER
 
