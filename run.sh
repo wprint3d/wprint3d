@@ -77,6 +77,12 @@ docker_socket_points_to_podman() {
     [[ "${link_target,,}" == *podman* || "${resolved_target,,}" == *podman* ]]
 }
 
+docker_socket_path_is_invalid() {
+    local socket_path="$1"
+
+    [[ -e "$socket_path" && ! -S "$socket_path" && ! -L "$socket_path" ]]
+}
+
 cleanup_stale_podman_docker_socket() {
     local socket_paths="${WPRINT3D_DOCKER_SOCKET_PATHS:-/var/run/docker.sock /run/docker.sock}"
     local socket_path
@@ -89,6 +95,14 @@ cleanup_stale_podman_docker_socket() {
             echo "Removing stale Podman-backed Docker socket symlink at ${socket_path}..." >&2
 
             run_as_root rm -f "$socket_path" || return 1
+        fi
+
+        if docker_socket_path_is_invalid "$socket_path"; then
+            found_stale_socket=1
+
+            echo "Removing invalid Docker socket path at ${socket_path}..." >&2
+
+            run_as_root rm -rf "$socket_path" || return 1
         fi
     done
 

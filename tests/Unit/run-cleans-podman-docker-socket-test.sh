@@ -75,7 +75,7 @@ output="$(PATH="$FAKE_BIN:$PATH" \
     TEST_LOG_FILE="$LOG_FILE" \
     TEST_SOCKET_PATH="$SOCKET_PATH" \
     WPRINT3D_DOCKER_SOCKET_PATHS="$SOCKET_PATH" \
-    "$RUNNER_DIR/run.sh" --help 2>&1)"
+    "$RUNNER_DIR/run.sh" --help dev 2>&1)"
 
 if [[ -e "$SOCKET_PATH" || -L "$SOCKET_PATH" ]]; then
     echo 'Expected run.sh to remove the stale Podman-backed Docker socket symlink.' >&2
