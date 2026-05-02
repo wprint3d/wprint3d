@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright, expect
 
 BASE_URL = os.environ.get("BASE_URL", "https://127.0.0.1")
 SCREENSHOT_DIR = Path(os.environ.get("SCREENSHOT_DIR", str(Path(__file__).resolve().parent.parent / "docs" / "assets" / "plugins")))
-CONTAINER_RUNTIME = os.environ.get("CONTAINER_RUNTIME", "sudo podman")
+CONTAINER_RUNTIME = os.environ.get("CONTAINER_RUNTIME", "docker")
 BACKEND_CONTAINER = os.environ.get("BACKEND_CONTAINER", "wprint3d-core_backend_1")
 PLUGIN_ID = os.environ.get("PLUGIN_ID", "acme.hello-world")
 PLUGIN_CARD_NAME = os.environ.get("PLUGIN_CARD_NAME", "Hello World")

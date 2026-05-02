@@ -175,7 +175,7 @@ git commit -m "refactor: ramdisk-setup.sh foundation with config and logging"
 **Files:**
 - Modify: `internal/ramdisk-setup.sh` (append gate check functions)
 
-**Note:** `ROLE` and `DEVELOPER_MODE` are set as container environment variables by the orchestrator (Docker/Podman). Since `ramdisk-setup.sh` runs as a subprocess (`bash`, not `source`), these must be exported env vars — which they are in standard container deployments. `WPRINT3D_STORAGE_TYPE` and `WPRINT3D_AVAILABLE_MEMORY_MB` are explicitly exported by `detect-hardware.sh` (which is `source`d by `run.sh`).
+**Note:** `ROLE` and `DEVELOPER_MODE` are set as container environment variables by the orchestrator (Docker). Since `ramdisk-setup.sh` runs as a subprocess (`bash`, not `source`), these must be exported env vars — which they are in standard container deployments. `WPRINT3D_STORAGE_TYPE` and `WPRINT3D_AVAILABLE_MEMORY_MB` are explicitly exported by `detect-hardware.sh` (which is `source`d by `run.sh`).
 
 - [ ] **Step 1: Add the role eligibility check function**
 

@@ -495,7 +495,7 @@ Heavyweight plugins declare image dependencies in the manifest:
 Notes:
 
 - `images` is optional. No images means the plugin is `lightweight`.
-- `engine` can be `auto`, `docker`, or `podman`.
+- `engine` can be `auto` or `docker`.
 - `healthcheck.command` is optional but recommended for heavyweight plugins.
 - `requirements` is optional. If omitted, WPrint 3D will still install the plugin and try to run it.
 - If requirements are declared and the host falls short, install still succeeds, but the UI shows warnings so the user can make an informed decision.

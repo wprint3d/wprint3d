@@ -5,7 +5,11 @@ set -euo pipefail
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 cd "$SCRIPT_PATH"
 
-source "${SCRIPT_PATH}/internal/container-runtime.sh"
+HOST_CONTAINER_RUNTIME='docker'
+
+run_host_compose() {
+    docker compose "$@"
+}
 
 usage() {
     cat <<'EOF'
@@ -45,12 +49,6 @@ command_exists() {
 runtime_container_cli() {
     local runtime="$1"
     shift
-
-    if [[ "$runtime" == 'podman' ]] && [[ "${HOST_PODMAN_ROOTFUL:-0}" == '1' ]]; then
-        run_podman_rootful_command "$@"
-
-        return $?
-    fi
 
     "$runtime" "$@"
 }
@@ -119,9 +117,6 @@ list_backend_candidates_for_runtime() {
         --filter label=com.docker.compose.service=backend \
         --format '{{.Names}}' 2>/dev/null || true)"
 
-    candidates+=$'\n'"$(runtime_container_cli "$runtime" ps \
-        --filter label=io.podman.compose.service=backend \
-        --format '{{.Names}}' 2>/dev/null || true)"
 
     if ! grep -q '[^[:space:]]' <<< "$candidates"; then
         candidates="$(runtime_container_cli "$runtime" ps \
@@ -133,21 +128,9 @@ list_backend_candidates_for_runtime() {
 }
 
 list_container_runtimes() {
-    local runtimes=()
-
-    if [[ -n "${HOST_CONTAINER_RUNTIME:-}" ]] && command_exists "$HOST_CONTAINER_RUNTIME"; then
-        runtimes+=("$HOST_CONTAINER_RUNTIME")
+    if command_exists docker; then
+        printf 'docker\n'
     fi
-
-    if [[ "${HOST_CONTAINER_RUNTIME:-}" != 'docker' ]] && command_exists docker; then
-        runtimes+=('docker')
-    fi
-
-    if [[ "${HOST_CONTAINER_RUNTIME:-}" != 'podman' ]] && command_exists podman; then
-        runtimes+=('podman')
-    fi
-
-    printf '%s\n' "${runtimes[@]}"
 }
 
 detect_backend_container() {
@@ -690,9 +673,6 @@ EOF
 
     echo "Plugin CLI runtime: ${HOST_CONTAINER_RUNTIME}"
 
-    if [[ "${HOST_CONTAINER_RUNTIME}" == 'podman' ]]; then
-        echo "Plugin CLI podman mode: $([[ "${HOST_PODMAN_ROOTFUL:-0}" == '1' ]] && printf 'rootful' || printf 'rootless')"
-    fi
 
     case "$resolved_mode" in
         compose)
@@ -843,7 +823,10 @@ case "$command_name" in
         ;;
 esac
 
-init_container_runtime || exit 1
+if ! command_exists docker; then
+    echo 'Docker is required to run plugin commands.' >&2
+    exit 1
+fi
 resolve_backend_target || exit 1
 
 if [[ "$command_name" == 'status' ]]; then

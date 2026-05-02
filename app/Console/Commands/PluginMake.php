@@ -34,7 +34,7 @@ class PluginMake extends Command
         }
 
         $imageReference = trim((string) ($this->option('image') ?: ''));
-        $includeImage = $imageReference !== '' || ($this->isInteractiveShell() && $this->confirm('Does this plugin depend on a Docker/Podman image?', false));
+        $includeImage = $imageReference !== '' || ($this->isInteractiveShell() && $this->confirm('Does this plugin depend on a Docker image?', false));
 
         if ($includeImage && $imageReference === '') {
             $imageReference = trim((string) $this->ask(

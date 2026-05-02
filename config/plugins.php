@@ -99,7 +99,7 @@ return [
     ],
 
     'container' => [
-        'cli' => env('CONTAINER_CLI', 'podman'),
+        'cli' => env('CONTAINER_CLI', 'docker'),
         'command_timeout_secs' => (int) env('PLUGIN_CONTAINER_COMMAND_TIMEOUT_SECS', 60),
     ],
 

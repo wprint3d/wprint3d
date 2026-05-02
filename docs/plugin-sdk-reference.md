@@ -47,7 +47,7 @@ flowchart LR
     RuntimeRegistry --> Effects[PluginEffectExecutor]
     Effects --> Queue[Queue printer command]
     Effects --> Toast[Toast / log / host feedback]
-    Dependencies --> ContainerRuntime[Docker / Podman host runtime]
+    Dependencies --> ContainerRuntime[Docker host runtime]
 
     Queue --> Serial
     Serial --> USB[USB serial device / printer firmware]

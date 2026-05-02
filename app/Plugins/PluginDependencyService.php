@@ -17,7 +17,7 @@ class PluginDependencyService
         private ?string $containerCli = null,
     ) {
         $this->currentContainerName ??= gethostname() ?: 'backend';
-        $this->containerCli ??= (string) config('plugins.container.cli', env('CONTAINER_CLI', 'podman'));
+        $this->containerCli ??= (string) config('plugins.container.cli', env('CONTAINER_CLI', 'docker'));
         $this->commandRunner ??= function (array $command): array {
             $result = Process::timeout((int) config('plugins.container.command_timeout_secs', 60))
                 ->run($command);

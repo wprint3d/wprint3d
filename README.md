@@ -72,7 +72,7 @@ Other OSes          | :grey_question: Untested (may work if they can run Docker)
 
 ## Dependencies
 - **Git**
-- **Docker** and **Docker Compose**, or **Podman** with a Compose provider
+- **Docker** and **Docker Compose**
 - **GNU/Linux** or **Windows 10** (or greater) with **WSL2** enabled (experimental)
 - **USBIPD-Win** (Windows only)
 - The Expo frontend source shipped in this repository under `frontend/`**<sup>\*</sup>**
@@ -127,7 +127,7 @@ Typical release commands from the repo root:
 
 When running `./run.sh -e dev`, unpacked plugins can be installed directly from the live development sources exposed inside the containers. New plugins scaffold into repo [plugins](plugins), while the bundled samples live in [examples/plugins](examples/plugins). The `Install unpacked` flow shows both sources so you can iterate on your own plugin without packaging it first.
 
-Use `./plugin.sh` for host-side plugin commands when you do not have a matching PHP runtime installed locally. The wrapper reuses WPrint 3D's Podman/Docker detection and runs `php artisan plugin:*` inside the backend container.
+Use `./plugin.sh` for host-side plugin commands when you do not have a matching PHP runtime installed locally. The wrapper runs `php artisan plugin:*` inside the backend container through Docker.
 Use `./plugin.sh status` when you need to confirm which backend container it found, whether developer mode is effectively enabled, and whether the live unpacked plugin mount is visible from that container.
 
 Production backend images intentionally exclude `examples/plugins` so sample plugins do not ship in the runtime image. Use the development stack or a source checkout when you need the example plugins for testing, packaging, or demos.
@@ -143,16 +143,14 @@ For public-registry inclusion, the temporary process is simple: keep the plugin 
 
 ## Getting started
 - **If you're running Windows, go to the "[Preparing your Windows host](https://github.com/wprint3d/wprint3d?tab=readme-ov-file#preparing-your-windows-host)" section first.**
-- Install either [Docker](https://docs.docker.com/desktop/install/linux-install/) or Podman plus a Compose provider on your host.
-- If you're using Docker, [give yourself permission to run Docker commands](https://docs.docker.com/engine/install/linux-postinstall/) by following the guide linked here, this is extremely important because we'll need to set up a few [privileged containers](https://docs.docker.com/engine/reference/commandline/run/#-full-container-capabilities---privileged).
+- Install [Docker](https://docs.docker.com/desktop/install/linux-install/) and Docker Compose on your host.
+- [Give yourself permission to run Docker commands](https://docs.docker.com/engine/install/linux-postinstall/) by following the guide linked here, this is extremely important because we'll need to set up a few [privileged containers](https://docs.docker.com/engine/reference/commandline/run/#-full-container-capabilities---privileged).
 - Clone this repository wherever you want, just make sure you'd have write permission with the user you're currently logged in.
 
     `git clone -b alpha https://github.com/wprint3d/wprint3d`
 - Change to the created directory by running `cd wprint3d`.
 - Now, using your favorite text editor, create a new file called `.env` and copy the contents of `.env.example` into it. If you're planning on running **WPrint 3D** on a **Raspberry Pi**, consider copying `.env.rpi` instead as it's been specifically optimized to run faster on its hardware.
 - That's it! Plug your printer in any USB port you like and turn it on! Now, run `bash run.sh` to get going. The first run might take a few minutes, so you'll probably want to find something else to do in the meantime.
-- `run.sh` now prefers Podman when it is installed. On supported Linux hosts, it will attempt to install `podman` plus a Compose provider automatically when Podman is missing. For this project, Podman is now driven in rootful mode by default so the development stack can keep binding `80/443`, access USB devices, and run the existing privileged containers without the rootless low-port limitations. Set `WPRINT3D_AUTO_INSTALL_PODMAN=0` if you need to skip the automatic install path, or `WPRINT3D_PODMAN_ROOTFUL=0` if you explicitly want to opt back into rootless Podman.
-- If you're migrating an existing checkout from Docker to Podman, old `frontend/node_modules` files may still be owned by `root`. That can make the `web` container fail during `pnpm install` with `EPERM` errors. `run.sh` now warns about that condition and can re-own `frontend/node_modules` back to your current user before startup. You can force that repair with `WPRINT3D_REOWN_FRONTEND_NODE_MODULES=1`, or skip the prompt with `WPRINT3D_REOWN_FRONTEND_NODE_MODULES=0`.
 - **If you're running Windows, go to the "[Next steps on your Windows host](https://github.com/wprint3d/wprint3d?tab=readme-ov-file#next-steps-on-your-windows-host)" section.**
 - Once it's done, type `ifconfig` and copy the IP address of your machine. Type that IP address into the address bar of your browser, i.e.: https://192.168.0.2
 - Follow the on-screen instructions.

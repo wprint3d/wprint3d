@@ -184,7 +184,7 @@ worker:
   image: docker.io/wprint3d/wprint3d:latest
   restart: always
   logging:
-    driver: ${CONTAINER_LOG_DRIVER:-local}
+    driver: local
     options:
       max-size: "1m"
       mode: non-blocking

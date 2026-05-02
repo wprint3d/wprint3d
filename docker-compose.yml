@@ -3,7 +3,7 @@ services:
     image: docker.io/wprint3d/wprint3d-proxy:latest
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -23,7 +23,7 @@ services:
     image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -61,7 +61,7 @@ services:
     image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -87,7 +87,7 @@ services:
     image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -121,7 +121,7 @@ services:
     image: docker.io/wprint3d/yv-streamer-software:latest
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -140,7 +140,7 @@ services:
     image: docker.io/library/redis:7.2.5
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -151,7 +151,7 @@ services:
     image: docker.io/library/mongo:4.4.6
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking
@@ -162,7 +162,7 @@ services:
     image: docker.io/library/memcached:latest
     restart: always
     logging:
-      driver: ${CONTAINER_LOG_DRIVER:-local}
+      driver: local
       options:
         max-size: "1m"
         mode: non-blocking

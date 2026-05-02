@@ -21,14 +21,14 @@ class ContainerRuntimeTest extends TestCase
     {
         $runtime = ContainerRuntime::fromConfig([
             'compose_dir' => '/srv/wprint3d',
-            'container_cli' => 'podman',
-            'compose_command' => 'podman compose',
+            'container_cli' => 'docker',
+            'compose_command' => 'docker compose',
         ]);
 
-        $this->assertSame('podman', $runtime->containerCli());
+        $this->assertSame('docker', $runtime->containerCli());
         $this->assertSame('/srv/wprint3d', $runtime->composeDir());
-        $this->assertSame(['podman', 'compose', 'up', '-d'], $runtime->composeCommand(['up', '-d']));
-        $this->assertSame(['podman', 'image', 'inspect', 'redis:7.2.5'], $runtime->imageInspectCommand('redis:7.2.5'));
+        $this->assertSame(['docker', 'compose', 'up', '-d'], $runtime->composeCommand(['up', '-d']));
+        $this->assertSame(['docker', 'image', 'inspect', 'redis:7.2.5'], $runtime->imageInspectCommand('redis:7.2.5'));
     }
 
     public function test_it_falls_back_when_custom_values_are_blank(): void

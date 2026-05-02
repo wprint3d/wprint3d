@@ -357,7 +357,7 @@ class PluginManifestValidator
             $seenIds[] = $id;
             $image['engine'] = $image['engine'] ?? 'auto';
 
-            if (! in_array($image['engine'], ['auto', 'docker', 'podman'], true)) {
+            if (! in_array($image['engine'], ['auto', 'docker'], true)) {
                 throw new InvalidPluginManifestException("Plugin image {$id} declares an unsupported engine.");
             }
 

@@ -75,8 +75,8 @@ class PluginDependencyServiceTest extends TestCase
         $this->assertTrue($state['images'][0]['healthcheck']['successful']);
         $this->assertSame(
             [
-                ['podman', 'pull', 'ghcr.io/acme/metrics-service:1.2.3'],
-                ['podman', 'run', '--rm', 'ghcr.io/acme/metrics-service:1.2.3', 'php', '-v'],
+                ['docker', 'pull', 'ghcr.io/acme/metrics-service:1.2.3'],
+                ['docker', 'run', '--rm', 'ghcr.io/acme/metrics-service:1.2.3', 'php', '-v'],
             ],
             $commands
         );
@@ -94,7 +94,7 @@ class PluginDependencyServiceTest extends TestCase
             commandRunner: function (array $command) use (&$commands) {
                 $commands[] = $command;
 
-                if ($command === ['podman', 'inspect', 'wprint3d-backend-1', '--format', '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}']) {
+                if ($command === ['docker', 'inspect', 'wprint3d-backend-1', '--format', '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}']) {
                     return [
                         'successful' => true,
                         'output' => "wprint3d_default\n",
@@ -102,7 +102,7 @@ class PluginDependencyServiceTest extends TestCase
                     ];
                 }
 
-                if ($command === ['podman', 'inspect', 'wprint3d-plugin-acme-bridge-metrics-service', '--format', '{{.State.Running}}']) {
+                if ($command === ['docker', 'inspect', 'wprint3d-plugin-acme-bridge-metrics-service', '--format', '{{.State.Running}}']) {
                     return [
                         'successful' => false,
                         'output' => '',
@@ -142,7 +142,7 @@ class PluginDependencyServiceTest extends TestCase
         $this->assertSame('http://acme-bridge-metrics:9310', $activation['runtime']['baseUrl']);
         $this->assertSame('running', $activation['images'][0]['service']['status']);
         $this->assertContains(
-            ['podman', 'run', '-d', '--name', 'wprint3d-plugin-acme-bridge-metrics-service', '--restart', 'unless-stopped', '--label', 'wprint3d.plugin.id=acme.bridge', '--label', 'wprint3d.plugin.image_id=metrics-service', '--network', 'wprint3d_default', '--network-alias', 'acme-bridge-metrics', 'ghcr.io/acme/metrics-service:1.2.3'],
+            ['docker', 'run', '-d', '--name', 'wprint3d-plugin-acme-bridge-metrics-service', '--restart', 'unless-stopped', '--label', 'wprint3d.plugin.id=acme.bridge', '--label', 'wprint3d.plugin.image_id=metrics-service', '--network', 'wprint3d_default', '--network-alias', 'acme-bridge-metrics', 'ghcr.io/acme/metrics-service:1.2.3'],
             $commands
         );
     }
