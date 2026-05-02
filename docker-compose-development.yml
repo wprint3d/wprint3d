@@ -45,7 +45,7 @@ services:
       - PHP_SERVER_DRIVER=fpm
       - COMPOSE_DIR=${PWD}
       - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
-      - QUEUES=default:1,recordings:1,broadcasts:2,prints,previews,snapshots
+      - QUEUES=default:1,recordings:1,broadcasts:2,prints:1,previews,snapshots
       - SLEEP=5
     volumes:
       - .:/var/www
@@ -56,6 +56,10 @@ services:
       - /dev:/dev
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
+    networks:
+      default:
+        aliases:
+          - ws-server
     tmpfs:
       - /tmp
     depends_on:

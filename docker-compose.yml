@@ -31,7 +31,7 @@ services:
     environment:
       - ROLE=server,scheduler,concurrency-scheduler,ws-server
       - COMPOSE_DIR=${PWD}
-      - QUEUES=default:1,recordings:1,broadcasts:2,prints,previews,snapshots
+      - QUEUES=default:1,recordings:1,broadcasts:2,prints:1,previews,snapshots
       - SLEEP=5
     volumes:
       - /dev/bus/usb:/dev/bus/usb
@@ -43,6 +43,10 @@ services:
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
       - ${PWD}:${PWD}
+    networks:
+      default:
+        aliases:
+          - ws-server
     tmpfs:
       - /tmp
     depends_on:
