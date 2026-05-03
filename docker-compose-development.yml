@@ -21,6 +21,8 @@ services:
       - ./storage/app/recordings:/public/recordings
       - ./internal/startup:/internal/startup:ro
       - /tmp/video:/tmp/video
+    tmpfs:
+      - /var/log/wprint3d:size=20m,mode=1777
     ports:
       - 80:80
       - 443:443

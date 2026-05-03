@@ -51,6 +51,16 @@ if ! rg -n 'backend-upstream-fastcgi-dev\.conf:/etc/nginx/backend-upstream\.conf
     exit 1
 fi
 
+if ! awk '
+    $0 == "  proxy:" { in_proxy = 1; next }
+    in_proxy && /^  [A-Za-z0-9_-]+:/ { exit }
+    in_proxy && /\/var\/log\/wprint3d:size=20m,mode=1777/ { found = 1 }
+    END { exit found ? 0 : 1 }
+' docker-compose-development.yml; then
+    echo 'Development proxy no longer mounts the runtime log tmpfs required by nginx error_log.'
+    exit 1
+fi
+
 if ! rg -n 'internal/php-fpm-dev-www\.conf:/usr/local/etc/php-fpm\.d/zz-wprint3d-dev\.conf:ro' docker-compose-development.yml > /dev/null; then
     echo 'Development backend no longer mounts the dev php-fpm pool override into the container.'
     exit 1
