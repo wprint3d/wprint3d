@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
     AUTO_LANGUAGE,
@@ -20,11 +23,59 @@ import {
     localizeSystemSettingDefinition,
 } from "../utils/systemSettingsLocalization.js";
 
+const SUPPORTED_LOCALES = ["en", "es", "es_AR", "fr", "pt", "it", "de"];
+const FRONTEND_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
 const readTranslation = (locale, path) => (
     path.split(".").reduce((value, key) => (
         value && typeof value === "object" ? value[key] : undefined
     ), translations[locale])
 );
+
+const collectFrontendSourceFiles = (relativePath) => {
+    const targetPath = path.join(FRONTEND_ROOT, relativePath);
+
+    if (!statSync(targetPath).isDirectory()) {
+        return /\.(js|jsx|ts|tsx)$/.test(targetPath) ? [targetPath] : [];
+    }
+
+    return readdirSync(targetPath).flatMap((entry) => (
+        collectFrontendSourceFiles(path.join(relativePath, entry))
+    ));
+};
+
+const collectLiteralTranslationKeys = () => {
+    const sourceFiles = [
+        "App.js",
+        "QueryableApp.js",
+        "ViewWrapper.js",
+        "components",
+        "hooks",
+        "includes",
+        "utils",
+    ].flatMap(collectFrontendSourceFiles);
+    const literalTranslationCall = /\bt\(\s*(["'])([^"'`$]+?)\1/g;
+    const keys = new Map();
+
+    for (const file of sourceFiles) {
+        const source = readFileSync(file, "utf8");
+        let match;
+
+        while ((match = literalTranslationCall.exec(source)) !== null) {
+            const key = match[2];
+            const relativeFile = path.relative(FRONTEND_ROOT, file);
+            const line = source.slice(0, match.index).split("\n").length;
+
+            if (!keys.has(key)) {
+                keys.set(key, []);
+            }
+
+            keys.get(key).push(`${relativeFile}:${line}`);
+        }
+    }
+
+    return keys;
+};
 
 const makeTranslator = (locale) => (
     (key, params = {}) => {
@@ -475,6 +526,104 @@ test("application translations include plugin and developer tooling keys for eve
             );
         }
     }
+});
+
+test("application translations include final hardcoded UI replacement keys for every supported locale", () => {
+    const requiredKeys = [
+        "app.problemPersistsPrefix",
+        "app.problemPersistsSuffix",
+        "profile.settings",
+        "settings.updateChecking",
+        "settings.updateAvailableTitle",
+        "settings.updateExperimentalBadge",
+        "settings.updateConfirmQuestion",
+        "settings.updateUnavailableNotice",
+        "settings.updateRestartNotice",
+        "settings.updateAction",
+        "users.newPasswordTitlePrefix",
+        "users.newPasswordTitleSuffix",
+        "users.newPasswordIntroPrefix",
+        "users.newPasswordIntroSuffix",
+        "users.newPasswordCopyWarning",
+        "users.newPasswordForgotReset",
+        "users.newPasswordCaseSensitivePrefix",
+        "users.newPasswordCaseSensitive",
+        "users.newPasswordCaseSensitiveSuffix",
+        "plugins.trustedRegistry",
+        "printer.mapper.detectingConnectionParameters",
+        "notifications.centerTooltip",
+    ];
+
+    for (const locale of SUPPORTED_LOCALES) {
+        for (const key of requiredKeys) {
+            assert.equal(
+                typeof readTranslation(locale, key),
+                "string",
+                `Missing translation key "${key}" for locale "${locale}"`
+            );
+        }
+    }
+});
+
+test("literal frontend translation keys exist for every supported locale", () => {
+    const literalKeys = collectLiteralTranslationKeys();
+    const missingKeys = [];
+
+    for (const [key, references] of literalKeys) {
+        for (const locale of SUPPORTED_LOCALES) {
+            if (typeof readTranslation(locale, key) !== "string") {
+                missingKeys.push(`${locale}:${key} (${references.join(", ")})`);
+            }
+        }
+    }
+
+    assert.deepEqual(missingKeys, []);
+});
+
+test("known frontend UI copy is not hardcoded outside translations", () => {
+    const hardcodedCopyByFile = {
+        "QueryableApp.js": [
+            "If the problem persists, please",
+        ],
+        "components/NavBarMenuSettingsModalPlugins.js": [
+            "Automatic updates",
+        ],
+        "components/NavBarMenuSystemUpdater.js": [
+            "Checking for updates...",
+            "An update is available!",
+            "Would you like to apply the update now?",
+            "During the update, the system will be unavailable for a short period of time.",
+            "Once the update is complete, the system will automatically restart and you will be redirected to the login page.",
+        ],
+        "components/UserNewPasswordModal.js": [
+            "'s password",
+            "Here's the new password for",
+            "Please make sure to take note of it and share it with the user as you won't be able to see it again.",
+            "If the user forgets their password, you can always reset it again from their account settings.",
+            "This password is randomly generated and is unique to this user.",
+            "case-sensitive",
+            "and must be entered exactly as shown.",
+        ],
+        "components/UserPrinterMapProgressSnackbar.js": [
+            "Detecting connection parameters…",
+        ],
+        "components/modules/NotificationsCenter.js": [
+            "Notifications center",
+        ],
+    };
+    const stillHardcoded = [];
+
+    for (const [relativeFile, phrases] of Object.entries(hardcodedCopyByFile)) {
+        const source = readFileSync(path.join(FRONTEND_ROOT, relativeFile), "utf8");
+
+        for (const phrase of phrases) {
+            if (source.includes(phrase)) {
+                stillHardcoded.push(`${relativeFile}: ${phrase}`);
+            }
+        }
+    }
+
+    assert.deepEqual(stillHardcoded, []);
 });
 
 test("application translations include printer picker and camera linking shell keys for every supported locale", () => {

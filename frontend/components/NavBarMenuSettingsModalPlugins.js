@@ -1081,7 +1081,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                             }}
                           >
                             <View style={{ flex: 1, gap: 2 }}>
-                              <Text style={{ fontWeight: "700" }}>Automatic updates</Text>
+                              <Text style={{ fontWeight: "700" }}>{t("plugins.automaticUpdates")}</Text>
                               <Text style={{ color: theme.colors.onSurfaceVariant }}>
                                 {plugin.automaticUpdatesSupported
                                   ? (globalAutomaticUpdatesEnabled

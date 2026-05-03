@@ -5067,3 +5067,313 @@ for (const locale of Object.keys(translations)) {
         },
     };
 }
+
+const finalLocalizationGapExtensions = {
+    en: {
+        app: {
+            problemPersistsPrefix: "If the problem persists, please ",
+            problemPersistsSuffix: ".",
+        },
+        profile: {
+            settings: "Settings",
+        },
+        settings: {
+            updateChecking: "Checking for updates...",
+            updateAvailableTitle: "An update is available!",
+            updateExperimentalBadge: "Experimental",
+            updateConfirmQuestion: "Would you like to apply the update now?",
+            updateUnavailableNotice: "During the update, the system will be unavailable for a short period of time.",
+            updateRestartNotice: "Once the update is complete, the system will automatically restart and you will be redirected to the login page.",
+            updateAction: "Update",
+        },
+        users: {
+            newPasswordTitlePrefix: "",
+            newPasswordTitleSuffix: "'s password",
+            newPasswordIntroPrefix: "Here's the new password for ",
+            newPasswordIntroSuffix: ".",
+            newPasswordCopyWarning: "Please make sure to take note of it and share it with the user as you won't be able to see it again.",
+            newPasswordForgotReset: "If the user forgets their password, you can always reset it again from their account settings.",
+            newPasswordCaseSensitivePrefix: "This password is randomly generated and is unique to this user. It is ",
+            newPasswordCaseSensitive: "case-sensitive",
+            newPasswordCaseSensitiveSuffix: " and must be entered exactly as shown.",
+        },
+        plugins: {
+            trustedRegistry: "Trusted registry",
+        },
+        printer: {
+            mapper: {
+                detectingConnectionParameters: "Detecting connection parameters…",
+            },
+        },
+        notifications: {
+            centerTooltip: "Notifications center",
+        },
+    },
+    es: {
+        app: {
+            problemPersistsPrefix: "Si el problema persiste, por favor ",
+            problemPersistsSuffix: ".",
+        },
+        profile: {
+            settings: "Configuración",
+        },
+        settings: {
+            updateChecking: "Buscando actualizaciones...",
+            updateAvailableTitle: "¡Hay una actualización disponible!",
+            updateExperimentalBadge: "Experimental",
+            updateConfirmQuestion: "¿Querés aplicar la actualización ahora?",
+            updateUnavailableNotice: "Durante la actualización, el sistema no estará disponible por un período breve.",
+            updateRestartNotice: "Cuando la actualización finalice, el sistema se reiniciará automáticamente y serás redirigido a la página de inicio de sesión.",
+            updateAction: "Actualizar",
+        },
+        users: {
+            newPasswordTitlePrefix: "Contraseña de ",
+            newPasswordTitleSuffix: "",
+            newPasswordIntroPrefix: "Esta es la nueva contraseña de ",
+            newPasswordIntroSuffix: ".",
+            newPasswordCopyWarning: "Asegurate de anotarla y compartirla con el usuario, ya que no podrás volver a verla.",
+            newPasswordForgotReset: "Si el usuario olvida su contraseña, siempre podés restablecerla otra vez desde la configuración de su cuenta.",
+            newPasswordCaseSensitivePrefix: "Esta contraseña se generó aleatoriamente y es única para este usuario. ",
+            newPasswordCaseSensitive: "Distingue mayúsculas y minúsculas",
+            newPasswordCaseSensitiveSuffix: " y debe ingresarse exactamente como se muestra.",
+        },
+        plugins: {
+            trustedRegistry: "Registro confiable",
+        },
+        printer: {
+            mapper: {
+                detectingConnectionParameters: "Detectando parámetros de conexión…",
+            },
+        },
+        notifications: {
+            centerTooltip: "Centro de notificaciones",
+        },
+    },
+    fr: {
+        app: {
+            problemPersistsPrefix: "Si le problème persiste, veuillez ",
+            problemPersistsSuffix: ".",
+        },
+        profile: {
+            settings: "Paramètres",
+        },
+        settings: {
+            updateChecking: "Recherche de mises à jour...",
+            updateAvailableTitle: "Une mise à jour est disponible !",
+            updateExperimentalBadge: "Expérimental",
+            updateConfirmQuestion: "Voulez-vous appliquer la mise à jour maintenant ?",
+            updateUnavailableNotice: "Pendant la mise à jour, le système sera indisponible pendant une courte période.",
+            updateRestartNotice: "Une fois la mise à jour terminée, le système redémarrera automatiquement et vous serez redirigé vers la page de connexion.",
+            updateAction: "Mettre à jour",
+        },
+        users: {
+            newPasswordTitlePrefix: "Mot de passe de ",
+            newPasswordTitleSuffix: "",
+            newPasswordIntroPrefix: "Voici le nouveau mot de passe de ",
+            newPasswordIntroSuffix: ".",
+            newPasswordCopyWarning: "Veillez à le noter et à le partager avec l’utilisateur, car vous ne pourrez plus le voir.",
+            newPasswordForgotReset: "Si l’utilisateur oublie son mot de passe, vous pourrez toujours le réinitialiser depuis les paramètres de son compte.",
+            newPasswordCaseSensitivePrefix: "Ce mot de passe est généré aléatoirement et est unique à cet utilisateur. Il ",
+            newPasswordCaseSensitive: "respecte la casse",
+            newPasswordCaseSensitiveSuffix: " et doit être saisi exactement comme indiqué.",
+        },
+        plugins: {
+            trustedRegistry: "Registre de confiance",
+        },
+        printer: {
+            mapper: {
+                detectingConnectionParameters: "Détection des paramètres de connexion…",
+            },
+        },
+        notifications: {
+            centerTooltip: "Centre de notifications",
+        },
+    },
+    pt: {
+        app: {
+            problemPersistsPrefix: "Se o problema persistir, por favor ",
+            problemPersistsSuffix: ".",
+        },
+        profile: {
+            settings: "Configurações",
+        },
+        settings: {
+            updateChecking: "Verificando atualizações...",
+            updateAvailableTitle: "Há uma atualização disponível!",
+            updateExperimentalBadge: "Experimental",
+            updateConfirmQuestion: "Deseja aplicar a atualização agora?",
+            updateUnavailableNotice: "Durante a atualização, o sistema ficará indisponível por um curto período.",
+            updateRestartNotice: "Assim que a atualização for concluída, o sistema reiniciará automaticamente e você será redirecionado para a página de login.",
+            updateAction: "Atualizar",
+        },
+        users: {
+            newPasswordTitlePrefix: "Senha de ",
+            newPasswordTitleSuffix: "",
+            newPasswordIntroPrefix: "Esta é a nova senha de ",
+            newPasswordIntroSuffix: ".",
+            newPasswordCopyWarning: "Anote-a e compartilhe-a com o usuário, pois você não poderá vê-la novamente.",
+            newPasswordForgotReset: "Se o usuário esquecer a senha, você sempre poderá redefini-la novamente nas configurações da conta.",
+            newPasswordCaseSensitivePrefix: "Esta senha foi gerada aleatoriamente e é exclusiva deste usuário. Ela ",
+            newPasswordCaseSensitive: "diferencia maiúsculas de minúsculas",
+            newPasswordCaseSensitiveSuffix: " e deve ser digitada exatamente como exibida.",
+        },
+        plugins: {
+            trustedRegistry: "Registro confiável",
+        },
+        printer: {
+            mapper: {
+                detectingConnectionParameters: "Detectando parâmetros de conexão…",
+            },
+        },
+        notifications: {
+            centerTooltip: "Central de notificações",
+        },
+    },
+    it: {
+        app: {
+            problemPersistsPrefix: "Se il problema persiste, ",
+            problemPersistsSuffix: ".",
+        },
+        profile: {
+            settings: "Impostazioni",
+        },
+        settings: {
+            updateChecking: "Controllo aggiornamenti...",
+            updateAvailableTitle: "È disponibile un aggiornamento!",
+            updateExperimentalBadge: "Sperimentale",
+            updateConfirmQuestion: "Vuoi applicare l’aggiornamento ora?",
+            updateUnavailableNotice: "Durante l’aggiornamento il sistema non sarà disponibile per un breve periodo.",
+            updateRestartNotice: "Al termine dell’aggiornamento, il sistema si riavvierà automaticamente e verrai reindirizzato alla pagina di accesso.",
+            updateAction: "Aggiorna",
+        },
+        users: {
+            newPasswordTitlePrefix: "Password di ",
+            newPasswordTitleSuffix: "",
+            newPasswordIntroPrefix: "Ecco la nuova password di ",
+            newPasswordIntroSuffix: ".",
+            newPasswordCopyWarning: "Annotala e condividila con l’utente, perché non potrai visualizzarla di nuovo.",
+            newPasswordForgotReset: "Se l’utente dimentica la password, puoi sempre reimpostarla dalle impostazioni del suo account.",
+            newPasswordCaseSensitivePrefix: "Questa password è generata casualmente ed è unica per questo utente. ",
+            newPasswordCaseSensitive: "Distingue maiuscole e minuscole",
+            newPasswordCaseSensitiveSuffix: " e deve essere inserita esattamente come mostrata.",
+        },
+        plugins: {
+            trustedRegistry: "Registro attendibile",
+        },
+        printer: {
+            mapper: {
+                detectingConnectionParameters: "Rilevamento dei parametri di connessione…",
+            },
+        },
+        notifications: {
+            centerTooltip: "Centro notifiche",
+        },
+    },
+    de: {
+        app: {
+            problemPersistsPrefix: "Wenn das Problem weiterhin besteht, bitte ",
+            problemPersistsSuffix: ".",
+        },
+        profile: {
+            settings: "Einstellungen",
+        },
+        settings: {
+            updateChecking: "Suche nach Updates...",
+            updateAvailableTitle: "Ein Update ist verfügbar!",
+            updateExperimentalBadge: "Experimentell",
+            updateConfirmQuestion: "Möchtest du das Update jetzt anwenden?",
+            updateUnavailableNotice: "Während des Updates ist das System für kurze Zeit nicht verfügbar.",
+            updateRestartNotice: "Nach Abschluss des Updates startet das System automatisch neu und du wirst zur Anmeldeseite weitergeleitet.",
+            updateAction: "Aktualisieren",
+        },
+        users: {
+            newPasswordTitlePrefix: "Passwort von ",
+            newPasswordTitleSuffix: "",
+            newPasswordIntroPrefix: "Hier ist das neue Passwort für ",
+            newPasswordIntroSuffix: ".",
+            newPasswordCopyWarning: "Notiere es und teile es dem Benutzer mit, da du es nicht erneut sehen kannst.",
+            newPasswordForgotReset: "Wenn der Benutzer sein Passwort vergisst, kannst du es jederzeit in den Kontoeinstellungen erneut zurücksetzen.",
+            newPasswordCaseSensitivePrefix: "Dieses Passwort wurde zufällig generiert und ist eindeutig für diesen Benutzer. Es ",
+            newPasswordCaseSensitive: "unterscheidet Groß- und Kleinschreibung",
+            newPasswordCaseSensitiveSuffix: " und muss genau wie angezeigt eingegeben werden.",
+        },
+        plugins: {
+            trustedRegistry: "Vertrauenswürdige Registry",
+        },
+        printer: {
+            mapper: {
+                detectingConnectionParameters: "Verbindungsparameter werden erkannt…",
+            },
+        },
+        notifications: {
+            centerTooltip: "Benachrichtigungszentrum",
+        },
+    },
+};
+
+finalLocalizationGapExtensions.es_AR = finalLocalizationGapExtensions.es;
+
+for (const locale of Object.keys(translations)) {
+    const extension = finalLocalizationGapExtensions[locale];
+
+    if (!extension) {
+        continue;
+    }
+
+    translations[locale].app = {
+        ...(translations[locale].app || {}),
+        ...(extension.app || {}),
+    };
+    translations[locale].profile = {
+        ...(translations[locale].profile || {}),
+        ...(extension.profile || {}),
+    };
+    translations[locale].settings = {
+        ...(translations[locale].settings || {}),
+        ...(extension.settings || {}),
+    };
+    translations[locale].users = {
+        ...(translations[locale].users || {}),
+        ...(extension.users || {}),
+    };
+    translations[locale].plugins = {
+        ...(translations[locale].plugins || {}),
+        ...(extension.plugins || {}),
+    };
+    translations[locale].printer = {
+        ...(translations[locale].printer || {}),
+        ...(extension.printer || {}),
+        controls: {
+            ...(translations[locale].printer?.controls || {}),
+            ...(extension.printer?.controls || {}),
+        },
+        status: {
+            ...(translations[locale].printer?.status || {}),
+            ...(extension.printer?.status || {}),
+        },
+        terminal: {
+            ...(translations[locale].printer?.terminal || {}),
+            ...(extension.printer?.terminal || {}),
+        },
+        preview: {
+            ...(translations[locale].printer?.preview || {}),
+            ...(extension.printer?.preview || {}),
+        },
+        recovery: {
+            ...(translations[locale].printer?.recovery || {}),
+            ...(extension.printer?.recovery || {}),
+        },
+        picker: {
+            ...(translations[locale].printer?.picker || {}),
+            ...(extension.printer?.picker || {}),
+        },
+        mapper: {
+            ...(translations[locale].printer?.mapper || {}),
+            ...(extension.printer?.mapper || {}),
+        },
+    };
+    translations[locale].notifications = {
+        ...(translations[locale].notifications || {}),
+        ...(extension.notifications || {}),
+    };
+}

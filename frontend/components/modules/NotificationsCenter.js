@@ -280,7 +280,7 @@ const NotificationsCenter = ({
 
     return (
         <>
-            <Tooltip title='Notifications center'>
+            <Tooltip title={t("notifications.centerTooltip")}>
                 <View style={{ position: 'relative' }}>
                     <IconButton
                         key={windowWidth}

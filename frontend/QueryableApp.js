@@ -133,7 +133,7 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
                   {t("app.serverUnavailable")}
                   {'\n'}
                   {'\n'}
-                  If the problem persists, please <Text style={{ textDecorationLine: 'underline' }} onPress={() => Linking.openURL('https://github.com/wprint3d/wprint3d')}>{t("app.createGithubIssue")}</Text>.
+                  {t("app.problemPersistsPrefix")}<Text style={{ textDecorationLine: 'underline' }} onPress={() => Linking.openURL('https://github.com/wprint3d/wprint3d')}>{t("app.createGithubIssue")}</Text>{t("app.problemPersistsSuffix")}
                 </Text>
             </View>
           </View>

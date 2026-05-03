@@ -6,12 +6,14 @@ import { useEcho } from "../hooks/useEcho";
 import API from "../includes/API";
 import { View } from "react-native";
 import FormattedTextView from "./FormattedTextView";
+import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSystemUpdater = ({ enqueueSnackbar, checkForUpdatesMutation }) => {
     const [ isUpdateDialogOpen, setIsUpdateDialogOpen ] = useState(false),
           [ lastUpdateLog,      setLastUpdateLog      ] = useState(null);
 
     const { colors } = useTheme();
+    const { t } = useLocalization();
 
     const echo = useEcho();
 
@@ -124,7 +126,7 @@ const NavBarMenuSystemUpdater = ({ enqueueSnackbar, checkForUpdatesMutation }) =
                 >
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <ActivityIndicator animating={true} color={colors.primary} size={24} style={{ marginRight: 12 }} />
-                        <Text> Checking for updates... </Text>
+                        <Text> {t("settings.updateChecking")} </Text>
                     </View>
                 </Snackbar>
             </Portal>
@@ -132,7 +134,7 @@ const NavBarMenuSystemUpdater = ({ enqueueSnackbar, checkForUpdatesMutation }) =
             <SimpleDialog
                 title={
                     <Text>
-                        An update is available!
+                        {t("settings.updateAvailableTitle")}
                         <Badge
                             style={{
                                 marginLeft: 8,
@@ -145,18 +147,18 @@ const NavBarMenuSystemUpdater = ({ enqueueSnackbar, checkForUpdatesMutation }) =
                             theme={{ colors: { onError: colors.white } }}
                             size={48}
                         >
-                            Experimental
+                            {t("settings.updateExperimentalBadge")}
                         </Badge>
                     </Text>
                 }
                 content={
                     <>
                         <Text>
-                            Would you like to apply the update now?
+                            {t("settings.updateConfirmQuestion")}
                             {'\n\n'}
-                            During the update, the system will be unavailable for a short period of time.
+                            {t("settings.updateUnavailableNotice")}
                             {'\n\n'}
-                            Once the update is complete, the system will automatically restart and you will be redirected to the login page.
+                            {t("settings.updateRestartNotice")}
                         </Text>
                         {(lastUpdateLog !== null || updateSystemMutation.isPending) && (
                             <View style={{ marginTop: 24 }}>
@@ -181,7 +183,7 @@ const NavBarMenuSystemUpdater = ({ enqueueSnackbar, checkForUpdatesMutation }) =
                             loading={updateSystemMutation.isPending}
                             disabled={updateSystemMutation.isPending}
                         >
-                            Cancel
+                            {t("notifications.cancel")}
                         </Button>
 
                         <Button
@@ -190,7 +192,7 @@ const NavBarMenuSystemUpdater = ({ enqueueSnackbar, checkForUpdatesMutation }) =
                             loading={updateSystemMutation.isPending}
                             disabled={updateSystemMutation.isPending}
                         >
-                            Update
+                            {t("settings.updateAction")}
                         </Button>
                     </>
                 }

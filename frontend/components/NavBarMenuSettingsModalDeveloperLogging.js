@@ -305,7 +305,7 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
                     open={isFabOpen}
                     visible={!isFetching}
                     icon={isFabOpen ? 'close' : 'plus'}
-                    label='Options'
+                    label={t("settings.options")}
                     actions={[
                         {
                             icon: 'download',
