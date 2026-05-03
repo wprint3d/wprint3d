@@ -104,6 +104,8 @@ class PollSerialConnections extends ConcurrentService
             if (! $printer->node || ! $this->serialNodeExists($printer->node)) {
                 $this->logger()->debug(__METHOD__.'@'.__LINE__.": {$printer->_id}: missing serial node ({$printer->node}), skipping...");
 
+                $this->markPrinterAsDisconnected($printer);
+
                 event(
                     new \App\Events\PrinterConnectionStatusUpdated(
                         printerId: $printer->_id,
@@ -191,6 +193,7 @@ class PollSerialConnections extends ConcurrentService
                 }
             } catch (Throwable $exception) {
                 $printer->setLastError($exception->getMessage());
+                $this->markPrinterAsDisconnected($printer);
 
                 $this->logger()->error(
                     $printer->node.': connection failed: '.$exception->getMessage().PHP_EOL.
@@ -243,6 +246,16 @@ class PollSerialConnections extends ConcurrentService
         }
 
         $printer->connected = true;
+        $printer->save();
+    }
+
+    protected function markPrinterAsDisconnected($printer): void
+    {
+        if (! $printer->connected) {
+            return;
+        }
+
+        $printer->connected = false;
         $printer->save();
     }
 

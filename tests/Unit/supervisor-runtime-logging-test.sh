@@ -8,7 +8,8 @@ TMP_RUNTIME="$(mktemp -d)"
 cleanup() {
     rm -rf "$TMP_RUNTIME"
     rm -f /tmp/supervisor/cron.conf \
-          /tmp/supervisor/concurrent-run.conf \
+          /tmp/supervisor/poll-serial-connections.conf \
+          /tmp/supervisor/refresh-printer-workers.conf \
           /tmp/supervisor/server.conf \
           /tmp/supervisor/reverb.conf
 }
@@ -42,7 +43,8 @@ WPRINT3D_RUNTIME_LOG_DIR="$TMP_RUNTIME" \
         scheduler concurrency-scheduler server ws-server >/dev/null
 
 for conf in /tmp/supervisor/cron.conf \
-            /tmp/supervisor/concurrent-run.conf \
+            /tmp/supervisor/poll-serial-connections.conf \
+            /tmp/supervisor/refresh-printer-workers.conf \
             /tmp/supervisor/server.conf \
             /tmp/supervisor/reverb.conf; do
     contents="$(cat "$conf")"
@@ -53,6 +55,14 @@ for conf in /tmp/supervisor/cron.conf \
     assert_contains "$contents" 'redirect_stderr=true' "$conf stderr redirection"
     assert_not_contains "$contents" '/tmp/supervisor/logs/' "$conf old supervisor log path"
 done
+
+poll_contents="$(cat /tmp/supervisor/poll-serial-connections.conf)"
+refresh_contents="$(cat /tmp/supervisor/refresh-printer-workers.conf)"
+
+assert_contains "$poll_contents" 'command=php artisan concurrent:run-indefinitely --services=PollSerialConnections' 'poll serial supervisor command'
+assert_contains "$refresh_contents" 'command=php artisan concurrent:run-indefinitely --services=RefreshPrinterWorkers' 'refresh workers supervisor command'
+assert_contains "$poll_contents" 'stdout_logfile='"$TMP_RUNTIME"'/supervisor/poll-serial-connections.log' 'poll serial supervisor log'
+assert_contains "$refresh_contents" 'stdout_logfile='"$TMP_RUNTIME"'/supervisor/refresh-printer-workers.log' 'refresh workers supervisor log'
 
 refresh_source="$(cat "$ROOT_DIR/app/Console/Services/Concurrent/RefreshPrinterWorkers.php")"
 

@@ -37,12 +37,20 @@ EOF
             ;;
 
         concurrency-scheduler)
-            cat > "$SUPERVISOR_CONF_DIR/concurrent-run.conf" <<EOF
-[program:concurrent-run]
-command=php artisan concurrent:run-indefinitely
+            cat > "$SUPERVISOR_CONF_DIR/poll-serial-connections.conf" <<EOF
+[program:poll-serial-connections]
+command=php artisan concurrent:run-indefinitely --services=PollSerialConnections
 directory=/var/www
 autorestart=true
-$(supervisor_log_options "$SUPERVISOR_LOG_DIR/concurrent-run.log")
+$(supervisor_log_options "$SUPERVISOR_LOG_DIR/poll-serial-connections.log")
+EOF
+
+            cat > "$SUPERVISOR_CONF_DIR/refresh-printer-workers.conf" <<EOF
+[program:refresh-printer-workers]
+command=php artisan concurrent:run-indefinitely --services=RefreshPrinterWorkers
+directory=/var/www
+autorestart=true
+$(supervisor_log_options "$SUPERVISOR_LOG_DIR/refresh-printer-workers.log")
 EOF
             ;;
 

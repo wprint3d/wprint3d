@@ -12,6 +12,7 @@ use App\Exceptions\InitializationException;
 
 use App\Jobs\PrintGcode;
 use App\Jobs\RenderVideo;
+use App\Libraries\Serial;
 use App\Models\Camera;
 use App\Models\Configuration;
 use App\Models\Printer;
@@ -58,7 +59,12 @@ class PrinterController extends Controller
             throw ValidationException::withMessages([ 'printer' => __('server.printers.not_found') ]);
         }
 
-        if (!$printer->connected) {
+        if (!$printer->connected || !Serial::nodeExists($printer->node)) {
+            if ($printer->connected) {
+                $printer->connected = false;
+                $printer->save();
+            }
+
             throw ValidationException::withMessages([ 'printer' => __('server.printers.not_connected') ]);
         }
     }
@@ -325,7 +331,12 @@ class PrinterController extends Controller
 
         $printer = $request->printer;
 
-        if (!$printer->connected) {
+        if (!$printer->connected || !Serial::nodeExists($printer->node)) {
+            if ($printer->connected) {
+                $printer->connected = false;
+                $printer->save();
+            }
+
             throw ValidationException::withMessages([ 'fileName' => __('server.printers.not_connected') ]);
         }
 

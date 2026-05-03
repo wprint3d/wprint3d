@@ -9,12 +9,21 @@ use Tests\TestCase;
 
 class PollSerialConnectionsTest extends TestCase
 {
-    public function test_successful_poll_marks_a_stale_printer_as_connected(): void
+    protected function setUp(): void
     {
-        Event::fake();
-        Cache::forget(config('cache.mapper_busy_key'));
+        parent::setUp();
 
-        $printer = new class
+        config([
+            'logging.channels.printers-poller' => [
+                'driver' => 'single',
+                'path' => sys_get_temp_dir().'/wprint3d-test-printers-poller.log',
+            ],
+        ]);
+    }
+
+    private function makePrinter(bool $connected = false): object
+    {
+        return new class($connected)
         {
             public string $_id;
 
@@ -27,6 +36,15 @@ class PollSerialConnectionsTest extends TestCase
             public mixed $activeFile = null;
 
             public bool $saved = false;
+
+            public function __construct(bool $connected)
+            {
+                $this->_id = 'printer-1';
+                $this->node = 'ACM0';
+                $this->baudRate = 115200;
+                $this->connected = $connected;
+                $this->activeFile = null;
+            }
 
             private ?int $lastSeenValue = null;
 
@@ -83,12 +101,14 @@ class PollSerialConnectionsTest extends TestCase
                 return $this->lastErrorValue;
             }
         };
+    }
 
-        $printer->_id = 'printer-1';
-        $printer->node = 'ACM0';
-        $printer->baudRate = 115200;
-        $printer->connected = false;
-        $printer->activeFile = null;
+    public function test_successful_poll_marks_a_stale_printer_as_connected(): void
+    {
+        Event::fake();
+        Cache::forget(config('cache.mapper_busy_key'));
+
+        $printer = $this->makePrinter();
 
         $serial = new class
         {
@@ -138,6 +158,84 @@ class PollSerialConnectionsTest extends TestCase
         $this->assertNotNull($printer->getLastSeen());
         $this->assertNull($printer->getLastError());
         $this->assertSame(['M105'], $serial->queries);
+        $this->assertTrue($serial->closed);
+    }
+
+    public function test_missing_serial_node_marks_printer_as_disconnected(): void
+    {
+        Event::fake();
+        Cache::forget(config('cache.mapper_busy_key'));
+
+        $printer = $this->makePrinter(connected: true);
+
+        $service = new class extends PollSerialConnections
+        {
+            public function poll(array $printers): void
+            {
+                $this->pollPrinters($printers, 0, 5, 7, []);
+            }
+
+            protected function serialNodeExists(?string $node): bool
+            {
+                return false;
+            }
+        };
+
+        $service->poll([$printer]);
+
+        $this->assertFalse($printer->connected);
+        $this->assertTrue($printer->saved);
+    }
+
+    public function test_poll_failure_marks_printer_as_disconnected(): void
+    {
+        Event::fake();
+        Cache::forget(config('cache.mapper_busy_key'));
+
+        $printer = $this->makePrinter(connected: true);
+
+        $serial = new class
+        {
+            public bool $closed = false;
+
+            public function query(string $command): string
+            {
+                throw new \RuntimeException('serial timeout');
+            }
+
+            public function close(): void
+            {
+                $this->closed = true;
+            }
+        };
+
+        $service = new class($serial) extends PollSerialConnections
+        {
+            public function __construct(
+                private object $serial
+            ) {}
+
+            public function poll(array $printers): void
+            {
+                $this->pollPrinters($printers, 0, 5, 7, []);
+            }
+
+            protected function serialNodeExists(?string $node): bool
+            {
+                return true;
+            }
+
+            protected function makeSerialConnection($printer, int $commandTimeoutSecs, array $serialPluginHooks)
+            {
+                return $this->serial;
+            }
+        };
+
+        $service->poll([$printer]);
+
+        $this->assertFalse($printer->connected);
+        $this->assertTrue($printer->saved);
+        $this->assertSame('serial timeout', $printer->getLastError());
         $this->assertTrue($serial->closed);
     }
 }
