@@ -257,6 +257,8 @@ test("application translations include camera flow keys for every supported loca
         "notConnected",
         "notWorking",
         "bufferingStream",
+        "tapToEnlarge",
+        "openLargeView",
     ];
 
     for (const locale of locales) {

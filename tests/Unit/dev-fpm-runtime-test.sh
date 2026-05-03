@@ -21,6 +21,16 @@ if ! rg -n 'php-fpm-dev-www\.conf' Dockerfile.dev > /dev/null; then
     exit 1
 fi
 
+if ! awk '
+    /^# Basic dependencies$/ { in_basic_deps = 1; next }
+    in_basic_deps && /apt-get clean/ { exit found ? 0 : 1 }
+    in_basic_deps && /v4l-utils/ { found = 1 }
+    END { if (in_basic_deps && ! found) exit 1 }
+' Dockerfile.dev; then
+    echo 'Dockerfile.dev basic dependencies no longer install v4l-utils, which hardware camera detection needs for v4l2-ctl.'
+    exit 1
+fi
+
 if ! rg -n '^user = root$|^group = root$' internal/php-fpm-dev-www.conf > /dev/null; then
     echo 'The dev php-fpm pool override no longer runs workers as root.'
     exit 1

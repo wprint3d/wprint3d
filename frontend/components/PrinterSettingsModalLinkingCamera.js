@@ -8,6 +8,7 @@ import TooltipToggleButton from "./modules/TooltipToggleButton";
 import SimpleDialog from "./SimpleDialog";
 import UserPrinterCamera from "./UserPrinterCamera";
 import { useLocalization } from "../includes/LocalizationProvider";
+import { invalidatePrinterCameraLinkingQueries } from "../utils/printerCameraLinking";
 
 const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }) => {
     const { colors } = useTheme();
@@ -33,12 +34,18 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
         onMutate: ({ cameraId }) => {
             console.debug('PrinterSettingsModalLinkingCamera: linkCameraMutation: onMutate:', cameraId);
 
-            queryClient.invalidateQueries({ queryKey: ['printerDetails', printerDetails._id] });
-
-            return cameraId;
+            return { wasLinked: isLinked, wasRecordable: isRecordable };
         },
-        onSuccess: (cameraId) => {
-            console.debug('PrinterSettingsModalLinkingCamera: linkCameraMutation: onSuccess:', cameraId);
+        onSuccess: (data, variables) => {
+            console.debug('PrinterSettingsModalLinkingCamera: linkCameraMutation: onSuccess:', data, variables);
+
+            setIsLinked(!variables.isLinked);
+
+            if (variables.isLinked) {
+                setIsRecordable(false);
+            }
+
+            invalidatePrinterCameraLinkingQueries(queryClient, printerDetails._id);
         },
         onError: (error, variables, context) => {
             console.error('PrinterSettingsModalLinkingCamera: linkCameraMutation: onError:', error, variables, context);
@@ -52,7 +59,8 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
                 action:  { label: t("notifications.gotIt") }
             });
 
-            setIsRecordable(variables.isLinked); // reset to previous state
+            setIsLinked(context?.wasLinked ?? variables.isLinked); // reset to previous state
+            setIsRecordable(context?.wasRecordable ?? isRecordable);
         }
     });
 
@@ -61,9 +69,7 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
         onMutate: ({ cameraId }) => {
             console.debug('PrinterSettingsModalLinkingCamera: recordCameraMutation: onMutate:', cameraId);
 
-            queryClient.invalidateQueries({ queryKey: ['printerDetails', printerDetails._id] });
-
-            return cameraId;
+            return { wasLinked: isLinked, wasRecordable: isRecordable };
         },
         onSuccess: (data, variables) => {
             console.debug('PrinterSettingsModalLinkingCamera: recordCameraMutation: onSuccess:', data, variables);
@@ -71,8 +77,10 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
             if (!isLinked && !variables.isRecordable) { setIsLinked(true); }
 
             setIsRecordable(!variables.isRecordable);
+
+            invalidatePrinterCameraLinkingQueries(queryClient, printerDetails._id);
         },
-        onError: (error, variables) => {
+        onError: (error, variables, context) => {
             console.error('PrinterSettingsModalLinkingCamera: recordCameraMutation: onError:', error, variables, context);
 
             enqueueSnackbar({
@@ -84,7 +92,8 @@ const PrinterSettingsModalLinkingCamera = ({ camera, printerDetails, isLoading }
                 action:  { label: t("notifications.gotIt") }
             });
 
-            setIsRecordable(variables.isRecordable); // reset to previous state
+            setIsLinked(context?.wasLinked ?? isLinked);
+            setIsRecordable(context?.wasRecordable ?? variables.isRecordable); // reset to previous state
         }
     });
 
