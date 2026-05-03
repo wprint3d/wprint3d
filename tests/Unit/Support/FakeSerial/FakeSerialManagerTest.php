@@ -85,4 +85,28 @@ class FakeSerialManagerTest extends TestCase
             $manager->disconnect('FAKE0', $connection);
         }
     }
+
+    public function test_it_caps_the_developer_log_when_batching_transaction_entries(): void
+    {
+        $manager = $this->makeManager([
+            'enabled' => true,
+            'logMaxEntries' => 5,
+        ]);
+
+        $connection = $manager->connect('FAKE0', 115200);
+
+        try {
+            $manager->transact('FAKE0', 115200, $connection, 'G1 X1 Y1 Z0.2 E0.1');
+            $manager->transact('FAKE0', 115200, $connection, 'G1 X2 Y2 Z0.2 E0.2');
+            $manager->transact('FAKE0', 115200, $connection, 'G1 X3 Y3 Z0.2 E0.3');
+
+            $log = $manager->getLog();
+
+            $this->assertCount(5, $log);
+            $this->assertSame('output', $log[4]['direction']);
+            $this->assertSame('ok', $log[4]['message']);
+        } finally {
+            $manager->disconnect('FAKE0', $connection);
+        }
+    }
 }

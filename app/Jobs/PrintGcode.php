@@ -586,15 +586,22 @@ class PrintGcode implements ShouldQueue
 
             $wasPaused = false;
 
-            $absolutePosition = movementToXYZE(
+            $detectedAbsolutePosition = movementToXYZE(
                 $serial->query('M114') // current absolute position
             );
 
+            $absolutePosition = [
+                'x' => $detectedAbsolutePosition['x'] ?? null,
+                'y' => $detectedAbsolutePosition['y'] ?? null,
+                'z' => $detectedAbsolutePosition['z'] ?? null,
+                'e' => $detectedAbsolutePosition['e'] ?? null,
+            ];
+
             $this->printer->setAbsolutePosition(
-                x: $absolutePosition['x'] ?? null,
-                y: $absolutePosition['y'] ?? null,
-                z: $absolutePosition['z'] ?? null,
-                e: $absolutePosition['e'] ?? null
+                x: $absolutePosition['x'],
+                y: $absolutePosition['y'],
+                z: $absolutePosition['z'],
+                e: $absolutePosition['e']
             );
 
             $progressPercentage = 0;
@@ -614,8 +621,6 @@ class PrintGcode implements ShouldQueue
                 $time = time();
 
                 $line = $buffer[$index];
-
-                $absolutePosition = $this->printer->getAbsolutePosition();
 
                 if ($line == ';'.FormatterCommands::GO_BACK) {
                     $line = "G0 X{$absolutePosition['x']} Y{$absolutePosition['y']} Z{$absolutePosition['z']} F".self::COLOR_SWAP_MOVEMENT_FEED_RATE;
@@ -792,6 +797,8 @@ class PrintGcode implements ShouldQueue
                             z: $absolutePosition['z'],
                             e: $absolutePosition['e']
                         );
+
+                        $lastPositionUpdate = time();
                     }
                 }
 

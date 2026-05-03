@@ -57,6 +57,7 @@ class FakeSerialManager
             'token' => $token,
             'baudRate' => $baudRate,
             'connectedAt' => microtime(true),
+            'refreshedAt' => microtime(true),
         ], 60);
 
         $this->appendLog('status', "{$node} connected at {$baudRate} baud");
@@ -98,13 +99,24 @@ class FakeSerialManager
         $result = $this->emulator->transact($command, $state);
 
         $this->cache->put($this->stateKey($node), $result['state'], 60 * 60);
-        $this->cache->put($this->connectionKey($node), $connection, 60);
 
-        $this->appendLog('input', $command);
+        $now = microtime(true);
+
+        if (($connection['refreshedAt'] ?? 0) <= ($now - 30)) {
+            $connection['refreshedAt'] = $now;
+
+            $this->cache->put($this->connectionKey($node), $connection, 60);
+        }
+
+        $logEntries = [
+            $this->logEntry('input', $command),
+        ];
 
         foreach ($result['lines'] as $line) {
-            $this->appendLog('output', $line['text']);
+            $logEntries[] = $this->logEntry('output', $line['text']);
         }
+
+        $this->appendLogEntries($logEntries);
 
         return $result;
     }
@@ -174,16 +186,40 @@ class FakeSerialManager
 
     private function appendLog(string $direction, string $message): void
     {
-        $settings = $this->resolveSettings();
-        $log = $this->cache->get($this->logKey(), []);
-        $log[] = [
+        $this->appendLogEntries([
+            $this->logEntry($direction, $message),
+        ]);
+    }
+
+    private function logEntry(string $direction, string $message): array
+    {
+        return [
             'direction' => $direction,
             'message' => $message,
             'timestamp' => microtime(true),
         ];
+    }
 
-        while (count($log) > $settings['logMaxEntries']) {
-            array_shift($log);
+    private function appendLogEntries(array $entries): void
+    {
+        if ($entries === []) {
+            return;
+        }
+
+        $settings = $this->resolveSettings();
+        $maxEntries = (int) $settings['logMaxEntries'];
+
+        if ($maxEntries <= 0) {
+            $this->cache->put($this->logKey(), [], 60 * 60);
+
+            return;
+        }
+
+        $log = $this->cache->get($this->logKey(), []);
+        array_push($log, ...$entries);
+
+        if (count($log) > $maxEntries) {
+            $log = array_slice($log, -1 * $maxEntries);
         }
 
         $this->cache->put($this->logKey(), $log, 60 * 60);
