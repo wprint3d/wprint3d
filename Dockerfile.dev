@@ -20,7 +20,7 @@ RUN printf 'Acquire::Check-Valid-Until "false";\nAcquire::Retries "5";\nAcquire:
 RUN apt-get update && apt-get install -y --no-install-recommends \
         coreutils gettext-base git curl redis-tools inotify-tools gnupg inetutils-ping \
         udev ffmpeg unzip supervisor psmisc jq uuid-runtime cron fswebcam rsync \
-        procps usbutils libzip-dev libmemcached-dev libyaml-dev libuv1-dev \
+        procps usbutils v4l-utils libzip-dev libmemcached-dev libyaml-dev libuv1-dev \
         libcurl4-openssl-dev libxml2-dev libzip-dev libevent-dev \
         libjpeg-dev libbsd-dev zlib1g-dev libssl-dev libdrm-dev libexif-dev \
         libboost-program-options-dev libglib2.0-dev libavcodec-dev libicu-dev \
