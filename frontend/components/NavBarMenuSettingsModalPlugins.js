@@ -6,6 +6,7 @@ import { Button, Card, Checkbox, Chip, Divider, Icon, IconButton, Menu, Searchba
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 import API from "../includes/API";
 import { useLocalization } from "../includes/LocalizationProvider";
+import { buildRegistryPluginInstallKey } from "../utils/pluginInstallUi";
 import SimpleDialog from "./SimpleDialog";
 
 const buildDependencyBadges = (plugin, theme, t) => {
@@ -418,6 +419,7 @@ let persistedOverlayState = {
   installModalTab: "url",
   marketplaceVisible: false,
   registrySourcesVisible: false,
+  installErrorDialog: null,
   confirmationDialog: null,
   logsDialogPlugin: null,
 };
@@ -438,6 +440,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
   const [ overlayState, setOverlayStateState ] = useState(() => ({ ...persistedOverlayState }));
   const [ pluginActionsMenuId, setPluginActionsMenuId ] = useState(null);
   const [ globalActionsMenuVisible, setGlobalActionsMenuVisible ] = useState(false);
+  const [ activeInstall, setActiveInstall ] = useState(null);
 
   const updateOverlayState = (updates) => {
     const nextState = typeof updates === "function"
@@ -452,6 +455,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
   const installModalTab = overlayState.installModalTab;
   const marketplaceVisible = overlayState.marketplaceVisible;
   const registrySourcesVisible = overlayState.registrySourcesVisible;
+  const installErrorDialog = overlayState.installErrorDialog;
   const confirmationDialog = overlayState.confirmationDialog;
   const logsDialogPlugin = overlayState.logsDialogPlugin;
 
@@ -469,6 +473,10 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
 
   const setRegistrySourcesVisible = (value) => updateOverlayState({
     registrySourcesVisible: typeof value === "function" ? value(persistedOverlayState.registrySourcesVisible) : value,
+  });
+
+  const setInstallErrorDialog = (value) => updateOverlayState({
+    installErrorDialog: typeof value === "function" ? value(persistedOverlayState.installErrorDialog) : value,
   });
 
   const setConfirmationDialog = (value) => updateOverlayState({
@@ -590,15 +598,38 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
         variant: feedback.variant,
         action: { label: t("notifications.gotIt") },
       });
+
+      if (variables?.intent === "install" && variables?.source === "registry") {
+        setMarketplaceVisible(false);
+      }
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      const message = error?.response?.data?.message || error?.message || t("plugins.installFailedBody");
+
+      if (variables?.intent === "install") {
+        setInstallErrorDialog({
+          title: t("plugins.installFailedTitle"),
+          message: t("plugins.installFailedBody"),
+          details: message,
+        });
+
+        return;
+      }
+
       enqueueSnackbar({
-        message: error?.response?.data?.message || error.message,
+        message,
         variant: "error",
         action: { label: t("notifications.gotIt") },
       });
-    }
+    },
+    onSettled: (_response, _error, variables) => {
+      if (variables?.intent === "install") {
+        setActiveInstall(null);
+      }
+    },
   });
+
+  const isAnyPluginInstallPending = mutateAndRefresh.isPending && !!activeInstall;
 
   const deleteMutation = useMutation({
     mutationFn: (pluginId) => API.delete(`/plugins/${pluginId}`),
@@ -649,10 +680,15 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
   const handleUpload = (file) => {
     if (!file) { return; }
 
+    setActiveInstall({
+      kind: "upload",
+      name: file?.name || t("plugins.choosePackage"),
+    });
     mutateAndRefresh.mutate({
       url: "/plugins/install",
       body: { package: file },
       intent: "install",
+      source: "upload",
     });
     setInstallModalVisible(false);
   };
@@ -725,10 +761,15 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
   const installFromUrl = () => {
     if (!installUrl) { return; }
 
+    setActiveInstall({
+      kind: "url",
+      name: installUrl,
+    });
     mutateAndRefresh.mutate({
       url: "/plugins/install",
       body: { url: installUrl },
       intent: "install",
+      source: "url",
     });
 
     setInstallModalVisible(false);
@@ -736,6 +777,13 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
   };
 
   const installFromRegistry = (plugin) => {
+    const installKey = buildRegistryPluginInstallKey(plugin);
+
+    setActiveInstall({
+      kind: "registry",
+      key: installKey,
+      name: plugin.name || plugin.id,
+    });
     mutateAndRefresh.mutate({
       url: "/plugins/install",
       body: {
@@ -744,14 +792,21 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
         sourceId: plugin.registrySource?.id,
       },
       intent: "install",
+      source: "registry",
+      installKey,
     });
   };
 
   const installFromDevelopmentPath = (path) => {
+    setActiveInstall({
+      kind: "development",
+      name: path,
+    });
     mutateAndRefresh.mutate({
       url: "/plugins/install",
       body: { unpackedPath: path },
       intent: "install",
+      source: "development",
     });
     setInstallModalVisible(false);
   };
@@ -1541,6 +1596,10 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
                 {filteredRegistryPlugins.map((plugin) => {
                   const sourceBadge = buildRegistrySourceBadge(plugin.registrySource, theme, t);
+                  const installKey = buildRegistryPluginInstallKey(plugin);
+                  const isInstallingThisPlugin = isAnyPluginInstallPending
+                    && activeInstall?.kind === "registry"
+                    && activeInstall?.key === installKey;
 
                   return (
                     <Card key={`${plugin.registrySource?.id || "registry"}-${plugin.id}`} style={gridCardStyle(theme, cardWidth, isWideLayout)}>
@@ -1625,8 +1684,13 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                           </View>
                         )}
 
-                        <Button mode="contained" onPress={() => installFromRegistry(plugin)}>
-                          {t("plugins.install")}
+                        <Button
+                          mode="contained"
+                          loading={isInstallingThisPlugin}
+                          disabled={isAnyPluginInstallPending}
+                          onPress={() => installFromRegistry(plugin)}
+                        >
+                          {isInstallingThisPlugin ? t("plugins.installing") : t("plugins.install")}
                         </Button>
                       </Card.Content>
                     </Card>
@@ -1856,6 +1920,35 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
         actions={
           <Button mode="text" onPress={() => setLogsDialogPlugin(null)}>
             {t("plugins.close")}
+          </Button>
+        }
+      />
+
+      <SimpleDialog
+        visible={!!installErrorDialog}
+        setVisible={() => setInstallErrorDialog(null)}
+        title={installErrorDialog?.title || t("plugins.installFailedTitle")}
+        content={
+          <View style={{ gap: 12 }}>
+            <Text>{installErrorDialog?.message || t("plugins.installFailedBody")}</Text>
+            {!!installErrorDialog?.details && (
+              <View
+                style={{
+                  padding: 12,
+                  borderRadius: 14,
+                  backgroundColor: theme.colors.errorContainer,
+                }}
+              >
+                <Text selectable style={{ color: theme.colors.onErrorContainer }}>
+                  {installErrorDialog.details}
+                </Text>
+              </View>
+            )}
+          </View>
+        }
+        actions={
+          <Button mode="contained" onPress={() => setInstallErrorDialog(null)}>
+            {t("plugins.dismiss")}
           </Button>
         }
       />
