@@ -477,19 +477,19 @@ class PrintGcode implements ShouldQueue
         ) {
             $this->lineNumberCount++;
 
-            if (Str::startsWith($line, 'G90') || Str::startsWith($line, 'G91')) {
+            if (str_starts_with($line, 'G90') || str_starts_with($line, 'G91')) {
                 $lastMovementMode = $line;
             }
 
-            if (! Str::startsWith($line, 'G0') && ! Str::startsWith($line, 'G1')) {
+            if (! str_starts_with($line, 'G0') && ! str_starts_with($line, 'G1')) {
+                continue;
+            }
+
+            if (! str_contains($line, ' Z') && ! str_contains($line, "\tZ")) {
                 continue;
             }
 
             $nextVirtualPosition = movementToXYZE($line);
-
-            if (! isset($nextVirtualPosition['z'])) {
-                $nextVirtualPosition['z'] = 0;
-            }
 
             if (! isset($virtualPosition)) {
                 $virtualPosition = ['z' => 0];

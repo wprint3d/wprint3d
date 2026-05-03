@@ -238,11 +238,11 @@ class PrinterController extends Controller
 
             $lineNumber++;
 
-            if (Str::startsWith($line, 'G90') || Str::startsWith($line, 'G91')) {
+            if (str_starts_with($line, 'G90') || str_starts_with($line, 'G91')) {
                 $lastMovementMode = $line;
             }
 
-            if (!Str::startsWith($line, 'G0') && !Str::startsWith($line, 'G1')) { continue; }
+            if (!str_starts_with($line, 'G0') && !str_starts_with($line, 'G1')) { continue; }
 
             $nextVirtualPosition = movementToXYZE( $line );
 

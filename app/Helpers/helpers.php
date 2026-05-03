@@ -90,22 +90,41 @@ function containsNonUTF8(string $string) : bool {
 function movementToXYZE(string $command) : array {
     $position = [];
 
-    $command =
-        Str::of( $command )
-            ->replaceMatches('/ Count.*/', '') // we don't care about the allocated count (M114)
-            ->replaceMatches('/;.*$/', '')     // remove comments
-            ->replace(':', '')                 // M114 returns data split by ":", remove them so that they match what G0 or G1 would look like
-            ->replace('ok', '')                // M114 contains the "ok" word, remove it
-            ->trim()                           // trim spaces at beginning and end
-            ->explode(' ');
+    $countPosition = strpos($command, ' Count');
 
-    foreach ($command as $argument) {
-        if (!isset( $argument[0] )) continue;
+    if ($countPosition !== false) {
+        $command = substr($command, 0, $countPosition);
+    }
 
-        foreach ([ 'X', 'Y', 'Z', 'E' ] as $axis) {
-            if ($argument[0] == $axis) {
-                $position[ strtolower($axis) ] = Str::replace($axis, '', $argument);
-            }
+    $commentPosition = strpos($command, ';');
+
+    if ($commentPosition !== false) {
+        $command = substr($command, 0, $commentPosition);
+    }
+
+    $command = trim(
+        str_replace(
+            search: [':', 'ok'],
+            replace: '',
+            subject: $command
+        )
+    );
+
+    foreach (explode(' ', $command) as $argument) {
+        if (! isset($argument[0])) {
+            continue;
+        }
+
+        if (
+            $argument[0] == 'X'
+            ||
+            $argument[0] == 'Y'
+            ||
+            $argument[0] == 'Z'
+            ||
+            $argument[0] == 'E'
+        ) {
+            $position[strtolower($argument[0])] = substr($argument, 1);
         }
     }
 
@@ -229,23 +248,18 @@ function getGCode(string $line) {
 }
 
 function readStreamLine(mixed $stream, ?int $maxLength = null): string {
-    $line = '';
+    $line = fgets($stream);
 
-    while (
-        (
-            $char = stream_get_contents(
-                stream: $stream,
-                length: 1
-            )
-        ) !== false
-        &&
-        !feof( $stream )
-    ) {
-        if ($maxLength === null || strlen($line) < $maxLength) {
-            $line .= $char;
-        }
+    if ($line === false) {
+        return '';
+    }
 
-        if ($char == PHP_EOL) break;
+    if ($maxLength !== null && strlen($line) > $maxLength) {
+        return substr(
+            string: $line,
+            offset: 0,
+            length: $maxLength
+        );
     }
 
     return $line;
