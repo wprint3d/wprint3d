@@ -91,7 +91,7 @@ generateSecrets() {
     if ! php artisan > /dev/null 2>&1; then
         echo 'Composer dependencies are missing, installing...';
 
-        composer install;
+        composerInstall;
     fi;
 
     echo 'Generating secrets...';
@@ -185,11 +185,33 @@ refreshThirdPartyLicenses() {
     bash /var/www/internal/refresh-third-party-licenses.sh /var/www;
 }
 
+composerInstall() {
+    if composer install; then
+        return 0;
+    fi;
+
+    if [[ "${DEVELOPER_MODE}" != 'true' ]]; then
+        return 1;
+    fi;
+
+    echo 'Composer install failed in developer mode. Clearing local vendor dependencies and retrying...';
+
+    rm -rf /var/www/vendor;
+
+    composer install;
+}
+
 runDeferredTasks() {
     echo 'Running deferred tasks...';
 
     echo 'Resetting pending updates...';
     php artisan app:reset-pending-updates;
+
+    if [[ "${DEVELOPER_MODE}" == 'true' ]]; then
+        echo 'Skipping update check in developer mode...';
+
+        return 0;
+    fi;
 
     echo 'Trying to look for updates...';
     php artisan app:check-for-updates;
@@ -210,7 +232,7 @@ bootstrapServerRuntime() {
     # Downloads the required dependencies if they're not already
     # present or if DEVELOPER_MODE is enabled
     if ! php artisan > /dev/null 2>&1 || [[ "${DEVELOPER_MODE}" == 'true' ]]; then
-        if ! composer install; then
+        if ! composerInstall; then
             return 1;
         fi;
     fi;

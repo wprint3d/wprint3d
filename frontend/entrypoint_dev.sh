@@ -4,6 +4,15 @@ set -e; # quit on error
 
 install_dependencies() {
     echo '=> Installing packages with NPM...';
+
+    if pnpm i --force --loglevel verbose; then
+        return 0;
+    fi;
+
+    echo 'PNPM install failed. Clearing local frontend dependencies and retrying...';
+
+    rm -rf /app/node_modules /app/.pnpm-store;
+
     pnpm i --force --loglevel verbose;
 }
 
