@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, ScrollView } from 'react-native';
 import { Button, Divider, Icon, Modal, Portal, ProgressBar, Text, useTheme } from 'react-native-paper';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import API from '../includes/API';
@@ -10,6 +10,7 @@ import UserPaneLoadingIndicator from './UserPaneLoadingIndicator';
 import NavBarMenuSettingsModalPlaceholderItem from './NavBarMenuSettingsModalPlaceholderItem';
 import { useEcho } from '../hooks/useEcho';
 import { useLocalization } from '../includes/LocalizationProvider';
+import { getScrollableModalContentStyle, getScrollableModalFrameStyle } from '../utils/modalLayout';
 
 const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus }) => {
     const queryClient = useQueryClient();
@@ -278,18 +279,22 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
             <SnackbarProvider maxSnack={4}>
                 <Modal
                     visible={isVisible}
-                    contentContainerStyle={{
+                    contentContainerStyle={getScrollableModalFrameStyle({
                         backgroundColor: colors.elevation.level1,
-                        height: isSmallTablet ? '100%' : '95%',
-                        width:  isSmallTablet ? '100%' : '95%',
+                        isFullScreen: isSmallTablet,
+                        width: '95%',
                         maxWidth: 960,
-                        alignSelf: 'center',
-                        padding: 16,
-                        paddingVertical: 32,
-                        overflow: 'scroll'
-                    }}
+                        maxHeight: '95%',
+                    })}
                 >
-                    <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+                    <ScrollView
+                        style={{ width: '100%' }}
+                        contentContainerStyle={getScrollableModalContentStyle({
+                            horizontalPadding: 16,
+                            verticalPadding: 32,
+                        })}
+                    >
+                        <View style={{ alignItems: 'center' }}>
                         <Text variant='headlineLarge'>
                             {t("printer.recovery.title")}
                         </Text>
@@ -440,6 +445,7 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
                             )
                         ))}
                     </View>
+                    </ScrollView>
                 </Modal>
             </SnackbarProvider>
         </Portal>

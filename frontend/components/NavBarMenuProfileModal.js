@@ -1,7 +1,7 @@
 import { Button, Divider, Icon, Modal, Portal, Text, TextInput, useTheme } from "react-native-paper";
 import { SnackbarProvider, useSnackbar } from "react-native-paper-snackbar-stack";
 import BackButton from "./modules/BackButton";
-import { View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import API from "../includes/API";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
@@ -10,6 +10,7 @@ import DropDown from "react-native-paper-dropdown";
 import UserChangePasswordModal from "./UserChangePasswordModal";
 import { LocalizationContext, useLocalization } from "../includes/LocalizationProvider";
 import LanguagePicker from "./LanguagePicker";
+import { getScrollableModalContentStyle, getScrollableModalFrameStyle } from "../utils/modalLayout";
 
 const sectionContentStyle = {
     width: '100%',
@@ -56,19 +57,21 @@ const NavBarMenuProfileModal = ({ isVisible, setIsVisible, onDismiss, isSmallTab
                     <Modal
                         visible={isVisible}
                         onDismiss={doDismiss}
-                        contentContainerStyle={{
+                        contentContainerStyle={getScrollableModalFrameStyle({
                             backgroundColor: colors.elevation.level1,
-                            height:     isSmallTablet ? '100%' : '75%',
-                            width:      isSmallTablet ? '100%' : '60%',
-                            maxWidth:   isSmallTablet ? '100%' : 500,
-                            alignSelf: 'center',
-                            padding: 16,
-                            overflow: 'scroll'
-                        }}
+                            isFullScreen: isSmallTablet,
+                            width: '60%',
+                            maxWidth: 500,
+                            maxHeight: '75%',
+                        })}
                     >
+                        <ScrollView
+                            style={{ width: '100%' }}
+                            contentContainerStyle={getScrollableModalContentStyle()}
+                        >
                         {isSmallTablet && <BackButton onPress={doDismiss} />}
 
-                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        <View style={{ alignItems: 'center' }}>
                             <Text variant="headlineLarge" style={{ marginVertical: 16 }}>
                                 {t("profile.title")}
                             </Text>
@@ -143,6 +146,7 @@ const NavBarMenuProfileModal = ({ isVisible, setIsVisible, onDismiss, isSmallTab
                                 />
                             </View>
                         </View>
+                        </ScrollView>
 
                         <UserChangePasswordModal
                             visible={showChangePasswordModal}
