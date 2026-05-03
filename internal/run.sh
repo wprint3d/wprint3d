@@ -10,6 +10,31 @@ source /var/www/internal/service-status.sh;
 # so all directories exist on disk before being copied to tmpfs)
 mkdir -p /var/www/storage/{app/{gcode,recordings,public,plugins},framework/{cache,data,views},logs};
 
+setupRuntimeLogs() {
+    local runtime_log_dir="${WPRINT3D_RUNTIME_LOG_DIR:-}"
+    local app_log_dir="${WPRINT3D_LOG_DIR:-}"
+    local truncate_interval="${WPRINT3D_RUNTIME_LOG_TRUNCATE_INTERVAL:-60}"
+
+    if [[ "$runtime_log_dir" == '' ]]; then
+        return 0
+    fi
+
+    mkdir -p "$runtime_log_dir" "$runtime_log_dir/supervisor";
+
+    if [[ "$app_log_dir" != '' ]]; then
+        mkdir -p "$app_log_dir";
+    fi
+
+    (
+        while true; do
+            find "$runtime_log_dir" -type f -size +512k -exec truncate --size 512K {} \; 2>/dev/null || true;
+            sleep "$truncate_interval";
+        done
+    ) >/dev/null 2>&1 &
+}
+
+setupRuntimeLogs;
+
 # ============================================================================
 # PHP Performance Optimization Setup
 # ============================================================================

@@ -3,15 +3,14 @@ services:
     image: docker.io/wprint3d/wprint3d-proxy:latest
     restart: always
     logging:
-      driver: local
-      options:
-        max-size: "1m"
-        mode: non-blocking
+      driver: none
     volumes:
       - storage:/storage
       - proxy:/etc/nginx/internal
       - startup:/var/log/startup:ro
       - /tmp/video:/tmp/video
+    tmpfs:
+      - /var/log/wprint3d:size=20m,mode=1777
     ports:
       - ${EXTERNAL_WEB_HTTP_PORT:-80}:80
       - ${EXTERNAL_WEB_HTTPS_PORT:-443}:443
@@ -23,16 +22,17 @@ services:
     image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
-      driver: local
-      options:
-        max-size: "1m"
-        mode: non-blocking
+      driver: none
     privileged: true
     environment:
       - ROLE=server,scheduler,concurrency-scheduler,ws-server
       - COMPOSE_DIR=${PWD}
       - QUEUES=default:1,recordings:1,broadcasts:2,prints:1,previews,snapshots
       - SLEEP=5
+      - WPRINT3D_RUNTIME_LOG_DIR=/var/log/wprint3d
+      - WPRINT3D_LOG_DIR=/var/log/wprint3d/app
+      - WPRINT3D_FORCE_RAMDISK=${WPRINT3D_FORCE_RAMDISK:-auto}
+      - LOG_LEVEL=${WPRINT3D_LOG_LEVEL:-warning}
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
@@ -49,12 +49,15 @@ services:
           - ws-server
     tmpfs:
       - /tmp
+      - /var/log/wprint3d:size=20m,mode=1777
     depends_on:
       - redis
       - mongo
   web:
     image: docker.io/wprint3d/wprint3d-frontend:latest
     restart: always
+    logging:
+      driver: none
     tty: true
     stdin_open: true
     depends_on:
@@ -65,14 +68,15 @@ services:
     image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
-      driver: local
-      options:
-        max-size: "1m"
-        mode: non-blocking
+      driver: none
     privileged: true
     environment:
       - ROLE=mapper
       - COMPOSE_DIR=${PWD}
+      - WPRINT3D_RUNTIME_LOG_DIR=/var/log/wprint3d
+      - WPRINT3D_LOG_DIR=/var/log/wprint3d/app
+      - WPRINT3D_FORCE_RAMDISK=${WPRINT3D_FORCE_RAMDISK:-auto}
+      - LOG_LEVEL=${WPRINT3D_LOG_LEVEL:-warning}
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
@@ -84,6 +88,8 @@ services:
       - startup:/var/www/internal/startup
       - ./wprint3d-config:/var/www/.external-configs
       - ${PWD}:${PWD}
+    tmpfs:
+      - /var/log/wprint3d:size=20m,mode=1777
     depends_on:
       - redis
       - mongo
@@ -91,16 +97,17 @@ services:
     image: docker.io/wprint3d/wprint3d:latest
     restart: always
     logging:
-      driver: local
-      options:
-        max-size: "1m"
-        mode: non-blocking
+      driver: none
     environment:
       - ROLE=streamer
       - COMPOSE_DIR=${PWD}
       - PORT_SCAN_START=60000
       - PORT_SCAN_END=60016
       - YV_STREAMER_SOFTWARE_PORT=8080
+      - WPRINT3D_RUNTIME_LOG_DIR=/var/log/wprint3d
+      - WPRINT3D_LOG_DIR=/var/log/wprint3d/app
+      - WPRINT3D_FORCE_RAMDISK=${WPRINT3D_FORCE_RAMDISK:-auto}
+      - LOG_LEVEL=${WPRINT3D_LOG_LEVEL:-warning}
     privileged: true
     volumes:
       - /dev/bus/usb:/dev/bus/usb
@@ -115,6 +122,8 @@ services:
       - ./wprint3d-config:/var/www/.external-configs
       - ${PWD}:${PWD}
       - /tmp/video:/tmp/video
+    tmpfs:
+      - /var/log/wprint3d:size=20m,mode=1777
     depends_on:
       - redis
       - mongo
@@ -125,14 +134,11 @@ services:
     image: docker.io/wprint3d/yv-streamer-software:latest
     restart: always
     logging:
-      driver: local
-      options:
-        max-size: "1m"
-        mode: non-blocking
+      driver: none
     environment:
       - YV_STREAMER_SOFTWARE_HOST=0.0.0.0
       - YV_STREAMER_SOFTWARE_PORT=8080
-      - YV_STREAMER_SOFTWARE_LOG_LEVEL=info
+      - YV_STREAMER_SOFTWARE_LOG_LEVEL=warn
     privileged: true
     volumes:
       - /dev/bus/usb:/dev/bus/usb
@@ -144,21 +150,15 @@ services:
     image: docker.io/library/redis:7.2.5
     restart: always
     logging:
-      driver: local
-      options:
-        max-size: "1m"
-        mode: non-blocking
+      driver: none
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
-    command: redis-server --save "" --appendonly no
+    command: redis-server --save "" --appendonly no --loglevel warning
   mongo:
     image: docker.io/library/mongo:4.4.6
     restart: always
     logging:
-      driver: local
-      options:
-        max-size: "1m"
-        mode: non-blocking
+      driver: none
     command: mongod --quiet
     volumes:
       - mongo:/data/db
@@ -166,10 +166,7 @@ services:
     image: docker.io/library/memcached:latest
     restart: always
     logging:
-      driver: local
-      options:
-        max-size: "1m"
-        mode: non-blocking
+      driver: none
 volumes:
   mongo:
   storage:

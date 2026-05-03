@@ -4,6 +4,16 @@ use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
 
+$wprint3dLogPath = function (string $filename): string {
+    $logDir = env('WPRINT3D_LOG_DIR');
+
+    if ($logDir) {
+        return rtrim($logDir, '/').'/'.$filename;
+    }
+
+    return storage_path('logs/'.$filename);
+};
+
 return [
 
     /*
@@ -64,14 +74,14 @@ return [
 
         'single' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/laravel.log'),
+            'path' => $wprint3dLogPath('laravel.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'daily' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/laravel.log'),
+            'path' => $wprint3dLogPath('laravel.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 14,
         ],
@@ -121,82 +131,82 @@ return [
         ],
 
         'emergency' => [
-            'path' => storage_path('logs/laravel.log'),
+            'path' => $wprint3dLogPath('laravel.log'),
         ],
 
         'jobs-reset' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/jobs-reset.log'),
+            'path' => $wprint3dLogPath('jobs-reset.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'serial-mapper' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/serial-mapper.log'),
+            'path' => $wprint3dLogPath('serial-mapper.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'hardware-cameras-mapper' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/hardware-cameras-mapper.log'),
+            'path' => $wprint3dLogPath('hardware-cameras-mapper.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'gcode-printer' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/gcode-printer.log'),
+            'path' => $wprint3dLogPath('gcode-printer.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'printers-poller' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/printers-poller.log'),
+            'path' => $wprint3dLogPath('printers-poller.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'serial' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/serial.log'),
+            'path' => $wprint3dLogPath('serial.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'video-renderer' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/video-renderer.log'),
+            'path' => $wprint3dLogPath('video-renderer.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'queued-commands-listener' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/queued-commands-listener.log'),
+            'path' => $wprint3dLogPath('queued-commands-listener.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'package-manager' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/package-manager.log'),
+            'path' => $wprint3dLogPath('package-manager.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'concurrent-runner' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/concurrent-runner.log'),
+            'path' => $wprint3dLogPath('concurrent-runner.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],
 
         'printer-workers-refresh' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/printer-workers-refresh.log'),
+            'path' => $wprint3dLogPath('printer-workers-refresh.log'),
             'level' => env('LOG_LEVEL', 'info'),
             'days' => 1,
         ],

@@ -15,11 +15,36 @@ class RefreshPrinterWorkers extends ConcurrentService
 
     protected $description = 'Refresh the amount of active printer workers.';
 
+    private function supervisorLogDir(): string
+    {
+        return rtrim(env('WPRINT3D_RUNTIME_LOG_DIR', '/tmp/supervisor/logs'), '/').'/supervisor';
+    }
+
+    private function supervisorLogOptions(string $logFile): string
+    {
+        return implode(PHP_EOL, [
+            'redirect_stderr=true',
+            "stdout_logfile={$logFile}",
+            'stdout_logfile_maxbytes=512KB',
+            'stdout_logfile_backups=1',
+        ]);
+    }
+
+    private function ensureSupervisorLogDir(): void
+    {
+        $logDir = $this->supervisorLogDir();
+
+        if (! is_dir($logDir)) {
+            mkdir($logDir, 0777, true);
+        }
+    }
+
     // This function creates the queue workers for the jobs that are scalable,
     // these jobs are cancelable and can be restarted without any issues.
     protected function createScalableWorkers(array $queues, int $sleepSecs): bool
     {
         $didChange = false;
+        $this->ensureSupervisorLogDir();
 
         $queues = Arr::where(
             $queues,
@@ -56,9 +81,8 @@ class RefreshPrinterWorkers extends ConcurrentService
             $configFile .= PHP_EOL.'autostart=true';
             $configFile .= PHP_EOL.'autorestart=true';
             $configFile .= PHP_EOL."numprocs={$minWorkers}";
-            $configFile .= PHP_EOL.'redirect_stderr=true';
             $configFile .= PHP_EOL.'user=root';
-            $configFile .= PHP_EOL."stdout_logfile=/tmp/supervisor/logs/{$queue['name']}_worker.log";
+            $configFile .= PHP_EOL.$this->supervisorLogOptions("{$this->supervisorLogDir()}/{$queue['name']}_worker.log");
 
             $previousSum = null;
 
@@ -87,6 +111,7 @@ class RefreshPrinterWorkers extends ConcurrentService
     protected function createPerPrinterWorkers(array $queues, int $sleepSecs): bool
     {
         $didChange = false;
+        $this->ensureSupervisorLogDir();
 
         $queues = Arr::where($queues,
             function ($queue) {
@@ -115,9 +140,8 @@ class RefreshPrinterWorkers extends ConcurrentService
                 $configFile .= PHP_EOL.'autostart=true';
                 $configFile .= PHP_EOL.'autorestart=true';
                 $configFile .= PHP_EOL.'numprocs=1';
-                $configFile .= PHP_EOL.'redirect_stderr=true';
                 $configFile .= PHP_EOL.'user=root';
-                $configFile .= PHP_EOL."stdout_logfile=/var/www/storage/logs/{$queue['name']}_worker_{$printer->id}.log";
+                $configFile .= PHP_EOL.$this->supervisorLogOptions("{$this->supervisorLogDir()}/{$queue['name']}_worker_{$printer->id}.log");
 
                 $previousSum = null;
 

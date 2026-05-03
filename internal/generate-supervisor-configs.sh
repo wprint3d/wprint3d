@@ -6,41 +6,43 @@
 set -euo pipefail
 
 SUPERVISOR_CONF_DIR="/tmp/supervisor"
-SUPERVISOR_LOG_DIR="/tmp/supervisor/logs"
+RUNTIME_LOG_DIR="${WPRINT3D_RUNTIME_LOG_DIR:-/tmp/supervisor/logs}"
+SUPERVISOR_LOG_DIR="${RUNTIME_LOG_DIR%/}/supervisor"
 
 mkdir -p "$SUPERVISOR_CONF_DIR" "$SUPERVISOR_LOG_DIR"
 
 # Clean stale configs from prior runs to prevent loading leftover programs
 rm -f "$SUPERVISOR_CONF_DIR"/*.conf
 
+supervisor_log_options() {
+    local logfile="$1"
+
+    cat <<EOF
+redirect_stderr=true
+stdout_logfile=${logfile}
+stdout_logfile_maxbytes=512KB
+stdout_logfile_backups=1
+EOF
+}
+
 for role in "$@"; do
     case "$role" in
         scheduler)
-            cat > "$SUPERVISOR_CONF_DIR/cron.conf" <<'EOF'
+            cat > "$SUPERVISOR_CONF_DIR/cron.conf" <<EOF
 [program:cron]
 command=cron -f
 autorestart=true
-stdout_logfile=/tmp/supervisor/logs/cron.log
-stderr_logfile=/tmp/supervisor/logs/cron.log
+$(supervisor_log_options "$SUPERVISOR_LOG_DIR/cron.log")
 EOF
             ;;
 
         concurrency-scheduler)
-            cat > "$SUPERVISOR_CONF_DIR/concurrent-run.conf" <<'EOF'
+            cat > "$SUPERVISOR_CONF_DIR/concurrent-run.conf" <<EOF
 [program:concurrent-run]
 command=php artisan concurrent:run-indefinitely
 directory=/var/www
 autorestart=true
-stdout_logfile=/tmp/supervisor/logs/concurrent-run.log
-stderr_logfile=/tmp/supervisor/logs/concurrent-run.log
-EOF
-
-            cat > "$SUPERVISOR_CONF_DIR/log-rotator.conf" <<'EOF'
-[program:log-rotator]
-command=bash -c 'while true; do for log in /tmp/supervisor/logs/*.log; do truncate --size 512K "$log"; done; sleep 60; done'
-autorestart=true
-stdout_logfile=/dev/null
-stderr_logfile=/dev/null
+$(supervisor_log_options "$SUPERVISOR_LOG_DIR/concurrent-run.log")
 EOF
             ;;
 
@@ -59,19 +61,17 @@ EOF
 command=${SERVE_CMD}
 directory=/var/www
 autorestart=true
-stdout_logfile=/tmp/supervisor/logs/server.log
-stderr_logfile=/tmp/supervisor/logs/server.log
+$(supervisor_log_options "$SUPERVISOR_LOG_DIR/server.log")
 EOF
             ;;
 
         ws-server)
-            cat > "$SUPERVISOR_CONF_DIR/reverb.conf" <<'EOF'
+            cat > "$SUPERVISOR_CONF_DIR/reverb.conf" <<EOF
 [program:reverb]
 command=php artisan reverb:start --host 0.0.0.0 --port 6001
 directory=/var/www
 autorestart=true
-stdout_logfile=/tmp/supervisor/logs/reverb.log
-stderr_logfile=/tmp/supervisor/logs/reverb.log
+$(supervisor_log_options "$SUPERVISOR_LOG_DIR/reverb.log")
 EOF
             ;;
 

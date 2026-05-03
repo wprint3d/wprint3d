@@ -89,7 +89,11 @@ measure_data_size() {
     fi
 
     local size_bytes
-    size_bytes=$(cd "$APP_ROOT" && du -sb "${exclude_args[@]}" . 2>/dev/null | tail -1 | awk '{print $1}')
+
+    # Use allocated disk usage instead of apparent size. tmpfs must have room for
+    # filesystem blocks/inodes as files are copied, and apparent size can
+    # undercount the space rsync/tar actually needs.
+    size_bytes=$(cd "$APP_ROOT" && du -sB1 "${exclude_args[@]}" . 2>/dev/null | tail -1 | awk '{print $1}')
 
     echo "${size_bytes:-0}"
 }
@@ -133,8 +137,16 @@ preflight_checks() {
         return 1
     fi
 
-    # Add 25% headroom (tar/filesystem overhead needs more than 10%)
-    local ramdisk_size_bytes=$(( data_size_bytes + data_size_bytes / 4 ))
+    # Add configurable headroom for filesystem overhead and startup writes
+    # (Composer autoload/cache generation, startup status files, etc.).
+    local headroom_percent="${WPRINT3D_RAMDISK_HEADROOM_PERCENT:-50}"
+
+    if ! [[ "$headroom_percent" =~ ^[0-9]+$ ]]; then
+        log_warn "Invalid WPRINT3D_RAMDISK_HEADROOM_PERCENT='$headroom_percent', using 50"
+        headroom_percent=50
+    fi
+
+    local ramdisk_size_bytes=$(( data_size_bytes + data_size_bytes * headroom_percent / 100 ))
     local ramdisk_size_mb=$(( ramdisk_size_bytes / 1024 / 1024 ))
 
     # Ensure at least 1MB (avoid zero-size tmpfs)
@@ -150,7 +162,7 @@ preflight_checks() {
         return 1
     fi
 
-    log_info "Pre-flight passed: storage=$storage_type, RAM=${available_mem}MB, ramdisk=${ramdisk_size_mb}MB"
+    log_info "Pre-flight passed: storage=$storage_type, RAM=${available_mem}MB, data=$(( data_size_bytes / 1024 / 1024 ))MB, headroom=${headroom_percent}%, ramdisk=${ramdisk_size_mb}MB"
 
     # Export size for use by setup function
     export RAMDISK_SIZE_MB="$ramdisk_size_mb"
@@ -173,7 +185,7 @@ copy_to_ramdisk() {
     log_info "Copying $APP_ROOT to ramdisk (excluding ${#PERSISTENT_DIRS[@]} persistent dirs)..."
 
     if command -v rsync &>/dev/null; then
-        rsync -a "${exclude_args[@]}" "$APP_ROOT/" "$RAMDISK_MOUNT/"
+        rsync -a "${exclude_args[@]}" "$APP_ROOT/" "$RAMDISK_MOUNT/" || return 1
     else
         # Fallback to tar if rsync not available
         log_warn "rsync not available, falling back to tar"
@@ -186,7 +198,7 @@ copy_to_ramdisk() {
             tar_excludes+=(--exclude=".env")
         fi
 
-        tar -C "$APP_ROOT" "${tar_excludes[@]}" -cf - . | tar -C "$RAMDISK_MOUNT" -xf -
+        tar -C "$APP_ROOT" "${tar_excludes[@]}" -cf - . | tar -C "$RAMDISK_MOUNT" -xf - || return 1
     fi
 
     # Create empty placeholder directories for persistent paths
