@@ -1,12 +1,17 @@
 import { useEffect } from "react";
-import { View } from "react-native";
-import { List, Text } from "react-native-paper";
+import { ScrollView, View } from "react-native";
+import { Icon, List, Text, useTheme } from "react-native-paper";
 
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import { useLocalization } from "../includes/LocalizationProvider";
+import {
+    getPrinterConnectionDiagnosticOutput,
+    hasUnresponsiveConnectionDiagnostic,
+} from "../utils/printerConnectionDiagnostic";
 
 const PrinterSettingsModalDetails = ({ details, isLoading, error }) => {
     const { t } = useLocalization();
+    const { colors } = useTheme();
 
     const normalizeMetaValue = (key, value) => {
         if (typeof value === "boolean") {
@@ -51,6 +56,8 @@ const PrinterSettingsModalDetails = ({ details, isLoading, error }) => {
     }
 
     const { node, baudRate, machine } = details;
+    const diagnostic = getPrinterConnectionDiagnosticOutput(details);
+    const hasDiagnostic = hasUnresponsiveConnectionDiagnostic(details);
 
     const CAPABILITY_NAMES = {
         serialXonXoff: t("settings.printerCapabilities.serialXonXoff"),
@@ -105,6 +112,47 @@ const PrinterSettingsModalDetails = ({ details, isLoading, error }) => {
 
     return (
         <View>
+            {hasDiagnostic && (
+                <View
+                    style={{
+                        marginBottom: 16,
+                        borderRadius: 14,
+                        borderLeftWidth: 5,
+                        borderLeftColor: colors.warning ?? colors.error,
+                        backgroundColor: colors.errorContainer ?? colors.elevation.level2,
+                        padding: 14,
+                    }}
+                >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                        <Icon source="help-circle-outline" color={colors.onErrorContainer ?? colors.onSurface} size={22} />
+                        <Text
+                            variant="titleMedium"
+                            style={{
+                                marginLeft: 8,
+                                color: colors.onErrorContainer ?? colors.onSurface,
+                                fontWeight: '700',
+                            }}
+                        >
+                            {t("printer.status.unresponsiveDiagnosticTitle")}
+                        </Text>
+                    </View>
+                    <Text style={{ color: colors.onErrorContainer ?? colors.onSurface, marginBottom: 10 }}>
+                        {t("printer.status.unresponsiveDiagnosticHelp")}
+                    </Text>
+                    <ScrollView
+                        style={{
+                            maxHeight: 180,
+                            borderRadius: 10,
+                            backgroundColor: colors.elevation?.level1 ?? colors.surface,
+                            padding: 10,
+                        }}
+                    >
+                        <Text style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                            {diagnostic}
+                        </Text>
+                    </ScrollView>
+                </View>
+            )}
             <List.Section title={t("settings.connectionSection")}>
                 <List.Item title={t("settings.portLabel")} description={node} />
                 <List.Item title={t("settings.baudRateLabel")} description={t("settings.baudRateValue", { rate: baudRate })} />

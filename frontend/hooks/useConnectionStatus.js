@@ -1,12 +1,26 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { useEcho } from "./useEcho";
+import API from "../includes/API";
 
 export function useConnectionStatus({ printerId }) {
     const [ connectionStatus, setConnectionStatus ] = useState(null),
           [ isRunningMapper,  setIsRunningMapper  ] = useState(null);
 
     const echo = useEcho();
+
+    const initialConnectionStatus = useQuery({
+        queryKey: ['connectionStatus', printerId],
+        queryFn:  () => API.get('/user/printer/selected/status'),
+        enabled:  !!printerId,
+    });
+
+    useEffect(() => {
+        if (!initialConnectionStatus.isSuccess) { return; }
+
+        setConnectionStatus(initialConnectionStatus.data?.data ?? null);
+    }, [ initialConnectionStatus.isSuccess, initialConnectionStatus.data ]);
 
     useEffect(() => {
         if (!echo) {

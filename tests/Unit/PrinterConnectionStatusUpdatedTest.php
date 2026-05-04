@@ -40,4 +40,26 @@ class PrinterConnectionStatusUpdatedTest extends TestCase
             'e' => 9.25,
         ], $event->absolutePosition);
     }
+
+    public function test_connection_status_event_exposes_connection_status_and_diagnostic(): void
+    {
+        $printerId = 'printer-unresponsive-status-test';
+
+        Cache::put($printerId . Printer::CACHE_CONNECTION_STATUS_SUFFIX, 'unresponsive');
+        Cache::put(
+            $printerId . Printer::CACHE_CONNECTION_DIAGNOSTIC_SUFFIX,
+            '[73476.224266] usb 3-2: device descriptor read/64, error -71'
+        );
+
+        $event = new PrinterConnectionStatusUpdated(
+            printerId: $printerId,
+            thresholdSecs: 7
+        );
+
+        $this->assertSame('unresponsive', $event->connectionStatus);
+        $this->assertSame(
+            '[73476.224266] usb 3-2: device descriptor read/64, error -71',
+            $event->connectionDiagnostic
+        );
+    }
 }

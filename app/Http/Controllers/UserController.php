@@ -184,6 +184,8 @@ class UserController extends Controller
             'lastSeen' => $printer->getLastSeen(),
             'isPaused' => ! $printer->isRunning(),
             'thresholdSecs' => env('PRINTER_LAST_SEEN_ONLINE_THRESHOLD_SECS'),
+            'connectionStatus' => $printer->getConnectionStatus(),
+            'connectionDiagnostic' => $printer->getConnectionDiagnostic(),
         ];
 
         if ($printer->activeFile !== null) {

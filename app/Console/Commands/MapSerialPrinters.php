@@ -362,6 +362,7 @@ class MapSerialPrinters extends Command
                         $printer->machine = $machine;
                         $printer->cameras = $cameras;
                         $printer->connected = true;
+                        $printer->setConnectionStatus(Printer::CONNECTION_STATUS_ONLINE);
 
                         if (! isset($printer->recordableCameras)) {
                             $printer->recordableCameras = [];
@@ -424,6 +425,7 @@ class MapSerialPrinters extends Command
                 $printer->connected
             ) {
                 $printer->connected = false;
+                $printer->setConnectionStatus(Printer::CONNECTION_STATUS_OFFLINE);
                 $printer->save();
 
                 $changeCount++;

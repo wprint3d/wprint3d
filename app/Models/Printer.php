@@ -40,6 +40,12 @@ class Printer extends Model
     const CACHE_LAST_SEEN_SUFFIX         = '_lastSeen';
     const CACHE_CURRENT_LAYER_SUFFIX     = '_currentLayer';
     const CACHE_MAX_LAYER_SUFFIX         = '_maxLayer';
+    const CACHE_CONNECTION_STATUS_SUFFIX = '_connectionStatus';
+    const CACHE_CONNECTION_DIAGNOSTIC_SUFFIX = '_connectionDiagnostic';
+
+    const CONNECTION_STATUS_ONLINE       = 'online';
+    const CONNECTION_STATUS_OFFLINE      = 'offline';
+    const CONNECTION_STATUS_UNRESPONSIVE = 'unresponsive';
 
     const MARLIN_TEMPERATURE_INDICATOR      = 'ok T:';
     const MARLIN_MULTI_TEMPERATURE_TEMPLATE = 'T%s:';
@@ -405,6 +411,60 @@ class Printer extends Model
         );
     }
 
+    public function getConnectionStatus(): string {
+        return self::getConnectionStatusOf(
+            printerId: $this->_id,
+            connected: $this->connected ?? false
+        );
+    }
+
+    public static function getConnectionStatusOf(string $printerId, bool $connected = false): string {
+        return Cache::get(
+            key:     $printerId . self::CACHE_CONNECTION_STATUS_SUFFIX,
+            default: $connected ? self::CONNECTION_STATUS_ONLINE : self::CONNECTION_STATUS_OFFLINE
+        );
+    }
+
+    public function getConnectionDiagnostic(): ?string {
+        return self::getConnectionDiagnosticOf($this->_id);
+    }
+
+    public static function getConnectionDiagnosticOf(string $printerId): ?string {
+        return Cache::get($printerId . self::CACHE_CONNECTION_DIAGNOSTIC_SUFFIX);
+    }
+
+    public function setConnectionStatus(string $status, ?string $diagnostic = null): bool {
+        return self::setConnectionStatusOf($this->_id, $status, $diagnostic);
+    }
+
+    public static function setConnectionStatusOf(string $printerId, string $status, ?string $diagnostic = null): bool {
+        if (! in_array($status, [
+            self::CONNECTION_STATUS_ONLINE,
+            self::CONNECTION_STATUS_OFFLINE,
+            self::CONNECTION_STATUS_UNRESPONSIVE,
+        ], true)) {
+            $status = self::CONNECTION_STATUS_OFFLINE;
+        }
+
+        $statusSaved = Cache::put(
+            key:   $printerId . self::CACHE_CONNECTION_STATUS_SUFFIX,
+            value: $status,
+            ttl:   self::CACHE_TTL
+        );
+
+        if ($diagnostic === null || trim($diagnostic) === '') {
+            Cache::forget($printerId . self::CACHE_CONNECTION_DIAGNOSTIC_SUFFIX);
+
+            return $statusSaved;
+        }
+
+        return $statusSaved && Cache::put(
+            key:   $printerId . self::CACHE_CONNECTION_DIAGNOSTIC_SUFFIX,
+            value: $diagnostic,
+            ttl:   self::CACHE_TTL
+        );
+    }
+
     private function getConsoleKey() : string {
         return $this->_id . self::CACHE_CONSOLE_SUFFIX;
     }
@@ -482,6 +542,13 @@ class Printer extends Model
         );
     }
 
+    public static function getCurrentLineOf(string $printerId) : int {
+        return Cache::get(
+            key:     $printerId . self::CACHE_CURRENT_LINE_SUFFIX,
+            default: 0
+        );
+    }
+
     public function setCurrentLine(int $line) : bool {
         return Cache::put(
             key:     $this->_id . self::CACHE_CURRENT_LINE_SUFFIX,
@@ -492,6 +559,13 @@ class Printer extends Model
     public function getMaxLine() : int {
         return Cache::get(
             key:     $this->_id . self::CACHE_MAX_LINE_SUFFIX,
+            default: 0
+        );
+    }
+
+    public static function getMaxLineOf(string $printerId) : int {
+        return Cache::get(
+            key:     $printerId . self::CACHE_MAX_LINE_SUFFIX,
             default: 0
         );
     }
@@ -574,6 +648,17 @@ class Printer extends Model
     public function getAbsolutePosition() : array {
         return Cache::get(
             key:     $this->_id . self::CACHE_ABSOLUTE_POSITION_SUFFIX,
+            default: [
+                'x' => null,
+                'y' => null,
+                'z' => null
+            ]
+        );
+    }
+
+    public static function getAbsolutePositionOf(string $printerId) : array {
+        return Cache::get(
+            key:     $printerId . self::CACHE_ABSOLUTE_POSITION_SUFFIX,
             default: [
                 'x' => null,
                 'y' => null,

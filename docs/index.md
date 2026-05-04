@@ -35,5 +35,6 @@ octoprint-navbartemp-public-registry-guide
 
 fake-serial-printer
 fake-serial-marlin-coverage
+printer-unresponsive-status-e2e
 php-optimization
 ```

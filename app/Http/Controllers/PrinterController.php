@@ -62,6 +62,7 @@ class PrinterController extends Controller
         if (!$printer->connected || !Serial::nodeExists($printer->node)) {
             if ($printer->connected) {
                 $printer->connected = false;
+                $printer->setConnectionStatus(Printer::CONNECTION_STATUS_OFFLINE);
                 $printer->save();
             }
 
@@ -83,6 +84,8 @@ class PrinterController extends Controller
             'machine.firmwareName',
             'machine.uuid'
         )->get()->map(function ($printer) {
+            $this->appendConnectionStatus($printer);
+
             if ($printer->cameras ?? null) {
                 $printer->mainCamera =
                     Camera::select('_id', 'url')
@@ -99,7 +102,18 @@ class PrinterController extends Controller
     }
 
     public function get(string $printerId): Printer {
-        return Printer::find($printerId);
+        $printer = Printer::find($printerId);
+
+        if ($printer) {
+            $this->appendConnectionStatus($printer);
+        }
+
+        return $printer;
+    }
+
+    private function appendConnectionStatus(Printer $printer): void {
+        $printer->connectionStatus = $printer->getConnectionStatus();
+        $printer->connectionDiagnostic = $printer->getConnectionDiagnostic();
     }
 
     public function delete(string $printerId): Response {
@@ -334,6 +348,7 @@ class PrinterController extends Controller
         if (!$printer->connected || !Serial::nodeExists($printer->node)) {
             if ($printer->connected) {
                 $printer->connected = false;
+                $printer->setConnectionStatus(Printer::CONNECTION_STATUS_OFFLINE);
                 $printer->save();
             }
 

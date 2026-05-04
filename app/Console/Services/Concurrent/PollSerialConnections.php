@@ -8,6 +8,7 @@ use App\Libraries\Serial;
 use App\Models\Configuration;
 use App\Models\Printer;
 use App\Plugins\PluginHookCompiler;
+use App\Support\PrinterConnectionDiagnostic;
 use Illuminate\Log\Logger;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -104,7 +105,10 @@ class PollSerialConnections extends ConcurrentService
             if (! $printer->node || ! $this->serialNodeExists($printer->node)) {
                 $this->logger()->debug(__METHOD__.'@'.__LINE__.": {$printer->_id}: missing serial node ({$printer->node}), skipping...");
 
-                $this->markPrinterAsDisconnected($printer);
+                $this->markPrinterAsDisconnected(
+                    $printer,
+                    $this->safeReadConnectionDiagnostic($printer->node)
+                );
 
                 event(
                     new \App\Events\PrinterConnectionStatusUpdated(
@@ -138,6 +142,19 @@ class PollSerialConnections extends ConcurrentService
                     $exception->getTraceAsString()
                 );
 
+                $printer->setLastError($exception->getMessage());
+                $this->markPrinterAsDisconnected(
+                    $printer,
+                    $this->safeReadConnectionDiagnostic($printer->node)
+                );
+
+                event(
+                    new \App\Events\PrinterConnectionStatusUpdated(
+                        printerId: $printer->_id,
+                        thresholdSecs: $maxTimeBetweenHeartbeatsSecs
+                    )
+                );
+
                 continue;
             }
 
@@ -155,6 +172,17 @@ class PollSerialConnections extends ConcurrentService
                         $this->logger()->error($printer->node.': connection failed: '.$response);
 
                         $printer->setLastError($response);
+                        $this->markPrinterAsDisconnected(
+                            $printer,
+                            $this->safeReadConnectionDiagnostic($printer->node)
+                        );
+
+                        event(
+                            new \App\Events\PrinterConnectionStatusUpdated(
+                                printerId: $printer->_id,
+                                thresholdSecs: $maxTimeBetweenHeartbeatsSecs
+                            )
+                        );
 
                         continue;
                     }
@@ -193,7 +221,10 @@ class PollSerialConnections extends ConcurrentService
                 }
             } catch (Throwable $exception) {
                 $printer->setLastError($exception->getMessage());
-                $this->markPrinterAsDisconnected($printer);
+                $this->markPrinterAsDisconnected(
+                    $printer,
+                    $this->safeReadConnectionDiagnostic($printer->node)
+                );
 
                 $this->logger()->error(
                     $printer->node.': connection failed: '.$exception->getMessage().PHP_EOL.
@@ -241,6 +272,10 @@ class PollSerialConnections extends ConcurrentService
 
     protected function markPrinterAsConnected($printer): void
     {
+        if (method_exists($printer, 'setConnectionStatus')) {
+            $printer->setConnectionStatus(Printer::CONNECTION_STATUS_ONLINE);
+        }
+
         if ($printer->connected) {
             return;
         }
@@ -249,14 +284,41 @@ class PollSerialConnections extends ConcurrentService
         $printer->save();
     }
 
-    protected function markPrinterAsDisconnected($printer): void
+    protected function markPrinterAsDisconnected($printer, ?string $diagnostic = null): void
     {
+        if (method_exists($printer, 'setConnectionStatus')) {
+            $printer->setConnectionStatus(
+                $diagnostic
+                    ? Printer::CONNECTION_STATUS_UNRESPONSIVE
+                    : Printer::CONNECTION_STATUS_OFFLINE,
+                $diagnostic
+            );
+        }
+
         if (! $printer->connected) {
             return;
         }
 
         $printer->connected = false;
         $printer->save();
+    }
+
+    protected function readConnectionDiagnostic(?string $node): ?string
+    {
+        return app(PrinterConnectionDiagnostic::class)->read($node);
+    }
+
+    private function safeReadConnectionDiagnostic(?string $node): ?string
+    {
+        try {
+            return $this->readConnectionDiagnostic($node);
+        } catch (Throwable $exception) {
+            $this->logger()->warning(
+                ($node ?: 'unknown node').": couldn't read dmesg diagnostics: {$exception->getMessage()}"
+            );
+
+            return null;
+        }
     }
 
     private function logger(): Logger

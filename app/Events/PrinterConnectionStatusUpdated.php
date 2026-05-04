@@ -25,6 +25,11 @@ class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
     public   ?int $layer         = null;
     public   ?int $maxLayer      = null;
     public   ?int $thresholdSecs = null;
+    public string $connectionStatus;
+    public ?string $connectionDiagnostic;
+    public int $currentLine;
+    public int $maxLine;
+    public array $absolutePosition;
 
     public function __construct(
         string $printerId,
@@ -32,7 +37,9 @@ class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
         ?array $statistics    = null,
           bool $hasActiveFile = false,
           bool $isPaused      = false,
-          ?int $thresholdSecs = null
+          ?int $thresholdSecs = null,
+       ?string $connectionStatus = null,
+       ?string $connectionDiagnostic = null
     ) {
         $this->printerId = $printerId;
         $this->isPaused  = $isPaused;
@@ -57,6 +64,17 @@ class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
         }
 
         $this->thresholdSecs = $thresholdSecs;
+        $this->connectionStatus =
+            $connectionStatus === null
+                ? Printer::getConnectionStatusOf($printerId)
+                : $connectionStatus;
+        $this->connectionDiagnostic =
+            $connectionDiagnostic === null
+                ? Printer::getConnectionDiagnosticOf($printerId)
+                : $connectionDiagnostic;
+        $this->currentLine = Printer::getCurrentLineOf($printerId);
+        $this->maxLine = Printer::getMaxLineOf($printerId);
+        $this->absolutePosition = Printer::getAbsolutePositionOf($printerId);
     }
 
     /**

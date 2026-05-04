@@ -352,6 +352,16 @@ test("application translations include terminal, recordings, and recovery keys f
     }
 });
 
+test("printer connection status labels keep consistent lower-case sentence style", () => {
+    assert.equal(readTranslation("en", "printer.status.online"), "online");
+    assert.equal(readTranslation("en", "printer.status.offline"), "offline");
+    assert.equal(readTranslation("en", "printer.status.unresponsive"), "unresponsive");
+    assert.equal(readTranslation("es", "printer.status.online"), "en línea");
+    assert.equal(readTranslation("es", "printer.status.offline"), "desconectada");
+    assert.equal(readTranslation("es", "printer.status.unresponsive"), "sin respuesta");
+    assert.equal(readTranslation("es_AR", "printer.status.unresponsive"), "sin respuesta");
+});
+
 test("application translations include printer control and status keys for every supported locale", () => {
     const locales = ["en", "es", "es_AR", "fr", "pt", "it", "de"];
     const requiredKeys = [
@@ -360,6 +370,11 @@ test("application translations include printer control and status keys for every
         "printer.status.connecting",
         "printer.status.offline",
         "printer.status.online",
+        "printer.status.unresponsive",
+        "printer.status.unresponsiveTooltip",
+        "printer.status.unresponsiveDiagnosticTitle",
+        "printer.status.unresponsiveDiagnosticHelp",
+        "printer.status.viewDiagnostic",
         "printer.status.connectionStatus",
         "printer.status.bedLabel",
         "printer.status.extruderLabel",

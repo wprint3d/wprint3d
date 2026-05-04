@@ -1,11 +1,16 @@
 import { useState } from "react";
-import { View } from "react-native";
-import { Badge, Button, Card, Icon, Text, useTheme } from "react-native-paper";
+import { Pressable, View } from "react-native";
+import { Button, Card, Icon, Text, useTheme } from "react-native-paper";
 import SimpleDialog from "./SimpleDialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import API from "../includes/API";
 import PrinterSettingsModal from "./PrinterSettingsModal";
 import { useLocalization } from "../includes/LocalizationProvider";
+import PrinterConnectionDiagnosticDialog from "./PrinterConnectionDiagnosticDialog";
+import {
+    getPrinterConnectionDiagnosticOutput,
+    hasUnresponsiveConnectionDiagnostic,
+} from "../utils/printerConnectionDiagnostic";
 
 
 const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLaptop, enqueueSnackbar, handleSettingsModal }) => {
@@ -17,6 +22,7 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
     const [ thumbLoadError, setThumbLoadError ] = useState(null);
 
     const [ showDeleteDialog, setShowDeleteDialog   ] = useState(false);
+    const [ showConnectionDiagnosticDialog, setShowConnectionDiagnosticDialog ] = useState(false);
 
     const deletePrinterMutation = useMutation({
         mutationFn: (printer) => API.delete(`/printer/${printer._id}`),
@@ -53,6 +59,48 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
         setShowDeleteDialog(false);
     }
 
+    const isUnresponsive = printer?.connectionStatus === 'unresponsive';
+    const diagnostic = getPrinterConnectionDiagnosticOutput(printer);
+    const hasDiagnostic = hasUnresponsiveConnectionDiagnostic(printer);
+    const statusLabel = isUnresponsive
+        ? t("printer.status.unresponsive")
+        : (printer?.connected ? t("printer.status.online") : t("printer.status.offline"));
+    const statusColor = isUnresponsive
+        ? colors.warning
+        : (printer?.connected ? colors.success : colors.error);
+    const statusIcon = isUnresponsive
+        ? 'help-circle-outline'
+        : (printer?.connected ? 'check-circle' : 'close-circle');
+    const statusBadgeStyle = {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        borderRadius: 999,
+        paddingHorizontal: 8,
+        minHeight: 26,
+        backgroundColor: statusColor,
+    };
+    const StatusBadgeContainer = hasDiagnostic ? Pressable : View;
+    const statusBadge = (
+        <StatusBadgeContainer
+            accessibilityRole={hasDiagnostic ? "button" : undefined}
+            accessibilityLabel={hasDiagnostic ? t("printer.status.viewDiagnostic") : undefined}
+            onPress={hasDiagnostic ? () => setShowConnectionDiagnosticDialog(true) : undefined}
+            style={hasDiagnostic
+                ? ({ pressed }) => ([ statusBadgeStyle, { opacity: pressed ? 0.75 : 1 } ])
+                : statusBadgeStyle
+            }
+        >
+            <Icon source={statusIcon} color={colors.white} size={14} />
+            <Text style={{ color: colors.white, fontSize: 12, fontWeight: '600' }}>
+                {statusLabel}
+            </Text>
+        </StatusBadgeContainer>
+    );
+
     return (
         <>
             <SimpleDialog
@@ -76,6 +124,11 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
                         </Button>
                     </>
                 }
+            />
+            <PrinterConnectionDiagnosticDialog
+                visible={showConnectionDiagnosticDialog}
+                setVisible={setShowConnectionDiagnosticDialog}
+                diagnostic={diagnostic}
             />
 
             <View style={{
@@ -116,17 +169,7 @@ const NavbarMenuSettingsModalPrintersItem = ({ printer, isSmallTablet, isSmallLa
                                 )
                         }
 
-                        <Badge
-                            style={{ position: 'absolute', top: 8, right: 8, paddingHorizontal: 8 }}
-                            theme={{
-                                colors: {
-                                    error:   printer?.connected ? colors.success : colors.error,
-                                    onError: colors.white
-                                }
-                            }}
-                        >
-                            {printer?.connected ? t("camera.online") : t("camera.offline")}
-                        </Badge>
+                        {statusBadge}
                     </View>
                     <Card.Title
                         title={printer?.machine?.machineType ?? t("settings.unknownPrinter")}
