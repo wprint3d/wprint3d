@@ -22,6 +22,20 @@ import { LocalizationContext, useLocalization } from "../includes/LocalizationPr
 
 const PLUGINS_TAB_KEY = "plugins";
 
+const buildBadgeIcon = (source, color) => color
+    ? ({ size }) => <Icon source={source} size={size} color={color} />
+    : source;
+
+const PluginBadgeChip = ({ badge }) => (
+    <Chip
+        icon={buildBadgeIcon(badge.icon, badge.textStyle?.color)}
+        style={badge.style}
+        textStyle={badge.textStyle}
+    >
+        {badge.label}
+    </Chip>
+);
+
 const buildPluginExtensionWarnings = (plugin, extension, t) => (
     arrayUnique([
         ...(plugin?.warnings || []),
@@ -105,8 +119,8 @@ const buildPluginHeaderBadges = (extension, theme, t) => {
         signed: {
             icon: "certificate",
             label: t("plugins.badges.signed"),
-            style: { backgroundColor: theme.colors.tertiaryContainer },
-            textStyle: { color: theme.colors.onTertiaryContainer },
+            style: { backgroundColor: theme.colors.success || "#0a9900" },
+            textStyle: { color: theme.colors.onSuccess || "#ffffff" },
         },
         trusted: {
             icon: "shield-check",
@@ -361,14 +375,10 @@ const PluginSettingsTabPanel = ({ extension, modalExtensions = [] }) => {
 
                                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                                     {headerBadges.map((badge) => (
-                                        <Chip
+                                        <PluginBadgeChip
                                             key={`${extension.pluginId}-${extension.id}-${badge.label}`}
-                                            icon={badge.icon}
-                                            style={badge.style}
-                                            textStyle={badge.textStyle}
-                                        >
-                                            {badge.label}
-                                        </Chip>
+                                            badge={badge}
+                                        />
                                     ))}
                                 </View>
 

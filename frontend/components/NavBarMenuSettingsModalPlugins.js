@@ -9,6 +9,20 @@ import { useLocalization } from "../includes/LocalizationProvider";
 import { buildRegistryPluginInstallKey } from "../utils/pluginInstallUi";
 import SimpleDialog from "./SimpleDialog";
 
+const buildBadgeIcon = (source, color) => color
+  ? ({ size }) => <Icon source={source} size={size} color={color} />
+  : source;
+
+const PluginBadgeChip = ({ badge }) => (
+  <Chip
+    icon={buildBadgeIcon(badge.icon, badge.textStyle?.color)}
+    style={badge.style}
+    textStyle={badge.textStyle}
+  >
+    {badge.label}
+  </Chip>
+);
+
 const buildDependencyBadges = (plugin, theme, t) => {
   const badges = [];
   const dependencies = plugin.dependencies || {};
@@ -101,7 +115,7 @@ const buildPluginBadges = (plugin, theme, t) => {
       label: t("plugins.badges.signed"),
       tooltip: t("plugins.badges.signedTooltip"),
       style: { backgroundColor: theme.colors.success || "#0a9900" },
-      textStyle: { color: "#ffffff" },
+      textStyle: { color: theme.colors.onSuccess || "#ffffff" },
     },
     trusted: {
       icon: "shield-check",
@@ -1070,9 +1084,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
                             {buildPluginBadges(plugin, theme, t).map((badge) => (
                               <Tooltip key={`${plugin.id}-${badge.label}`} title={badge.tooltip}>
-                                <Chip icon={badge.icon} style={badge.style} textStyle={badge.textStyle}>
-                                  {badge.label}
-                                </Chip>
+                                <PluginBadgeChip badge={badge} />
                               </Tooltip>
                             ))}
                           </View>
@@ -1611,15 +1623,11 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
 
                         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                           <Tooltip title={sourceBadge.tooltip}>
-                            <Chip icon={sourceBadge.icon} style={sourceBadge.style} textStyle={sourceBadge.textStyle}>
-                              {sourceBadge.label}
-                            </Chip>
+                            <PluginBadgeChip badge={sourceBadge} />
                           </Tooltip>
                           {buildDependencyBadges(plugin, theme, t).map((badge) => (
                             <Tooltip key={`${plugin.registrySource?.id || "registry"}-${plugin.id}-${badge.label}`} title={badge.tooltip}>
-                              <Chip icon={badge.icon} style={badge.style} textStyle={badge.textStyle}>
-                                {badge.label}
-                              </Chip>
+                              <PluginBadgeChip badge={badge} />
                             </Tooltip>
                           ))}
                           {(plugin.categories || []).slice(0, 3).map((category) => (
