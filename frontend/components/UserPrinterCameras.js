@@ -9,12 +9,13 @@ import { Image } from "expo-image";
 
 import API from "../includes/API";
 import { useLocalization } from "../includes/LocalizationProvider";
+import { getSelectedPrinterCameraListQueryKey } from "../utils/printerCameraLinking";
 
 import UserPrinterCamera from "./UserPrinterCamera";
 import SmallButton from "./SmallButton";
 import SimpleDialog from "./SimpleDialog";
 
-export default function UserPrinterCameras() {
+export default function UserPrinterCameras({ printerId = null }) {
     const { colors } = useTheme();
     const { t } = useLocalization();
 
@@ -24,8 +25,9 @@ export default function UserPrinterCameras() {
     const [ pausedCameraPreviewWidth, setPausedCameraPreviewWidth ] = useState(0);
 
     const cameraList = useQuery({
-        queryKey: ['cameraList'],
-        queryFn:  () => API.get('/user/printer/selected/cameras')
+        queryKey: getSelectedPrinterCameraListQueryKey(printerId),
+        queryFn:  () => API.get('/user/printer/selected/cameras'),
+        enabled:  !!printerId
     });
 
     useEffect(() => {
@@ -36,6 +38,12 @@ export default function UserPrinterCameras() {
     useEffect(() => {
         console.debug('selectedCamera:', selectedCamera);
     }, [ selectedCamera ]);
+
+    useEffect(() => {
+        setSelectedCamera(0);
+        setExpandedCameraVisible(false);
+        setPausedCameraSnapshotURL(null);
+    }, [ printerId ]);
 
     const linkedCameraCount = cameraList.isSuccess ? (cameraList?.data?.data?.length ?? 0) : 0;
 

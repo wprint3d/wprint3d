@@ -1,3 +1,7 @@
+export const getSelectedPrinterCameraListQueryKey = (printerId) => (
+    ['cameraList', printerId ?? null]
+);
+
 export const getPrinterCameraLinkingQueryKeys = (printerId) => [
     ['printerDetails', printerId],
     ['cameraList'],
