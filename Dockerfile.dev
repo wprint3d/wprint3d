@@ -1,20 +1,6 @@
 FROM docker.io/library/php:8.4.12-fpm-bookworm
 
-RUN printf '%s\n' \
-        'Types: deb' \
-        'URIs: https://snapshot.debian.org/archive/debian/20250908T000000Z' \
-        'Suites: bookworm bookworm-updates' \
-        'Components: main' \
-        'Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' \
-        '' \
-        'Types: deb' \
-        'URIs: https://snapshot.debian.org/archive/debian-security/20250908T000000Z' \
-        'Suites: bookworm-security' \
-        'Components: main' \
-        'Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' \
-    > /etc/apt/sources.list.d/debian.sources
-
-RUN printf 'Acquire::Check-Valid-Until "false";\nAcquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' > /etc/apt/apt.conf.d/80-wprint3d-retries
+RUN printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' > /etc/apt/apt.conf.d/80-wprint3d-retries
 
 # Basic dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
