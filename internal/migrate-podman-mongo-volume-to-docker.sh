@@ -140,6 +140,131 @@ docker_volume_has_migration_label() {
     [[ "$label_value" == 'true' ]]
 }
 
+podman_ps() {
+    local podman_prefix="$1"
+
+    shift
+
+    if [[ "$podman_prefix" == 'sudo' ]]; then
+        sudo podman ps "$@"
+    else
+        podman ps "$@"
+    fi
+}
+
+podman_inspect_label() {
+    local podman_prefix="$1"
+    local container_id="$2"
+    local label="$3"
+
+    if [[ "$podman_prefix" == 'sudo' ]]; then
+        sudo podman inspect --format '{{ index .Config.Labels "'"${label}"'" }}' "$container_id" 2> /dev/null || true
+    else
+        podman inspect --format '{{ index .Config.Labels "'"${label}"'" }}' "$container_id" 2> /dev/null || true
+    fi
+}
+
+podman_stop_containers() {
+    local podman_prefix="$1"
+
+    shift
+
+    [[ "$#" -gt 0 ]] || return 0
+
+    if [[ "$podman_prefix" == 'sudo' ]]; then
+        sudo podman stop "$@"
+    else
+        podman stop "$@"
+    fi
+}
+
+podman_running_container_ids_with_filter() {
+    local podman_prefix="$1"
+    local filter="$2"
+
+    podman_ps "$podman_prefix" --filter "$filter" --format '{{.ID}}' | awk 'NF && !seen[$0]++'
+}
+
+podman_all_container_ids_with_filter() {
+    local podman_prefix="$1"
+    local filter="$2"
+
+    podman_ps "$podman_prefix" -a --filter "$filter" --format '{{.ID}}' | awk 'NF && !seen[$0]++'
+}
+
+podman_project_container_ids() {
+    local podman_prefix="$1"
+    local project="$2"
+
+    {
+        podman_running_container_ids_with_filter "$podman_prefix" "label=com.docker.compose.project=${project}" 2> /dev/null || true
+        podman_running_container_ids_with_filter "$podman_prefix" "label=io.podman.compose.project=${project}" 2> /dev/null || true
+    } | awk 'NF && !seen[$0]++'
+}
+
+stop_running_podman_source_containers() {
+    local podman_prefix="$1"
+    local source_volume="$2"
+    local mounted_container_ids
+    local container_id
+    local project
+    local project_names
+    local running_container_ids
+
+    if [[ "${WPRINT3D_SKIP_PODMAN_MONGO_QUIESCE:-0}" == '1' ]]; then
+        log 'Skipping Podman MongoDB quiesce check because WPRINT3D_SKIP_PODMAN_MONGO_QUIESCE=1.'
+        return 0
+    fi
+
+    if ! mounted_container_ids="$(podman_all_container_ids_with_filter "$podman_prefix" "volume=${source_volume}" 2> /dev/null)"; then
+        log "Failed to check whether Podman containers are using volume '${source_volume}'." >&2
+        log 'Stop the old Podman WPrint 3D stack before migration, or set WPRINT3D_SKIP_PODMAN_MONGO_QUIESCE=1 if you know the volume is offline.' >&2
+        return 1
+    fi
+
+    if [[ -z "$mounted_container_ids" ]]; then
+        return 0
+    fi
+
+    project_names=''
+
+    while IFS= read -r container_id; do
+        [[ -n "$container_id" ]] || continue
+
+        project="$(podman_inspect_label "$podman_prefix" "$container_id" 'com.docker.compose.project')"
+        [[ -n "$project" ]] || project="$(podman_inspect_label "$podman_prefix" "$container_id" 'io.podman.compose.project')"
+
+        if [[ -n "$project" ]]; then
+            project_names+="${project}"$'\n'
+        fi
+    done <<< "$mounted_container_ids"
+
+    if [[ -n "$project_names" ]]; then
+        running_container_ids="$(
+            while IFS= read -r project; do
+                [[ -n "$project" ]] || continue
+                podman_project_container_ids "$podman_prefix" "$project"
+            done <<< "$project_names" | awk 'NF && !seen[$0]++'
+        )"
+    else
+        running_container_ids="$(podman_running_container_ids_with_filter "$podman_prefix" "volume=${source_volume}" 2> /dev/null || true)"
+    fi
+
+    if [[ -z "$running_container_ids" ]]; then
+        return 0
+    fi
+
+    log "Stopping old Podman WPrint 3D containers before copying MongoDB volume '${source_volume}'..."
+
+    # shellcheck disable=SC2086
+    podman_stop_containers "$podman_prefix" $running_container_ids
+
+    if [[ -n "$(podman_running_container_ids_with_filter "$podman_prefix" "volume=${source_volume}" 2> /dev/null || true)" ]]; then
+        log "Podman containers are still using MongoDB volume '${source_volume}'. Stop them and retry." >&2
+        return 1
+    fi
+}
+
 volume_latest_mtime_command() {
     cat <<'EOF'
 latest=0
@@ -324,6 +449,7 @@ main() {
 
     log "Migrating Podman MongoDB volume '${source_volume}' to Docker volume '${destination_volume}'..."
 
+    stop_running_podman_source_containers "$podman_prefix" "$source_volume"
     remove_docker_volume_if_exists "$destination_volume"
     create_docker_volume "$destination_volume" "$source_volume"
 
