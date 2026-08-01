@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\UserRole;
+use App\Events\CommandQueued;
 use App\Models\Camera;
 use App\Models\File;
 use App\Models\PersonalAccessToken;
@@ -10,6 +11,8 @@ use App\Models\Printer;
 use App\Models\User;
 use App\Services\ApiTokenService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -112,6 +115,16 @@ class OctoPrintCompatibilityTest extends TestCase
         $this->withHeader('X-Api-Key', $token->plainTextToken)
             ->postJson('/octoprint-api/job', ['command' => 'cancel'])
             ->assertForbidden();
+
+        $this->withHeader('X-Api-Key', $token->plainTextToken)
+            ->getJson('/octoprint-api/printer/tool')
+            ->assertOk();
+
+        $this->withHeader('X-Api-Key', $token->plainTextToken)
+            ->postJson('/octoprint-api/printer/printhead', [
+                'command' => 'jog',
+                'x' => 1,
+            ])->assertForbidden();
     }
 
     public function test_camera_extension_returns_only_enabled_cameras_linked_to_the_selected_printer(): void
@@ -244,6 +257,116 @@ class OctoPrintCompatibilityTest extends TestCase
         $this->withHeaders($headers)->postJson('/octoprint-api/job', ['command' => 'cancel'])
             ->assertConflict()
             ->assertJsonPath('reason', 'offline');
+    }
+
+    public function test_printer_controls_use_octoprint_payloads_and_safe_ranges(): void
+    {
+        Event::fake([CommandQueued::class]);
+
+        $user = $this->user();
+        $printer = $this->printer('manual-control-printer');
+        $token = app(ApiTokenService::class)->create($user, 'Manual controls', 'manual-control-printer', 365);
+        $headers = ['X-Api-Key' => $token->plainTextToken];
+
+        Cache::put($printer->_id.Printer::CACHE_STATISTICS_SUFFIX, [
+            'extruders' => [[
+                'temperature' => 205,
+                'target' => 210,
+            ]],
+            'bed' => [
+                'temperature' => 55,
+                'target' => 60,
+            ],
+        ]);
+
+        $this->withHeaders($headers)
+            ->getJson('/octoprint-api/printer/tool')
+            ->assertOk()
+            ->assertJsonPath('tool0.actual', 205)
+            ->assertJsonPath('tool0.target', 210);
+
+        $this->withHeaders($headers)
+            ->getJson('/octoprint-api/printer/bed')
+            ->assertOk()
+            ->assertJsonPath('bed.actual', 55)
+            ->assertJsonPath('bed.target', 60);
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/printhead', [
+            'command' => 'jog',
+            'x' => 10,
+            'y' => -5,
+            'absolute' => false,
+            'speed' => 1500,
+        ])->assertNoContent();
+        $this->assertSame(['G91', 'G0 X10 Y-5 F1500', 'G90'], $printer->getResetQueuedCommands());
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/printhead', [
+            'command' => 'home',
+            'axes' => ['x', 'y'],
+        ])->assertNoContent();
+        $this->assertSame(['G28 X Y'], $printer->getResetQueuedCommands());
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/printhead', [
+            'command' => 'feedrate',
+            'factor' => 125,
+        ])->assertNoContent();
+        $this->assertSame(['M220 S125'], $printer->getResetQueuedCommands());
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/tool', [
+            'command' => 'target',
+            'targets' => ['tool0' => 215],
+        ])->assertNoContent();
+        $this->assertSame(['M104 S215'], $printer->getResetQueuedCommands());
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/bed', [
+            'command' => 'target',
+            'target' => 65,
+        ])->assertNoContent();
+        $this->assertSame(['M140 S65'], $printer->getResetQueuedCommands());
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/tool', [
+            'command' => 'flowrate',
+            'factor' => 95,
+        ])->assertNoContent();
+        $this->assertSame(['M221 S95'], $printer->getResetQueuedCommands());
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/tool', [
+            'command' => 'extrude',
+            'amount' => 5,
+            'speed' => 300,
+        ])->assertNoContent();
+        $this->assertSame(['M83', 'T0', 'G1 E5 F300', 'M82'], $printer->getResetQueuedCommands());
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/printhead', [
+            'command' => 'jog',
+            'x' => 101,
+        ])->assertBadRequest()->assertJsonPath('reason', 'invalid_request');
+        $this->assertSame([], $printer->getResetQueuedCommands());
+    }
+
+    public function test_manual_movement_and_cold_extrusion_return_conflicts(): void
+    {
+        Event::fake([CommandQueued::class]);
+
+        $user = $this->user();
+        $printer = $this->printer('safe-control-printer');
+        $token = app(ApiTokenService::class)->create($user, 'Safe controls', 'safe-control-printer', 365);
+        $headers = ['X-Api-Key' => $token->plainTextToken];
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/tool', [
+            'command' => 'extrude',
+            'amount' => 5,
+        ])->assertConflict()->assertJsonPath('reason', 'cold_extrusion');
+
+        $printer->activeFile = 'active.gcode';
+        $printer->save();
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/printhead', [
+            'command' => 'jog',
+            'x' => 1,
+        ])->assertConflict()->assertJsonPath('reason', 'job_active');
+
+        $this->assertSame([], $printer->getResetQueuedCommands());
     }
 
     private function user(int $role = UserRole::USER): User

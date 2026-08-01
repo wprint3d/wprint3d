@@ -6,6 +6,7 @@ use App\Exceptions\PrintJobException;
 use App\Http\Controllers\Controller;
 use App\Models\Printer;
 use App\Services\OctoPrint\OctoPrintContext;
+use App\Services\OctoPrint\PrinterControlService;
 use App\Services\PrintJobService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ class PrinterController extends Controller
     public function __construct(
         private readonly OctoPrintContext $context,
         private readonly PrintJobService $jobs,
+        private readonly PrinterControlService $controls,
     ) {}
 
     public function printer(Request $request): JsonResponse
@@ -47,6 +49,30 @@ class PrinterController extends Controller
                 'baudratePreference' => (int) $printer->baudRate,
                 'printerProfilePreference' => '_default',
                 'autoconnect' => true,
+            ],
+        ]);
+    }
+
+    public function tool(Request $request): JsonResponse
+    {
+        $temperature = $this->temperature($this->context->printer($request));
+
+        return response()->json(array_filter(
+            $temperature,
+            fn (string $key) => str_starts_with($key, 'tool'),
+            ARRAY_FILTER_USE_KEY,
+        ));
+    }
+
+    public function bed(Request $request): JsonResponse
+    {
+        $temperature = $this->temperature($this->context->printer($request));
+
+        return response()->json([
+            'bed' => $temperature['bed'] ?? [
+                'actual' => 0.0,
+                'target' => 0.0,
+                'offset' => 0,
             ],
         ]);
     }
@@ -117,6 +143,121 @@ class PrinterController extends Controller
                 'error' => $exception->getMessage(),
                 'reason' => $exception->reason,
             ], Response::HTTP_CONFLICT);
+        }
+    }
+
+    public function printheadCommand(Request $request): Response
+    {
+        $printer = $this->context->printer($request);
+        $command = $request->input('command');
+
+        return $this->controlResponse(function () use ($request, $printer, $command) {
+            if ($command === 'jog') {
+                if ($request->boolean('absolute')) {
+                    throw new \InvalidArgumentException('Absolute jogging is not supported.');
+                }
+
+                $axes = array_filter(
+                    $request->only(['x', 'y', 'z']),
+                    fn ($value) => $value !== null && $value !== '',
+                );
+                $this->controls->jog($printer, $axes, $request->input('speed', 1500));
+
+                return;
+            }
+
+            if ($command === 'home') {
+                $this->controls->home($printer, $request->input('axes', []));
+
+                return;
+            }
+
+            if ($command === 'feedrate') {
+                $this->controls->setFeedrate($printer, $request->input('factor'));
+
+                return;
+            }
+
+            throw new \InvalidArgumentException('Unsupported printhead command.');
+        });
+    }
+
+    public function toolCommand(Request $request): Response
+    {
+        $printer = $this->context->printer($request);
+        $command = $request->input('command');
+
+        return $this->controlResponse(function () use ($request, $printer, $command) {
+            if ($command === 'target') {
+                $targets = $request->input('targets');
+
+                if (! is_array($targets) || $targets === []) {
+                    throw new \InvalidArgumentException('At least one tool target is required.');
+                }
+
+                foreach ($targets as $tool => $temperature) {
+                    $this->controls->setHotendTarget($printer, $tool, $temperature);
+                }
+
+                return;
+            }
+
+            if ($command === 'select') {
+                $this->controls->selectTool($printer, $request->input('tool'));
+
+                return;
+            }
+
+            if ($command === 'extrude') {
+                $this->controls->extrude(
+                    $printer,
+                    $request->input('tool', 'tool0'),
+                    $request->input('amount'),
+                    $request->input('speed', 300),
+                );
+
+                return;
+            }
+
+            if ($command === 'flowrate') {
+                $this->controls->setFlowrate($printer, $request->input('factor'));
+
+                return;
+            }
+
+            throw new \InvalidArgumentException('Unsupported tool command.');
+        });
+    }
+
+    public function bedCommand(Request $request): Response
+    {
+        $printer = $this->context->printer($request);
+
+        return $this->controlResponse(function () use ($request, $printer) {
+            if ($request->input('command') !== 'target') {
+                throw new \InvalidArgumentException('Unsupported build plate command.');
+            }
+
+            $this->controls->setBedTarget($printer, $request->input('target'));
+        });
+    }
+
+    private function controlResponse(callable $operation): Response
+    {
+        try {
+            $operation();
+
+            return response('', Response::HTTP_NO_CONTENT);
+        } catch (PrintJobException $exception) {
+            return response()->json([
+                'error' => $exception->getMessage(),
+                'reason' => $exception->reason,
+            ], Response::HTTP_CONFLICT);
+        } catch (\InvalidArgumentException $exception) {
+            return response()->json([
+                'error' => $exception->getMessage(),
+                'reason' => 'invalid_request',
+            ], Response::HTTP_BAD_REQUEST);
         }
     }
 
