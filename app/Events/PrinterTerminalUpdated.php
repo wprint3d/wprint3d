@@ -3,14 +3,10 @@
 namespace App\Events;
 
 use App\Enums\Marlin;
-
 use App\Models\Printer;
-
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-
 use Illuminate\Foundation\Events\Dispatchable;
 
 class PrinterTerminalUpdated implements ShouldBroadcast
@@ -19,14 +15,21 @@ class PrinterTerminalUpdated implements ShouldBroadcast
 
     public $queue = 'broadcasts';
 
-    public string   $printerId;
-    public string   $dateString;
-    public string   $command;
-    public ?string  $meaning = null;
-    public ?int     $line;
-    public ?int     $maxLine;
-    public bool     $running;
-    public mixed    $stopTimestampSecs = null;
+    public string $printerId;
+
+    public string $dateString;
+
+    public string $command;
+
+    public ?string $meaning = null;
+
+    public ?int $line;
+
+    public ?int $maxLine;
+
+    public bool $running;
+
+    public mixed $stopTimestampSecs = null;
 
     /**
      * Create a new event instance.
@@ -34,62 +37,72 @@ class PrinterTerminalUpdated implements ShouldBroadcast
      * @return void
      */
     public function __construct(
-        string   $printerId,
-        string   $command,
-          ?int   $line              = null,
-          ?int   $maxLine           = null,
-          ?int   $terminalMaxLines  = null,
-          ?bool  $isRunning         = null,
-          ?array $statistics        = null,
-          ?int   $stopTimestampSecs = null,
-          mixed  $thresholdSecs     = null
+        string $printerId,
+        string $command,
+        ?int $line = null,
+        ?int $maxLine = null,
+        ?int $terminalMaxLines = null,
+        ?bool $isRunning = null,
+        ?array $statistics = null,
+        ?int $stopTimestampSecs = null,
+        mixed $thresholdSecs = null
     ) {
-        if (!is_numeric($stopTimestampSecs)) { $stopTimestampSecs = null; }
+        if (! is_numeric($stopTimestampSecs)) {
+            $stopTimestampSecs = null;
+        }
 
-        $this->printerId    = $printerId;
-        $this->dateString   = nowHuman();
-        $this->command      = $command;
-        $this->line         = $line;
-        $this->maxLine      = $maxLine;
-        $this->running      =
+        $this->printerId = $printerId;
+        $this->dateString = nowHuman();
+        $this->command = $command;
+        $this->line = $line;
+        $this->maxLine = $maxLine;
+        $this->running =
             $isRunning === null
-                ? Printer::getRunningStatusOf( $printerId )
+                ? Printer::getRunningStatusOf($printerId)
                 : $isRunning;
         $this->stopTimestampSecs = $stopTimestampSecs;
 
-        $terminal = Printer::getConsoleOf( $this->printerId );
+        $terminal = Printer::getConsoleOf($this->printerId);
 
-        if (!$terminal) {
+        if (! $terminal) {
             $terminal = '';
         }
 
-        $dispatchStatsUpdate = false;
+        $dispatchConnectionUpdate = false;
 
         foreach (explode(PHP_EOL, $command) as $line) {
-            if ($line = trim( $line )) {
+            if ($line = trim($line)) {
                 if (str_starts_with($line, '>')) { // input
                     $this->meaning = Marlin::getLabel(
                         str_replace('> ', '', $line)
                     );
                 } else { // output
-                    if (strpos($line, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false) { // with temperature data
-                        $dispatchStatsUpdate = true;
+                    if (
+                        strpos($line, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false // with temperature data
+                        || strpos($line, 'busy') !== false // Marlin keepalive while processing
+                    ) {
+                        $dispatchConnectionUpdate = true;
                     }
                 }
 
-                $line = $this->dateString . ': ' . $line;
+                $line = $this->dateString.': '.$line;
 
-                $terminal .= $line . PHP_EOL;
+                $terminal .= $line.PHP_EOL;
             }
         }
 
-        if ($dispatchStatsUpdate) {
+        if ($dispatchConnectionUpdate) {
+            Printer::setConnectionStatusOf(
+                $this->printerId,
+                Printer::CONNECTION_STATUS_ONLINE
+            );
+
             PrinterConnectionStatusUpdated::dispatch(
                 $this->printerId,                               // printerId
-                Printer::updateLastSeenOf( $this->printerId ),  // lastSeen
+                Printer::updateLastSeenOf($this->printerId),  // lastSeen
                 $statistics,                                    // statistics
                 $maxLine !== null,                              // hasActiveFile
-                !$this->running,                                // isPaused
+                ! $this->running,                                // isPaused
                 $thresholdSecs                                  // thresholdSecs
             );
         }
@@ -103,7 +116,7 @@ class PrinterTerminalUpdated implements ShouldBroadcast
             }
         }
 
-        Printer::setConsoleOf( $this->printerId, $terminal );
+        Printer::setConsoleOf($this->printerId, $terminal);
     }
 
     /**
@@ -113,6 +126,6 @@ class PrinterTerminalUpdated implements ShouldBroadcast
      */
     public function broadcastOn()
     {
-        return new PrivateChannel('console.' . $this->printerId);
+        return new PrivateChannel('console.'.$this->printerId);
     }
 }
