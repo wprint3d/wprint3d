@@ -5450,3 +5450,75 @@ for (const locale of Object.keys(translations)) {
         ...(extension.notifications || {}),
     };
 }
+
+const apiTokenTranslationExtensions = {
+    en: {
+        title: "API tokens", forUser: "Tokens for {name}", loading: "Loading API tokens...", loadError: "API tokens could not be loaded.", retry: "Retry",
+        emptyTitle: "No API tokens", emptyBody: "Create a token to connect Cura or another OctoPrint-compatible client.", create: "Create token", expired: "Expired", revoke: "Revoke",
+        printerValue: "Printer: {value}", createdValue: "Created: {value}", expiresValue: "Expires: {value}", lastUsedValue: "Last used: {value}", notUsed: "Never used",
+        createIntro: "The token will be limited to the selected printer. Its secret is shown only once.", name: "Token name", printer: "Printer", printersError: "Printers could not be loaded.",
+        expiration: "Expiration", days30: "30 days", days90: "90 days", days365: "1 year", never: "Never", currentPassword: "Your current password",
+        passwordHelp: "Your password confirms this sensitive action for five minutes.", createError: "The token could not be created.", cancel: "Cancel",
+        secretWarning: "Copy this secret now. For security, WPrint 3D will not show it again.", secret: "Token secret", copy: "Copy token", copySuccess: "Token copied.", copyError: "The clipboard is unavailable. Select and copy the token manually.", done: "Done", dismiss: "Dismiss",
+        revokeTitle: "Revoke API token", revokeBody: "Revoke “{name}”? Connected clients will lose access immediately.", revokeSuccess: "API token revoked.", revokeError: "The token could not be revoked.", close: "Close",
+    },
+    es: {
+        title: "Tokens API", forUser: "Tokens de {name}", loading: "Cargando tokens API...", loadError: "No se pudieron cargar los tokens API.", retry: "Reintentar",
+        emptyTitle: "No hay tokens API", emptyBody: "Creá un token para conectar Cura u otro cliente compatible con OctoPrint.", create: "Crear token", expired: "Vencido", revoke: "Revocar",
+        printerValue: "Impresora: {value}", createdValue: "Creado: {value}", expiresValue: "Vence: {value}", lastUsedValue: "Último uso: {value}", notUsed: "Nunca usado",
+        createIntro: "El token quedará limitado a la impresora elegida. El secreto se muestra una sola vez.", name: "Nombre del token", printer: "Impresora", printersError: "No se pudieron cargar las impresoras.",
+        expiration: "Vencimiento", days30: "30 días", days90: "90 días", days365: "1 año", never: "Nunca", currentPassword: "Tu contraseña actual",
+        passwordHelp: "Tu contraseña confirma esta acción sensible durante cinco minutos.", createError: "No se pudo crear el token.", cancel: "Cancelar",
+        secretWarning: "Copiá este secreto ahora. Por seguridad, WPrint 3D no volverá a mostrarlo.", secret: "Secreto del token", copy: "Copiar token", copySuccess: "Token copiado.", copyError: "El portapapeles no está disponible. Seleccioná y copiá el token manualmente.", done: "Listo", dismiss: "Cerrar",
+        revokeTitle: "Revocar token API", revokeBody: "¿Revocar “{name}”? Los clientes conectados perderán el acceso inmediatamente.", revokeSuccess: "Token API revocado.", revokeError: "No se pudo revocar el token.", close: "Cerrar",
+    },
+    fr: {
+        title: "Jetons API", forUser: "Jetons de {name}", loading: "Chargement des jetons API…", loadError: "Impossible de charger les jetons API.", retry: "Réessayer",
+        emptyTitle: "Aucun jeton API", emptyBody: "Créez un jeton pour connecter Cura ou un autre client compatible avec OctoPrint.", create: "Créer un jeton", expired: "Expiré", revoke: "Révoquer",
+        printerValue: "Imprimante : {value}", createdValue: "Créé : {value}", expiresValue: "Expire : {value}", lastUsedValue: "Dernière utilisation : {value}", notUsed: "Jamais utilisé",
+        createIntro: "Le jeton sera limité à l’imprimante sélectionnée. Son secret n’est affiché qu’une fois.", name: "Nom du jeton", printer: "Imprimante", printersError: "Impossible de charger les imprimantes.",
+        expiration: "Expiration", days30: "30 jours", days90: "90 jours", days365: "1 an", never: "Jamais", currentPassword: "Votre mot de passe actuel",
+        passwordHelp: "Votre mot de passe confirme cette action sensible pendant cinq minutes.", createError: "Impossible de créer le jeton.", cancel: "Annuler",
+        secretWarning: "Copiez ce secret maintenant. WPrint 3D ne l’affichera plus.", secret: "Secret du jeton", copy: "Copier le jeton", copySuccess: "Jeton copié.", copyError: "Le presse-papiers est indisponible. Copiez le jeton manuellement.", done: "Terminé", dismiss: "Fermer",
+        revokeTitle: "Révoquer le jeton API", revokeBody: "Révoquer « {name} » ? Les clients connectés perdront immédiatement l’accès.", revokeSuccess: "Jeton API révoqué.", revokeError: "Impossible de révoquer le jeton.", close: "Fermer",
+    },
+    pt: {
+        title: "Tokens de API", forUser: "Tokens de {name}", loading: "Carregando tokens de API...", loadError: "Não foi possível carregar os tokens de API.", retry: "Tentar novamente",
+        emptyTitle: "Nenhum token de API", emptyBody: "Crie um token para conectar o Cura ou outro cliente compatível com OctoPrint.", create: "Criar token", expired: "Expirado", revoke: "Revogar",
+        printerValue: "Impressora: {value}", createdValue: "Criado: {value}", expiresValue: "Expira: {value}", lastUsedValue: "Último uso: {value}", notUsed: "Nunca usado",
+        createIntro: "O token ficará limitado à impressora selecionada. O segredo é exibido apenas uma vez.", name: "Nome do token", printer: "Impressora", printersError: "Não foi possível carregar as impressoras.",
+        expiration: "Validade", days30: "30 dias", days90: "90 dias", days365: "1 ano", never: "Nunca", currentPassword: "Sua senha atual",
+        passwordHelp: "Sua senha confirma esta ação sensível por cinco minutos.", createError: "Não foi possível criar o token.", cancel: "Cancelar",
+        secretWarning: "Copie este segredo agora. O WPrint 3D não o exibirá novamente.", secret: "Segredo do token", copy: "Copiar token", copySuccess: "Token copiado.", copyError: "A área de transferência não está disponível. Copie o token manualmente.", done: "Concluído", dismiss: "Fechar",
+        revokeTitle: "Revogar token de API", revokeBody: "Revogar “{name}”? Os clientes conectados perderão o acesso imediatamente.", revokeSuccess: "Token de API revogado.", revokeError: "Não foi possível revogar o token.", close: "Fechar",
+    },
+    it: {
+        title: "Token API", forUser: "Token di {name}", loading: "Caricamento dei token API...", loadError: "Impossibile caricare i token API.", retry: "Riprova",
+        emptyTitle: "Nessun token API", emptyBody: "Crea un token per collegare Cura o un altro client compatibile con OctoPrint.", create: "Crea token", expired: "Scaduto", revoke: "Revoca",
+        printerValue: "Stampante: {value}", createdValue: "Creato: {value}", expiresValue: "Scade: {value}", lastUsedValue: "Ultimo utilizzo: {value}", notUsed: "Mai usato",
+        createIntro: "Il token sarà limitato alla stampante selezionata. Il segreto viene mostrato una sola volta.", name: "Nome del token", printer: "Stampante", printersError: "Impossibile caricare le stampanti.",
+        expiration: "Scadenza", days30: "30 giorni", days90: "90 giorni", days365: "1 anno", never: "Mai", currentPassword: "Password attuale",
+        passwordHelp: "La password conferma questa azione sensibile per cinque minuti.", createError: "Impossibile creare il token.", cancel: "Annulla",
+        secretWarning: "Copia ora questo segreto. WPrint 3D non lo mostrerà più.", secret: "Segreto del token", copy: "Copia token", copySuccess: "Token copiato.", copyError: "Appunti non disponibili. Copia manualmente il token.", done: "Fatto", dismiss: "Chiudi",
+        revokeTitle: "Revoca token API", revokeBody: "Revocare “{name}”? I client collegati perderanno subito l’accesso.", revokeSuccess: "Token API revocato.", revokeError: "Impossibile revocare il token.", close: "Chiudi",
+    },
+    de: {
+        title: "API-Tokens", forUser: "Tokens für {name}", loading: "API-Tokens werden geladen...", loadError: "API-Tokens konnten nicht geladen werden.", retry: "Erneut versuchen",
+        emptyTitle: "Keine API-Tokens", emptyBody: "Erstelle ein Token, um Cura oder einen anderen OctoPrint-kompatiblen Client zu verbinden.", create: "Token erstellen", expired: "Abgelaufen", revoke: "Widerrufen",
+        printerValue: "Drucker: {value}", createdValue: "Erstellt: {value}", expiresValue: "Läuft ab: {value}", lastUsedValue: "Zuletzt verwendet: {value}", notUsed: "Nie verwendet",
+        createIntro: "Das Token wird auf den ausgewählten Drucker beschränkt. Das Geheimnis wird nur einmal angezeigt.", name: "Tokenname", printer: "Drucker", printersError: "Drucker konnten nicht geladen werden.",
+        expiration: "Ablauf", days30: "30 Tage", days90: "90 Tage", days365: "1 Jahr", never: "Nie", currentPassword: "Aktuelles Passwort",
+        passwordHelp: "Dein Passwort bestätigt diese sensible Aktion für fünf Minuten.", createError: "Das Token konnte nicht erstellt werden.", cancel: "Abbrechen",
+        secretWarning: "Kopiere dieses Geheimnis jetzt. WPrint 3D zeigt es nicht erneut an.", secret: "Token-Geheimnis", copy: "Token kopieren", copySuccess: "Token kopiert.", copyError: "Die Zwischenablage ist nicht verfügbar. Kopiere das Token manuell.", done: "Fertig", dismiss: "Schließen",
+        revokeTitle: "API-Token widerrufen", revokeBody: "„{name}“ widerrufen? Verbundene Clients verlieren sofort den Zugriff.", revokeSuccess: "API-Token widerrufen.", revokeError: "Das Token konnte nicht widerrufen werden.", close: "Schließen",
+    },
+};
+
+apiTokenTranslationExtensions.es_AR = apiTokenTranslationExtensions.es;
+
+for (const locale of Object.keys(translations)) {
+    translations[locale].apiTokens = {
+        ...(translations[locale].apiTokens || {}),
+        ...(apiTokenTranslationExtensions[locale] || apiTokenTranslationExtensions.en),
+    };
+}

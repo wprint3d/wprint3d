@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\CameraController;
 use App\Http\Controllers\ConfigurationController;
@@ -50,19 +51,15 @@ Route::prefix('/app')->group(function () {
     });
 });
 
-Route::middleware(['auth:sanctum', 'password.ensure_changed'])->group(function () {
+Route::middleware(['auth:sanctum', 'native.api', 'password.ensure_changed'])->group(function () {
     Route::get('/ws/config', [ConfigurationController::class, 'wsConfig']);
 
     Route::get('/data/types', [ConfigurationController::class, 'getDataTypes']);
 
-    Route::prefix('/users')->group(function () {
-        Route::post('/', [UsersController::class, 'create']);
-        Route::get('/', [UsersController::class, 'index']);
-        Route::get('/{id}', [UsersController::class, 'get']);
-        Route::put('/{id}', [UsersController::class, 'update']);
-        Route::delete('/{id}', [UsersController::class, 'delete']);
-        Route::post('/{id}/reset-password', [UsersController::class, 'resetPassword']);
-    });
+    Route::post('/user/confirm-password', [ApiTokenController::class, 'confirmPassword']);
+    Route::get('/users/{userId}/tokens', [ApiTokenController::class, 'index']);
+    Route::post('/users/{userId}/tokens', [ApiTokenController::class, 'store']);
+    Route::delete('/users/{userId}/tokens/{tokenId}', [ApiTokenController::class, 'destroy']);
 
     Route::prefix('/enum')->group(function () {
         Route::post('/batch', [ConfigurationController::class, 'listEnums']);
@@ -89,6 +86,15 @@ Route::middleware(['auth:sanctum', 'password.ensure_changed'])->group(function (
     });
 
     Route::middleware(['auth.ensure_admin'])->group(function () {
+        Route::prefix('/users')->group(function () {
+            Route::post('/', [UsersController::class, 'create']);
+            Route::get('/', [UsersController::class, 'index']);
+            Route::get('/{id}', [UsersController::class, 'get']);
+            Route::put('/{id}', [UsersController::class, 'update']);
+            Route::delete('/{id}', [UsersController::class, 'delete']);
+            Route::post('/{id}/reset-password', [UsersController::class, 'resetPassword']);
+        });
+
         Route::prefix('/developer')->group(function () {
             Route::prefix('/fake-serial')->group(function () {
                 Route::get('/', [DeveloperFakeSerialController::class, 'show']);

@@ -10,6 +10,7 @@ import UserSettingsModal from "./UserSettingsModal";
 import UserNewPasswordModal from "./UserNewPasswordModal";
 import NavBarMenuSettingsModalUsersOptions from "./NavBarMenuSettingsModalUsersOptions";
 import { useLocalization } from "../includes/LocalizationProvider";
+import ApiTokenManagerModal from "./ApiTokenManagerModal";
 
 const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSnackbar }) => {
     const queryClient = useQueryClient();
@@ -34,6 +35,7 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
           [ isEditDialogOpen,           setIsEditDialogOpen          ] = useState(false),
           [ isPasswordResetDialogOpen,  setIsPasswordResetDialogOpen ] = useState(false),
           [ isNewPasswordDialogOpen,    setIsNewPasswordDialogOpen   ] = useState(false),
+          [ isTokenManagerOpen,         setIsTokenManagerOpen        ] = useState(false),
           [ generatedPassword,          setGeneratedPassword         ] = useState(null);
 
     const resetPasswordMutation = useMutation({
@@ -137,6 +139,11 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
         setIsPasswordResetDialogOpen(true);
     };
 
+    const handleManageTokens = (user) => {
+        setSelectedUser(user);
+        setIsTokenManagerOpen(true);
+    };
+
     if (roleTypes.isLoading) {
         return <UserPaneLoadingIndicator message={t("users.loadingRoles")} />;
     }
@@ -223,6 +230,7 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
                                 handleEditUser={handleEditUser}
                                 handleDeleteUser={handleDeleteUser}
                                 handleResetPassword={handleResetPassword}
+                                handleManageTokens={handleManageTokens}
                                 isSmallLaptop={isSmallLaptop}
                                 isSmallTablet={isSmallTablet}
                                 enqueueSnackbar={enqueueSnackbar}
@@ -252,6 +260,14 @@ const NavBarMenuSettingsModalUsers = ({ isSmallTablet, isSmallLaptop, enqueueSna
                 enqueueSnackbar={enqueueSnackbar}
                 isSmallLaptop={isSmallLaptop}
                 isSmallTablet={isSmallTablet}
+            />
+
+            <ApiTokenManagerModal
+                visible={isTokenManagerOpen}
+                onDismiss={() => setIsTokenManagerOpen(false)}
+                user={selectedUser}
+                isSmallTablet={isSmallTablet}
+                enqueueSnackbar={enqueueSnackbar}
             />
 
             <FAB

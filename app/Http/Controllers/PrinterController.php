@@ -7,8 +7,8 @@ use App\Enums\FormatterCommands;
 use App\Enums\RecoveryStage;
 use App\Events\RecoveryProgress;
 use App\Events\RecoveryStageChanged;
-use App\Events\SystemMessage;
 use App\Exceptions\InitializationException;
+use App\Exceptions\PrintJobException;
 
 use App\Jobs\PrintGcode;
 use App\Jobs\RenderVideo;
@@ -16,23 +16,20 @@ use App\Libraries\Serial;
 use App\Models\Camera;
 use App\Models\Configuration;
 use App\Models\Printer;
-use App\Models\Video;
+use App\Services\PrintJobService;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Filesystem\Filesystem;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use MongoDB\BSON\ObjectId;
-use Throwable;
 
 class PrinterController extends Controller
 {
@@ -328,7 +325,7 @@ class PrinterController extends Controller
         return $gcode;
     }
 
-    public function startPrint(Request $request) {
+    public function startPrint(Request $request, PrintJobService $jobs) {
         $request->validate([ 'fileName' => 'required' ]);
 
         $fileName = $request->get('fileName');
@@ -339,81 +336,37 @@ class PrinterController extends Controller
             $fileName = "{$subDirectory}/{$fileName}";
         }
 
-        if (!$this->gcodeStorage->exists($fileName)) {
-            throw ValidationException::withMessages([ 'fileName' => __('server.files.not_found') ]);
-        }
-
         $printer = $request->printer;
 
-        if (!$printer->connected || !Serial::nodeExists($printer->node)) {
-            if ($printer->connected) {
-                $printer->connected = false;
-                $printer->setConnectionStatus(Printer::CONNECTION_STATUS_OFFLINE);
-                $printer->save();
-            }
-
-            throw ValidationException::withMessages([ 'fileName' => __('server.printers.not_connected') ]);
+        try {
+            $jobs->start($request->user(), $printer, $fileName);
+        } catch (PrintJobException $exception) {
+            throw ValidationException::withMessages([ 'fileName' => $exception->getMessage() ]);
         }
-
-        if ($printer->activeFile) {
-            throw ValidationException::withMessages([ 'fileName' => __('server.printers.active_file_already_present') ]);
-        }
-
-        // Reset the printer's paused state in case it was left paused.
-        $printer->resume();
-
-        $printer->hasActiveJob = true;
-        $printer->activeFile   = $fileName;
-        $printer->save();
-
-        $printer->setCurrentLine(0);
-        $printer->setCurrentLayer(0);
-
-        // TODO: Rewrite the entire print logic to support absolute paths
-        PrintGcode::dispatch(
-            $request->user(),       // owner
-            $printer->_id           // printerId
-        );
     }
 
-    public function pausePrint(Request $request) {
-        $printer = $request->printer;
-
-        $this->checkConnectivityOrFail($printer);
-
-        if (!$printer->activeFile) {
-            throw ValidationException::withMessages([ 'printer' => __('server.printers.no_active_file') ]);
+    public function pausePrint(Request $request, PrintJobService $jobs) {
+        try {
+            $jobs->pause($request->printer);
+        } catch (PrintJobException $exception) {
+            throw ValidationException::withMessages([ 'printer' => $exception->getMessage() ]);
         }
-
-        $printer->pause();
     }
 
-    public function resumePrint(Request $request) {
-        $printer = $request->printer;
-
-        $this->checkConnectivityOrFail($printer);
-
-        if (!$printer->activeFile) {
-            throw ValidationException::withMessages([ 'printer' => __('server.printers.no_active_file') ]);
+    public function resumePrint(Request $request, PrintJobService $jobs) {
+        try {
+            $jobs->resume($request->printer);
+        } catch (PrintJobException $exception) {
+            throw ValidationException::withMessages([ 'printer' => $exception->getMessage() ]);
         }
-
-        $printer->resume();
     }
 
-    public function cancelPrint(Request $request) {
-        $printer = $request->printer;
-
-        $this->checkConnectivityOrFail($printer);
-
-        if (!$printer->activeFile) {
-            throw ValidationException::withMessages([ 'printer' => __('server.printers.no_active_file') ]);
+    public function cancelPrint(Request $request, PrintJobService $jobs) {
+        try {
+            $jobs->cancel($request->printer);
+        } catch (PrintJobException $exception) {
+            throw ValidationException::withMessages([ 'printer' => $exception->getMessage() ]);
         }
-
-        $printer->hasActiveJob = false;
-        $printer->activeFile   = null;
-        $printer->save();
-
-        SystemMessage::send('refreshActiveFile');
     }
 
     private function abortRecovery(Printer $printer): void {

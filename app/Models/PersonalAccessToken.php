@@ -2,9 +2,8 @@
 
 namespace App\Models;
 
-use MongoDB\Laravel\Eloquent\Model;
-
 use Laravel\Sanctum\Contracts\HasAbilities;
+use MongoDB\Laravel\Eloquent\Model;
 
 class PersonalAccessToken extends Model implements HasAbilities
 {
@@ -29,6 +28,8 @@ class PersonalAccessToken extends Model implements HasAbilities
         'token',
         'abilities',
         'expires_at',
+        'kind',
+        'printer_uuid',
     ];
 
     /**

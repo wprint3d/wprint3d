@@ -48,6 +48,14 @@ class Kernel extends HttpKernel
             // \Illuminate\Routing\Middleware\ThrottleRequests::class.':api', // temporarily disabled
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
+
+        'octoprint' => [
+            'throttle:300,1',
+            \App\Http\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        ],
     ];
 
     /**
@@ -62,6 +70,9 @@ class Kernel extends HttpKernel
         'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
         'auth.session' => \Illuminate\Session\Middleware\AuthenticateSession::class,
         'auth.ensure_admin' => \App\Http\Middleware\EnsureAdministrator::class,
+        'native.api' => \App\Http\Middleware\EnsureNativeApiAccess::class,
+        'octoprint.auth' => \App\Http\Middleware\AuthenticateOctoPrint::class,
+        'octoprint.ability' => \App\Http\Middleware\EnsureOctoPrintAbility::class,
         'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
         'can' => \Illuminate\Auth\Middleware\Authorize::class,
         'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
@@ -70,6 +81,6 @@ class Kernel extends HttpKernel
         'signed' => \App\Http\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
-        'printer.load' => \App\Http\Middleware\EnsurePrinterIsAvailable::class
+        'printer.load' => \App\Http\Middleware\EnsurePrinterIsAvailable::class,
     ];
 }

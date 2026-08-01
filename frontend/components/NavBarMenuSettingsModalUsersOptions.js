@@ -5,7 +5,7 @@ import { useLocalization } from "../includes/LocalizationProvider";
 
 const NavBarMenuSettingsModalUsersOptions = ({
     user,
-    handleEditUser, handleDeleteUser, handleResetPassword,
+    handleEditUser, handleDeleteUser, handleResetPassword, handleManageTokens,
     isSmallLaptop, isSmallTablet,
     enqueueSnackbar
 }) => {
@@ -41,6 +41,7 @@ const NavBarMenuSettingsModalUsersOptions = ({
                         handleDeleteUser(user);
                     }} />
                     <Menu.Item leadingIcon="lock-reset" title={t("users.resetPassword")}  onPress={() => handleResetPassword(user)} />
+                    <Menu.Item leadingIcon="key-variant" title={t("apiTokens.title")} onPress={() => handleManageTokens(user)} />
                 </Menu>
             )
             : (
@@ -62,6 +63,12 @@ const NavBarMenuSettingsModalUsersOptions = ({
                         <IconButton
                             icon="lock-reset"
                             onPress={() => handleResetPassword(user)}
+                        />
+                    </Tooltip>
+                    <Tooltip title={t("apiTokens.title")}>
+                        <IconButton
+                            icon="key-variant"
+                            onPress={() => handleManageTokens(user)}
                         />
                     </Tooltip>
                 </>

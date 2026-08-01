@@ -11,6 +11,7 @@ import UserChangePasswordModal from "./UserChangePasswordModal";
 import { LocalizationContext, useLocalization } from "../includes/LocalizationProvider";
 import LanguagePicker from "./LanguagePicker";
 import { getScrollableModalContentStyle, getScrollableModalFrameStyle } from "../utils/modalLayout";
+import ApiTokenManagerModal from "./ApiTokenManagerModal";
 
 const sectionContentStyle = {
     width: '100%',
@@ -25,7 +26,8 @@ const NavBarMenuProfileModal = ({ isVisible, setIsVisible, onDismiss, isSmallTab
     const { enqueueSnackbar } = useSnackbar();
 
     const [ showThemePicker,         setShowThemePicker         ] = useState(false),
-          [ showChangePasswordModal, setShowChangePasswordModal ] = useState(false);
+          [ showChangePasswordModal, setShowChangePasswordModal ] = useState(false),
+          [ showTokenManagerModal,   setShowTokenManagerModal   ] = useState(false);
 
     const userQuery = useQuery({
         queryKey: ['user'],
@@ -108,6 +110,14 @@ const NavBarMenuProfileModal = ({ isVisible, setIsVisible, onDismiss, isSmallTab
                                                     </Text>
                                                 </Button>
                                             </View>
+                                            <Button
+                                                mode="contained-tonal"
+                                                icon="key-variant"
+                                                onPress={() => setShowTokenManagerModal(true)}
+                                                style={{ marginBottom: 12 }}
+                                            >
+                                                {t("apiTokens.title")}
+                                            </Button>
                                         </View>
                                     )
                             }
@@ -151,6 +161,13 @@ const NavBarMenuProfileModal = ({ isVisible, setIsVisible, onDismiss, isSmallTab
                         <UserChangePasswordModal
                             visible={showChangePasswordModal}
                             onDismiss={() => setShowChangePasswordModal(false)}
+                            isSmallTablet={isSmallTablet}
+                            enqueueSnackbar={enqueueSnackbar}
+                        />
+                        <ApiTokenManagerModal
+                            visible={showTokenManagerModal}
+                            onDismiss={() => setShowTokenManagerModal(false)}
+                            user={user}
                             isSmallTablet={isSmallTablet}
                             enqueueSnackbar={enqueueSnackbar}
                         />

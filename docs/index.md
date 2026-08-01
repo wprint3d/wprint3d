@@ -8,6 +8,13 @@ The documentation here covers the current plugin platform, example verification 
 
 ```{toctree}
 :maxdepth: 1
+:caption: Integrations
+
+octoprint-api-compatibility
+```
+
+```{toctree}
+:maxdepth: 1
 :caption: Plugin Platform
 
 plugins
