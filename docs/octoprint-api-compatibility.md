@@ -96,7 +96,9 @@ Named OctoPrint scripts and custom controls are not implemented.
 The server sanitizes upload names, rejects traversal and absolute paths, and
 uses a Redis-backed per-printer lock while selecting and starting a job. An
 inactive duplicate may be replaced; an active file cannot be overwritten or
-deleted.
+deleted. When a failed job retains its file for WPrint 3D recovery, replacement
+and new print requests return `409` with `reason: recovery_pending` until the
+operator recovers or dismisses that session in the WPrint 3D web panel.
 
 ```bash
 TOKEN='replace-with-the-one-time-secret'
@@ -121,6 +123,10 @@ curl --fail-with-body \
 
 Incompatible state transitions, disconnected printers, active jobs, and lock
 contention return `409` with a machine-readable `reason` where applicable.
+`activeFile` can remain populated for recovery without representing a running
+job. In that case `/api/job`, `/api/printer`, and `/api/connection` report
+`Recovery required`, while the printer remains connected and available for
+safe recovery controls.
 
 ## Native token administration
 

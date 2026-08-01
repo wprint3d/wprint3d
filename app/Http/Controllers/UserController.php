@@ -173,7 +173,7 @@ class UserController extends Controller
 
     public function getActivePrinterStatus(): ?array
     {
-        $printer = $this->user->getActivePrinter('_id', 'activeFile');
+        $printer = $this->user->getActivePrinter('_id', 'activeFile', 'hasActiveJob');
 
         if (! $printer) {
             return null;
@@ -188,7 +188,7 @@ class UserController extends Controller
             'connectionDiagnostic' => $printer->getConnectionDiagnostic(),
         ];
 
-        if ($printer->activeFile !== null) {
+        if ($printer->hasActivePrintJob()) {
             $result['isPrinting'] = true;
             $result['layer'] = $printer->getCurrentLayer();
         }

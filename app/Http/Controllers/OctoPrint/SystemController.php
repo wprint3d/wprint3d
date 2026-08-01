@@ -38,7 +38,8 @@ class SystemController extends Controller
                     'uuid' => $token->printer_uuid,
                     'name' => data_get($printer, 'machine.machineType') ?: $token->printer_uuid,
                     'connected' => (bool) $printer->connected,
-                    'printing' => (bool) $printer->activeFile,
+                    'printing' => $printer->hasActivePrintJob(),
+                    'recoveryRequired' => $printer->hasPendingPrintRecovery(),
                     'selected' => true,
                 ]],
                 'selectedPrinterUuid' => $token->printer_uuid,
@@ -52,7 +53,8 @@ class SystemController extends Controller
                 'uuid' => data_get($printer, 'machine.uuid'),
                 'name' => data_get($printer, 'machine.machineType') ?: data_get($printer, 'machine.uuid'),
                 'connected' => (bool) $printer->connected,
-                'printing' => (bool) $printer->activeFile,
+                'printing' => $printer->hasActivePrintJob(),
+                'recoveryRequired' => $printer->hasPendingPrintRecovery(),
                 'selected' => data_get($printer, 'machine.uuid') === $selected,
             ])
             ->values();

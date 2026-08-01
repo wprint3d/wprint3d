@@ -35,6 +35,10 @@ class PollSerialConnectionsTest extends TestCase
 
             public mixed $activeFile = null;
 
+            public bool $hasActiveJob = false;
+
+            public bool $lastJobHasFailed = false;
+
             public bool $saved = false;
 
             public function __construct(bool $connected)
@@ -65,6 +69,11 @@ class PollSerialConnectionsTest extends TestCase
                 $this->saved = true;
 
                 return true;
+            }
+
+            public function hasActivePrintJob(): bool
+            {
+                return $this->hasActiveJob && ! empty($this->activeFile);
             }
 
             public function getLastSeen()
@@ -131,6 +140,8 @@ class PollSerialConnectionsTest extends TestCase
         Cache::forget(config('cache.mapper_busy_key'));
 
         $printer = $this->makePrinter();
+        $printer->activeFile = 'failed-print.gcode';
+        $printer->lastJobHasFailed = true;
 
         $serial = new class
         {
@@ -188,6 +199,7 @@ class PollSerialConnectionsTest extends TestCase
         $this->assertNull($printer->getConnectionDiagnostic());
         $this->assertSame(['M105'], $serial->queries);
         $this->assertTrue($serial->closed);
+        $this->assertTrue($printer->lastJobHasFailed);
     }
 
     public function test_missing_serial_node_marks_printer_as_disconnected(): void

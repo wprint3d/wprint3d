@@ -59,9 +59,7 @@ class GcodeFileService
     {
         $path = $this->sanitizeUploadName($file->getClientOriginalName());
 
-        if (Printer::where('activeFile', $path)->exists()) {
-            throw new PrintJobException('file_active', 'An active print is using this file.');
-        }
+        $this->ensurePathIsAvailable($path);
 
         $stream = fopen($file->getRealPath(), 'r');
 
@@ -84,9 +82,7 @@ class GcodeFileService
     {
         $path = $this->normalizePath($path);
 
-        if (Printer::where('activeFile', $path)->exists()) {
-            throw new PrintJobException('file_active', 'An active print is using this file.');
-        }
+        $this->ensurePathIsAvailable($path);
 
         if (! $this->disk->exists($path)) {
             throw new HttpException(404, 'File not found.');
@@ -127,5 +123,21 @@ class GcodeFileService
     public function all(): array
     {
         return array_values(array_map(fn (string $path) => $this->file($path), $this->disk->allFiles()));
+    }
+
+    private function ensurePathIsAvailable(string $path): void
+    {
+        $printers = Printer::where('activeFile', $path)->get();
+
+        if ($printers->contains(fn (Printer $printer) => $printer->hasActivePrintJob())) {
+            throw new PrintJobException('file_active', 'An active print is using this file.');
+        }
+
+        if ($printers->contains(fn (Printer $printer) => $printer->hasPendingPrintRecovery())) {
+            throw new PrintJobException(
+                'recovery_pending',
+                'A failed print is retaining this file for recovery. Recover or dismiss it before replacing the file.'
+            );
+        }
     }
 }

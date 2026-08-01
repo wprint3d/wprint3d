@@ -53,7 +53,9 @@ class RefreshPrinterWorkers extends ConcurrentService
             }
         );
 
-        $minWorkers = Printer::where('activeFile', '!=', null)->count();
+        $minWorkers = Printer::where('hasActiveJob', true)
+            ->where('activeFile', '!=', null)
+            ->count();
 
         foreach ($queues as $queue) {
             $this->log->debug(__METHOD__.": checking queue: {$queue['name']}...");
@@ -119,7 +121,7 @@ class RefreshPrinterWorkers extends ConcurrentService
             }
         );
 
-        $printers = Printer::select('activeFile')->cursor();
+        $printers = Printer::select('activeFile', 'hasActiveJob')->cursor();
 
         $allPrintersInactive = true;
 
@@ -127,7 +129,7 @@ class RefreshPrinterWorkers extends ConcurrentService
             foreach ($queues as $queue) {
                 $this->log->debug(__METHOD__.": checking queue: {$queue['name']} for printer {$printer->id}...");
 
-                if ($printer->activeFile === null) {
+                if (! $printer->hasActivePrintJob()) {
                     continue;
                 }
 

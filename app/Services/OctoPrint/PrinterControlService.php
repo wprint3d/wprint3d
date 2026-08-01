@@ -179,7 +179,7 @@ class PrinterControlService
 
     private function ensureIdle(Printer $printer): void
     {
-        if ($printer->activeFile) {
+        if ($printer->hasActivePrintJob()) {
             throw new PrintJobException('job_active', 'Manual movement and extrusion are unavailable while a print job is active.');
         }
     }

@@ -307,7 +307,8 @@ class PrinterController extends Controller
 
     private function state(Printer $printer): array
     {
-        $printing = (bool) $printer->activeFile;
+        $printing = $printer->hasActivePrintJob();
+        $recoveryRequired = $printer->hasPendingPrintRecovery();
         $paused = $printing && ! $printer->isRunning();
         $connected = (bool) $printer->connected;
 
@@ -322,9 +323,10 @@ class PrinterController extends Controller
                 'resuming' => false,
                 'finishing' => false,
                 'closedOrError' => ! $connected,
-                'error' => ! $connected,
-                'ready' => $connected && ! $printing,
+                'error' => ! $connected || $recoveryRequired,
+                'ready' => $connected && ! $printing && ! $recoveryRequired,
                 'sdReady' => false,
+                'wprint3dRecoveryRequired' => $recoveryRequired,
             ],
         ];
     }
@@ -335,11 +337,15 @@ class PrinterController extends Controller
             return 'Offline';
         }
 
-        if ($printer->activeFile && ! $printer->isRunning()) {
+        if ($printer->hasPendingPrintRecovery()) {
+            return 'Recovery required';
+        }
+
+        if ($printer->hasActivePrintJob() && ! $printer->isRunning()) {
             return 'Paused';
         }
 
-        return $printer->activeFile ? 'Printing' : 'Operational';
+        return $printer->hasActivePrintJob() ? 'Printing' : 'Operational';
     }
 
     private function temperature(Printer $printer): array

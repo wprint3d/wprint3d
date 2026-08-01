@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\UserRole;
 use App\Events\CommandQueued;
+use App\Events\SystemMessage;
 use App\Models\Camera;
 use App\Models\File;
 use App\Models\PersonalAccessToken;
@@ -234,6 +235,7 @@ class OctoPrintCompatibilityTest extends TestCase
             ])->assertCreated();
 
         $printer->activeFile = 'unsafe_name.gcode';
+        $printer->hasActiveJob = true;
         $printer->save();
 
         $this->withHeader('X-Api-Key', $token->plainTextToken)
@@ -245,6 +247,15 @@ class OctoPrintCompatibilityTest extends TestCase
             ->deleteJson('/octoprint-api/files/local/unsafe_name.gcode')
             ->assertConflict();
 
+        $printer->hasActiveJob = false;
+        $printer->lastJobHasFailed = true;
+        $printer->save();
+
+        $this->withHeader('X-Api-Key', $token->plainTextToken)
+            ->post('/octoprint-api/files/local', [
+                'file' => UploadedFile::fake()->create('unsafe name.gcode', 2),
+            ])->assertConflict()->assertJsonPath('reason', 'recovery_pending');
+
         $this->withHeader('X-Api-Key', $token->plainTextToken)
             ->getJson('/octoprint-api/files/local/%252e%252e%252Fsecret.gcode')
             ->assertBadRequest();
@@ -252,6 +263,8 @@ class OctoPrintCompatibilityTest extends TestCase
 
     public function test_job_controls_and_conflicts_use_octoprint_status_codes(): void
     {
+        Event::fake([SystemMessage::class]);
+
         $user = $this->user();
         $printer = $this->printer('control-printer');
         $token = app(ApiTokenService::class)->create($user, 'Controller', 'control-printer', 365);
@@ -383,6 +396,7 @@ class OctoPrintCompatibilityTest extends TestCase
         ])->assertConflict()->assertJsonPath('reason', 'cold_extrusion');
 
         $printer->activeFile = 'active.gcode';
+        $printer->hasActiveJob = true;
         $printer->save();
 
         $this->withHeaders($headers)->postJson('/octoprint-api/printer/printhead', [
@@ -391,6 +405,48 @@ class OctoPrintCompatibilityTest extends TestCase
         ])->assertConflict()->assertJsonPath('reason', 'job_active');
 
         $this->assertSame([], $printer->getResetQueuedCommands());
+
+        $printer->hasActiveJob = false;
+        $printer->lastJobHasFailed = true;
+        $printer->save();
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/printhead', [
+            'command' => 'jog',
+            'x' => 1,
+        ])->assertNoContent();
+        $this->assertSame(['G91', 'G0 X1 F1500', 'G90'], $printer->getResetQueuedCommands());
+    }
+
+    public function test_failed_print_is_reported_as_recovery_instead_of_printing_or_paused(): void
+    {
+        $user = $this->user();
+        $printer = $this->printer('recovery-printer');
+        $token = app(ApiTokenService::class)->create($user, 'Recovery status', 'recovery-printer', 365);
+        $headers = ['X-Api-Key' => $token->plainTextToken];
+
+        $printer->activeFile = 'failed.gcode';
+        $printer->hasActiveJob = false;
+        $printer->lastJobHasFailed = true;
+        $printer->save();
+
+        $this->withHeaders($headers)->getJson('/octoprint-api/job')
+            ->assertOk()
+            ->assertJsonPath('state', 'Recovery required')
+            ->assertJsonPath('job.file.path', 'failed.gcode');
+
+        $this->withHeaders($headers)->getJson('/octoprint-api/printer')
+            ->assertOk()
+            ->assertJsonPath('state.text', 'Recovery required')
+            ->assertJsonPath('state.flags.operational', true)
+            ->assertJsonPath('state.flags.printing', false)
+            ->assertJsonPath('state.flags.paused', false)
+            ->assertJsonPath('state.flags.error', true)
+            ->assertJsonPath('state.flags.wprint3dRecoveryRequired', true);
+
+        $this->withHeaders($headers)->getJson('/octoprint-api/wprint3d/printers')
+            ->assertOk()
+            ->assertJsonPath('printers.0.printing', false)
+            ->assertJsonPath('printers.0.recoveryRequired', true);
     }
 
     public function test_arbitrary_printer_commands_use_the_octoprint_contract_and_control_permission(): void
@@ -477,6 +533,8 @@ class OctoPrintCompatibilityTest extends TestCase
             'connectionType' => 'serial',
         ];
         $printer->activeFile = null;
+        $printer->hasActiveJob = false;
+        $printer->lastJobHasFailed = false;
         $printer->save();
 
         return $printer;

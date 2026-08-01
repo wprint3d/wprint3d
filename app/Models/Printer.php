@@ -115,6 +115,18 @@ class Printer extends Model
         'lastLine',
     ];
 
+    public function hasActivePrintJob(): bool
+    {
+        return (bool) ($this->hasActiveJob ?? false) && ! empty($this->activeFile);
+    }
+
+    public function hasPendingPrintRecovery(): bool
+    {
+        return ! $this->hasActivePrintJob()
+            && ! empty($this->activeFile)
+            && (bool) ($this->lastJobHasFailed ?? false);
+    }
+
     public function videos(): HasMany {
         return $this->hasMany(Video::class);
     }

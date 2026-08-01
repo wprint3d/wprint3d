@@ -78,8 +78,15 @@ class PrintJobService
 
         $this->ensureConnected($printer);
 
-        if ($printer->activeFile) {
+        if ($printer->hasActivePrintJob()) {
             throw new PrintJobException('busy', __('server.printers.active_file_already_present'));
+        }
+
+        if ($printer->hasPendingPrintRecovery()) {
+            throw new PrintJobException(
+                'recovery_pending',
+                'The previous failed print must be recovered or dismissed before starting another print.'
+            );
         }
 
         $printer->resume();
@@ -110,7 +117,7 @@ class PrintJobService
 
     private function ensureActiveJob(Printer $printer): void
     {
-        if (! $printer->activeFile) {
+        if (! $printer->hasActivePrintJob()) {
             throw new PrintJobException('no_active_job', __('server.printers.no_active_file'));
         }
     }

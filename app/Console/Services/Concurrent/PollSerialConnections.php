@@ -88,7 +88,7 @@ class PollSerialConnections extends ConcurrentService
                 continue;
             }
 
-            if ($printer->activeFile) {
+            if ($printer->hasActivePrintJob()) {
                 $this->logger()->debug(__METHOD__.'@'.__LINE__.": {$printer->_id}: active file detected ({$printer->activeFile}), skipping...");
 
                 event(
