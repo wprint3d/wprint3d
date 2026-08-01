@@ -24,7 +24,7 @@ RUN --mount=type=bind,src=.,target=/source,rw \
     echo "Installing Yarn..."                                                   &&\
     npm install --global yarn                                                   &&\
     echo "Installing PNPM..."                                                   &&\
-    npm install --global pnpm                                                   &&\
+    npm install --global pnpm@10.34.5                                           &&\
     echo "Installing dependencies..."                                           &&\
     pnpm install --force --loglevel verbose                                     &&\
     echo "Building the frontend bundle..."                                      &&\

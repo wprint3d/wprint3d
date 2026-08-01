@@ -1,2 +1,2 @@
 onlyBuiltDependencies:
-  - react-native-paper-snackbar-stack
+  - "react-native-paper-snackbar-stack@https://codeload.github.com/wprint3d/react-native-paper-snackbar-stack/tar.gz/99ede7d0e2d510c6f8dbe0f532ba4208ed1baeec"

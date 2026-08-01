@@ -24,7 +24,7 @@ RUN apk add --no-cache nodejs npm
 RUN npm install --global yarn
 
 # Install PNPM
-RUN npm install --global pnpm
+RUN npm install --global pnpm@10.34.5
 
 # Copy the base code
 ADD . /app
