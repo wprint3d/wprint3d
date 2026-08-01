@@ -21,7 +21,7 @@ RUN FULL_SHA=$(cat /var/www/.git/HEAD | cut -d' ' -f2)      &&\
 RUN composer install --no-scripts &&\
     composer clear-cache &&\
     apt-get update && apt-get install -y --no-install-recommends nodejs npm &&\
-    npm install --global pnpm &&\
+    npm install --global pnpm@10.34.5 &&\
     cd /var/www/frontend &&\
     pnpm install --force --ignore-scripts --loglevel error &&\
     cd /var/www &&\

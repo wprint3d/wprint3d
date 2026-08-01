@@ -21,7 +21,7 @@ RUN update-ca-certificates
 RUN apk add --no-cache nodejs npm
 
 # Install Yarn
-RUN npm install --global yarn
+RUN npm install --global yarn@1.22.22
 
 # Install PNPM
 RUN npm install --global pnpm@10.34.5

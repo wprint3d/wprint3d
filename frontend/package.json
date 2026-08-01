@@ -66,6 +66,5 @@
     "react-native-dotenv": "^3.4.11",
     "react-native-svg-transformer": "^1.5.3"
   },
-  "private": true,
-  "packageManager": "pnpm@10.34.5"
+  "private": true
 }

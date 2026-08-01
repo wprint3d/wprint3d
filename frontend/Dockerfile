@@ -22,7 +22,7 @@ RUN --mount=type=bind,src=.,target=/source,rw \
     echo "Installing Node.js..."                                                &&\
     apk add --no-cache nodejs npm                                               &&\
     echo "Installing Yarn..."                                                   &&\
-    npm install --global yarn                                                   &&\
+    npm install --global yarn@1.22.22                                           &&\
     echo "Installing PNPM..."                                                   &&\
     npm install --global pnpm@10.34.5                                           &&\
     echo "Installing dependencies..."                                           &&\
