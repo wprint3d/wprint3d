@@ -23,6 +23,7 @@ Use this file as the default operating guide before making changes.
 
 - Treat this as a hardware-aware project. Many flows depend on Docker, USB device access, webcams, MongoDB, Redis, and privileged containers.
 - Prefer minimal, targeted changes. Do not rewrite broad runtime scripts or Docker topology unless the task requires it.
+- Write all commit messages in English, regardless of the language used in the initial prompt.
 - Preserve existing code style. Backend PHP uses the current Laravel project conventions with semicolons and existing spacing patterns. Frontend code uses the repo's current JS/React Native style rather than introducing a new formatter opinion.
 - Do not use absolute filesystem paths in documentation. Prefer repo-relative links such as `docs/plugins.md`, repo-relative commands such as `./plugin.sh pack ...`, and sibling-repo references like `../plugin-registry` only when a path truly leaves this repository.
 - Do not edit generated or runtime-managed artifacts unless the task is explicitly about them:
