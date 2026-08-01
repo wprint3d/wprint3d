@@ -811,6 +811,7 @@ class PrinterController extends Controller
 
         $printer->queueCommand('G91');
         $printer->queueCommand($command);
+        $printer->queueCommand('G90');
     }
 
     public function getControlDirections(): array {

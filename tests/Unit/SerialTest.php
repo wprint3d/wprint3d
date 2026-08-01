@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
+use App\Jobs\PrintGcode;
 use App\Libraries\Serial;
 use App\Models\Configuration;
 use App\Support\FakeSerial\FakeSerialEmulator;
@@ -150,6 +151,33 @@ class SerialTest extends TestCase
         $this->assertTrue($scriptedLock->owned);
         $this->assertSame(1, $scriptedLock->blockCalls);
         $this->assertSame(0, $scriptedLock->releaseCount);
+    }
+
+    public function test_print_initialization_resets_modes_left_by_manual_controls(): void
+    {
+        $this->bindFakeSerial(new FakeSerialEmulator);
+        $serial = $this->makeSerial();
+
+        $serial->query('G91');
+        $serial->query('M83');
+        $serial->query('G92 X132 Y35 Z42 E0');
+
+        $printJobReflection = new ReflectionClass(PrintGcode::class);
+        $job = $printJobReflection->newInstanceWithoutConstructor();
+        $initializePrinterMotionModes = $printJobReflection->getMethod('initializePrinterMotionModes');
+        $initializePrinterMotionModes->invoke($job, $serial);
+
+        $serial->query('G1 X10.1 Y20 Z0.28 E8');
+        $serial->query('G1 X10.4 Y100 Z0.28 E15');
+
+        $position = $serial->query('M114');
+
+        $this->assertStringContainsString('X:10.40', $position);
+        $this->assertStringContainsString('Y:100.00', $position);
+        $this->assertStringContainsString('Z:0.28', $position);
+        $this->assertStringContainsString('E:15.00', $position);
+
+        $serial->close();
     }
 
     private function bindFakeSerial(FakeSerialEmulator $emulator): void

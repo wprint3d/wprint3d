@@ -120,6 +120,12 @@ class PrintGcode implements ShouldQueue
 
     const STREAM_BUFFER_INTERVAL_SECS = 10;   // seconds
 
+    // A print must not inherit G91/M83 left active by manual or terminal commands.
+    private const PRINT_START_MODE_COMMANDS = [
+        'G90', // absolute XYZ positioning
+        'M82', // absolute extruder positioning
+    ];
+
     /**
      * Create a new job instance.
      *
@@ -392,6 +398,15 @@ class PrintGcode implements ShouldQueue
         }
     }
 
+    private function initializePrinterMotionModes(Serial $serial): void
+    {
+        foreach (self::PRINT_START_MODE_COMMANDS as $command) {
+            $serial->query($command);
+        }
+
+        $this->lastMovementMode = 'G90';
+    }
+
     /**
      * Execute the job.
      *
@@ -585,6 +600,8 @@ class PrintGcode implements ShouldQueue
             }
 
             $wasPaused = false;
+
+            $this->initializePrinterMotionModes($serial);
 
             $detectedAbsolutePosition = movementToXYZE(
                 $serial->query('M114') // current absolute position
