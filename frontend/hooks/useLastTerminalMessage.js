@@ -26,19 +26,21 @@ export function useLastTerminalMessage({ printerId }) {
 
         const channel   = echo.private(terminalChannelName),
               eventName = 'PrinterTerminalUpdated';
-    
-        channel.listen(eventName, event => {
+
+        const handleTerminalUpdated = event => {
             console.debug(`UserLayout: private: listen: event: ${terminalChannelName}: `, event);
 
             setLastMessage(event);
-        });
+        };
+
+        channel.listen(eventName, handleTerminalUpdated);
 
         return () => {
             console.debug(`UserLayout: private: listen: cleanup: ${terminalChannelName}`);
 
             if (channel === null) { return; }
 
-            channel.stopListening(eventName);
+            channel.stopListening(eventName, handleTerminalUpdated);
         };
     }, [ echo, printerId ]);
 

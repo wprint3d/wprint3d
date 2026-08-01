@@ -76,6 +76,53 @@ assert_contains "$web_output" "ready"
 assert_contains "$web_output" "curl --silent --show-error --fail --max-time 2 http://web:8081"
 assert_not_contains "$web_output" "docker exec web-cid"
 
+backend_output="$(
+    TEMP_BIN_DIR="$(mktemp -d)"
+    COMMAND_LOG="$TEMP_BIN_DIR/commands.log"
+
+    cat > "$TEMP_BIN_DIR/docker" <<'EOF'
+#!/bin/bash
+
+echo "docker $*" >> "$COMMAND_LOG"
+
+if [[ "$1" == "top" ]]; then
+    printf 'PID CMD\n'
+    printf '1 php artisan reverb:start --host 0.0.0.0 --port 6001\n'
+fi
+
+exit 0
+EOF
+
+    cat > "$TEMP_BIN_DIR/curl" <<'EOF'
+#!/bin/bash
+
+echo "curl $*" >> "$COMMAND_LOG"
+exit 0
+EOF
+
+    chmod +x "$TEMP_BIN_DIR/docker" "$TEMP_BIN_DIR/curl"
+
+    PATH="$TEMP_BIN_DIR:$PATH" \
+    ROOT_DIR="$ROOT_DIR" \
+    COMMAND_LOG="$COMMAND_LOG" \
+    /bin/bash -c '
+        source "$ROOT_DIR/internal/service-status.sh"
+
+        if service_status_for_container "backend-cid" "wprint3d-backend-1"; then
+            echo "ready"
+        else
+            echo "not-ready"
+        fi
+
+        cat "$COMMAND_LOG"
+    ' 2>&1 || true
+)"
+
+assert_contains "$backend_output" "ready"
+assert_contains "$backend_output" "docker top backend-cid"
+assert_contains "$backend_output" "curl --silent --show-error --max-time 2 --output /dev/null http://backend:6001"
+assert_not_contains "$backend_output" "docker exec backend-cid"
+
 yv_streamer_output="$(
     TEMP_BIN_DIR="$(mktemp -d)"
     COMMAND_LOG="$TEMP_BIN_DIR/commands.log"

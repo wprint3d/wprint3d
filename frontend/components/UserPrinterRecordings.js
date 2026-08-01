@@ -98,16 +98,22 @@ const UserPrinterRecordings = ({ printerId = null, isSmallTablet, isSmallLaptop 
             return;
         }
 
+        if (!printerId) {
+            return;
+        }
+
         const channel = echo.private(`job-progress.${printerId}`);
 
-        channel.listen('RecordingRenderProgress', (event) => {
+        const handleRecordingRenderProgress = event => {
             console.debug('UserPrinterRecordings: RecordingRenderProgress:', event);
 
             setLastRenderEvent(event);
-        });
+        };
 
-        return () => { channel.stopListening('RecordingRenderProgress'); };
-    }, [ echo ]);
+        channel.listen('RecordingRenderProgress', handleRecordingRenderProgress);
+
+        return () => { channel.stopListening('RecordingRenderProgress', handleRecordingRenderProgress); };
+    }, [ echo, printerId ]);
 
     useEffect(() => {
         console.debug('UserPrinterRecordings: lastRenderEvent:', lastRenderEvent);

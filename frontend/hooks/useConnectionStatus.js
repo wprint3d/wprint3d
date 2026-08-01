@@ -47,37 +47,37 @@ export function useConnectionStatus({ printerId }) {
         const mapperChannel = echo.channel(mapperChannelName),
               mapperStoppedEventName = 'PrintersMapUpdated';
 
-        mainChannel.listen(statusEventName, event => {
+        const handleStatusUpdated = event => {
             console.debug(`UserPrinterStatusConnection: private: listen: event: ${mainChannelName}.${statusEventName}: `, event);
 
             setConnectionStatus(event);
-        });
+        };
 
-        mainChannel.listen(mapperRunningEventName, event => {
+        const handleMapperRunning = event => {
             console.debug(`UserPrinterStatusConnection: private: listen: event: ${mainChannelName}.${mapperRunningEventName}: `, event);
 
             setIsRunningMapper(event);
+        };
 
-            console.debug('UserPrinterStatusConnection: private: listen: isRunningMapper: ', isRunningMapper);
-        });
-
-        mapperChannel.listen(mapperStoppedEventName, event => {
+        const handleMapperStopped = event => {
             console.debug(`UserPrinterStatusConnection: private: listen: event: ${mapperChannel}.${mapperStoppedEventName}: `, event);
 
             setIsRunningMapper(null);
+        };
 
-            console.debug('UserPrinterStatusConnection: private: listen: isRunningMapper: ', isRunningMapper);
-        });
+        mainChannel.listen(statusEventName, handleStatusUpdated);
+        mainChannel.listen(mapperRunningEventName, handleMapperRunning);
+        mapperChannel.listen(mapperStoppedEventName, handleMapperStopped);
 
         return () => {
             console.debug(`UserPrinterStatusConnection: private: listen: cleanup: ${mainChannelName}, ${mapperChannelName}`);
 
             if (mainChannel === null && mapperChannel === null) { return; }
 
-            mainChannel.stopListening(statusEventName);
-            mainChannel.stopListening(mapperRunningEventName);
+            mainChannel.stopListening(statusEventName, handleStatusUpdated);
+            mainChannel.stopListening(mapperRunningEventName, handleMapperRunning);
 
-            mapperChannel.stopListening(mapperStoppedEventName);
+            mapperChannel.stopListening(mapperStoppedEventName, handleMapperStopped);
         }
     }, [ echo, printerId ]);
 

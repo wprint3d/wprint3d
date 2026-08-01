@@ -96,11 +96,13 @@ export default function UserPrinterPicker({ printerId }) {
             return;
         }
 
-        channel.listen("PrintersMapUpdated", () => {
+        const handlePrintersMapUpdated = () => {
             queryClient.invalidateQueries({ queryKey: ["printersList"] });
-        });
+        };
 
-        return () => { channel.stopListening("PrintersMapUpdated"); };
+        channel.listen("PrintersMapUpdated", handlePrintersMapUpdated);
+
+        return () => { channel.stopListening("PrintersMapUpdated", handlePrintersMapUpdated); };
     }, [ echo, queryClient ]);
 
     const selectedOption = useMemo(

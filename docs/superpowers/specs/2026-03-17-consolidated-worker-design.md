@@ -113,7 +113,7 @@ stderr_logfile=/dev/null
 **`/tmp/supervisor/reverb.conf`:**
 ```ini
 [program:reverb]
-command=php artisan reverb:start --host 0.0.0.0 --port 6001
+command=php artisan reverb:start --host 0.0.0.0
 autorestart=true
 stdout_logfile=/tmp/supervisor/logs/reverb.log
 stderr_logfile=/tmp/supervisor/logs/reverb.log
@@ -242,7 +242,7 @@ worker:
 - Verify multi-role `ROLE=scheduler,concurrency-scheduler,ws-server` starts all processes under supervisord
 - Verify shared init runs once (cache:clear, queue:flush, queue:restart)
 - Verify cron runs in multi-role mode
-- Verify Reverb starts on port 6001 in multi-role mode
+- Verify Reverb starts on its configured internal endpoint in multi-role mode and remains accessible only through the web proxy
 - Verify queue workers start with correct QUEUES configuration in multi-role mode
 - Verify ramdisk is created once for the combined worker container
 - Verify `supervisorctl status` shows all expected programs running

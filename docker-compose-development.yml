@@ -26,7 +26,6 @@ services:
     ports:
       - 80:80
       - 443:443
-      - 6001:6001
     depends_on:
       - web
       - backend
@@ -49,6 +48,12 @@ services:
       - PLUGIN_DEVELOPMENT_MOUNT_PATH=/var/www/plugins-dev
       - QUEUES=default:1,recordings:1,broadcasts:2,prints:1,previews,snapshots
       - SLEEP=5
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --show-error --max-time 2 --output /dev/null http://127.0.0.1:6001"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
     volumes:
       - .:/var/www
       - ${PWD}:${PWD}

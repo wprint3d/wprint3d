@@ -99,14 +99,16 @@ const NavBarMenuSystemUpdater = ({ enqueueSnackbar, checkForUpdatesMutation }) =
 
         const channel = echo.channel('update-log-changed');
 
-        channel.listen('UpdateLogChanged', (event) => {
+        const handleUpdateLogChanged = event => {
             console.debug('NavBarMenuSystemUpdater: UpdateLogChanged:', event);
 
             setLastUpdateLog(event?.message);
-        });
+        };
+
+        channel.listen('UpdateLogChanged', handleUpdateLogChanged);
 
         return () => {
-            channel.stopListening('UpdateLogChanged');
+            channel.stopListening('UpdateLogChanged', handleUpdateLogChanged);
         };
     }, [ echo ]);
 

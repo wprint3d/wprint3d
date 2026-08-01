@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import UserChangePasswordModal from './components/UserChangePasswordModal';
 import PluginLoadingProvider from './components/PluginLoadingProvider';
 import { useLocalization } from './includes/LocalizationProvider';
+import { EchoProvider } from './hooks/useEcho';
 
 export default function QueryableApp({ colorScheme, setColorScheme }) {
   const { colors } = useTheme();
@@ -184,9 +185,11 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
 
   return (
     <Reanimated.View style={{flex: 1}} entering={FadeIn.duration(500)}>
-      <PluginLoadingProvider>
-        <Main appName={appName} colorScheme={colorScheme} setColorScheme={setColorScheme} />
-      </PluginLoadingProvider>
+      <EchoProvider>
+        <PluginLoadingProvider>
+          <Main appName={appName} colorScheme={colorScheme} setColorScheme={setColorScheme} />
+        </PluginLoadingProvider>
+      </EchoProvider>
     </Reanimated.View>
   );
 }

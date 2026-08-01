@@ -60,6 +60,8 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
             setIsRequestingStart(false);
 
             queryClient.invalidateQueries({ queryKey: ['fileList'] });
+            queryClient.invalidateQueries({ queryKey: ['connectionStatus'] });
+            queryClient.invalidateQueries({ queryKey: ['printStatus'] });
 
             setIsWaitingForNewStatus(true);
         },
@@ -305,16 +307,18 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
             return;
         }
 
-        channel.listen('PrintJobFinished', event => {
+        const handlePrintJobFinished = event => {
             console.debug('UserPrinterFileControls: PrintJobFinished:', event);
 
             queryClient.invalidateQueries({ queryKey: ['connectionStatus'] });
             queryClient.invalidateQueries({ queryKey: ['fileList'] });
             queryClient.invalidateQueries({ queryKey: ['printStatus'] });
-        });
+        };
 
-        return () => { channel.stopListening('PrintJobFinished'); }
-    }, [ echo, printerId ]);
+        channel.listen('PrintJobFinished', handlePrintJobFinished);
+
+        return () => { channel.stopListening('PrintJobFinished', handlePrintJobFinished); }
+    }, [ echo, printerId, queryClient ]);
 
     return (
         <View style={{ paddingTop: 10 }}>

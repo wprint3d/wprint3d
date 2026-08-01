@@ -33,7 +33,8 @@ return [
 
     'wprint3d_websocket' => [
         'app_key' => env('PUSHER_APP_KEY'),
-        'port' => env('EXTERNAL_WEB_SOCKET_PORT'),
+        // Retained for older frontend bundles. WebSockets now share HTTPS.
+        'port' => env('EXTERNAL_WEB_HTTPS_PORT', 443),
     ],
 
 ];

@@ -228,7 +228,7 @@ const NotificationsCenter = ({
 
         const channel = echo.private(`App.Models.User.${userId}`);
 
-        channel.notification((notification) => {
+        const handleNotification = notification => {
             console.debug('New notification', notification);
 
             setNotifications(notifications => {
@@ -239,9 +239,16 @@ const NotificationsCenter = ({
 
                 return [notification, ...notifications];
             });
-        });
+        };
 
-        return () => { channel.stopListening('.Illuminate\\Notifications\\Events\\BroadcastNotificationCreated'); };
+        channel.notification(handleNotification);
+
+        return () => {
+            channel.stopListening(
+                '.Illuminate\\Notifications\\Events\\BroadcastNotificationCreated',
+                handleNotification
+            );
+        };
     }, [echo, userQuery.data]);
 
     useEffect(() => {
@@ -253,8 +260,13 @@ const NotificationsCenter = ({
     
         if (!savedNotifications) { return; }
     
-        setNotifications(notifications => {
-            return [...notifications, ...savedNotifications];
+        setNotifications(currentNotifications => {
+            const savedIds = new Set(savedNotifications.map(notification => notification.id));
+
+            return [
+                ...currentNotifications.filter(notification => !savedIds.has(notification.id)),
+                ...savedNotifications,
+            ];
         });
     }, [notificationsQuery.data]);
 

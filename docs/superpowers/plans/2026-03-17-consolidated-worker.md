@@ -83,7 +83,7 @@ EOF
         ws-server)
             cat > "$SUPERVISOR_CONF_DIR/reverb.conf" <<'EOF'
 [program:reverb]
-command=php artisan reverb:start --host 0.0.0.0 --port 6001
+command=php artisan reverb:start --host 0.0.0.0
 directory=/var/www
 autorestart=true
 stdout_logfile=/tmp/supervisor/logs/reverb.log

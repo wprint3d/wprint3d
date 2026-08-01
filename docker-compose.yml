@@ -14,7 +14,6 @@ services:
     ports:
       - ${EXTERNAL_WEB_HTTP_PORT:-80}:80
       - ${EXTERNAL_WEB_HTTPS_PORT:-443}:443
-      - ${EXTERNAL_WEB_SOCKET_PORT:-6001}:6001
     depends_on:
       - web
       - backend
@@ -33,6 +32,12 @@ services:
       - WPRINT3D_LOG_DIR=/var/log/wprint3d/app
       - WPRINT3D_FORCE_RAMDISK=${WPRINT3D_FORCE_RAMDISK:-auto}
       - LOG_LEVEL=${WPRINT3D_LOG_LEVEL:-warning}
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --show-error --max-time 2 --output /dev/null http://127.0.0.1:6001"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev

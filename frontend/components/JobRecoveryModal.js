@@ -126,11 +126,15 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
 
         console.log(`JobRecoveryModal: subscribing to channel ${channelName} for event ${eventName}...`);
 
-        return channel.listen(eventName, (event) => {
+        const listener = event => {
             console.debug(`JobRecoveryModal: received event ${eventName}:`, event);
 
             callback(event);
-        });
+        };
+
+        channel.listen(eventName, listener);
+
+        return { channel, eventName, listener };
     };
 
     useEffect(() => {
@@ -231,14 +235,20 @@ const JobRecoveryModal = ({ printerId, isSmallTablet, isSmallLaptop, printStatus
             console.debug('JobRecoveryModal: unsubscribing from the recovery stage and progress channels...');
 
             if (stageChangeChannel) {
-                stageChangeChannel.stopListening('RecoveryStage');
+                stageChangeChannel.channel.stopListening(
+                    stageChangeChannel.eventName,
+                    stageChangeChannel.listener
+                );
             }
 
             if (progressChangeChannel) {
-                progressChangeChannel.stopListening('RecoveryProgress');
+                progressChangeChannel.channel.stopListening(
+                    progressChangeChannel.eventName,
+                    progressChangeChannel.listener
+                );
             }
         };
-    }, [isVisible, isRendered, echo]);
+    }, [isVisible, isRendered, echo, printerId]);
 
     useEffect(() => {
         if (!isVisible || !isRendered) { return; }

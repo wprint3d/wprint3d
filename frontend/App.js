@@ -23,14 +23,14 @@ import { useCache } from "./hooks/useCache";
 import { useEffect, useState } from "react";
 
 export default function App() {
-  const queryClient = new QueryClient({
+  const [ queryClient ] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
         retry: 0,
         refetchOnWindowFocus: false
       }
     }
-  });
+  }));
 
   const cache = useCache();
 

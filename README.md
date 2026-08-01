@@ -79,6 +79,9 @@ Other OSes          | :grey_question: Untested (may work if they can run Docker)
 
 **<sup>\*</sup>** Development and production assets now come from the same monorepo. Use the tracked `frontend/` directory directly when working on the UI.
 
+> [!NOTE]
+> WebSocket traffic now uses the same HTTP/HTTPS ports as the web application. The former dedicated port `6001` is no longer used externally. If you opened or forwarded it for an older WPrint 3D installation, you can safely remove that firewall, router, or port-forwarding rule; no separate WebSocket port is required.
+
 ## Plugins
 
 WPrint 3D now includes a plugin platform with:

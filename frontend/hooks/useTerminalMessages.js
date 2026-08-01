@@ -31,7 +31,7 @@ export function useTerminalMessages({ printerId }) {
         const channel   = echo.private(terminalChannelName),
               eventName = 'PrinterTerminalUpdated';
 
-        channel.listen(eventName, event => {
+        const handleTerminalUpdated = event => {
             console.debug(`UserPrinterTerminal: private: listen: event: ${terminalChannelName}: `, event);
 
             messageIdRef.current += 1;
@@ -43,14 +43,16 @@ export function useTerminalMessages({ printerId }) {
                     event: event
                 }
             ]);
-        });
+        };
+
+        channel.listen(eventName, handleTerminalUpdated);
 
         return () => {
             console.debug(`UserPrinterTerminal: private: listen: cleanup: ${terminalChannelName}`);
 
             if (channel === null) { return; }
 
-            channel.stopListening(eventName);
+            channel.stopListening(eventName, handleTerminalUpdated);
             messageIdRef.current = 0;
             setMessages([]);
         };
