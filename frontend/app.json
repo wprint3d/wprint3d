@@ -23,6 +23,7 @@
       "package": "com.wprint3d.app"
     },
     "web": {
+      "name": "WPrint 3D",
       "favicon": "./assets/favicon.png",
       "output": "single",
       "bundler": "metro"
