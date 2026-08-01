@@ -5,6 +5,23 @@ export const PRINTER_CONNECTION_STATUS = {
     UNRESPONSIVE: "unresponsive",
 };
 
+export const CONNECTION_STATUS_REFETCH_INTERVAL_MS = 5000;
+
+export function getConnectionStatusRefetchInterval({
+    connectionStatus,
+    realtimeConnectionState,
+}) {
+    if (
+        realtimeConnectionState !== "connected"
+        ||
+        connectionStatus?.connectionStatus === PRINTER_CONNECTION_STATUS.UNRESPONSIVE
+    ) {
+        return CONNECTION_STATUS_REFETCH_INTERVAL_MS;
+    }
+
+    return false;
+}
+
 export function getPrinterConnectionStatusKey({
     connectionStatus,
     isRunningMapper = false,
