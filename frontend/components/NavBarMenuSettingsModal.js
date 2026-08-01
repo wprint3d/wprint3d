@@ -70,6 +70,10 @@ const buildPluginUiExtensionPayload = (plugin, extension, t) => ({
 
 const buildPluginSettingsPages = (plugins = [], t) => (
     plugins.flatMap((plugin) => {
+        if (plugin?.loadStatus === "failed") {
+            return [];
+        }
+
         const settingsExtensions = (plugin?.uiExtensions || []).filter((extension) => extension?.surface === "settings_tab");
 
         return settingsExtensions.map((extension, index) => ({
@@ -647,7 +651,7 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
             label: t("settings.aboutTab"),
             icon: "information",
             content: (
-                <Wrapper>
+                <Wrapper style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                     <NavBarMenuSettingsModalAbout isSmallTablet={isSmallTablet} isSmallLaptop={isSmallLaptop} enqueueSnackbar={enqueueSnackbar} />
                 </Wrapper>
             ),
