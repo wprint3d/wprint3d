@@ -5,332 +5,701 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title> Starting up... </title>
+    <title>Starting up · WPrint 3D</title>
 
     <style>
-        * { transition: background-color .25s ease-in-out; }
+        :root {
+            color-scheme: light dark;
 
-        /* Chrome, Edge, and Safari */
+            --color-background: #fffbff;
+            --color-surface: #fcfcfc;
+            --color-surface-variant: #f2f2f2;
+            --color-surface-strong: #e6e6e6;
+            --color-text: #1f1f1f;
+            --color-text-muted: #3f464f;
+            --color-primary: #4f5863;
+            --color-on-primary: #ffffff;
+            --color-outline: #8e98a4;
+            --color-outline-variant: #cdcdcd;
+            --color-success: #087f23;
+            --color-warning: #816800;
+            --color-danger: #ba1a1a;
+            --color-focus: #2563eb;
+            --radius-small: .5rem;
+            --radius-medium: .75rem;
+            --transition-fast: 180ms ease-out;
+            --font-sans: Roboto, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
         *::-webkit-scrollbar {
-            height: .35em;
-            width:  .35em;
+            height: .45rem;
+            width: .45rem;
         }
 
         *::-webkit-scrollbar-track,
-        *::-webkit-scrollbar-corner { background-color: transparent; }
+        *::-webkit-scrollbar-corner {
+            background: transparent;
+        }
 
         *::-webkit-scrollbar-thumb {
-            background-color: rgb(79, 88, 99);
-            border-radius:    1em;
+            background: var(--color-outline);
+            border: 2px solid transparent;
+            border-radius: 999px;
+            background-clip: padding-box;
+        }
+
+        html {
+            min-width: 20rem;
+            background: var(--color-background);
         }
 
         body {
-            font-family: Arial, Helvetica, sans-serif;
-
-            background-color: #f3f3f3;
-            background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAABefAAAXnwFLnDNSAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAArhJREFUeJztm89PE1EQx7/zthcStAFN0EBa6sGklSMaJREwARP13r/n8W/4J+xdoBbTLQGxlqNQr60kSIJtysmE7o6HumXZ/lAjvo3LfE7dX+nMvDezu/N9S1s7lacAYJFqLS/MHxKRhxijtVaLKy+zHngSAJR/wGVvwnm/n2NmNfzy/5uw8wCgFKjpb8Q5CFqzWlp9lQs6b5FqETPTu0oliw7d6p2d4Haz0TjI5/NuJNZeMYNG3k95RUS8s7n5OTgT0KFkciqdisTaf8CTZy/SYefLxW69I38nM1Nht5pLgCc7jLOz4/qnuMwA27atyTupB1CUDBf7Xq4TEX/YWq+dn3tf4uQ8AOTzebf5tXHgujjyRz5qmwRBEARBEARBEARBEITYY9u2VShXMloPb7lrrdVGaW/Wtm3LlF3061P+nlFNSZ+omrJGBJDkVDoFRUngQnwJzgSttSr9dB4AEoSbptryRgKwV9qohxWopdWuAsXM9DgkWiDB7fZJvWHCNiMpAPjS1H7OZW/C32eRajEzD1JsTLWujRUbx1njTGr6dPbe/XEGxgCAwWP+byAahdpYAADAcRzOpKa/BYPQMyQieT52KvCfYqwGAINV2iCxToFuERzv0+cV0XcG92pC4+j4Rib1+tRx1tiEXUZSoDvy1Wz4DrC8MH9YLr45HHaLNGGbkT8Zpc9rrb3trYc1i1TLP+6yN/F2+2PahG1GAtA+qTfgcRu4GHmtL/Jca/KCM0Exzkw9CBnj916GWBXKlYzJlyFBEARBEARBEARBEAThWhPnltSwltwliXpxpZq1LMzcvpuei1MQ/PUJloWZcMtdAf0fFXoG9XkTjFqfoIaJFs8XH9WjMviqGbU+gUq71bmw8+Xi5b59HBi2PkENkqvi5jzQL74A3ZnQKwbX4fP5rgy3XgsG4Qdl3LKltE6ZcwAAAABJRU5ErkJggg==");
-
-            height: 100vh;
-            text-align: center;
-            align-items: center;
-            display: flex;
-            flex-direction: row;
+            display: grid;
+            min-height: 100vh;
+            min-height: 100dvh;
+            place-items: center;
+            margin: 0;
+            padding: 1rem;
+            background-color: var(--color-background);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cg fill='%23bdc6cb' fill-opacity='.24'%3E%3Cpath d='M0 38.59l2.83-2.83 1.41 1.41L1.41 40H0v-1.41zM0 1.4l2.83 2.83 1.41-1.41L1.41 0H0v1.41zM38.59 40l-2.83-2.83 1.41-1.41L40 38.59V40h-1.41zM40 1.41l-2.83 2.83-1.41-1.41L38.59 0H40v1.41zM20 18.6l2.83-2.83 1.41 1.41L21.41 20l2.83 2.83-1.41 1.41L20 21.41l-2.83 2.83-1.41-1.41L18.59 20l-2.83-2.83 1.41-1.41L20 18.59z'/%3E%3C/g%3E%3C/svg%3E");
+            color: var(--color-text);
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            line-height: 1.5;
         }
 
-        #statusContainer { width: 100vw; }
-
-        /* See https://stackoverflow.com/a/6410923 */
-        @-webkit-keyframes rotating {
-            from { -webkit-transform: rotate(0deg);   }
-            to   { -webkit-transform: rotate(360deg); }
+        button {
+            font: inherit;
+            cursor: pointer;
+            touch-action: manipulation;
         }
 
-        .rotating {
-            width: 4vw;
-            -webkit-animation: rotating 2.5s linear infinite;
+        button:focus-visible,
+        pre:focus-visible {
+            outline: 3px solid var(--color-focus);
+            outline-offset: 2px;
         }
 
-        #iframeContainer {
-            border: 1px solid #c8c8c8;
-            border-radius: .5rem;
-            background-color: #fff;
-            position: relative;
-            left: 1%;
-            width: 96%;
-            padding: .5em;
-        }
-
-        #iframeContainer p {
-            padding-bottom: .5em;
+        h1,
+        h2,
+        p {
             margin: 0;
         }
 
-        details {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            position: absolute;
-            left: 0;
+        .startup-shell {
+            display: grid;
+            grid-template-rows: auto auto auto minmax(10rem, 1fr);
+            width: min(100%, 68rem);
+            height: min(44rem, calc(100vh - 2rem));
+            height: min(44rem, calc(100dvh - 2rem));
+            min-height: 36rem;
+            gap: .75rem;
+            padding: 1.25rem;
+            overflow: hidden;
+            border: 1px solid var(--color-outline-variant);
+            border-radius: var(--radius-medium);
+            background: var(--color-surface);
         }
 
-        #startupLogContainer {
+        .app-header,
+        .progress-header,
+        .section-header,
+        .logs-header,
+        .progress-meta {
             display: flex;
-            flex: 1;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .brand-copy {
+            min-width: 0;
+        }
+
+        h1 {
+            font-size: clamp(1.75rem, 3vw, 2.25rem);
+            line-height: 1.1;
+            letter-spacing: -.025em;
+        }
+
+        .app-subtitle,
+        .progress-description,
+        .section-description,
+        .log-status,
+        .progress-meta {
+            color: var(--color-text-muted);
+            font-size: .8125rem;
+        }
+
+        .app-subtitle {
+            margin-top: .15rem;
+        }
+
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            min-height: 2.25rem;
+            gap: .5rem;
+            padding: .4rem .75rem;
+            border-radius: 999px;
+            background: var(--color-surface-strong);
+            color: var(--color-text);
+            font-size: .8125rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .live-dot {
+            width: .55rem;
+            height: .55rem;
+            border-radius: 50%;
+            background: var(--color-warning);
+        }
+
+        .status-chip[data-state="running"] .live-dot {
+            background: var(--color-success);
+        }
+
+        .status-chip[data-state="unavailable"] .live-dot {
+            background: var(--color-danger);
+        }
+
+        .progress-section {
+            padding: .75rem 1rem;
+            border: 1px solid var(--color-outline-variant);
+            border-radius: var(--radius-medium);
+            background: var(--color-surface-variant);
+        }
+
+        .progress-copy {
+            min-width: 0;
+        }
+
+        .progress-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .progress-description {
+            overflow: hidden;
+            margin-top: .1rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .progress-value {
+            flex: 0 0 auto;
+            font-size: 1.125rem;
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+        }
+
+        .progress-track {
+            height: .375rem;
+            overflow: hidden;
+            margin: .6rem 0 .45rem;
+            border-radius: 999px;
+            background: var(--color-outline-variant);
+        }
+
+        .progress-bar {
+            width: 0;
+            height: 100%;
+            border-radius: inherit;
+            background: var(--color-primary);
+            transition: width 250ms ease-out;
+        }
+
+        .progress-meta {
+            font-size: .75rem;
+        }
+
+        .progress-meta strong {
+            color: var(--color-text);
+            font-weight: 600;
+        }
+
+        .last-updated,
+        .service-count,
+        .service-status,
+        .service-internal-name,
+        .log-status,
+        #startupLog {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .services-section {
+            min-height: 0;
+        }
+
+        .section-header {
+            min-height: 1.75rem;
+            margin-bottom: .45rem;
+        }
+
+        .section-title-group {
+            display: flex;
+            align-items: baseline;
+            min-width: 0;
+            gap: .6rem;
+        }
+
+        h2 {
+            font-size: .9375rem;
+            font-weight: 600;
+        }
+
+        .section-description {
+            white-space: nowrap;
+        }
+
+        .service-count {
+            display: inline-grid;
+            min-width: 1.65rem;
+            min-height: 1.65rem;
+            place-items: center;
+            padding: .2rem .45rem;
+            border-radius: 999px;
+            background: var(--color-surface-strong);
+            color: var(--color-text-muted);
+            font-size: .75rem;
+            font-weight: 600;
+        }
+
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: .4rem;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .service-card {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            min-height: 2.85rem;
+            gap: .55rem;
+            padding: .4rem .65rem;
+            border: 1px solid var(--color-outline-variant);
+            border-radius: var(--radius-small);
+            background: var(--color-surface-variant);
+            transition: border-color var(--transition-fast), background-color var(--transition-fast);
+        }
+
+        .service-indicator {
+            position: relative;
+            width: 1rem;
+            height: 1rem;
+            flex: 0 0 auto;
+            border: 2px solid var(--color-warning);
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: rotate 1.2s linear infinite;
+        }
+
+        .service-card[data-status="running"] .service-indicator {
+            border-color: var(--color-success);
+            background: var(--color-success);
+            animation: none;
+        }
+
+        .service-card[data-status="running"] .service-indicator::after {
+            position: absolute;
+            top: .08rem;
+            left: .28rem;
+            width: .25rem;
+            height: .48rem;
+            border: solid var(--color-on-primary);
+            border-width: 0 1.5px 1.5px 0;
+            content: "";
+            transform: rotate(45deg);
+        }
+
+        .service-card[data-status="unavailable"] .service-indicator {
+            border-color: var(--color-danger);
+            animation: none;
+        }
+
+        .service-card[data-status="unavailable"] .service-indicator::before,
+        .service-card[data-status="unavailable"] .service-indicator::after {
+            position: absolute;
+            top: .38rem;
+            left: .15rem;
+            width: .48rem;
+            height: 1.5px;
+            background: var(--color-danger);
+            content: "";
+        }
+
+        .service-card[data-status="unavailable"] .service-indicator::before {
+            transform: rotate(45deg);
+        }
+
+        .service-card[data-status="unavailable"] .service-indicator::after {
+            transform: rotate(-45deg);
+        }
+
+        .service-name {
+            display: block;
+            overflow: hidden;
+            color: var(--color-text);
+            font-size: .8125rem;
+            font-weight: 500;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .service-internal-name {
+            display: block;
+            overflow: hidden;
+            margin-top: -.05rem;
+            color: var(--color-text-muted);
+            font-family: var(--font-mono);
+            font-size: .625rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .service-status {
+            color: var(--color-warning);
+            font-size: .625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .service-card[data-status="running"] .service-status {
+            color: var(--color-success);
+        }
+
+        .service-card[data-status="unavailable"] .service-status {
+            color: var(--color-danger);
+        }
+
+        .empty-state {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            min-height: 4rem;
+            gap: .75rem;
+            padding: .65rem .8rem;
+            border: 1px dashed var(--color-outline);
+            border-radius: var(--radius-small);
+            color: var(--color-text-muted);
+        }
+
+        .empty-state strong {
+            display: block;
+            color: var(--color-text);
+            font-size: .8125rem;
+        }
+
+        .empty-state p {
+            font-size: .75rem;
+        }
+
+        .empty-spinner {
+            width: 1.25rem;
+            height: 1.25rem;
+            flex: 0 0 auto;
+            border: 2px solid var(--color-outline);
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: rotate 1.2s linear infinite;
+        }
+
+        .logs-section {
+            display: flex;
+            min-height: 0;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid var(--color-outline-variant);
+            border-radius: var(--radius-medium);
+            background: var(--color-surface-variant);
+        }
+
+        .logs-header {
+            min-height: 3.1rem;
+            padding: .45rem .65rem .45rem .85rem;
+            border-bottom: 1px solid var(--color-outline-variant);
+        }
+
+        .log-heading {
+            min-width: 0;
+        }
+
+        .log-status {
+            display: block;
+            overflow: hidden;
+            margin-top: .05rem;
+            font-family: var(--font-mono);
+            font-size: .625rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .copy-button {
+            display: inline-flex;
+            align-items: center;
             justify-content: center;
+            min-height: 2.25rem;
+            gap: .4rem;
+            padding: .4rem .75rem;
+            border: 0;
+            border-radius: 999px;
+            background: var(--color-primary);
+            color: var(--color-on-primary);
+            font-size: .75rem;
+            font-weight: 600;
+            transition: opacity var(--transition-fast);
+        }
+
+        .copy-button:hover:not(:disabled) {
+            opacity: .88;
+        }
+
+        .copy-button:active:not(:disabled) {
+            opacity: .75;
+        }
+
+        .copy-button:disabled {
+            cursor: not-allowed;
+            opacity: .38;
+        }
+
+        .copy-button svg {
+            width: .9rem;
+            height: .9rem;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 1.75;
         }
 
         #startupLog {
-            background-color: #f8f9fa;
-            border: 1px solid #d4d4d4;
-            width: 97.5%;
-            max-width: 1024px;
-            height: 37.5vh;
-            text-align: left;
-            overflow: scroll;
-            justify-self: center;
+            min-height: 0;
+            flex: 1;
+            overflow: auto;
+            padding: .75rem .85rem;
+            margin: 0;
+            border: 0;
+            background: transparent;
+            color: var(--color-text);
+            font-family: var(--font-mono);
+            font-size: .6875rem;
+            line-height: 1.45;
+            tab-size: 4;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
         }
 
-        .dot {
-            height: 1.1em;
-            width: 1.1em;
-            background-color: #c8c8c8;
-            border-radius: 50%;
-            margin-right: .25em;
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
 
-        .dot-waiting  { background-color: #e60000; }
-        .dot-starting { background-color: #ffcc00; }
-        .dot-success  { background-color: #00cc00; }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            margin: .5em;
+        @keyframes rotate {
+            to {
+                transform: rotate(360deg);
+            }
         }
 
-        pre { margin: .75em; }
+        @media (max-width: 48rem) {
+            body {
+                display: block;
+                padding: .75rem;
+            }
+
+            .startup-shell {
+                grid-template-rows: auto auto auto 16rem;
+                width: 100%;
+                height: auto;
+                min-height: 0;
+                overflow: visible;
+            }
+
+            .service-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .section-description {
+                display: none;
+            }
+        }
+
+        @media (max-width: 34rem) {
+            .startup-shell {
+                padding: 1rem;
+            }
+
+            .app-header,
+            .progress-meta {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: .35rem;
+            }
+
+            .status-chip {
+                align-self: flex-start;
+            }
+
+            .service-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .progress-description {
+                white-space: normal;
+            }
+
+            .last-updated {
+                align-self: flex-end;
+            }
+        }
+
+        @media (max-height: 32rem) {
+            body {
+                display: block;
+            }
+
+            .startup-shell {
+                grid-template-rows: auto auto auto 14rem;
+                height: auto;
+                min-height: 0;
+                margin: 0 auto;
+                overflow: visible;
+            }
+        }
 
         @media (prefers-color-scheme: dark) {
-            #startupLog {
-                background-color: black;
-                border-color: #454545;
-            }
-
-            body {
-                background-color: black;
-
-                color: #dfdfdf;
-            }
-
-            #iframeContainer {
-                border-color: #454545;
-                background-color: #262626;
+            :root {
+                --color-background: #000000;
+                --color-surface: #121013;
+                --color-surface-variant: #1b1e22;
+                --color-surface-strong: #3d3d3d;
+                --color-text: #e7e1e5;
+                --color-text-muted: #ccc4ce;
+                --color-primary: #cbcbcb;
+                --color-on-primary: #222222;
+                --color-outline: #968e98;
+                --color-outline-variant: #3f464f;
+                --color-success: #65d568;
+                --color-warning: #e3c34c;
+                --color-danger: #ffb4ab;
+                --color-focus: #9ecaff;
             }
         }
 
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition-duration: .01ms !important;
+                animation-duration: .01ms !important;
+                animation-iteration-count: 1 !important;
+            }
+        }
     </style>
 </head>
 <body>
-
-    <div id="statusContainer">
-        <svg class="rotating" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-gear-fill" viewBox="0 0 16 16">
-            <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/>
-        </svg>
-
-        <h2> WPrint 3D </h2>
-
-        <p>
-            We're still getting some work done in order to get everything up and running. <br>
-            <br>
-            This page will keep updating with the status for each service and their startup logs until we're good to go.
-        </p>
-
-        <p>
-            <div style="display: flex; justify-content: center;">
-                <div id="services">
-                    <!-- This will be replaced with the services -->
-                    <small> Waiting for services list... </small>
-                </div>
+    <main class="startup-shell">
+        <header class="app-header">
+            <div class="brand-copy">
+                <h1>WPrint 3D</h1>
+                <p class="app-subtitle">Preparing the local environment</p>
             </div>
-        </p>
 
-        <p>
-            <details>
-                <summary> Last 10 lines of the startup log for each service. </summary>
-                <div id="startupLogContainer">
-                    <p id="startupLog">
-                        <!-- This will be replaced with the startup log -->
-                    </p>
+            <div id="liveBadge" class="status-chip" data-state="starting" aria-live="polite">
+                <span class="live-dot" aria-hidden="true"></span>
+                <span id="liveBadgeText">Startup in progress</span>
+            </div>
+        </header>
+
+        <section class="progress-section" aria-labelledby="overviewTitle">
+            <div class="progress-header">
+                <div class="progress-copy">
+                    <h2 id="overviewTitle" class="progress-title">Discovering local services</h2>
+                    <p id="overviewDescription" class="progress-description">Waiting for the startup controller to publish its service list.</p>
                 </div>
-            </details>
-        </p>
-    </div>
+                <strong id="progressValue" class="progress-value">0%</strong>
+            </div>
 
-    <script src="service-name.js"></script>
-    <script>
-        let isFetching      = false,
-            firstFetch      = true,
-            isGettingStatus = false,
-            services        = [];
+            <div
+                id="progressTrack"
+                class="progress-track"
+                role="progressbar"
+                aria-label="Service startup progress"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+                aria-valuetext="Waiting for service discovery"
+            >
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
 
-        const displayName = {
-            'proxy':                    'Proxy',
-            'web':                      'Web UI',
-            'streamer':                 'Camera streamer',
-            'mapper':                   'Device mapper',
-            'backend':                  'Backend API',
-            'ws-server':                'WebSockets server',
-            'scheduler':                'Task scheduler',
-            'concurrency-scheduler':    'Concurrency tasks scheduler',
-            'queue':                    'Queue workers manager',
-            'mongo':                    'Persistent database',
-            'redis':                    'Redis-compatible cache',
-            'memcached':                'Memcached fast cache'
-        };
+            <div class="progress-meta">
+                <span id="progressSummary"><strong>0 of 0</strong> services running</span>
+                <span id="lastUpdated" class="last-updated">Waiting for first update</span>
+            </div>
+        </section>
 
-        const fetchStartupLog = async () => {
-            let container = document.getElementById('startupLog');
+        <section class="services-section" aria-labelledby="servicesTitle">
+            <header class="section-header">
+                <div class="section-title-group">
+                    <h2 id="servicesTitle">Services</h2>
+                    <p class="section-description">Health reported by the local Docker stack</p>
+                </div>
+                <span id="serviceCount" class="service-count" aria-label="0 services">0</span>
+            </header>
 
-            if (firstFetch) {
-                firstFetch = false;
+            <ul id="services" class="service-grid">
+                <li id="servicesEmpty" class="empty-state">
+                    <span class="empty-spinner" aria-hidden="true"></span>
+                    <div>
+                        <strong>Waiting for service discovery</strong>
+                        <p>The service list is not available yet. Retrying automatically.</p>
+                    </div>
+                </li>
+            </ul>
+        </section>
 
-                container.innerHTML = '<pre>Downloading startup log...</pre>';
-            }
+        <section class="logs-section" aria-labelledby="logsTitle">
+            <header class="logs-header">
+                <div class="log-heading">
+                    <h2 id="logsTitle">Startup log</h2>
+                    <span id="logStatus" class="log-status">Waiting for startup output…</span>
+                </div>
 
-            if (isFetching) return;
+                <button id="copyLogs" class="copy-button" type="button" disabled>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="9" y="9" width="11" height="11" rx="2"/>
+                        <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                    <span id="copyButtonLabel">Copy logs</span>
+                </button>
+            </header>
 
-            isFetching = true;
+            <pre id="startupLog" tabindex="0" aria-label="Startup log output">Waiting for startup output…</pre>
+            <p id="copyFeedback" class="sr-only" aria-live="polite"></p>
+        </section>
+    </main>
 
-            let status = null;
-
-            fetch('startup.txt')
-                .then(response => {
-                    if (response.status === 502) {
-                        status = response.status;
-
-                        return;
-                    }
-
-                    const contentType = response.headers.get('content-type');
-
-                    if (!contentType || !contentType.includes('text/plain')) {
-                        window.location.href = '/';
-
-                        return;
-                    }
-
-                    return response.text();
-                })
-                .then(data => {
-                    if (status === 502) {
-                        container.innerHTML = '<pre>Waiting for data...</pre>';
-
-                        return;
-                    }
-
-                    const text = data ?? 'Startup completed!';
-
-                    container.innerHTML = `<pre>${text}</pre>`;
-
-                    container.scrollTop = container.scrollHeight;
-                })
-                .finally(() => { isFetching = false; }); 
-        }
-
-        const fetchServicesList = async () => {
-            fetch('services.txt')
-                .then(response => {
-                    if (response.status === 502) {
-                        console.error('Gateway timeout. Please wait...');
-
-                        return;
-                    }
-
-                    return response.text();
-                })
-                .then(data => {
-                    if (!data) {
-                        console.error('No services found.');
-
-                        return;
-                    }
-
-                    services = data.split('\n').filter(service => service.length > 0);
-
-                    console.log('services:', services);
-
-                    const servicesContainer = document.getElementById('services');
-
-                    servicesContainer.innerHTML = '';
-
-                    services.forEach(service => {
-                        let simplifiedName = startupServiceNameUtils.normalizeStartupServiceName(service);
-
-                        servicesContainer.innerHTML += `
-                            <div class="status-item" data-internal-name="${service}">
-                                <div class="dot dot-waiting"></div>
-                                <div style="align-content: center;">
-                                    ${displayName[simplifiedName] ?? simplifiedName}
-                                    - <strong class="status">waiting for status...</strong>
-                                </div>
-                            </div>
-                        `;
-                    });
-                });
-        }
-
-        const refreshServicesStatus = async () => {
-            if (isGettingStatus || !services.length) return;
-
-            isGettingStatus = true;
-
-            services.forEach(service => {
-                const container = document.querySelector(`div[data-internal-name="${service}"]`);
-
-                if (!container) {
-                    console.error(`Service ${service} not found in the DOM.`);
-
-                    return;
-                }
-
-                const dot    = container.querySelector('.dot'),
-                      status = container.querySelector('.status');
-
-                if (!dot) {
-                    console.error(`Service ${service} does not have a dot element.`);
-
-                    return;
-                }
-
-                if (!status) {
-                    console.error(`Service ${service} does not have a status element.`);
-
-                    return;
-                }
-
-                fetch(`${service}_status.txt`)
-                    .then(response => response.text())
-                    .then(data => {
-                        isGettingStatus = false;
-
-                        dot.classList.remove('dot-waiting');
-                        dot.classList.add(data.includes('1') ? 'dot-success' : 'dot-starting');
-
-                        status.innerHTML = data.includes('1') ? 'running' : 'starting...';
-                    });
-            });
-        }
-
-        setInterval(() => {
-            fetchStartupLog();
-
-            if (services.length === 0) {
-                fetchServicesList();
-            }
-
-            refreshServicesStatus();
-        }, 1500);
-    </script>
-
+    <script src="service-name.js" defer></script>
+    <script src="startup-page.js" defer></script>
 </body>
 </html>
