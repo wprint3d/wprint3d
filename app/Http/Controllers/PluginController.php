@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Plugins\Contracts\PluginManager;
+use App\Plugins\Exceptions\PluginRuntimeException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -220,7 +221,11 @@ class PluginController extends Controller
 
     public function asset(string $pluginId, string $assetPath): Response
     {
-        $asset = $this->pluginManager->resolveAsset($pluginId, $assetPath);
+        try {
+            $asset = $this->pluginManager->resolveAsset($pluginId, $assetPath);
+        } catch (PluginRuntimeException $exception) {
+            abort(Response::HTTP_NOT_FOUND, $exception->getMessage());
+        }
 
         return response(
             file_get_contents($asset['path']),

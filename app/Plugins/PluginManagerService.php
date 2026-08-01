@@ -308,6 +308,11 @@ class PluginManagerService implements PluginManager
 
         try {
             $payload = $this->serializePlugin($plugin);
+
+            if (! $this->currentRuntimePathIsAvailable($plugin)) {
+                throw new PluginRuntimeException("Plugin {$pluginId} runtime path is unavailable.");
+            }
+
             $dependencyState = $this->dependencyService->activate($payload, $plugin->dependency_state ?? []);
             $plugin->dependency_state = $dependencyState;
             $plugin->warnings = $this->mergeWarnings($plugin->warnings ?? [], $dependencyState['warnings'] ?? []);
@@ -427,8 +432,9 @@ class PluginManagerService implements PluginManager
         $package = $this->registryClient->getPackage($pluginId, null, $sourceId);
         $latestVersion = (string) ($package['latestVersion'] ?? $package['version'] ?? '');
         $currentVersion = (string) ($plugin->current_version ?? '');
+        $runtimePathAvailable = $this->currentRuntimePathIsAvailable($plugin);
 
-        if ($latestVersion !== '' && $latestVersion === $currentVersion) {
+        if ($latestVersion !== '' && $latestVersion === $currentVersion && $runtimePathAvailable) {
             $plugin->update_available = false;
             $plugin->latest_version = $latestVersion;
             $plugin->last_update_checked_at = now()->toAtomString();
@@ -446,7 +452,7 @@ class PluginManagerService implements PluginManager
         return array_merge(
             $this->installFromRegistry($pluginId, $latestVersion !== '' ? $latestVersion : null, $sourceId),
             [
-                'updateStatus' => 'updated',
+                'updateStatus' => $runtimePathAvailable ? 'updated' : 'repaired',
                 'previousVersion' => $currentVersion,
                 'latestVersion' => $latestVersion !== '' ? $latestVersion : null,
             ]
@@ -619,6 +625,10 @@ class PluginManagerService implements PluginManager
 
         foreach (Plugin::enabled()->get() as $plugin) {
             $payload = $this->serializePlugin($plugin);
+
+            if (($payload['loadStatus'] ?? null) !== 'ready') {
+                continue;
+            }
 
             foreach (($payload['uiExtensions'] ?? []) as $extension) {
                 if ($surface !== null && ($extension['surface'] ?? null) !== $surface) {
@@ -1304,7 +1314,8 @@ class PluginManagerService implements PluginManager
 
         $latestVersion = (string) ($package['latestVersion'] ?? $package['version'] ?? $plugin->current_version ?? '');
         $currentVersion = (string) ($plugin->current_version ?? '');
-        $updateAvailable = $latestVersion !== '' && $latestVersion !== $currentVersion;
+        $repairRequired = ! $this->currentRuntimePathIsAvailable($plugin);
+        $updateAvailable = ($latestVersion !== '' && $latestVersion !== $currentVersion) || $repairRequired;
 
         $plugin->latest_version = $latestVersion !== '' ? $latestVersion : $currentVersion;
         $plugin->update_available = $updateAvailable;
@@ -1316,6 +1327,7 @@ class PluginManagerService implements PluginManager
             'status' => $updateAvailable ? 'update_available' : 'up_to_date',
             'currentVersion' => $currentVersion,
             'latestVersion' => $plugin->latest_version,
+            'repairRequired' => $repairRequired,
         ];
     }
 
@@ -1367,11 +1379,22 @@ class PluginManagerService implements PluginManager
 
     private function resolveLoadStatus(Plugin $plugin): string
     {
+        if (! $this->currentRuntimePathIsAvailable($plugin)) {
+            return 'failed';
+        }
+
         if (is_string($plugin->load_status) && $plugin->load_status !== '') {
             return $plugin->load_status;
         }
 
         return $plugin->enabled ? 'ready' : 'disabled';
+    }
+
+    private function currentRuntimePathIsAvailable(Plugin $plugin): bool
+    {
+        $runtimePath = (string) ($plugin->getCurrentRuntimePath() ?? '');
+
+        return $runtimePath !== '' && is_dir($runtimePath);
     }
 
     private function latestLogEntry(Plugin $plugin): ?array

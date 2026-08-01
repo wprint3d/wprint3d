@@ -3,6 +3,7 @@
 namespace Tests\Feature\Plugins;
 
 use App\Plugins\Contracts\PluginManager;
+use App\Plugins\Exceptions\PluginRuntimeException;
 use Illuminate\Support\Facades\File;
 use Mockery;
 use Tests\TestCase;
@@ -734,6 +735,22 @@ class PluginManagementApiTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', 'text/html; charset=UTF-8')
             ->assertSee('asset', false);
+    }
+
+    public function test_it_returns_not_found_when_a_plugin_asset_runtime_is_unavailable(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('resolveAsset')
+            ->once()
+            ->with('acme.demo', 'ui/index.html')
+            ->andThrow(new PluginRuntimeException('Plugin acme.demo runtime path is unavailable.'));
+
+        $this->app->instance(PluginManager::class, $manager);
+
+        $this->withoutMiddleware()
+            ->get('/api/plugins/acme.demo/assets/ui/index.html')
+            ->assertNotFound();
     }
 
     public function test_it_serves_javascript_assets_with_a_module_safe_mime_type(): void

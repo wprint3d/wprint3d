@@ -467,6 +467,15 @@ const NavBarMenuSettingsModal = ({ isVisible, setIsVisible, isSmallTablet, isSma
         staleTime: 60000,
     });
 
+    useEffect(() => {
+        if (!isVisible) {
+            return;
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["plugins"] });
+        queryClient.invalidateQueries({ queryKey: ["pluginExtensions"] });
+    }, [ isVisible, queryClient ]);
+
     const fallbackSettingsExtensionsQuery = usePluginExtensions("settings_tab");
     const fallbackModalExtensionsQuery = usePluginExtensions("modal");
 

@@ -46,6 +46,124 @@ class PluginManagerServiceTest extends TestCase
         $this->assertFalse($service->uninstall('missing.plugin'));
     }
 
+    public function test_update_repairs_an_up_to_date_registry_plugin_when_its_runtime_path_is_missing(): void
+    {
+        $missingRuntimePath = storage_path('framework/testing/missing-plugin-runtime-'.uniqid());
+
+        Plugin::query()->create([
+            'plugin_id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'current_version' => '0.1.0',
+            'enabled' => true,
+            'trust_level' => 'signed',
+            'install_source' => [
+                'type' => 'official_registry',
+                'registry' => [
+                    'source' => [
+                        'id' => 'official',
+                    ],
+                ],
+            ],
+            'manifest' => [
+                'runtime' => ['type' => 'php'],
+                'uiExtensions' => [],
+            ],
+            'versions' => [
+                '0.1.0' => [
+                    'path' => $missingRuntimePath,
+                ],
+            ],
+        ]);
+
+        $archiveService = Mockery::mock(PluginArchiveService::class);
+        $registryClient = Mockery::mock(PluginRegistryClient::class);
+        $runtimeRegistry = Mockery::mock(PluginRuntimeRegistry::class);
+        $dependencyService = Mockery::mock(PluginDependencyService::class);
+
+        $registryClient->shouldReceive('getPackage')
+            ->once()
+            ->with('acme.demo', null, 'official')
+            ->andReturn([
+                'version' => '0.1.0',
+                'latestVersion' => '0.1.0',
+            ]);
+
+        $service = Mockery::mock(PluginManagerService::class, [
+            $archiveService,
+            $registryClient,
+            $runtimeRegistry,
+            $dependencyService,
+            new PluginLifecycleLogStore,
+        ])->makePartial();
+
+        $service->shouldReceive('installFromRegistry')
+            ->once()
+            ->with('acme.demo', '0.1.0', 'official')
+            ->andReturn([
+                'id' => 'acme.demo',
+                'version' => '0.1.0',
+                'enabled' => true,
+                'loadStatus' => 'ready',
+            ]);
+
+        $payload = $service->update('acme.demo');
+
+        $this->assertSame('repaired', $payload['updateStatus']);
+        $this->assertSame('0.1.0', $payload['previousVersion']);
+        $this->assertSame('0.1.0', $payload['latestVersion']);
+    }
+
+    public function test_missing_plugin_runtime_is_reported_as_failed_and_its_ui_extensions_are_not_loaded(): void
+    {
+        Plugin::query()->create([
+            'plugin_id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'current_version' => '0.1.0',
+            'enabled' => true,
+            'load_status' => 'ready',
+            'trust_level' => 'signed',
+            'install_source' => [
+                'type' => 'official_registry',
+            ],
+            'manifest' => [
+                'runtime' => ['type' => 'php'],
+                'uiExtensions' => [
+                    [
+                        'id' => 'settings',
+                        'surface' => 'settings_tab',
+                        'mode' => 'custom_bundle',
+                    ],
+                ],
+            ],
+            'versions' => [
+                '0.1.0' => [
+                    'path' => storage_path('framework/testing/missing-plugin-runtime-'.uniqid()),
+                ],
+            ],
+        ]);
+
+        $dependencyService = Mockery::mock(PluginDependencyService::class);
+        $dependencyService->shouldReceive('summarize')->andReturn([
+            'classification' => 'lightweight',
+            'requirements' => [],
+            'host' => [],
+            'warnings' => [],
+            'runtime' => [],
+            'images' => [],
+        ]);
+
+        $service = new PluginManagerService(
+            Mockery::mock(PluginArchiveService::class),
+            Mockery::mock(PluginRegistryClient::class),
+            Mockery::mock(PluginRuntimeRegistry::class),
+            $dependencyService,
+            new PluginLifecycleLogStore,
+        );
+
+        $this->assertSame('failed', $service->listInstalled()[0]['loadStatus']);
+        $this->assertSame([], $service->listUiExtensions());
+    }
+
     public function test_enable_marks_plugin_as_failed_instead_of_throwing_when_startup_fails(): void
     {
         Plugin::query()->create([
