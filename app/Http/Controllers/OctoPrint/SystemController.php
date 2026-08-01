@@ -85,6 +85,27 @@ class SystemController extends Controller
         return response()->json(['cameras' => $cameras]);
     }
 
+    public function terminal(Request $request): JsonResponse
+    {
+        $printer = $this->context->printer($request);
+        $limit = max(1, min(500, (int) $request->query('limit', 250)));
+        $console = str_replace(["\r\n", "\r"], "\n", (string) $printer->getConsole());
+        $lines = $console === '' ? [] : explode("\n", rtrim($console, "\n"));
+        $total = count($lines);
+        $lines = array_slice($lines, -$limit);
+        $lines = array_map(
+            fn (string $line) => mb_strimwidth($line, 0, 1000, '…'),
+            $lines,
+        );
+
+        return response()->json([
+            'lines' => array_values($lines),
+            'total' => $total,
+            'truncated' => $total > count($lines),
+            'cursor' => hash('sha256', $console),
+        ]);
+    }
+
     public function selectPrinter(Request $request): JsonResponse
     {
         $validated = $request->validate(['printerUuid' => 'required|string']);

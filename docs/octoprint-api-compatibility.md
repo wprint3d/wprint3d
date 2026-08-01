@@ -55,12 +55,14 @@ certificate or explicitly pin the verified WPrint 3D SHA-256 fingerprint.
 | `GET /api/version` | Reports API `0.1`, OctoPrint 1.11.x compatibility, and WPrint 3D metadata. |
 | `GET /api/wprint3d/printers` | Lists host printers and the current selection. |
 | `GET /api/wprint3d/cameras` | Lists enabled cameras linked to the selected printer, including stream and snapshot URLs. |
+| `GET /api/wprint3d/terminal` | WPrint 3D extension returning recent console lines for the selected printer. |
 | `POST /api/wprint3d/printer` | Selects `{ "printerUuid": "..." }` for a password session. |
 | `GET /api/files` and `GET /api/files/local` | Lists recursively stored local G-code. |
 | `POST /api/files/local` | Multipart upload; supports OctoPrint `select` and `print` booleans. |
 | `GET/POST/DELETE /api/files/local/{path}` | Reads metadata, selects/prints/unselects, or deletes local G-code. |
 | `GET/POST /api/job` | Reads the active job or sends `start`, `pause`, `resume`, and `cancel`. |
 | `GET /api/printer` | Operational flags and tool/bed temperatures. |
+| `POST /api/printer/command` | Queues one `command` or a `commands` array using OctoPrint's printer-command contract. |
 | `GET /api/connection` | Current WPrint 3D serial connection state. |
 
 Only the `local` storage origin is supported.
@@ -68,6 +70,26 @@ Only the `local` storage origin is supported.
 The camera extension returns only enabled cameras linked to the selected
 printer. Stream and snapshot values are relative `/video/...` URLs on the same
 WPrint 3D host; arbitrary external camera URLs are not relayed to clients.
+
+The terminal extension accepts an optional `limit` query parameter between 1
+and 500 and returns `lines`, `total`, `truncated`, and an opaque `cursor`. It is
+available with `read` access. Sending commands uses OctoPrint's standard
+`POST /api/printer/command` endpoint and requires `control` access:
+
+```bash
+curl --fail-with-body \
+  --header "X-Api-Key: $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --data '{"command":"M115"}' \
+  "$HOST/api/printer/command"
+```
+
+The command endpoint accepts either one `command` string or an array named
+`commands`, never both, and returns `204` after queuing them. Each command must
+be a single line of at most 512 characters; one request may contain at most 25
+commands. Arbitrary commands can alter printer state or interrupt a running
+job, so clients should expose this endpoint only to deliberate operator input.
+Named OctoPrint scripts and custom controls are not implemented.
 
 ## Upload and print
 
@@ -126,11 +148,12 @@ development bind-mounted configuration.
 
 Application Keys, compatible group/user CRUD, WebSocket push, virtual SD,
 remote STL slicing, standard OctoPrint webcam endpoints beyond the WPrint 3D
-camera extension, arbitrary terminal commands, and full
-OctoPrint plugin emulation are outside this version. Clients requiring those
+camera extension, named scripts, custom controls, and full OctoPrint plugin
+emulation are outside this version. Clients requiring those
 features should feature-detect instead of assuming a complete OctoPrint
 installation.
 
 See the official OctoPrint documentation for the upstream
 [authentication](https://docs.octoprint.org/en/main/api/general.html) and
-[file operations](https://docs.octoprint.org/en/main/api/files.html) contracts.
+[file operations](https://docs.octoprint.org/en/main/api/files.html) contracts,
+plus the standard [printer command](https://docs.octoprint.org/en/main/api/printer.html#send-an-arbitrary-command-to-the-printer) endpoint.

@@ -155,6 +155,30 @@ class OctoPrintCompatibilityTest extends TestCase
             ->assertJsonPath('cameras.1.snapshotUrl', null);
     }
 
+    public function test_terminal_extension_returns_bounded_history_with_read_access(): void
+    {
+        $spectator = $this->user(UserRole::SPECTATOR);
+        $printer = $this->printer('terminal-history-printer');
+        $token = app(ApiTokenService::class)->create($spectator, 'Terminal reader', 'terminal-history-printer', 365);
+        $longLine = str_repeat('x', 1100);
+        $printer->setConsole("first\nsecond\n{$longLine}\n");
+
+        $this->withHeader('X-Api-Key', $token->plainTextToken)
+            ->getJson('/octoprint-api/wprint3d/terminal?limit=2')
+            ->assertOk()
+            ->assertJsonCount(2, 'lines')
+            ->assertJsonPath('lines.0', 'second')
+            ->assertJsonPath('total', 3)
+            ->assertJsonPath('truncated', true)
+            ->assertJsonStructure(['cursor']);
+
+        $this->assertLessThanOrEqual(1001, mb_strlen(
+            $this->withHeader('X-Api-Key', $token->plainTextToken)
+                ->getJson('/octoprint-api/wprint3d/terminal?limit=1')
+                ->json('lines.0'),
+        ));
+    }
+
     public function test_password_sessions_can_regenerate_personal_keys_for_the_holder_or_as_admin(): void
     {
         $spectator = $this->user(UserRole::SPECTATOR);
@@ -365,6 +389,64 @@ class OctoPrintCompatibilityTest extends TestCase
             'command' => 'jog',
             'x' => 1,
         ])->assertConflict()->assertJsonPath('reason', 'job_active');
+
+        $this->assertSame([], $printer->getResetQueuedCommands());
+    }
+
+    public function test_arbitrary_printer_commands_use_the_octoprint_contract_and_control_permission(): void
+    {
+        Event::fake([CommandQueued::class]);
+
+        $user = $this->user();
+        $printer = $this->printer('terminal-command-printer');
+        $token = app(ApiTokenService::class)->create($user, 'Terminal control', 'terminal-command-printer', 365);
+        $headers = ['X-Api-Key' => $token->plainTextToken];
+
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/command', [
+            'command' => 'M115',
+        ])->assertNoContent();
+        $this->assertSame(['M115'], $printer->getResetQueuedCommands());
+
+        $printer->activeFile = 'active.gcode';
+        $printer->save();
+        $this->withHeaders($headers)->postJson('/octoprint-api/printer/command', [
+            'commands' => ['M114', 'M105'],
+        ])->assertNoContent();
+        $this->assertSame(['M114', 'M105'], $printer->getResetQueuedCommands());
+
+        $spectator = $this->user(UserRole::SPECTATOR);
+        $readOnlyToken = app(ApiTokenService::class)->create(
+            $spectator,
+            'Read-only terminal',
+            'terminal-command-printer',
+            365,
+        );
+        $this->withHeader('X-Api-Key', $readOnlyToken->plainTextToken)
+            ->postJson('/octoprint-api/printer/command', ['command' => 'M115'])
+            ->assertForbidden();
+    }
+
+    public function test_arbitrary_printer_commands_reject_ambiguous_or_multiline_payloads(): void
+    {
+        Event::fake([CommandQueued::class]);
+
+        $user = $this->user();
+        $printer = $this->printer('invalid-terminal-command-printer');
+        $token = app(ApiTokenService::class)->create($user, 'Terminal validation', 'invalid-terminal-command-printer', 365);
+        $headers = ['X-Api-Key' => $token->plainTextToken];
+
+        foreach ([
+            [],
+            ['command' => 'M105', 'commands' => ['M114']],
+            ['command' => "M105\nM114"],
+            ['command' => ''],
+            ['commands' => array_fill(0, 26, 'M105')],
+        ] as $payload) {
+            $this->withHeaders($headers)
+                ->postJson('/octoprint-api/printer/command', $payload)
+                ->assertBadRequest()
+                ->assertJsonPath('reason', 'invalid_request');
+        }
 
         $this->assertSame([], $printer->getResetQueuedCommands());
     }

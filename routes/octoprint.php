@@ -15,6 +15,7 @@ Route::middleware('octoprint.auth')->group(function () {
         Route::get('/version', [SystemController::class, 'version']);
         Route::get('/wprint3d/printers', [SystemController::class, 'printers']);
         Route::get('/wprint3d/cameras', [SystemController::class, 'cameras']);
+        Route::get('/wprint3d/terminal', [SystemController::class, 'terminal']);
         Route::get('/files', [FilesController::class, 'index']);
         Route::get('/files/local', [FilesController::class, 'index']);
         Route::get('/files/local/{path}', [FilesController::class, 'show'])->where('path', '.*');
@@ -39,5 +40,6 @@ Route::middleware('octoprint.auth')->group(function () {
         Route::post('/printer/printhead', [PrinterController::class, 'printheadCommand']);
         Route::post('/printer/tool', [PrinterController::class, 'toolCommand']);
         Route::post('/printer/bed', [PrinterController::class, 'bedCommand']);
+        Route::post('/printer/command', [PrinterController::class, 'rawCommand']);
     });
 });

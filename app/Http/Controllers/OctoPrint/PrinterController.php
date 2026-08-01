@@ -242,6 +242,50 @@ class PrinterController extends Controller
         });
     }
 
+    public function rawCommand(Request $request): Response
+    {
+        $printer = $this->context->printer($request);
+
+        return $this->controlResponse(function () use ($request, $printer) {
+            $hasCommand = $request->exists('command');
+            $hasCommands = $request->exists('commands');
+
+            if ($request->exists('script')) {
+                throw new \InvalidArgumentException('Printer scripts are not supported.');
+            }
+
+            if ($hasCommand === $hasCommands) {
+                throw new \InvalidArgumentException('Provide either command or commands, but not both.');
+            }
+
+            $commands = $hasCommands ? $request->input('commands') : [$request->input('command')];
+
+            if (! is_array($commands) || $commands === [] || count($commands) > 25) {
+                throw new \InvalidArgumentException('Provide between 1 and 25 printer commands.');
+            }
+
+            $normalized = [];
+            foreach ($commands as $command) {
+                if (! is_string($command)) {
+                    throw new \InvalidArgumentException('Every printer command must be a string.');
+                }
+
+                if (strpbrk($command, "\r\n\0") !== false) {
+                    throw new \InvalidArgumentException('Printer commands must be single-line strings of at most 512 characters.');
+                }
+
+                $command = trim($command);
+                if ($command === '' || mb_strlen($command) > 512) {
+                    throw new \InvalidArgumentException('Printer commands must be single-line strings of at most 512 characters.');
+                }
+
+                $normalized[] = $command;
+            }
+
+            $this->controls->sendCommands($printer, $normalized);
+        });
+    }
+
     private function controlResponse(callable $operation): Response
     {
         try {

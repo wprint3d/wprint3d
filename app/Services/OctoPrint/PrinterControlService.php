@@ -9,6 +9,14 @@ use Illuminate\Support\Facades\Cache;
 
 class PrinterControlService
 {
+    public function sendCommands(Printer $printer, array $commands): void
+    {
+        $this->withPrinterLock($printer, function () use ($printer, $commands) {
+            $this->ensureConnected($printer);
+            $this->queue($printer, $commands);
+        });
+    }
+
     public function jog(Printer $printer, array $axes, mixed $speed = 1500): void
     {
         $this->withPrinterLock($printer, function () use ($printer, $axes, $speed) {
