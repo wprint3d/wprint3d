@@ -22,7 +22,7 @@ use Throwable;
 
 class Serial
 {
-    private $fd;
+    private $fd = null;
 
     private string $fileName;
 
@@ -60,13 +60,35 @@ class Serial
 
     private ?string $fakeSerialConnectionToken = null;
 
+    private bool $closed = false;
+
+    private bool $reconnectRequired = false;
+
     const TERMINAL_PATH = '/dev';
 
     const TERMINAL_PREFIX = 'tty';
 
     const CACHE_LOCK_SUFFIX = '_nodeLock';
 
-    const CACHE_LOCK_TTL = 120; // seconds
+    const CACHE_RECOVERY_SUFFIX = '_nodeRecovery';
+
+    const CACHE_LOCK_WAIT_SECS = 5;
+
+    const CACHE_LOCK_MIN_TTL_SECS = 10;
+
+    const CACHE_LOCK_TTL_BUFFER_SECS = 7;
+
+    const RECOVERY_MAX_WAIT_SECS = 5;
+
+    const RECOVERY_QUIET_MILLIS = 200;
+
+    const RECOVERY_MARKER_TTL_SECS = 300;
+
+    const DISCARD_PENDING_INPUT_MAX_MILLIS = 25;
+
+    const DEFAULT_TIMEOUT_SECS = 60;
+
+    const MAX_RESPONSE_BYTES = 1024 * 1024;
 
     const LIVE_BUFFER_WAIT_NANOS = 8;               // nanoseconds (short sleep to save on CPU cycles)
 
@@ -180,6 +202,13 @@ class Serial
 
     public function close(): void
     {
+        $this->disconnectConnection();
+        $this->closed = true;
+        $this->reconnectRequired = false;
+    }
+
+    private function disconnectConnection(): void
+    {
         if ($this->fakeSerialConnectionToken !== null) {
             $this->fakeSerialManager->disconnect($this->fileName, $this->fakeSerialConnectionToken);
             $this->fakeSerialConnectionToken = null;
@@ -188,6 +217,29 @@ class Serial
         if ($this->fd) {
             dio_close($this->fd);
             $this->fd = null;
+        }
+    }
+
+    private function invalidateConnection(): void
+    {
+        $this->disconnectConnection();
+        $this->closed = false;
+        $this->reconnectRequired = true;
+    }
+
+    private function ensureConnected(): void
+    {
+        if ($this->closed) {
+            throw new InitializationException('The serial connection has been closed.');
+        }
+
+        if ($this->reconnectRequired) {
+            $this->configure();
+            $this->reconnectRequired = false;
+        }
+
+        if (! $this->fd && $this->fakeSerialConnectionToken === null) {
+            throw new InitializationException('The serial printer is not connected.');
         }
     }
 
@@ -307,37 +359,34 @@ class Serial
      * Blocks the current thread while trying to acquire a lock, then, returns
      * an instance of Lock that supports release().
      */
-    private function blockWhileLocking(): Lock
+    private function blockWhileLocking(int $lockTtlSecs): Lock
     {
-        $lock = $this->lockCache->lock($this->lockKey, self::CACHE_LOCK_TTL);
+        $lock = $this->lockCache->lock($this->lockKey, $lockTtlSecs);
 
-        if (! $lock->get()) {
-            try {
-                $lock->block(self::CACHE_LOCK_TTL);
-            } catch (LockTimeoutException $lockTimeoutException) {
-                if ($this->log) {
-                    $this->log->warning(
-                        __METHOD__.': timed out waiting for the serial port to free up, the lock will be released: '.$lockTimeoutException->getMessage().PHP_EOL.
-                        $lockTimeoutException->getTraceAsString()
-                    );
-                }
-            } finally {
-                optional($lock)->release();
+        try {
+            $lock->block(self::CACHE_LOCK_WAIT_SECS);
+        } catch (LockTimeoutException $lockTimeoutException) {
+            if ($this->log) {
+                $this->log->warning(
+                    __METHOD__.': timed out waiting for the serial port to free up: '.$lockTimeoutException->getMessage().PHP_EOL.
+                    $lockTimeoutException->getTraceAsString()
+                );
             }
-        }
 
-        $lock->get();
+            throw $lockTimeoutException;
+        }
 
         return $lock;
     }
 
     private function configure()
     {
-        $lock = $this->blockWhileLocking();
+        $lock = $this->blockWhileLocking(self::CACHE_LOCK_MIN_TTL_SECS);
 
         try {
             if ($this->fakeSerialManager->nodeExists($this->fileName)) {
                 $this->fakeSerialConnectionToken = $this->fakeSerialManager->connect($this->fileName, $this->baudRate);
+                $this->closed = false;
 
                 return;
             }
@@ -355,7 +404,11 @@ class Serial
                 'stop' => 1,
                 'parity' => 0,
             ]);
+
+            $this->closed = false;
         } catch (Throwable $exception) {
+            $this->disconnectConnection();
+
             if ($this->log) {
                 $this->log->error(
                     "{$this->fileName}: couldn't configure: {$exception->getMessage()}".PHP_EOL.
@@ -521,13 +574,175 @@ class Serial
         $this->pendingPluginLineHookContext = [];
     }
 
+    private function resolveTimeout(?int $timeout = null): int
+    {
+        $resolvedTimeout = $timeout;
+
+        if (! $resolvedTimeout) {
+            $resolvedTimeout = $this->timeout;
+        }
+
+        if (! $resolvedTimeout || $resolvedTimeout < 1) {
+            return self::DEFAULT_TIMEOUT_SECS;
+        }
+
+        return $resolvedTimeout;
+    }
+
+    private function deadlineMillis(int $timeout): float
+    {
+        return millis() + ($timeout * 1000);
+    }
+
+    private function throwIfTimedOut(float $startedAtMillis, float $deadlineMillis, int $timeout): void
+    {
+        if (millis() < $deadlineMillis) {
+            return;
+        }
+
+        $spentSecs = round((millis() - $startedAtMillis) / 1000, 3);
+
+        throw new TimedOutException("timed out after {$spentSecs} seconds while waiting for a response (limit: {$timeout} seconds).");
+    }
+
+    private function appendResponseChunk(string &$response, string $chunk): void
+    {
+        if (strlen($response) + strlen($chunk) > self::MAX_RESPONSE_BYTES) {
+            throw new InitializationException('Serial response exceeded the '.self::MAX_RESPONSE_BYTES.' byte limit.');
+        }
+
+        $response .= $chunk;
+    }
+
+    private function validateResponse(string $response): void
+    {
+        if (! mb_check_encoding($response, 'UTF-8')) {
+            throw new InitializationException('Serial response contains invalid UTF-8 data.');
+        }
+    }
+
+    private function recoveryKey(): string
+    {
+        return $this->fileName.self::CACHE_RECOVERY_SUFFIX;
+    }
+
+    private function markConnectionForRecovery(int $timeout): void
+    {
+        $waitSecs = min(self::RECOVERY_MAX_WAIT_SECS, max(1, $timeout));
+
+        $this->lockCache->put(
+            $this->recoveryKey(),
+            ['waitUntilMillis' => millis() + ($waitSecs * 1000)],
+            self::RECOVERY_MARKER_TTL_SECS
+        );
+    }
+
+    private function discardPendingInput(): bool
+    {
+        $discardedBytes = 0;
+        $deadlineMillis = millis() + self::DISCARD_PENDING_INPUT_MAX_MILLIS;
+
+        while (millis() < $deadlineMillis) {
+            $read = dio_read($this->fd);
+
+            if (! $read) {
+                break;
+            }
+
+            $discardedBytes += strlen($read);
+
+            if ($discardedBytes >= self::MAX_RESPONSE_BYTES) {
+                break;
+            }
+        }
+
+        if ($discardedBytes > 0 && $this->log) {
+            $this->log->warning(__METHOD__.": discarded {$discardedBytes} stale input bytes before sending a command.");
+        }
+
+        return $discardedBytes > 0;
+    }
+
+    private function recoverPendingInput(): void
+    {
+        $recovery = $this->lockCache->get($this->recoveryKey());
+
+        if (! is_array($recovery)) {
+            $this->discardPendingInput();
+
+            return;
+        }
+
+        $waitUntilMillis = min(
+            (float) ($recovery['waitUntilMillis'] ?? millis()),
+            millis() + (self::RECOVERY_MAX_WAIT_SECS * 1000)
+        );
+        $deadlineMillis = millis()
+            + (self::RECOVERY_MAX_WAIT_SECS * 1000)
+            + self::RECOVERY_QUIET_MILLIS
+            + self::DISCARD_PENDING_INPUT_MAX_MILLIS;
+
+        while (millis() < $waitUntilMillis) {
+            $this->discardPendingInput();
+            $this->tickClocks();
+
+            time_nanosleep(seconds: 0, nanoseconds: 10 * 1000 * 1000);
+
+            if (millis() >= $deadlineMillis) {
+                throw new InitializationException('Serial input did not settle after the previous failed transaction.');
+            }
+        }
+
+        $quietSinceMillis = millis();
+
+        while ((millis() - $quietSinceMillis) < self::RECOVERY_QUIET_MILLIS) {
+            if ($this->discardPendingInput()) {
+                $quietSinceMillis = millis();
+            }
+
+            $this->tickClocks();
+
+            if (millis() >= $deadlineMillis) {
+                throw new InitializationException('Serial input did not settle after the previous failed transaction.');
+            }
+
+            time_nanosleep(seconds: 0, nanoseconds: 10 * 1000 * 1000);
+        }
+
+        $this->lockCache->forget($this->recoveryKey());
+    }
+
+    private function waitForFakeSerialDelay(int $delayMs, float $startedAtMillis, float $deadlineMillis, int $timeout): void
+    {
+        $delayDeadlineMillis = millis() + $delayMs;
+
+        while (millis() < $delayDeadlineMillis) {
+            $this->throwIfTimedOut($startedAtMillis, $deadlineMillis, $timeout);
+
+            $remainingDelayMs = $delayDeadlineMillis - millis();
+            $remainingTimeoutMs = $deadlineMillis - millis();
+            $sleepMs = (int) max(1, min(10, $remainingDelayMs, $remainingTimeoutMs));
+
+            time_nanosleep(
+                seconds: 0,
+                nanoseconds: $sleepMs * 1000 * 1000
+            );
+
+            $this->tickClocks();
+        }
+
+        $this->throwIfTimedOut($startedAtMillis, $deadlineMillis, $timeout);
+    }
+
     private function queryFakeSerial(?string $command = null, ?int $lineNumber = null, ?int $maxLine = null, ?int $timeout = null): string
     {
         if ($this->fakeSerialConnectionToken === null) {
             throw new InitializationException('The fake serial printer is not connected.');
         }
 
-        $startedAt = microtime(true);
+        $timeout = $this->resolveTimeout($timeout);
+        $startedAtMillis = millis();
+        $deadlineMillis = $this->deadlineMillis($timeout);
 
         $result = $this->fakeSerialManager->transact(
             node: $this->fileName,
@@ -537,27 +752,25 @@ class Serial
             timeout: $timeout
         );
 
-        $response = [];
+        $this->throwIfTimedOut($startedAtMillis, $deadlineMillis, $timeout);
+
+        $response = '';
 
         foreach ($result['lines'] as $line) {
             $delayMs = (int) ($line['delayMs'] ?? 0);
 
             if ($delayMs > 0) {
-                time_nanosleep(
-                    seconds: intdiv($delayMs, 1000),
-                    nanoseconds: ($delayMs % 1000) * 1000 * 1000
-                );
+                $this->waitForFakeSerialDelay($delayMs, $startedAtMillis, $deadlineMillis, $timeout);
             }
 
             $this->tickClocks();
-
-            if ($timeout && (microtime(true) - $startedAt) >= $timeout) {
-                throw new TimedOutException("timed out while waiting for a newline after {$timeout} seconds were spent trying to get a response.");
-            }
+            $this->throwIfTimedOut($startedAtMillis, $deadlineMillis, $timeout);
 
             $message = $line['text'] ?? '';
+            $this->validateResponse($message);
 
-            $response[] = $message;
+            $separator = $response === '' ? '' : PHP_EOL;
+            $this->appendResponseChunk($response, $separator.$message);
             $this->appendIncomingLine(
                 message: $message,
                 command: $command,
@@ -566,7 +779,8 @@ class Serial
             );
         }
 
-        $fullResponse = trim(implode(PHP_EOL, $response));
+        $fullResponse = trim($response);
+        $this->validateResponse($fullResponse);
 
         $this->dispatchPluginHook('serial.command.response_received', [
             'printerId' => $this->printerId,
@@ -586,13 +800,12 @@ class Serial
      */
     private function readUntilBlank(?int $timeout = null, ?int $lineNumber = null, ?int $maxLine = null, ?string $command = null): string
     {
-        if (! $timeout) {
-            $timeout = $this->timeout;
-        }
+        $timeout = $this->resolveTimeout($timeout);
 
         $result = '';
 
-        $sTime = time();
+        $startedAtMillis = millis();
+        $deadlineMillis = $this->deadlineMillis($timeout);
         $blankTime = millis();
 
         $lastLineIndex = 0;
@@ -609,7 +822,7 @@ class Serial
                     $this->log->debug('dio_read: '.$read);
                 }
 
-                $result .= $read;
+                $this->appendResponseChunk($result, $read);
 
                 /*
                  * Workaround for Hellbot's broken firmware:
@@ -637,7 +850,6 @@ class Serial
                     );
                 }
 
-                $sTime = time();
                 $blankTime = $millis;
 
                 if (
@@ -665,6 +877,7 @@ class Serial
                             offset: $lastLineIndex,
                             length: ($newLastLineIndex - $lastLineIndex)
                         );
+                        $this->validateResponse($message);
 
                         // Is querying temperature?
                         if (strpos($message, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false) {
@@ -758,6 +971,8 @@ class Serial
                         )
                     )
                 ) {
+                    $this->throwIfTimedOut($startedAtMillis, $deadlineMillis, $timeout);
+
                     if ($this->log) {
                         $this->log->debug("End of output detected: ({$spentBlankingMs} ms without data).");
                     }
@@ -768,9 +983,7 @@ class Serial
 
             $this->tickClocks($millis);
 
-            if ($timeout && (time() - $sTime >= $timeout)) {
-                break;
-            }
+            $this->throwIfTimedOut($startedAtMillis, $deadlineMillis, $timeout);
 
             if (! $read) {
                 /*
@@ -792,11 +1005,7 @@ class Serial
 
         $this->tickClocks($millis);
 
-        $spentSecs = time() - $sTime;
-
-        if ($timeout && $spentSecs >= $timeout) {
-            throw new TimedOutException("timed out while waiting for a newline after {$spentSecs} seconds were spent trying to get a response.");
-        }
+        $this->validateResponse($result);
 
         if ($this->log) {
             $this->log->debug(__METHOD__.': '.json_encode($result));
@@ -844,14 +1053,26 @@ class Serial
 
     public function query(?string $command = null, ?int $lineNumber = null, ?int $maxLine = null, ?int $timeout = null): string
     {
-        $lock = $this->blockWhileLocking();
+        $timeout = $this->resolveTimeout($timeout);
+        $this->ensureConnected();
 
-        $throwable = null;
+        $lockTtlSecs = max(
+            self::CACHE_LOCK_MIN_TTL_SECS,
+            $timeout + self::CACHE_LOCK_TTL_BUFFER_SECS
+        );
+        $lock = $this->blockWhileLocking($lockTtlSecs);
+        $isRealSerial = $this->fakeSerialConnectionToken === null;
+        $transactionStarted = false;
 
         try {
+            if ($isRealSerial && $command) {
+                $this->recoverPendingInput();
+            }
+
             $this->tickClocks();
 
             if ($command) {
+                $transactionStarted = true;
                 $this->sendCommand($command, $lineNumber, $maxLine);
             }
 
@@ -870,12 +1091,21 @@ class Serial
                         maxLine: $maxLine
                     );
         } catch (Throwable $throwable) {
-        }
+            if ($isRealSerial && $transactionStarted) {
+                try {
+                    $this->markConnectionForRecovery($timeout);
+                } catch (Throwable $recoveryThrowable) {
+                    if ($this->log) {
+                        $this->log->warning(__METHOD__.': could not mark the serial connection for recovery: '.$recoveryThrowable->getMessage());
+                    }
+                }
+            }
 
-        $lock->release();
+            $this->invalidateConnection();
 
-        if ($throwable) {
             throw $throwable;
+        } finally {
+            $lock->release();
         }
 
         return $result;
