@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { getPrinterConnectionStatusKey } from "../utils/printerConnectionStatus.js";
+import {
+    CONNECTION_STATUS_REFETCH_INTERVAL_MS,
+    getConnectionStatusRefetchInterval,
+    getPrinterConnectionStatusKey,
+} from "../utils/printerConnectionStatus.js";
 
 test("printer connection status reports unresponsive when backend detects USB errors", () => {
     assert.equal(
@@ -41,5 +45,33 @@ test("printer connection status keeps existing online and offline derivation", (
             nowSecs: 120,
         }),
         "offline"
+    );
+});
+
+test("printer connection status is reconciled while unresponsive", () => {
+    assert.equal(
+        getConnectionStatusRefetchInterval({
+            connectionStatus: { connectionStatus: "unresponsive" },
+            realtimeConnectionState: "connected",
+        }),
+        CONNECTION_STATUS_REFETCH_INTERVAL_MS
+    );
+});
+
+test("printer connection status falls back to polling without realtime updates", () => {
+    assert.equal(
+        getConnectionStatusRefetchInterval({
+            connectionStatus: { connectionStatus: "online" },
+            realtimeConnectionState: "disconnected",
+        }),
+        CONNECTION_STATUS_REFETCH_INTERVAL_MS
+    );
+
+    assert.equal(
+        getConnectionStatusRefetchInterval({
+            connectionStatus: { connectionStatus: "online" },
+            realtimeConnectionState: "connected",
+        }),
+        false
     );
 });

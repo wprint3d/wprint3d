@@ -1,19 +1,25 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { useEcho } from "./useEcho";
+import { useEcho, useEchoConnectionState } from "./useEcho";
 import API from "../includes/API";
+import { getConnectionStatusRefetchInterval } from "../utils/printerConnectionStatus";
 
 export function useConnectionStatus({ printerId }) {
     const [ connectionStatus, setConnectionStatus ] = useState(null),
           [ isRunningMapper,  setIsRunningMapper  ] = useState(null);
 
     const echo = useEcho();
+    const realtimeConnectionState = useEchoConnectionState();
 
     const initialConnectionStatus = useQuery({
         queryKey: ['connectionStatus', printerId],
         queryFn:  () => API.get('/user/printer/selected/status'),
         enabled:  !!printerId,
+        refetchInterval: getConnectionStatusRefetchInterval({
+            connectionStatus,
+            realtimeConnectionState,
+        }),
     });
 
     useEffect(() => {
