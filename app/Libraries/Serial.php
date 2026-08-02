@@ -101,7 +101,7 @@ class Serial
      *
      * @param  string  $fileName  - the node file name (as in, if you're looking for 'ttyUSB0', you'd write 'USB0')
      * @param  int  $baudRate  - the rate (in bits per second) on which data will be processed
-     * @param  ?int  $timeout  - the maximum amount of time that can be spent on a read
+     * @param  ?int  $timeout  - the maximum amount of time allowed without incoming data
      * @param  ?string  $printerId  - the ObjectId of the printer related to this transaction
      * @param  bool  $terminalAutoAppend  - whether the terminal should be auto-appended
      * @return void
@@ -594,6 +594,12 @@ class Serial
         return millis() + ($timeout * 1000);
     }
 
+    private function renewDeadline(float &$startedAtMillis, float &$deadlineMillis, int $timeout): void
+    {
+        $startedAtMillis = millis();
+        $deadlineMillis = $startedAtMillis + ($timeout * 1000);
+    }
+
     private function throwIfTimedOut(float $startedAtMillis, float $deadlineMillis, int $timeout): void
     {
         if (millis() < $deadlineMillis) {
@@ -769,6 +775,8 @@ class Serial
             $message = $line['text'] ?? '';
             $this->validateResponse($message);
 
+            $this->renewDeadline($startedAtMillis, $deadlineMillis, $timeout);
+
             $separator = $response === '' ? '' : PHP_EOL;
             $this->appendResponseChunk($response, $separator.$message);
             $this->appendIncomingLine(
@@ -818,6 +826,8 @@ class Serial
             $spentBlankingMs = $millis - $blankTime;
 
             if ($read) {
+                $this->renewDeadline($startedAtMillis, $deadlineMillis, $timeout);
+
                 if ($this->log) {
                     $this->log->debug('dio_read: '.$read);
                 }

@@ -50,7 +50,7 @@ class SerialTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_constructor_timeout_is_absolute_and_the_next_query_reconnects(): void
+    public function test_inactive_command_times_out_and_the_next_query_reconnects(): void
     {
         $emulator = new class extends FakeSerialEmulator
         {
@@ -83,6 +83,43 @@ class SerialTest extends TestCase
         }
 
         $this->assertStringContainsString('ok T:', $serial->query('M105'));
+        $serial->close();
+    }
+
+    public function test_periodic_serial_activity_renews_the_timeout_until_the_command_finishes(): void
+    {
+        $emulator = new class extends FakeSerialEmulator
+        {
+            public function transact(string $command, array $state = []): array
+            {
+                if ($command === 'AUDIT_HEATING') {
+                    return [
+                        'state' => $state,
+                        'response' => "busy: processing\nT:30.00 /200.00 B:35.00 /50.00\nok",
+                        'lines' => [
+                            ['text' => 'busy: processing', 'delayMs' => 600],
+                            ['text' => 'T:30.00 /200.00 B:35.00 /50.00', 'delayMs' => 600],
+                            ['text' => 'ok', 'delayMs' => 600],
+                        ],
+                    ];
+                }
+
+                return parent::transact($command, $state);
+            }
+        };
+
+        $this->bindFakeSerial($emulator);
+        $serial = $this->makeSerial(timeout: 1);
+        $startedAt = hrtime(true);
+
+        $response = $serial->query('AUDIT_HEATING');
+        $elapsedSecs = (hrtime(true) - $startedAt) / 1_000_000_000;
+
+        $this->assertGreaterThanOrEqual(1.6, $elapsedSecs);
+        $this->assertLessThan(2.8, $elapsedSecs);
+        $this->assertStringContainsString('busy: processing', $response);
+        $this->assertStringContainsString('ok', $response);
+
         $serial->close();
     }
 
