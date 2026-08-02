@@ -128,6 +128,32 @@ class OctoPrintCompatibilityTest extends TestCase
             ])->assertForbidden();
     }
 
+    public function test_empty_temperature_responses_use_octoprint_objects(): void
+    {
+        $user = $this->user();
+        $printer = $this->printer('temperature-shape-printer');
+        $token = app(ApiTokenService::class)->create($user, 'Temperature shape', 'temperature-shape-printer', 365);
+        $headers = ['X-Api-Key' => $token->plainTextToken];
+
+        Cache::forget($printer->_id.Printer::CACHE_STATISTICS_SUFFIX);
+
+        $printerResponse = $this->withHeaders($headers)
+            ->getJson('/octoprint-api/printer')
+            ->assertOk();
+        $printerPayload = json_decode($printerResponse->getContent());
+
+        $this->assertIsObject($printerPayload->temperature);
+        $this->assertSame([], get_object_vars($printerPayload->temperature));
+
+        $toolResponse = $this->withHeaders($headers)
+            ->getJson('/octoprint-api/printer/tool')
+            ->assertOk();
+        $toolPayload = json_decode($toolResponse->getContent());
+
+        $this->assertIsObject($toolPayload);
+        $this->assertSame([], get_object_vars($toolPayload));
+    }
+
     public function test_camera_extension_returns_only_enabled_cameras_linked_to_the_selected_printer(): void
     {
         $user = $this->user();

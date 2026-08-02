@@ -67,6 +67,10 @@ certificate or explicitly pin the verified WPrint 3D SHA-256 fingerprint.
 
 Only the `local` storage origin is supported.
 
+Temperature maps follow OctoPrint's JSON object contract. When no cached tool
+or bed statistics are available, `/api/printer` returns `"temperature": {}` and
+`/api/printer/tool` returns `{}`, never an empty JSON array.
+
 The camera extension returns only enabled cameras linked to the selected
 printer. Stream and snapshot values are relative `/video/...` URLs on the same
 WPrint 3D host; arbitrary external camera URLs are not relayed to clients.

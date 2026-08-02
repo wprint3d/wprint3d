@@ -25,7 +25,7 @@ class PrinterController extends Controller
         $printer = $this->context->printer($request);
 
         return response()->json([
-            'temperature' => $this->temperature($printer),
+            'temperature' => (object) $this->temperature($printer),
             'state' => $this->state($printer),
         ]);
     }
@@ -57,7 +57,7 @@ class PrinterController extends Controller
     {
         $temperature = $this->temperature($this->context->printer($request));
 
-        return response()->json(array_filter(
+        return response()->json((object) array_filter(
             $temperature,
             fn (string $key) => str_starts_with($key, 'tool'),
             ARRAY_FILTER_USE_KEY,
