@@ -270,7 +270,7 @@ class PrinterController extends Controller
 
                     $layerNumber++;
                 }
-            } else {
+            } elseif (isset($nextVirtualPosition['z'])) {
                 $nextVirtualPosition['z'] += $virtualPosition['z'];
 
                 if ($nextVirtualPosition['z'] != $virtualPosition['z']) {
