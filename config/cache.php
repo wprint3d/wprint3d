@@ -112,6 +112,8 @@ return [
 
     'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'wprint3d'), '_').'_cache_'),
 
-    'mapper_busy_key' => 'mapperBsy'
+    'mapper_busy_key' => 'mapperBsy',
+    'serial_mapper_lock_key' => 'serialMapperLock',
+    'serial_mapper_debounce_key' => 'serialMapperDebounce',
 
 ];

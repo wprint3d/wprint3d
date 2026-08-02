@@ -533,10 +533,12 @@ else
 
                         if [[ $deviceChanged -eq 1 ]]; then
                             if [[ "$DEVNAME" != '' ]] && ([[ "$nodePath" == *'tty'* ]] || [[ "$nodePath" == *'video'* ]]) && ([[ "$ACTION" == 'add' ]] || [[ "$ACTION" == 'remove' ]]); then
-                                php artisan map:hardware-cameras;
-                                php artisan map:serial-printers   $(echo -n "$DEVNAME" | sed 's/.*tty//g');
-
-                                if [[ "$DEVNAME" == *'video'* ]]; then
+                                if [[ "$nodePath" == *'tty'* ]]; then
+                                    # Keep consuming udev while a trailing-edge mapper invocation
+                                    # collapses connection noise into one final full serial scan.
+                                    php artisan map:serial-printers --debounce=3 &
+                                elif [[ "$nodePath" == *'video'* ]]; then
+                                    php artisan map:hardware-cameras;
                                     mapCameraLabels;
                                 fi;
                             fi;
