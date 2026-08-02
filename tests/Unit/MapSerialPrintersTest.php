@@ -2,10 +2,13 @@
 
 namespace Tests\Unit;
 
+use App\Events\PrintersMapInProgress;
+use App\Events\PrintersMapUpdated;
 use App\Models\Configuration;
 use App\Models\Printer;
 use App\Support\FakeSerial\FakeSerialEmulator;
 use App\Support\FakeSerial\FakeSerialManager;
+use App\Support\SerialMapperDebouncer;
 use Error;
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\Repository;
@@ -44,6 +47,7 @@ class MapSerialPrintersTest extends TestCase
     protected function tearDown(): void
     {
         app()->forgetInstance(FakeSerialManager::class);
+        app()->forgetInstance(SerialMapperDebouncer::class);
         Cache::flush();
         Printer::query()->delete();
         Configuration::query()->delete();
@@ -146,18 +150,235 @@ class MapSerialPrintersTest extends TestCase
         $this->assertFalse(Cache::get(config('cache.mapper_busy_key'), false));
     }
 
-    private function bindFakeSerial(FakeSerialEmulator $emulator): void
+    public function test_it_discards_a_debounced_invocation_superseded_during_the_quiet_window(): void
     {
-        app()->instance(FakeSerialManager::class, new FakeSerialManager(
+        $emulator = new class extends FakeSerialEmulator
+        {
+            public int $queryCount = 0;
+
+            public function transact(string $command, array $state = []): array
+            {
+                $this->queryCount++;
+
+                return parent::transact($command, $state);
+            }
+        };
+
+        $this->bindFakeSerial($emulator);
+        app()->instance(SerialMapperDebouncer::class, new SerialMapperDebouncer(
+            sleep: function (): void {
+                Cache::put(config('cache.serial_mapper_debounce_key'), 'newer-request', 600);
+            }
+        ));
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', [
+            'node' => self::NODE,
+            '--debounce' => 3,
+        ]));
+
+        $this->assertSame(0, $emulator->queryCount);
+        $this->assertSame(0, Printer::count());
+        $this->assertFalse(Cache::get(config('cache.mapper_busy_key'), false));
+        Event::assertNotDispatched(PrintersMapInProgress::class);
+        Event::assertNotDispatched(PrintersMapUpdated::class);
+    }
+
+    public function test_it_rechecks_the_debounce_token_after_waiting_for_the_mapper_lock(): void
+    {
+        $emulator = new class extends FakeSerialEmulator
+        {
+            public int $queryCount = 0;
+
+            public function transact(string $command, array $state = []): array
+            {
+                $this->queryCount++;
+
+                return parent::transact($command, $state);
+            }
+        };
+
+        $this->bindFakeSerial($emulator);
+        app()->instance(SerialMapperDebouncer::class, new class extends SerialMapperDebouncer
+        {
+            public function wait(int $seconds): array
+            {
+                return [true, 'superseded-while-locked'];
+            }
+
+            public function isCurrent(?string $token): bool
+            {
+                return false;
+            }
+        });
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', [
+            'node' => self::NODE,
+            '--debounce' => 3,
+        ]));
+
+        $this->assertSame(0, $emulator->queryCount);
+        $this->assertSame(0, Printer::count());
+        $this->assertFalse(Cache::get(config('cache.mapper_busy_key'), false));
+        Event::assertNotDispatched(PrintersMapInProgress::class);
+        Event::assertNotDispatched(PrintersMapUpdated::class);
+    }
+
+    public function test_it_reconnects_a_known_printer_at_its_saved_baud_rate_before_scanning(): void
+    {
+        config(['app.common_baud_rates' => [9600, 115200]]);
+
+        $manager = $this->bindFakeSerial(new FakeSerialEmulator);
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $logOffset = count($manager->getLog());
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $newMessages = array_column(array_slice($manager->getLog(), $logOffset), 'message');
+
+        $this->assertStringContainsString('Known printer reconnected', Artisan::output());
+        $this->assertNotContains(self::NODE.' connected at 9600 baud', $newMessages);
+        $this->assertSame(1, Printer::count());
+    }
+
+    public function test_it_falls_back_to_full_baud_rate_negotiation_when_the_saved_rate_fails(): void
+    {
+        config(['app.common_baud_rates' => [115200, 250000]]);
+
+        $manager = $this->bindFakeSerial(new FakeSerialEmulator, 115200, [115200, 250000]);
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $printerId = (string) Printer::firstOrFail()->_id;
+
+        $manager->updateSettings(enabled: true, baudRate: 250000);
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $printer = Printer::firstOrFail();
+
+        $this->assertSame($printerId, (string) $printer->_id);
+        $this->assertSame(250000, $printer->baudRate);
+        $this->assertSame(1, Printer::count());
+    }
+
+    public function test_it_regenerates_changed_firmware_information_without_replacing_the_physical_printer(): void
+    {
+        $emulator = $this->mutableIdentityEmulator();
+
+        $this->bindFakeSerial($emulator);
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $printer = Printer::firstOrFail();
+        $printerId = (string) $printer->_id;
+        $printer->cameras = ['camera-a'];
+        $printer->recordableCameras = ['camera-a'];
+        $printer->settings = ['autoScroll' => false];
+        $printer->save();
+
+        $emulator->firmwareName = 'Marlin_UPDATED';
+        $emulator->arcs = true;
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $printer = Printer::firstOrFail();
+
+        $this->assertSame($printerId, (string) $printer->_id);
+        $this->assertSame('Marlin_UPDATED', $printer->machine['firmwareName']);
+        $this->assertTrue($printer->machine['capabilities']['arcs']);
+        $this->assertSame(['camera-a'], $printer->cameras);
+        $this->assertSame(['camera-a'], $printer->recordableCameras);
+        $this->assertSame(['autoScroll' => false], $printer->settings);
+        $this->assertSame(1, Printer::count());
+    }
+
+    public function test_it_creates_a_new_printer_when_the_physical_uuid_changes_at_the_same_node(): void
+    {
+        $emulator = $this->mutableIdentityEmulator();
+
+        $this->bindFakeSerial($emulator);
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $originalPrinter = Printer::firstOrFail();
+        $originalPrinterId = (string) $originalPrinter->_id;
+
+        $emulator->uuid = 'FAKESERIAL-REPLACEMENT';
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $replacement = Printer::where('node', self::NODE)->firstOrFail();
+        $originalPrinter->refresh();
+
+        $this->assertNotSame($originalPrinterId, (string) $replacement->_id);
+        $this->assertStringStartsWith('FAKESERIAL-REPLACEMENT/', $replacement->machine['uuid']);
+        $this->assertNull($originalPrinter->node);
+        $this->assertFalse($originalPrinter->connected);
+        $this->assertSame(2, Printer::count());
+    }
+
+    private function bindFakeSerial(
+        FakeSerialEmulator $emulator,
+        int $baudRate = 115200,
+        array $supportedBaudRates = [115200]
+    ): FakeSerialManager {
+        $manager = new FakeSerialManager(
             cache: new Repository(new ArrayStore),
             emulator: $emulator,
             settings: [
                 'enabled' => true,
                 'node' => self::NODE,
-                'baudRate' => 115200,
-                'supportedBaudRates' => [115200],
+                'baudRate' => $baudRate,
+                'supportedBaudRates' => $supportedBaudRates,
                 'logMaxEntries' => 100,
             ],
-        ));
+        );
+
+        app()->instance(FakeSerialManager::class, $manager);
+
+        return $manager;
+    }
+
+    private function mutableIdentityEmulator(): FakeSerialEmulator
+    {
+        return new class extends FakeSerialEmulator
+        {
+            public string $firmwareName = 'Marlin FAKE_SERIAL_SIM';
+
+            public string $uuid = 'FAKESERIAL-DEV-PRINTER';
+
+            public bool $arcs = false;
+
+            public function transact(string $command, array $state = []): array
+            {
+                $result = parent::transact($command, $state);
+
+                if ($command !== 'M115') {
+                    return $result;
+                }
+
+                foreach ($result['lines'] as &$line) {
+                    $line['text'] = str_replace(
+                        [
+                            'FIRMWARE_NAME:Marlin FAKE_SERIAL_SIM',
+                            'UUID:FAKESERIAL-DEV-PRINTER',
+                            'Cap:ARCS:0',
+                        ],
+                        [
+                            'FIRMWARE_NAME:'.$this->firmwareName,
+                            'UUID:'.$this->uuid,
+                            'Cap:ARCS:'.(int) $this->arcs,
+                        ],
+                        $line['text']
+                    );
+                }
+
+                unset($line);
+
+                return $result;
+            }
+        };
     }
 }
