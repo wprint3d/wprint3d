@@ -97,6 +97,7 @@ jobs:
         run: bash tests/Unit/docker-image-smoke-test.sh
 
       - name: Report image sizes and duration
+        continue-on-error: true
         env:
           IMAGE_TAG: pr-${{ github.event.pull_request.number }}
         run: |
@@ -198,8 +199,10 @@ jobs:
           bash tests/Unit/docker-image-smoke-test.sh
 
       - name: Report compressed image sizes and duration
+        continue-on-error: true
         env:
           IMAGE_TAG: ${{ github.sha }}-${{ matrix.arch }}
+          IMAGE_ARCH: ${{ matrix.arch }}
         run: |
           duration=$(($(date +%s) - BUILD_STARTED))
           {
@@ -209,7 +212,15 @@ jobs:
             echo '| --- | ---: |'
             total_bytes=0
             for image in wprint3d wprint3d-mapper wprint3d-streamer wprint3d-proxy wprint3d-frontend; do
-              bytes=$(docker buildx imagetools inspect --raw "$REGISTRY/$image:$IMAGE_TAG" | jq '[.layers[].size] | add')
+              reference="$REGISTRY/$image:$IMAGE_TAG"
+              manifest=$(docker buildx imagetools inspect --raw "$reference")
+              digest=$(jq -r --arg arch "$IMAGE_ARCH" \
+                '[.manifests[]? | select(.platform.os == "linux" and .platform.architecture == $arch) | .digest][0] // empty' \
+                <<< "$manifest")
+              if [[ -n "$digest" ]]; then
+                manifest=$(docker buildx imagetools inspect --raw "$REGISTRY/$image@$digest")
+              fi
+              bytes=$(jq -er '[.layers[]?.size] | add // 0' <<< "$manifest")
               total_bytes=$((total_bytes + bytes))
               echo "| $image | $(numfmt --to=iec-i --suffix=B "$bytes") |"
             done
