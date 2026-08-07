@@ -41,13 +41,30 @@ class PluginPackager
         $tempDirectory = config('plugins.paths.tmp').'/pack-'.uniqid();
         @mkdir($tempDirectory, 0777, true);
 
-        $this->copyDirectory($sourceDirectory, $tempDirectory);
-        file_put_contents(
-            $tempDirectory.DIRECTORY_SEPARATOR.'plugin.json',
-            json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
-        );
+        if (is_file($outputPath) && ! is_writable($outputPath)) {
+            throw new PluginRuntimeException("Plugin package output file is not writable: {$outputPath}. Remove it, fix its ownership, or pass --output to a writable path.");
+        }
 
-        $this->zipDirectory($tempDirectory, $outputPath);
+        $temporaryOutput = $outputPath.'.part-'.bin2hex(random_bytes(8));
+        try {
+            $this->copyDirectory($sourceDirectory, $tempDirectory);
+            file_put_contents(
+                $tempDirectory.DIRECTORY_SEPARATOR.'plugin.json',
+                json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+            );
+
+            // Build beside the final archive and promote with one same-filesystem
+            // rename so a failed pack never leaves a truncated .w3dp visible.
+            $this->zipDirectory($tempDirectory, $temporaryOutput);
+            if (! rename($temporaryOutput, $outputPath)) {
+                throw new PluginRuntimeException("Unable to promote plugin package: {$outputPath}");
+            }
+        } finally {
+            if (is_file($temporaryOutput)) {
+                @unlink($temporaryOutput);
+            }
+            $this->removeDirectory($tempDirectory);
+        }
 
         return $outputPath;
     }
@@ -109,5 +126,27 @@ class PluginPackager
         }
 
         $zip->close();
+    }
+
+    private function removeDirectory(string $directory): void
+    {
+        if (! is_dir($directory)) {
+            return;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST,
+        );
+
+        foreach ($iterator as $entry) {
+            if ($entry->isDir()) {
+                @rmdir($entry->getPathname());
+            } else {
+                @unlink($entry->getPathname());
+            }
+        }
+
+        @rmdir($directory);
     }
 }

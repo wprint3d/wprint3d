@@ -52,5 +52,20 @@ class RouteServiceProvider extends ServiceProvider
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
+
+        RateLimiter::for('plugin-runtime', function (Request $request) {
+            $pluginId = (string) ($request->route('pluginId') ?? 'unknown');
+            $contentType = strtolower((string) $request->header('content-type', ''));
+            $isArtifact = str_contains((string) $request->path(), 'runtime-artifacts/');
+            $isUpload = str_starts_with($contentType, 'multipart/form-data')
+                || in_array(strtoupper($request->method()), ['POST', 'PUT', 'PATCH'], true);
+            $limit = $isArtifact
+                ? (int) config('plugins.runtime.proxy_rate_limits.artifact_per_minute', 30)
+                : ($isUpload
+                    ? (int) config('plugins.runtime.proxy_rate_limits.upload_per_minute', 10)
+                    : (int) config('plugins.runtime.proxy_rate_limits.metadata_per_minute', 120));
+
+            return Limit::perMinute(max(1, $limit))->by(($request->user()?->getAuthIdentifier() ?? $request->ip()).':'.$pluginId);
+        });
     }
 }

@@ -1,0 +1,152 @@
+name: Sign Cura Web UI W3DP
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_archive_url:
+        description: HTTPS URL of the exact unsigned Cura W3DP source tarball
+        required: true
+        type: string
+      source_archive_sha256:
+        description: SHA-256 of the unsigned source tarball
+        required: true
+        type: string
+      plugin_version:
+        description: Expected Cura plugin semver
+        required: true
+        type: string
+      image_reference:
+        description: Exact digest-pinned gateway image in the staged manifest
+        required: true
+        type: string
+      minimum_wprint_core_version:
+        description: First WPrint core version supporting SDK revision 5
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cura-w3dp-signing
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    name: Protected Cura W3DP signing
+    runs-on: ubuntu-24.04
+    environment:
+      name: wprint-release-signing
+    steps:
+      - name: Checkout WPrint toolchain
+        uses: actions/checkout@v4
+
+      - name: Set up PHP and Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl,dom,fileinfo,intl,mbstring,mongodb,pcntl,pdo,pdo_mysql,redis,zip
+          tools: composer:v2
+
+      - name: Install pinned WPrint packager
+        run: composer install --no-dev --no-interaction --no-progress --prefer-dist --no-scripts
+
+      - name: Validate release inputs
+        env:
+          SOURCE_ARCHIVE_URL: ${{ inputs.source_archive_url }}
+          SOURCE_ARCHIVE_SHA256: ${{ inputs.source_archive_sha256 }}
+          PLUGIN_VERSION: ${{ inputs.plugin_version }}
+          IMAGE_REFERENCE: ${{ inputs.image_reference }}
+          MINIMUM_WPRINT_CORE_VERSION: ${{ inputs.minimum_wprint_core_version }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_ARCHIVE_URL" == https://* ]] || { echo 'Source archive must use HTTPS.' >&2; exit 1; }
+          [[ "$SOURCE_ARCHIVE_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo 'Invalid source archive SHA-256.' >&2; exit 1; }
+          [[ "$PLUGIN_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || { echo 'Invalid plugin version.' >&2; exit 1; }
+          [[ "$IMAGE_REFERENCE" =~ @sha256:[a-f0-9]{64}$ ]] || { echo 'Image reference must end in an immutable digest.' >&2; exit 1; }
+          [[ "$MINIMUM_WPRINT_CORE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || { echo 'Invalid minimum WPrint core version.' >&2; exit 1; }
+          [[ "$MINIMUM_WPRINT_CORE_VERSION" != 0.0.0 ]] || { echo 'Release minimum WPrint core version cannot be the development placeholder.' >&2; exit 1; }
+
+      - name: Download exact unsigned stage
+        env:
+          SOURCE_ARCHIVE_URL: ${{ inputs.source_archive_url }}
+          SOURCE_ARCHIVE_SHA256: ${{ inputs.source_archive_sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cura-signing/source"
+          curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --retry-all-errors \
+            "$SOURCE_ARCHIVE_URL" -o "$RUNNER_TEMP/cura-signing/source.tar.gz"
+          printf '%s  %s\n' "${SOURCE_ARCHIVE_SHA256,,}" "$RUNNER_TEMP/cura-signing/source.tar.gz" | sha256sum --check --status
+          python3 scripts/validate-plugin-source-archive.py "$RUNNER_TEMP/cura-signing/source.tar.gz"
+          tar --extract --gzip --file "$RUNNER_TEMP/cura-signing/source.tar.gz" \
+            --directory "$RUNNER_TEMP/cura-signing/source" --strip-components=1 --no-same-owner
+
+      - name: Verify staged manifest identity before signing
+        env:
+          PLUGIN_VERSION: ${{ inputs.plugin_version }}
+          IMAGE_REFERENCE: ${{ inputs.image_reference }}
+          MINIMUM_WPRINT_CORE_VERSION: ${{ inputs.minimum_wprint_core_version }}
+        run: |
+          set -euo pipefail
+          php -r '
+            $manifest = json_decode(file_get_contents($argv[1]), true, 32, JSON_THROW_ON_ERROR);
+            if (($manifest["id"] ?? null) !== "cura-web-ui" || ($manifest["version"] ?? null) !== getenv("PLUGIN_VERSION")) {
+                throw new RuntimeException("Unexpected Cura plugin identity or version.");
+            }
+            if (($manifest["images"][0]["image"] ?? null) !== getenv("IMAGE_REFERENCE")) {
+                throw new RuntimeException("Staged manifest image does not match the release input.");
+            }
+            if (($manifest["minCoreVersion"] ?? null) !== getenv("MINIMUM_WPRINT_CORE_VERSION")) {
+                throw new RuntimeException("Staged manifest minimum WPrint core version does not match the release input.");
+            }
+            if (($manifest["signature"]["algorithm"] ?? "none") !== "none") {
+                throw new RuntimeException("Signing input must be an unsigned staging manifest.");
+            }
+          ' "$RUNNER_TEMP/cura-signing/source/plugin.json"
+
+      - name: Sign with protected ephemeral key
+        env:
+          SIGNING_PRIVATE_KEY: ${{ secrets.CURA_W3DP_SIGNING_PRIVATE_KEY }}
+          SIGNING_PASSPHRASE: ${{ secrets.CURA_W3DP_SIGNING_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SIGNING_PRIVATE_KEY" ]] || { echo 'CURA_W3DP_SIGNING_PRIVATE_KEY is required.' >&2; exit 1; }
+          key_path="$RUNNER_TEMP/cura-signing/signing-key.pem"
+          passphrase_path="$RUNNER_TEMP/cura-signing/passphrase.txt"
+          public_path="$RUNNER_TEMP/cura-signing/signer-public.pem"
+          printf '%s\n' "$SIGNING_PRIVATE_KEY" > "$key_path"
+          printf '%s' "$SIGNING_PASSPHRASE" > "$passphrase_path"
+          chmod 600 "$key_path" "$passphrase_path"
+          if [[ -n "$SIGNING_PASSPHRASE" ]]; then
+            openssl pkey -in "$key_path" -passin "file:$passphrase_path" -pubout -out "$public_path"
+          else
+            openssl pkey -in "$key_path" -pubout -out "$public_path"
+          fi
+          php artisan plugin:pack "$RUNNER_TEMP/cura-signing/source" \
+            --output "$RUNNER_TEMP/cura-signing/cura-web-ui.w3dp" \
+            --signing-key "$key_path" --passphrase-file "$passphrase_path"
+
+      - name: Verify signature, trust, and archive integrity
+        run: |
+          set -euo pipefail
+          export PLUGIN_TRUSTED_PUBLIC_KEYS="$RUNNER_TEMP/cura-signing/signer-public.pem"
+          php artisan plugin:verify "$RUNNER_TEMP/cura-signing/cura-web-ui.w3dp" --require-trusted
+          sha256sum "$RUNNER_TEMP/cura-signing/cura-web-ui.w3dp" > "$RUNNER_TEMP/cura-signing/cura-web-ui.w3dp.sha256"
+          unzip -p "$RUNNER_TEMP/cura-signing/cura-web-ui.w3dp" plugin.json > "$RUNNER_TEMP/cura-signing/plugin.json"
+          php -r '
+            $manifest = json_decode(file_get_contents($argv[1]), true, 32, JSON_THROW_ON_ERROR);
+            if (($manifest["signature"]["algorithm"] ?? "none") === "none") throw new RuntimeException("Signing produced an unsigned package.");
+            $fingerprint = strtolower((string)($manifest["signature"]["publicKeySha256"] ?? ""));
+            if (!preg_match("~^[a-f0-9]{64}$~", $fingerprint)) throw new RuntimeException("Signed package has no valid signer fingerprint.");
+          ' "$RUNNER_TEMP/cura-signing/plugin.json"
+
+      - name: Publish signed package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cura-web-ui-${{ inputs.plugin_version }}-signed-w3dp
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/cura-signing/cura-web-ui.w3dp
+            ${{ runner.temp }}/cura-signing/cura-web-ui.w3dp.sha256
+            ${{ runner.temp }}/cura-signing/plugin.json
+            ${{ runner.temp }}/cura-signing/signer-public.pem

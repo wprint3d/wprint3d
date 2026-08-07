@@ -78,6 +78,10 @@ const buildEmbeddedUiUrl = (rawUrl, extension, colors, effectiveLanguage) => {
   resolvedUrl.searchParams.set("pluginApiBase", `/backend/api/plugins/${extension.pluginId}`);
   resolvedUrl.searchParams.set("pluginSettingsBase", `/backend/api/plugins/${extension.pluginId}/settings`);
   resolvedUrl.searchParams.set("pluginStateBase", `/backend/api/plugins/${extension.pluginId}/state`);
+  resolvedUrl.searchParams.set("pluginRuntimeBase", `/backend/api/plugins/${extension.pluginId}/runtime`);
+  resolvedUrl.searchParams.set("pluginArtifactImportBase", `/backend/api/plugins/${extension.pluginId}/runtime-artifacts`);
+  resolvedUrl.searchParams.set("pluginHostContextBase", `/backend/api/plugins/${extension.pluginId}/host-context`);
+  resolvedUrl.searchParams.set("hostMode", "embedded");
   resolvedUrl.searchParams.set("octoPrintCompatUrl", "/backend/api/plugins/sdk/octoprint-compat.js");
   resolvedUrl.searchParams.set("currentPrinterId", extension.currentPrinterId || "");
   resolvedUrl.searchParams.set("components", JSON.stringify(extension.pluginManifest?.components || []));
@@ -1372,6 +1376,14 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
       colors,
       effectiveLanguage
     );
+
+    if (extension.surface === "page") {
+      return embeddedUrl ? (
+        <View style={{ width: "100%", minHeight: 720, flex: 1 }}>
+          <EmbeddedBrowserFrame uri={embeddedUrl} minHeight={720} fitContentHeight={false} />
+        </View>
+      ) : null;
+    }
 
     return (
       <Card style={{ marginBottom: 12, overflow: "hidden" }}>

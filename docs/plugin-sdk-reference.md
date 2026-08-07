@@ -5,7 +5,7 @@
 Current SDK pair:
 
 - `sdkVersion: 1`
-- `sdkRevision: 4`
+- `sdkRevision: 5`
 
 `sdkVersion` is the API level.
 
@@ -270,6 +270,20 @@ Or, for a host-managed bridge service:
 }
 ```
 
+Revision 5 managed bridges may declare host-mediated authentication and a same-origin proxy:
+
+```json
+"runtime": {
+  "type": "bridge",
+  "managedImageId": "cura-gateway",
+  "healthcheck": "/api/v1/health",
+  "auth": { "mode": "wprint-bridge" },
+  "proxy": { "enabled": true, "allowedPaths": ["/api/v1"] }
+}
+```
+
+The host creates and encrypts the bridge token, injects it only into the managed container, and forwards trusted user context through the proxy. The browser receives only same-origin host URLs; it never receives the container URL or token.
+
 The host performs:
 
 - `GET /health` when enabling the plugin
@@ -312,7 +326,7 @@ Manifest:
 "images": [
   {
     "id": "metrics-service",
-    "image": "ghcr.io/acme/metrics-service:1.2.3",
+    "image": "ghcr.io/acme/metrics-service:1.2.3@sha256:<64-hex-digest>",
     "engine": "auto",
     "healthcheck": {
       "command": ["curl", "-f", "http://127.0.0.1:9310/health"],
@@ -320,7 +334,11 @@ Manifest:
     },
     "service": {
       "port": 9310,
-      "networkAlias": "acme-metrics"
+      "networkAlias": "acme-metrics",
+      "storage": [{ "name": "data", "target": "/data" }],
+      "resources": { "memoryMb": 2048, "cpuQuota": 100000, "pidsLimit": 256 },
+      "security": { "readOnlyRootFs": true, "noNewPrivileges": true, "capDrop": ["ALL"], "user": "10001:10001", "tmpfs": [{ "path": "/tmp", "sizeMb": 1024 }] },
+      "stopGracePeriodSecs": 30
     }
   }
 ]
@@ -332,8 +350,20 @@ Rules:
 - Any declared image makes the plugin `heavyweight`.
 - Install/update pulls declared images automatically.
 - `healthcheck.command` is optional.
-- `requirements.memoryMb` and `requirements.cpuCores` are advisory host checks that surface warnings in the UI when the current system is below the plugin's declared minimum target.
+- `requirements.memoryMb`, `requirements.cpuCores`, and `requirements.diskMb` are advisory host checks that surface warnings in the UI when the current system is below the plugin's declared minimum target; disk is checked when free-space metrics are available.
+- Revision 5 service storage is restricted to private named volumes mounted below `/data`; host paths, Docker sockets, USB devices, and arbitrary bind mounts are not accepted.
+- Storage may use the compact `{mountPath, retainOnUninstall}` form or the expanded mount array; WPrint normalizes both forms, permits at most one writable mount, and preserves the retention flag in runtime state.
+- Revision 5 image references must be immutable OCI references ending in `@sha256:<64-hex>`. Mutable tags such as `:latest` are not accepted for managed dependencies.
+- Revision 5 managed services cannot select a Docker network. WPrint resolves the configured/current plugin-capable network; manifests may declare only the service port and network alias and cannot request host/none/foreign networks.
+- Revision 5 service resource/security settings are enforced by the host Docker runner. Runtime changes are identified by a spec fingerprint and cause safe container recreation.
+- Host limits reject, rather than silently clamp, pull timeouts, memory, CPU quota, PID count, tmpfs size, and capability drops outside the configured allowlists. `cpuCores`/`pids` are accepted aliases and normalize to the host runner's `cpuQuota`/`pidsLimit` fields.
+- `service.stopGracePeriodSecs` controls the bounded Docker stop timeout during replacement; `security.user` accepts a numeric `uid[:gid]` and is enforced with `docker run --user`.
+- `security.tmpfs` may declare `/tmp` or `/run`; its size is bounded by the host `plugins.container.max_tmpfs_mb` limit (4,096 MB by default). A read-only service without a declaration receives the safe 256 MB fallback.
+- Image healthchecks execute with an explicit `--entrypoint` override, `--network none`, a read-only root, and a bounded temporary filesystem so an image entrypoint cannot reinterpret the check command.
 - `runtime.managedImageId` can point at an image with `service.port` so WPrint 3D can run a self-contained bridge sidecar.
+- Revision-5 manifests may use `runtime.httpProxy` as the declarative form of the host proxy; WPrint normalizes its path prefix/methods into the internal proxy policy, bounds request/stream timeouts, and enforces the declared multipart ceiling. WebSocket upgrades are rejected in favor of polling. `runtime.artifactImports` declares anchored server-to-server artifact patterns and host-bounded content types/sizes.
+- Runtime proxy routes use separate host rate-limit buckets for metadata/polling, uploads/job creation, and artifact imports; throttled responses retain Laravel's `429`/`Retry-After` contract.
+- Signed revision-5 W3DP packages include `integrity: { algorithm: "sha256", files: { ... } }`; the map must cover exactly every staged asset file and cannot contain paths outside declared assets.
 
 ## OctoPrint Compatibility Layer
 
@@ -789,6 +819,13 @@ Action calls are always host-mediated:
 - `php artisan plugin:remove`
 - `php artisan plugin:update`
 - `php artisan plugin:doctor`
+
+Built-in packages are host-owned release artifacts. The production image reads
+`resources/plugins/builtin/index.json`; it verifies the archive path, SHA-256,
+manifest identity/version, and trusted signature before installing. Release
+staging uses `scripts/stage-builtin-plugin.sh` with an immutable signed `.w3dp`.
+An empty inventory is valid for development images and does not contact the
+Marketplace.
 
 `plugin:make` is now interactive and can scaffold any runtime/UI shape plus optional heavyweight image metadata. Use `--shape`, `--image`, `--memory`, and `--cpu` when you want a fully non-interactive generator.
 `plugin:pack <plugin-path>` writes to `<plugin-path>/builds/<plugin-dir>.w3dp` by default. Use `--output` only when you need a custom location.

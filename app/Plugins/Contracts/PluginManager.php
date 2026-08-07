@@ -3,6 +3,7 @@
 namespace App\Plugins\Contracts;
 
 use App\Models\Plugin;
+use App\Models\User;
 
 interface PluginManager
 {
@@ -59,6 +60,11 @@ interface PluginManager
     public function runAutomaticUpdates(): array;
 
     public function listUiExtensions(?string $surface = null): array;
+
+    /**
+     * Return the least-privilege, browser-safe context for an embedded plugin UI.
+     */
+    public function hostContext(string $pluginId, ?User $user = null, ?string $locale = null): array;
 
     public function invokeAction(string $pluginId, string $actionId, array $payload = [], array $context = []): array;
 

@@ -23,6 +23,7 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
     const [ isFabOpen,  setIsFabOpen  ] = useState(false);
     const [ isFetching, setIsFetching ] = useState(false);
     const [ isDeleting, setIsDeleting ] = useState(false);
+    const [ includePluginDiagnostics, setIncludePluginDiagnostics ] = useState(false);
     const [ sorting,    setSorting    ] = useState('ascending');
 
     const [ previewWrap, setPreviewWrap ] = useState(true);
@@ -153,7 +154,10 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
     const handleBatchDownload = async () => {
         console.debug('NavBarMenuSettingsModalDeveloperLogging: handleBatchDownload', logs);
 
-        const file = await fetchFileOrFail('/developer/logs/zip', { files: selectedLogs });
+        const file = await fetchFileOrFail('/developer/logs/zip', {
+            files: selectedLogs,
+            includePlugins: includePluginDiagnostics,
+        });
 
         if (file === null) { return; }
 
@@ -232,6 +236,14 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
             <Text style={{ textAlign: 'center', paddingVertical: 24 }}>
                 {t("plugins.developerLoggingDescription")}
             </Text>
+
+            <Checkbox.Item
+                label={t("plugins.includePluginDiagnostics")}
+                status={includePluginDiagnostics ? 'checked' : 'unchecked'}
+                onPress={() => setIncludePluginDiagnostics((current) => !current)}
+                accessibilityLabel={t("plugins.includePluginDiagnostics")}
+                style={{ alignSelf: 'center', maxWidth: 520 }}
+            />
 
             <DataTable style={{ flexGrow: 1, overflow: 'scroll' }}>
                 <DataTable.Header>
@@ -327,7 +339,7 @@ const NavBarMenuSettingsModalDeveloperLogging = ({ isSmallTablet, isSmallLaptop,
 
                                 setIsFabOpen(false);
 
-                                if (selectedLogs.length === 1) {
+                                if (selectedLogs.length === 1 && !includePluginDiagnostics) {
                                     handleLogDownload(selectedLogs[0]);
 
                                     return;

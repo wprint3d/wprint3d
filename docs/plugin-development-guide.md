@@ -101,7 +101,7 @@ Legacy ids like `section`, `text`, `button`, `progress_cluster`, and `remote_com
   "name": "Hello World",
   "version": "0.1.0",
   "sdkVersion": 1,
-  "sdkRevision": 4,
+  "sdkRevision": 5,
   "homepageUrl": "https://github.com/acme/hello-world-plugin",
   "documentationUrl": "https://github.com/acme/hello-world-plugin#readme",
   "sourceUrl": "https://github.com/acme/hello-world-plugin",
@@ -144,7 +144,7 @@ Legacy ids like `section`, `text`, `button`, `progress_cluster`, and `remote_com
   "images": [
     {
       "id": "metrics-service",
-      "image": "ghcr.io/acme/metrics-service:1.2.3",
+      "image": "ghcr.io/acme/metrics-service:1.2.3@sha256:<64-hex-digest>",
       "engine": "auto",
       "healthcheck": {
         "command": ["php", "-v"],
@@ -242,8 +242,10 @@ The scaffold is now interactive by default. It prompts for:
 You can still use it non-interactively:
 
 ```bash
-./plugin.sh make acme.hello-world "Hello World" --shape=bridge-custom-bundle --image=ghcr.io/acme/hello-world-service:latest --memory=1024 --cpu=2
+./plugin.sh make acme.hello-world "Hello World" --shape=bridge-custom-bundle --image=ghcr.io/acme/hello-world-service:0.1.0@sha256:0000000000000000000000000000000000000000000000000000000000000000 --memory=1024 --cpu=2
 ```
+
+Replace the all-zero digest with the digest resolved from the registry before installing the scaffold; revision-5 WPrint rejects mutable or placeholder image references at install time.
 
 The scaffold emits the current SDK pair:
 
@@ -478,7 +480,7 @@ Heavyweight plugins declare image dependencies in the manifest:
 "images": [
   {
     "id": "metrics-service",
-    "image": "ghcr.io/acme/metrics-service:1.2.3",
+    "image": "ghcr.io/acme/metrics-service:1.2.3@sha256:<64-hex-digest>",
     "engine": "auto",
     "healthcheck": {
       "command": ["curl", "-f", "http://127.0.0.1:9310/health"],
@@ -486,7 +488,9 @@ Heavyweight plugins declare image dependencies in the manifest:
     },
     "service": {
       "port": 9310,
-      "networkAlias": "acme-metrics"
+      "networkAlias": "acme-metrics",
+      "security": { "readOnlyRootFs": true, "noNewPrivileges": true, "capDrop": ["ALL"], "user": "10001:10001", "tmpfs": [{ "path": "/tmp", "sizeMb": 1024 }] },
+      "stopGracePeriodSecs": 30
     }
   }
 ]
@@ -497,6 +501,9 @@ Notes:
 - `images` is optional. No images means the plugin is `lightweight`.
 - `engine` can be `auto` or `docker`.
 - `healthcheck.command` is optional but recommended for heavyweight plugins.
+- The first healthcheck command element is executed as an explicit container entrypoint in an isolated read-only check container; it has no network by default.
+- `service.stopGracePeriodSecs` bounds replacement shutdown, and `service.security.user` can pin a numeric `uid[:gid]` for the managed container.
+- `service.security.tmpfs` can tune the `/tmp` filesystem within the host-configured maximum; arbitrary tmpfs paths are rejected.
 - `requirements` is optional. If omitted, WPrint 3D will still install the plugin and try to run it.
 - If requirements are declared and the host falls short, install still succeeds, but the UI shows warnings so the user can make an informed decision.
 

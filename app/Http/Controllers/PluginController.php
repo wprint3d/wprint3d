@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Plugins\Contracts\PluginManager;
 use App\Plugins\Exceptions\PluginRuntimeException;
+use App\Plugins\PluginDependencyService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -22,12 +23,12 @@ class PluginController extends Controller
 
     public function index(): array
     {
-        return $this->pluginManager->listInstalled();
+        return array_map(fn (array $plugin) => $this->browserSafePayload($plugin), $this->pluginManager->listInstalled());
     }
 
     public function show(string $pluginId): array
     {
-        return $this->pluginManager->get($pluginId);
+        return $this->browserSafePayload($this->pluginManager->get($pluginId));
     }
 
     public function preferences(): array
@@ -127,13 +128,13 @@ class PluginController extends Controller
                 throw ValidationException::withMessages(['package' => __('server.plugins.invalid_upload')]);
             }
 
-            return $this->pluginManager->installFromArchive($file->getRealPath(), 'local_upload', [
+            return $this->browserSafePayload($this->pluginManager->installFromArchive($file->getRealPath(), 'local_upload', [
                 'original_name' => $file->getClientOriginalName(),
-            ]);
+            ]));
         }
 
         if ($request->filled('url')) {
-            return $this->pluginManager->installFromUrl($request->string('url')->toString());
+            return $this->browserSafePayload($this->pluginManager->installFromUrl($request->string('url')->toString()));
         }
 
         if ($request->filled('unpackedPath')) {
@@ -141,15 +142,15 @@ class PluginController extends Controller
                 throw new AuthorizationException(__('server.plugins.unpacked_install_development_only'));
             }
 
-            return $this->pluginManager->installFromDevelopmentPath($request->string('unpackedPath')->toString());
+            return $this->browserSafePayload($this->pluginManager->installFromDevelopmentPath($request->string('unpackedPath')->toString()));
         }
 
         if ($request->filled('pluginId')) {
-            return $this->pluginManager->installFromRegistry(
+            return $this->browserSafePayload($this->pluginManager->installFromRegistry(
                 pluginId: $request->string('pluginId')->toString(),
                 version: $request->filled('version') ? $request->string('version')->toString() : null,
                 sourceId: $request->filled('sourceId') ? $request->string('sourceId')->toString() : null,
-            );
+            ));
         }
 
         throw ValidationException::withMessages([
@@ -159,12 +160,12 @@ class PluginController extends Controller
 
     public function enable(string $pluginId): array
     {
-        return $this->pluginManager->enable($pluginId);
+        return $this->browserSafePayload($this->pluginManager->enable($pluginId));
     }
 
     public function disable(string $pluginId): array
     {
-        return $this->pluginManager->disable($pluginId);
+        return $this->browserSafePayload($this->pluginManager->disable($pluginId));
     }
 
     public function delete(string $pluginId): Response
@@ -174,35 +175,79 @@ class PluginController extends Controller
         return response('', Response::HTTP_NO_CONTENT);
     }
 
+    public function deleteRuntimeStorage(string $pluginId, Request $request, PluginDependencyService $dependencyService): array
+    {
+        $validated = $request->validate([
+            'expectedVolume' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9][a-z0-9._-]*$/'],
+        ]);
+        $plugin = $this->pluginManager->findModel($pluginId);
+
+        if (! $plugin) {
+            abort(Response::HTTP_NOT_FOUND, 'Plugin is not installed.');
+        }
+
+        if ($plugin->enabled) {
+            abort(Response::HTTP_CONFLICT, 'Disable the plugin before deleting retained runtime storage.');
+        }
+
+        $payload = [
+            'id' => $plugin->plugin_id,
+            'manifest' => is_array($plugin->manifest) ? $plugin->manifest : [],
+        ];
+        $expectedVolume = $validated['expectedVolume'];
+        if (! in_array($expectedVolume, $dependencyService->persistentStorageNames($payload), true)) {
+            abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'The requested volume is not managed by this WPrint plugin.');
+        }
+
+        $deleted = $dependencyService->deletePersistentStorage($payload);
+
+        return [
+            'pluginId' => $plugin->plugin_id,
+            'expectedVolume' => $expectedVolume,
+            'deletedVolumes' => $deleted,
+        ];
+    }
+
     public function update(string $pluginId): array
     {
-        return $this->pluginManager->update($pluginId);
+        return $this->browserSafePayload($this->pluginManager->update($pluginId));
     }
 
     public function checkUpdates(): array
     {
-        return $this->pluginManager->checkForPluginUpdates(false);
+        return $this->browserSafePayload($this->pluginManager->checkForPluginUpdates(false));
     }
 
     public function updateAll(): array
     {
-        return $this->pluginManager->updateAllPlugins(false);
+        return $this->browserSafePayload($this->pluginManager->updateAllPlugins(false));
     }
 
     public function disableAll(): array
     {
-        return $this->pluginManager->disableAll();
+        return $this->browserSafePayload($this->pluginManager->disableAll());
     }
 
     public function enableAll(): array
     {
-        return $this->pluginManager->enableAll();
+        return $this->browserSafePayload($this->pluginManager->enableAll());
     }
 
     public function ui(Request $request): array
     {
         return $this->pluginManager->listUiExtensions(
             $request->filled('surface') ? $request->string('surface')->toString() : null
+        );
+    }
+
+    public function hostContext(string $pluginId, Request $request): array
+    {
+        $user = $request->user();
+
+        return $this->pluginManager->hostContext(
+            pluginId: $pluginId,
+            user: $user instanceof \App\Models\User ? $user : null,
+            locale: $request->getPreferredLanguage(['en', 'es']) ?: null,
         );
     }
 
@@ -264,6 +309,47 @@ class PluginController extends Controller
     private function developmentMountPath(bool $includeImplicitRoots = true): ?string
     {
         return $this->developmentMountPaths($includeImplicitRoots)[0] ?? null;
+    }
+
+    /**
+     * Manager payloads also serve internal lifecycle calls, so they contain
+     * runtime state that must never cross the HTTP/browser boundary.
+     */
+    private function browserSafePayload(mixed $payload): mixed
+    {
+        if (! is_array($payload)) {
+            return $payload;
+        }
+
+        $redactedKeys = [
+            'authTokenCiphertext',
+            'baseUrl',
+            'socketPath',
+            'runtimePath',
+            'runtime_path',
+            'storagePath',
+            'storage_path',
+            'dependency_state',
+            'networkName',
+            'containerName',
+            'candidateContainerName',
+            'candidateNetworkAlias',
+            'canonicalContainerName',
+            'canonicalNetworkAlias',
+            'configFingerprint',
+        ];
+
+        foreach ($payload as $key => $value) {
+            if (in_array((string) $key, $redactedKeys, true)) {
+                unset($payload[$key]);
+
+                continue;
+            }
+
+            $payload[$key] = is_array($value) ? $this->browserSafePayload($value) : $value;
+        }
+
+        return $payload;
     }
 
     private function developmentModeEnabled(): bool

@@ -43,6 +43,7 @@ class PluginStateStore
         foreach ($patch as $key => $value) {
             if (is_array($value) && is_array($current[$key] ?? null)) {
                 $current[$key] = $this->mergeState($current[$key], $value);
+
                 continue;
             }
 

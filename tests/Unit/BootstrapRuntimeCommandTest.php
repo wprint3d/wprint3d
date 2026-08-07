@@ -118,4 +118,40 @@ class BootstrapRuntimeCommandTest extends TestCase
 
         @unlink($contextFile);
     }
+
+    public function test_bootstrap_can_disable_runtime_reconciliation_without_disabling_builtin_installation(): void
+    {
+        config()->set('plugins.rollout.runtime_reconcile_enabled', false);
+
+        $command = new class extends BootstrapRuntime
+        {
+            public array $calls = [];
+
+            protected function callNestedCommand(string $command, array $parameters = []): int
+            {
+                $this->calls[] = [$command, $parameters];
+
+                return Command::SUCCESS;
+            }
+
+            protected function currentMachineUuid(): string
+            {
+                return 'existing-machine-uuid';
+            }
+
+            protected function isDeveloperMode(): bool
+            {
+                return false;
+            }
+
+            protected function shouldBootstrapPluginRuntime(): bool
+            {
+                return true;
+            }
+        };
+
+        $this->assertSame(Command::SUCCESS, $command->bootstrap(true, false));
+        $this->assertContains(['plugin:install-builtins', []], $command->calls);
+        $this->assertNotContains(['plugin:reconcile-runtime', []], $command->calls);
+    }
 }

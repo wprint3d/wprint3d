@@ -4,10 +4,15 @@ namespace App\Plugins\Runtimes;
 
 use App\Plugins\Contracts\PluginRuntimeAdapter;
 use App\Plugins\Exceptions\PluginRuntimeException;
-use Illuminate\Support\Facades\Http;
+use App\Plugins\Runtime\PluginRuntimeHttpClient;
 
 class BridgePluginRuntimeAdapter implements PluginRuntimeAdapter
 {
+    public function __construct(private ?PluginRuntimeHttpClient $httpClient = null)
+    {
+        $this->httpClient ??= new PluginRuntimeHttpClient;
+    }
+
     public function supports(string $runtimeType): bool
     {
         return $runtimeType === 'bridge';
@@ -47,13 +52,11 @@ class BridgePluginRuntimeAdapter implements PluginRuntimeAdapter
         $baseUrl = $runtime['baseUrl'] ?? null;
         $path = $runtime['healthcheck'] ?? '/health';
 
-        if (!$baseUrl) {
+        if (! $baseUrl) {
             throw new PluginRuntimeException('Bridge plugin is missing runtime.baseUrl.');
         }
 
-        Http::timeout(config('plugins.runtime.bridge_timeout_secs', 5))
-            ->baseUrl($baseUrl)
-            ->get($path)
+        $this->httpClient->get($plugin, $path)
             ->throw();
     }
 
@@ -62,13 +65,11 @@ class BridgePluginRuntimeAdapter implements PluginRuntimeAdapter
         $runtime = $plugin['manifest']['runtime'] ?? [];
         $baseUrl = $runtime['baseUrl'] ?? null;
 
-        if (!$baseUrl) {
+        if (! $baseUrl) {
             throw new PluginRuntimeException('Bridge plugin is missing runtime.baseUrl.');
         }
 
-        $response = Http::timeout(config('plugins.runtime.bridge_timeout_secs', 5))
-            ->baseUrl($baseUrl)
-            ->post($path, $payload);
+        $response = $this->httpClient->post($plugin, $path, $payload);
 
         $response->throw();
 

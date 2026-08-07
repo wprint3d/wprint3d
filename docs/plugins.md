@@ -12,7 +12,7 @@ WPrint 3D's plugin platform supports:
 Current SDK target:
 
 - `sdkVersion: 1`
-- `sdkRevision: 4`
+- `sdkRevision: 5`
 
 ## Read This First
 
@@ -81,6 +81,64 @@ Enable `developerMode` in Settings, then open `Settings -> Plugins -> Add a plug
 
 Production backend images do not bundle `examples/plugins`. That keeps the shipped runtime smaller and avoids publishing demonstration packages in production images. If you want the sample plugins, use the development stack or a source checkout.
 
+## Built-in release staging
+
+Built-in packages are host-owned release artifacts. The production image reads
+`resources/plugins/builtin/index.json`; each descriptor contains a relative
+archive path, exact SHA-256, plugin version, and rollout policy. The source
+checkout intentionally contains an empty inventory and no production `.w3dp`
+binary.
+
+For a WPrint release candidate, stage the exact signed Cura artifact before the
+Docker build:
+
+```bash
+bash scripts/stage-builtin-plugin.sh \
+  --archive release/cura-web-ui-0.1.0.w3dp \
+  --expected-plugin-id cura-web-ui \
+  --expected-version 0.1.0 \
+  --expected-sha256 <sha256> \
+  --destination resources/plugins/builtin/archives/cura-web-ui-0.1.0.w3dp \
+  --compatibility-record release/compatibility.json
+php artisan plugin:verify-builtins
+```
+
+The staging command requires a trusted signer, verifies the package with
+`plugin:verify --require-trusted`, writes the inventory atomically, and rejects
+mutable or traversal paths. Development images may keep the inventory empty.
+When a compatibility record is supplied, staging and host startup require its
+schema, plugin/SDK identity, archive checksum and filename, minimum WPrint core
+version, canonical digest-pinned image, and both `linux/amd64` and `linux/arm64`
+platform declarations to match the signed manifest.
+
+Uninstall keeps managed named volumes by default. Administrators can inspect
+the retained volume identities through `GET /api/plugins/doctor` and delete a
+specific WPrint-managed volume through
+`DELETE /api/plugins/{pluginId}/runtime-storage?expectedVolume=...` after the
+plugin is disabled. The endpoint rejects enabled plugins and volume names that
+do not match the plugin manifest; it never accepts an arbitrary Docker volume.
+See [docs/plugin-runtime-backup-and-recovery.md](plugin-runtime-backup-and-recovery.md)
+for the backup boundary, diagnostics, restore sequence, and data-loss warning.
+The administrator developer-log download can optionally add
+`wprint3d/plugin-support.json`; this metadata-only file contains sanitized
+plugin manifests, lifecycle logs, built-in inventory, runtime diagnostics, and
+(for an enabled heavyweight plugin) the gateway's authenticated build/readiness
+snapshot. It never includes uploaded meshes, G-code, tokens, or host paths; a
+stopped gateway is recorded as unavailable.
+
+The production Docker workflow exposes this same process only through an
+explicit `workflow_dispatch`. It requires HTTPS URLs and SHA-256 values for the
+exact `.w3dp` and compatibility record, plus the
+`CURA_W3DP_SIGNER_PUBLIC_KEY` repository secret. The workflow verifies both
+downloads, stages the archive, runs `plugin:verify-builtins`, and copies the
+resulting inventory into every architecture build. Pushes and pull requests do
+not download release artifacts and intentionally retain an empty built-in
+inventory.
+
+The signed archive is produced by the protected WPrint signing workflow after
+Cura's multi-architecture workflow emits its unsigned source handoff. WPrint
+does not accept an unsigned package for built-in staging.
+
 ## Registry And Trust
 
 - Official packages come from the GitHub-backed official registry.
@@ -97,7 +155,8 @@ Production backend images do not bundle `examples/plugins`. That keeps the shipp
 - `sdkVersion` selects the API level.
 - `sdkRevision` selects the contract revision within that API level.
 - `images` makes a plugin `heavyweight`; no declared images means it stays `lightweight`.
-- `requirements.memoryMb` and `requirements.cpuCores` are advisory install-time host checks.
+- `requirements.memoryMb`, `requirements.cpuCores`, and `requirements.diskMb` are advisory install-time host checks; disk is compared with free space when the host can report it.
+- Revision-5-only runtime, storage, security, proxy, artifact-import, workspace, and integrity fields are rejected by legacy revisions instead of being silently reinterpreted.
 - `runtime.managedImageId` lets a bridge plugin ask WPrint 3D to start one of its declared service images automatically.
 - WebView and custom-bundle assets should be declared under `assets` and referenced with `asset://...`.
 - Declarative UI can mount `remote_component` definitions from `components`, and elevated browser surfaces can load `browser_module` components from `assets`.
