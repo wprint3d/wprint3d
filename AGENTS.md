@@ -82,6 +82,18 @@ Use this file as the default operating guide before making changes.
   ```bash
   docker compose -f docker-compose-development.yml up -d
   ```
+- Build all production images for the host architecture:
+  ```bash
+  docker buildx bake production
+  ```
+- Build an individual backend target:
+  ```bash
+  docker build --target backend .
+  docker build --target production .
+  docker build --target mapper .
+  docker build --target streamer .
+  docker build --target development .
+  ```
 
 ### Frontend
 
@@ -89,7 +101,7 @@ Run these from `frontend/`.
 
 - Install frontend dependencies:
   ```bash
-  pnpm install --force --loglevel verbose
+  pnpm install --frozen-lockfile
   ```
 - Start Expo dev server:
   ```bash
@@ -111,6 +123,9 @@ Run these from `frontend/`.
 
 - `run.sh` is the safest high-level entrypoint. It handles environment selection and compose bootstrap for the monorepo layout, and expects `frontend/` to already exist in the checkout.
 - Production and development stacks differ. Check the correct compose file before changing service definitions.
+- `Dockerfile` owns the shared PHP builders and the `backend`, `production`, `mapper`, `streamer`, and `development` targets. `backend` is the final compatibility alias for `production`. `frontend/Dockerfile` similarly owns both production and development frontend targets; do not reintroduce separate `Dockerfile.dev` files.
+- Production images are immutable with respect to Composer dependencies. `vendor/` is built into the image and a production container must not install dependencies at startup.
+- `docker-bake.hcl` is the source of truth for the five production image builds and their public tags.
 - The backend startup path in `internal/run.sh` performs important setup such as dependency installation, migrations, queue/bootstrap tasks, Octane/Reverb startup, and hardware mapping. Changes there have wide operational impact.
 - `.env` handling is partially automated by the runtime. Do not assume the old manual setup flow still applies without checking the current startup scripts and README.
 

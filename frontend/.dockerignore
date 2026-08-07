@@ -8,6 +8,8 @@
 # dependencies
 **/.pnpm-store
 **/node_modules
+dist
+tests/
 
 # Native
 **/*.orig.*

@@ -1,10 +1,12 @@
-FROM docker.io/library/nginx:stable-alpine
+ARG NGINX_IMAGE=docker.io/library/nginx:1.28-alpine
 
-ADD ./proxy/nginxconfig.io /etc/nginx/nginxconfig.io
-ADD ./proxy/conf.d /etc/nginx/conf.d
-ADD ./proxy/backend-upstream-http.conf /etc/nginx/backend-upstream.conf
-ADD ./proxy/ssl /etc/nginx/ssl
-ADD ./proxy/nginx.conf /etc/nginx/nginx.conf
+FROM ${NGINX_IMAGE}
+
+COPY ./proxy/nginxconfig.io /etc/nginx/nginxconfig.io
+COPY ./proxy/conf.d /etc/nginx/conf.d
+COPY ./proxy/backend-upstream-http.conf /etc/nginx/backend-upstream.conf
+COPY ./proxy/ssl /etc/nginx/ssl
+COPY ./proxy/nginx.conf /etc/nginx/nginx.conf
 
 RUN mkdir -p /internal/startup   &&\
     mkdir -p /public/recordings  &&\

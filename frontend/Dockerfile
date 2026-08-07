@@ -1,55 +1,52 @@
-FROM alpine
+# syntax=docker/dockerfile:1.7
 
-# Install OS dependencies
-RUN apk update && apk add --no-cache bash
+ARG NODE_IMAGE=docker.io/library/node:22-alpine
+ARG ALPINE_IMAGE=docker.io/library/alpine:3.22
 
-# Install OpenJDK 17 JDK
-# RUN apk add --no-cache openjdk17
+FROM ${NODE_IMAGE} AS pnpm-base
 
-# Install the Android SDK command line tools
-# RUN wget -O /tmp/android-commandlinetools-linux.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip &&\
-#     cd /tmp &&\
-#     unzip /tmp/android-commandlinetools-linux.zip &&\
-#     mkdir -p /tmp/android/sdk/cmdline-tools &&\
-#     mv -v cmdline-tools /tmp/android/sdk/cmdline-tools/latest &&\
-#     chmod +x /tmp/android/sdk/cmdline-tools/latest/bin/*
+ARG PNPM_VERSION=10.34.5
 
-# Build the bundle
-RUN --mount=type=bind,src=.,target=/source,rw \
-    cd /source &&\
-    cp -fv public/index.production.html public/index.html                       &&\
-    apk add --no-cache curl                                                     &&\
-    echo "Installing Node.js..."                                                &&\
-    apk add --no-cache nodejs npm                                               &&\
-    echo "Installing Yarn..."                                                   &&\
-    npm install --global yarn@1.22.22                                           &&\
-    echo "Installing PNPM..."                                                   &&\
-    npm install --global pnpm@10.34.5                                           &&\
-    echo "Installing dependencies..."                                           &&\
-    pnpm install --force --loglevel verbose                                     &&\
-    echo "Building the frontend bundle..."                                      &&\
-    pnpm exec expo export -p web                                                &&\
-    echo "Removing unnecessary files..."                                        &&\
-    pnpm store prune                                                            &&\
-    rm -rf  .git node_modules \
-            ~/.local/share/pnpm ~/.npm /usr/lib/node_modules \
-            /usr/bin/node /usr/bin/npm /usr/bin/pnpm /usr/bin/pnpx \
-            /tmp/metro-cache /usr/local/share/.cache                            &&\
-    echo "Installing HTTP server..."                                            &&\
-    apk add --no-cache lighttpd                                                 &&\
-    apk del curl nodejs npm                                                     &&\
-    rm -rf /var/cache/apk/* /usr/local/lib/node_modules \
-           /tmp/metro-*     /tmp/node-compile-cache                             &&\
-    mkdir -p /app                                                               &&\
-    cp -rf /source/dist /app/dist
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
-# Add the entrypoint script
-ADD entrypoint_prd.sh /app/entrypoint_prd.sh
+FROM pnpm-base AS development
 
-# Set the working directory
+RUN apk add --no-cache bash ca-certificates curl file git jq unzip
+
 WORKDIR /app
 
-# Copy the lighttpd configuration
-ADD internal/lighttpd.conf /etc/lighttpd/lighttpd.conf
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
-ENTRYPOINT [ "/app/entrypoint_prd.sh" ]
+COPY entrypoint_dev.sh /app/entrypoint_dev.sh
+
+ENTRYPOINT ["/app/entrypoint_dev.sh"]
+
+FROM pnpm-base AS build
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+
+RUN --mount=type=cache,target=/pnpm/store,sharing=locked \
+    pnpm config set store-dir /pnpm/store \
+    && pnpm fetch --frozen-lockfile
+
+COPY . .
+
+RUN --mount=type=cache,target=/pnpm/store,sharing=locked \
+    pnpm config set store-dir /pnpm/store \
+    && pnpm install --offline --frozen-lockfile \
+    && cp public/index.production.html public/index.html \
+    && pnpm exec expo export -p web
+
+FROM ${ALPINE_IMAGE} AS production
+
+RUN apk add --no-cache bash lighttpd
+
+WORKDIR /app
+
+COPY --from=build /app/dist /app/dist
+COPY entrypoint_prd.sh /app/entrypoint_prd.sh
+COPY internal/lighttpd.conf /etc/lighttpd/lighttpd.conf
+
+ENTRYPOINT ["/app/entrypoint_prd.sh"]

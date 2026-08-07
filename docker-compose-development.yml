@@ -32,7 +32,8 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
+      target: development
     restart: always
     logging:
       driver: local
@@ -75,12 +76,15 @@ services:
   web:
     build:
       context: frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
+      target: development
     restart: always
     tty: true
     stdin_open: true
     volumes:
       - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_pnpm_store:/pnpm/store
     ports:
       - ${WEB_HOST_PORT:-8081}:8081
     depends_on:
@@ -90,7 +94,8 @@ services:
   mapper:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
+      target: development
     restart: always
     logging:
       driver: local
@@ -117,7 +122,8 @@ services:
   streamer:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
+      target: development
     restart: always
     logging:
       driver: local
@@ -200,4 +206,6 @@ services:
         mode: non-blocking
     restart: always
 volumes:
+  frontend_node_modules:
+  frontend_pnpm_store:
   mongo:

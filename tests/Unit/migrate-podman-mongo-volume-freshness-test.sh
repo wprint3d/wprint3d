@@ -32,6 +32,10 @@ if [[ "$1" == 'volume' && "$2" == 'inspect' ]]; then
     exit $?
 fi
 
+if [[ "$1" == 'ps' ]]; then
+    exit 0
+fi
+
 if [[ "$1" == 'run' ]]; then
     if [[ "$*" == *'/data:ro'* ]]; then
         printf '100\n'
@@ -80,7 +84,7 @@ INNER
 
 chmod +x "$FAKE_BIN/sudo" "$FAKE_BIN/podman" "$FAKE_BIN/docker"
 
-output="$(PATH="$FAKE_BIN:$PATH" TEST_LOG_FILE="$LOG_FILE" \
+output="$(PATH="$FAKE_BIN:$PATH" TEST_LOG_FILE="$LOG_FILE" COMPOSE_PROJECT_NAME=wprint3d-core \
     "$ROOT_DIR/internal/migrate-podman-mongo-volume-to-docker.sh" production)"
 
 if [[ "$output" != *"has newer data than Podman volume"* ]]; then

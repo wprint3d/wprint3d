@@ -210,12 +210,14 @@ refreshThirdPartyLicenses() {
 }
 
 composerInstall() {
-    if composer install; then
-        return 0;
+    if [[ "${DEVELOPER_MODE}" != 'true' ]]; then
+        echo 'Production image is missing its prebuilt Composer dependencies; refusing to install them at runtime.' >&2;
+
+        return 1;
     fi;
 
-    if [[ "${DEVELOPER_MODE}" != 'true' ]]; then
-        return 1;
+    if composer install; then
+        return 0;
     fi;
 
     echo 'Composer install failed in developer mode. Clearing local vendor dependencies and retrying...';
@@ -250,8 +252,10 @@ bootstrapServerRuntime() {
     # Reset proxy configuration for the recordings
     truncate --size 0 /var/www/proxy/internal/recordings.conf;
 
-    # Disable permissions checks for the Git repository
-    git config --global --add safe.directory /var/www;
+    # Disable permissions checks for the bind-mounted development repository.
+    if [[ "${DEVELOPER_MODE}" == 'true' ]]; then
+        git config --global --add safe.directory /var/www;
+    fi;
 
     # Downloads the required dependencies if they're not already
     # present or if DEVELOPER_MODE is enabled
@@ -319,6 +323,12 @@ bootstrapServerRuntime() {
 
 # Parse ROLE into array (supports comma-separated multi-role)
 IFS=',' read -ra ROLES <<< "${ROLE:-}"
+
+if [[ "${DEVELOPER_MODE}" != 'true' ]] && [[ ! -f '/var/www/vendor/autoload.php' ]]; then
+    echo 'Production image is missing /var/www/vendor/autoload.php. Rebuild the image instead of installing dependencies at runtime.' >&2;
+
+    exit 1;
+fi;
 
 # Check if a specific role is in the ROLES array
 has_role() {

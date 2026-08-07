@@ -70,7 +70,7 @@ services:
       - redis
       - mongo
   mapper:
-    image: docker.io/wprint3d/wprint3d:latest
+    image: docker.io/wprint3d/wprint3d-mapper:latest
     restart: always
     logging:
       driver: none
@@ -99,7 +99,7 @@ services:
       - redis
       - mongo
   streamer:
-    image: docker.io/wprint3d/wprint3d:latest
+    image: docker.io/wprint3d/wprint3d-streamer:latest
     restart: always
     logging:
       driver: none

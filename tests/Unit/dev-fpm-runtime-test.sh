@@ -6,8 +6,8 @@ ROOT_DIR="$(cd -- "$(dirname "$0")/../.." >/dev/null 2>&1 && pwd -P)"
 
 cd "$ROOT_DIR"
 
-if ! rg -n '^FROM docker\.io/library/php:8\.4\.12-fpm-bookworm$' Dockerfile.dev > /dev/null; then
-    echo 'Dockerfile.dev no longer uses the php-fpm base image.'
+if ! rg -n '^ARG PHP_IMAGE=docker\.io/library/php:8\.4\.12-fpm-bookworm$' Dockerfile > /dev/null; then
+    echo 'The consolidated Dockerfile no longer uses the expected php-fpm base image.'
     exit 1
 fi
 
@@ -16,18 +16,18 @@ if ! rg -n 'php-fpm -F -R' internal/generate-supervisor-configs.sh > /dev/null; 
     exit 1
 fi
 
-if ! rg -n 'php-fpm-dev-www\.conf' Dockerfile.dev > /dev/null; then
-    echo 'Dockerfile.dev no longer installs the dev php-fpm pool override.'
+if ! rg -n 'php-fpm-dev-www\.conf' Dockerfile > /dev/null; then
+    echo 'The development target no longer installs the dev php-fpm pool override.'
     exit 1
 fi
 
 if ! awk '
-    /^# Basic dependencies$/ { in_basic_deps = 1; next }
-    in_basic_deps && /apt-get clean/ { exit found ? 0 : 1 }
-    in_basic_deps && /v4l-utils/ { found = 1 }
-    END { if (in_basic_deps && ! found) exit 1 }
-' Dockerfile.dev; then
-    echo 'Dockerfile.dev basic dependencies no longer install v4l-utils, which hardware camera detection needs for v4l2-ctl.'
+    /^FROM php-runtime AS development$/ { in_development = 1; next }
+    in_development && /^FROM / { exit found ? 0 : 1 }
+    in_development && /v4l-utils/ { found = 1 }
+    END { if (in_development && ! found) exit 1 }
+' Dockerfile; then
+    echo 'The development target no longer installs v4l-utils, which hardware camera detection needs for v4l2-ctl.'
     exit 1
 fi
 

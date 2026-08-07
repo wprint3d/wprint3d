@@ -1,37 +1,28 @@
 #!/bin/bash
 
-set -e; # quit on error
+set -euo pipefail
 
-install_dependencies() {
-    echo '=> Installing packages with NPM...';
+cd /app
 
-    if pnpm i --force --loglevel verbose; then
-        return 0;
-    fi;
+manifest_hash="$({
+    sha256sum package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc
+} | sha256sum | cut -d ' ' -f 1)"
+manifest_marker='/app/node_modules/.wprint3d-manifest-hash'
 
-    echo 'PNPM install failed. Clearing local frontend dependencies and retrying...';
+pnpm config set store-dir /pnpm/store
 
-    rm -rf /app/node_modules /app/.pnpm-store;
+if [[ ! -d '/app/node_modules/.pnpm' ]] \
+    || [[ ! -f "$manifest_marker" ]] \
+    || [[ "$(cat "$manifest_marker")" != "$manifest_hash" ]]; then
+    echo '=> Installing frontend dependencies...'
+    pnpm install --prefer-offline
+    printf '%s' "$manifest_hash" > "$manifest_marker"
+else
+    echo '=> Frontend dependencies are unchanged; reusing node_modules.'
+fi
 
-    pnpm i --force --loglevel verbose;
-}
+echo '=> Starting the server in developer mode...'
 
-start() {
-    install_dependencies;
+export EXPO_UNSTABLE_ATLAS=true
 
-    echo '=> Starting the server in developer mode...';
-
-    export EXPO_UNSTABLE_ATLAS=true;
-
-    pnpm exec expo start --clear;
-
-    return $?;
-}
-
-start;
-
-if [ $? -ne 0 ]; then
-    echo "Couldn't start the server, please check the logs above.";
-fi;
-
-exit 1;
+exec pnpm exec expo start --clear

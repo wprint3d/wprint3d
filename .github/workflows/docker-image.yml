@@ -2,120 +2,364 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "pre-alpha", "alpha", "beta", "master" ]
+    branches: ["pre-alpha", "alpha", "beta", "master"]
   pull_request:
-    branches: [ "pre-alpha", "alpha", "beta", "master" ]
+    branches: ["pre-alpha", "alpha", "beta", "master"]
+  workflow_dispatch:
+    inputs:
+      cura_w3dp_url:
+        description: HTTPS URL of the exact signed Cura Web UI .w3dp release asset
+        required: true
+        type: string
+      cura_w3dp_sha256:
+        description: SHA-256 of the exact Cura Web UI .w3dp release asset
+        required: true
+        type: string
+      cura_plugin_version:
+        description: Semver version embedded in the Cura plugin manifest
+        required: true
+        type: string
+      cura_compatibility_url:
+        description: HTTPS URL of the matching compatibility record
+        required: true
+        type: string
+      cura_compatibility_sha256:
+        description: SHA-256 of the matching compatibility record
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
+
+env:
+  REGISTRY: docker.io/wprint3d
 
 jobs:
-  build-main-image:
-    name: Build main image
-    runs-on: ubuntu-22.04
+  validate:
+    name: Validate Docker configuration
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          buildkitd-flags: --debug
-
-      - name: Login to Docker Hub
-        if: github.event_name == 'push'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Verify production build excludes example plugins
+      - name: Validate Bake and Compose configuration
         run: |
-          cat <<'EOF' > /tmp/Dockerfile.production-context-check
-          FROM alpine
-          WORKDIR /context
-          COPY . .
-          RUN test ! -d /context/examples/plugins
-          EOF
-          docker build -f /tmp/Dockerfile.production-context-check .
+          docker buildx bake --print production > /dev/null
+          docker compose config --quiet
+          docker compose -f docker-compose-development.yml config --quiet
 
-      - name: Build main image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/wprint3d:latest
-          cache-from: type=gha,scope=main
-          cache-to: type=gha,mode=max,scope=main
+      - name: Run Docker configuration tests
+        run: |
+          for test_file in tests/Unit/*docker*.sh tests/Unit/*compose*.sh tests/Unit/dev-fpm-runtime-test.sh tests/Unit/third-party-licenses-generation-test.sh; do
+            if [[ "$test_file" == *docker-image-smoke-test.sh ]]; then
+              continue
+            fi
+            bash "$test_file"
+          done
+          bash tests/Unit/builtin-release-workflow-test.sh
+          bash tests/Unit/cura-plugin-signing-workflow-test.sh
 
-  build-proxy-image:
-    name: Build proxy image
-    runs-on: ubuntu-22.04
+  prepare-cura-builtin:
+    name: Stage signed Cura built-in
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Set up PHP and Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl,dom,fileinfo,intl,mbstring,mongodb,pcntl,pdo,pdo_mysql,redis,zip
+          tools: composer:v2
+
+      - name: Validate release inputs
+        env:
+          CURA_W3DP_URL: ${{ inputs.cura_w3dp_url }}
+          CURA_W3DP_SHA256: ${{ inputs.cura_w3dp_sha256 }}
+          CURA_PLUGIN_VERSION: ${{ inputs.cura_plugin_version }}
+          CURA_COMPATIBILITY_URL: ${{ inputs.cura_compatibility_url }}
+          CURA_COMPATIBILITY_SHA256: ${{ inputs.cura_compatibility_sha256 }}
+        run: |
+          set -euo pipefail
+          for url in "$CURA_W3DP_URL" "$CURA_COMPATIBILITY_URL"; do
+            [[ "$url" == https://* ]] || { echo "Release assets must use HTTPS." >&2; exit 1; }
+          done
+          [[ "$CURA_W3DP_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "Invalid Cura W3DP SHA-256." >&2; exit 1; }
+          [[ "$CURA_COMPATIBILITY_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "Invalid compatibility SHA-256." >&2; exit 1; }
+          [[ "$CURA_PLUGIN_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || { echo "Invalid Cura plugin version." >&2; exit 1; }
+
+      - name: Download exact signed release assets
+        env:
+          CURA_W3DP_URL: ${{ inputs.cura_w3dp_url }}
+          CURA_W3DP_SHA256: ${{ inputs.cura_w3dp_sha256 }}
+          CURA_COMPATIBILITY_URL: ${{ inputs.cura_compatibility_url }}
+          CURA_COMPATIBILITY_SHA256: ${{ inputs.cura_compatibility_sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cura-release"
+          curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --retry-all-errors \
+            "$CURA_W3DP_URL" -o "$RUNNER_TEMP/cura-release/cura-web-ui.w3dp"
+          curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --retry-all-errors \
+            "$CURA_COMPATIBILITY_URL" -o "$RUNNER_TEMP/cura-release/compatibility.json"
+          printf '%s  %s\n' "${CURA_W3DP_SHA256,,}" "$RUNNER_TEMP/cura-release/cura-web-ui.w3dp" | sha256sum --check --status
+          printf '%s  %s\n' "${CURA_COMPATIBILITY_SHA256,,}" "$RUNNER_TEMP/cura-release/compatibility.json" | sha256sum --check --status
+
+      - name: Install the pinned WPrint verifier
+        run: composer install --no-dev --no-interaction --no-progress --prefer-dist --no-scripts
+
+      - name: Stage and verify the trusted built-in
+        env:
+          CURA_PLUGIN_VERSION: ${{ inputs.cura_plugin_version }}
+          CURA_W3DP_SIGNER_PUBLIC_KEY: ${{ secrets.CURA_W3DP_SIGNER_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$CURA_W3DP_SIGNER_PUBLIC_KEY" ]] || { echo "CURA_W3DP_SIGNER_PUBLIC_KEY is required." >&2; exit 1; }
+          signer_path="$RUNNER_TEMP/cura-release/signer.pem"
+          printf '%s\n' "$CURA_W3DP_SIGNER_PUBLIC_KEY" > "$signer_path"
+          export PLUGIN_TRUSTED_PUBLIC_KEYS="$signer_path"
+          scripts/stage-builtin-plugin.sh \
+            --archive "$RUNNER_TEMP/cura-release/cura-web-ui.w3dp" \
+            --expected-plugin-id cura-web-ui \
+            --expected-version "$CURA_PLUGIN_VERSION" \
+            --expected-sha256 "${{ inputs.cura_w3dp_sha256 }}" \
+            --destination "resources/plugins/builtin/archives/cura-web-ui-${CURA_PLUGIN_VERSION}.w3dp" \
+            --compatibility-record "$RUNNER_TEMP/cura-release/compatibility.json"
+          PLUGIN_TRUSTED_PUBLIC_KEYS="$signer_path" php artisan plugin:verify-builtins
+
+      - name: Upload immutable built-in stage
+        uses: actions/upload-artifact@v4
+        with:
+          name: wprint3d-cura-builtin-stage-${{ github.run_id }}
+          path: resources/plugins/builtin
+          if-no-files-found: error
+
+  pull-request-build:
+    name: Build production images (amd64)
+    if: github.event_name == 'pull_request'
+    needs: validate
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Record build start
+        run: echo "BUILD_STARTED=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Build and load production images
+        uses: docker/bake-action@v6
+        env:
+          PLATFORM: linux/amd64
+          TAG: pr-${{ github.event.pull_request.number }}
+          VCS_REF: ${{ github.sha }}
         with:
-          buildkitd-flags: --debug
+          targets: production
+          set: |
+            *.output=type=docker
+            backend.cache-from=type=gha,scope=backend-amd64
+            backend.cache-to=type=gha,mode=max,scope=backend-amd64
+            mapper.cache-from=type=gha,scope=mapper-amd64
+            mapper.cache-to=type=gha,mode=max,scope=mapper-amd64
+            streamer.cache-from=type=gha,scope=streamer-amd64
+            streamer.cache-to=type=gha,mode=max,scope=streamer-amd64
+            proxy.cache-from=type=gha,scope=proxy-amd64
+            proxy.cache-to=type=gha,mode=max,scope=proxy-amd64
+            frontend.cache-from=type=gha,scope=frontend-amd64
+            frontend.cache-to=type=gha,mode=max,scope=frontend-amd64
+
+      - name: Verify code-only cache reuse
+        env:
+          PLATFORM: linux/amd64
+          TAG: pr-${{ github.event.pull_request.number }}
+          VCS_REF: ${{ github.sha }}
+        run: |
+          probe=app/.docker-cache-probe
+          trap 'rm -f "$probe"' EXIT
+          printf '%s\n' "$GITHUB_SHA" > "$probe"
+          cache_started=$(date +%s)
+          docker buildx bake production --set '*.output=type=cacheonly'
+          echo "CACHE_BUILD_DURATION=$(($(date +%s) - cache_started))" >> "$GITHUB_ENV"
+
+      - name: Smoke test images
+        env:
+          IMAGE_TAG: pr-${{ github.event.pull_request.number }}
+        run: bash tests/Unit/docker-image-smoke-test.sh
+
+      - name: Report image sizes and duration
+        env:
+          IMAGE_TAG: pr-${{ github.event.pull_request.number }}
+        run: |
+          duration=$(($(date +%s) - BUILD_STARTED))
+          {
+            echo '### Docker image report (linux/amd64)'
+            echo
+            echo '| Image | Compressed size |'
+            echo '| --- | ---: |'
+            total_bytes=0
+            for image in wprint3d wprint3d-mapper wprint3d-streamer wprint3d-proxy wprint3d-frontend; do
+              bytes=$(docker image save "$REGISTRY/$image:$IMAGE_TAG" | gzip -1 | wc -c)
+              total_bytes=$((total_bytes + bytes))
+              echo "| $image | $(numfmt --to=iec-i --suffix=B "$bytes") |"
+            done
+            echo "| **Total** | **$(numfmt --to=iec-i --suffix=B "$total_bytes")** |"
+            echo
+            echo "Build duration: ${duration}s"
+            echo
+            echo "Code-only cache verification duration: ${CACHE_BUILD_DURATION}s"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  architecture-build:
+    name: Build and push (${{ matrix.arch }})
+    if: >-
+      always() && needs.validate.result == 'success' &&
+      (needs.prepare-cura-builtin.result == 'success' || needs.prepare-cura-builtin.result == 'skipped') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [validate, prepare-cura-builtin]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download staged Cura built-in
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          name: wprint3d-cura-builtin-stage-${{ github.run_id }}
+          path: resources/plugins/builtin
+
+      - name: Confirm built-in inventory is explicit
+        run: |
+          test -f resources/plugins/builtin/index.json
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            test -n "$(find resources/plugins/builtin/archives -maxdepth 1 -type f -name 'cura-web-ui-*.w3dp' -print -quit)"
+          else
+            test "$(jq '.plugins | length' resources/plugins/builtin/index.json)" -eq 0
+          fi
 
       - name: Login to Docker Hub
-        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build proxy image
-        uses: docker/build-push-action@v6
+      - name: Record build start
+        run: echo "BUILD_STARTED=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Build and push architecture images
+        uses: docker/bake-action@v6
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          TAG: ${{ github.sha }}
+          TAG_SUFFIX: -${{ matrix.arch }}
+          VCS_REF: ${{ github.sha }}
         with:
-          context: .
-          file: ./Dockerfile.proxy
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/wprint3d-proxy:latest
-          cache-from: type=gha,scope=proxy
-          cache-to: type=gha,mode=max,scope=proxy
+          targets: production
+          push: true
+          set: |
+            backend.cache-from=type=gha,scope=backend-${{ matrix.arch }}
+            backend.cache-to=type=gha,mode=max,scope=backend-${{ matrix.arch }}
+            mapper.cache-from=type=gha,scope=mapper-${{ matrix.arch }}
+            mapper.cache-to=type=gha,mode=max,scope=mapper-${{ matrix.arch }}
+            streamer.cache-from=type=gha,scope=streamer-${{ matrix.arch }}
+            streamer.cache-to=type=gha,mode=max,scope=streamer-${{ matrix.arch }}
+            proxy.cache-from=type=gha,scope=proxy-${{ matrix.arch }}
+            proxy.cache-to=type=gha,mode=max,scope=proxy-${{ matrix.arch }}
+            frontend.cache-from=type=gha,scope=frontend-${{ matrix.arch }}
+            frontend.cache-to=type=gha,mode=max,scope=frontend-${{ matrix.arch }}
 
-  build-frontend-image:
-    name: Build frontend image
-    runs-on: ubuntu-22.04
+      - name: Verify code-only cache reuse
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          TAG: ${{ github.sha }}
+          TAG_SUFFIX: -${{ matrix.arch }}
+          VCS_REF: ${{ github.sha }}
+        run: |
+          probe=app/.docker-cache-probe
+          trap 'rm -f "$probe"' EXIT
+          printf '%s\n' "$GITHUB_SHA" > "$probe"
+          cache_started=$(date +%s)
+          docker buildx bake production --set '*.output=type=cacheonly'
+          echo "CACHE_BUILD_DURATION=$(($(date +%s) - cache_started))" >> "$GITHUB_ENV"
+
+      - name: Smoke test published images
+        env:
+          IMAGE_TAG: ${{ github.sha }}-${{ matrix.arch }}
+        run: |
+          for image in wprint3d wprint3d-mapper wprint3d-streamer wprint3d-proxy wprint3d-frontend; do
+            docker pull "$REGISTRY/$image:$IMAGE_TAG"
+          done
+          bash tests/Unit/docker-image-smoke-test.sh
+
+      - name: Report compressed image sizes and duration
+        env:
+          IMAGE_TAG: ${{ github.sha }}-${{ matrix.arch }}
+        run: |
+          duration=$(($(date +%s) - BUILD_STARTED))
+          {
+            echo '### Docker image report (${{ matrix.platform }})'
+            echo
+            echo '| Image | Compressed size |'
+            echo '| --- | ---: |'
+            total_bytes=0
+            for image in wprint3d wprint3d-mapper wprint3d-streamer wprint3d-proxy wprint3d-frontend; do
+              bytes=$(docker buildx imagetools inspect --raw "$REGISTRY/$image:$IMAGE_TAG" | jq '[.layers[].size] | add')
+              total_bytes=$((total_bytes + bytes))
+              echo "| $image | $(numfmt --to=iec-i --suffix=B "$bytes") |"
+            done
+            echo "| **Total** | **$(numfmt --to=iec-i --suffix=B "$total_bytes")** |"
+            echo
+            echo "Build duration: ${duration}s"
+            echo
+            echo "Code-only cache verification duration: ${CACHE_BUILD_DURATION}s"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-manifests:
+    name: Publish multi-architecture manifests
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: architecture-build
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          buildkitd-flags: --debug
 
       - name: Login to Docker Hub
-        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/wprint3d-frontend:latest
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
+      - name: Create commit manifests
+        run: |
+          for image in wprint3d wprint3d-mapper wprint3d-streamer wprint3d-proxy wprint3d-frontend; do
+            docker buildx imagetools create \
+              --tag "$REGISTRY/$image:${GITHUB_SHA}" \
+              "$REGISTRY/$image:${GITHUB_SHA}-amd64" \
+              "$REGISTRY/$image:${GITHUB_SHA}-arm64"
+          done
+
+      - name: Promote release manifests
+        run: |
+          for image in wprint3d-mapper wprint3d-streamer wprint3d-proxy wprint3d-frontend wprint3d; do
+            docker buildx imagetools create \
+              --tag "$REGISTRY/$image:latest" \
+              "$REGISTRY/$image:${GITHUB_SHA}"
+          done

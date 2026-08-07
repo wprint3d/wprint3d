@@ -359,7 +359,7 @@ if [[ "$ENV" == 'dev' ]]; then
         exit 1;
     fi;
 
-    run_docker_compose -f docker-compose-development.yml pull || exit 1;
+    run_docker_compose -f docker-compose-development.yml pull --ignore-buildable || exit 1;
 
     if [[ "$NO_BUILD" != 1 ]]; then
         run_docker_compose -f docker-compose-development.yml build --progress plain || exit 1;

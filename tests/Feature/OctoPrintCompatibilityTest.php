@@ -11,6 +11,7 @@ use App\Models\PersonalAccessToken;
 use App\Models\Printer;
 use App\Models\User;
 use App\Services\ApiTokenService;
+use App\Support\FakeSerial\FakeSerialManager;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
@@ -29,6 +30,15 @@ class OctoPrintCompatibilityTest extends TestCase
         File::truncate();
         Printer::truncate();
         User::truncate();
+
+        $this->app->instance(FakeSerialManager::class, new FakeSerialManager(
+            cache: Cache::store(),
+            settings: [
+                'enabled' => true,
+                'node' => 'FAKE0',
+                'baudRate' => 115200,
+            ],
+        ));
     }
 
     public function test_active_and_passive_login_use_an_octoprint_compatible_session(): void
@@ -597,7 +607,7 @@ class OctoPrintCompatibilityTest extends TestCase
     private function printer(string $uuid): Printer
     {
         $printer = new Printer;
-        $printer->node = '0';
+        $printer->node = 'FAKE0';
         $printer->baudRate = 115200;
         $printer->connected = true;
         $printer->machine = [

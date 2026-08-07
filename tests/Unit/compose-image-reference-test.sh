@@ -23,4 +23,14 @@ assert_not_contains "$compose_refs" 'image: redis:'
 assert_not_contains "$compose_refs" 'image: mongo:'
 assert_not_contains "$compose_refs" 'image: memcached'
 
+if ! grep -q 'docker.io/wprint3d/wprint3d-mapper:latest' <<< "$compose_refs"; then
+    echo 'Production mapper does not use its role-specific image.' >&2
+    exit 1
+fi
+
+if ! grep -q 'docker.io/wprint3d/wprint3d-streamer:latest' <<< "$compose_refs"; then
+    echo 'Production streamer does not use its role-specific image.' >&2
+    exit 1
+fi
+
 echo "compose image reference checks passed"

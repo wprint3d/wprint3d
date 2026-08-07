@@ -135,6 +135,30 @@ Use `./plugin.sh status` when you need to confirm which backend container it fou
 
 Production backend images intentionally exclude `examples/plugins` so sample plugins do not ship in the runtime image. Use the development stack or a source checkout when you need the example plugins for testing, packaging, or demos.
 
+## Container images
+
+Production uses role-specific images that share the same PHP runtime layers:
+
+- `docker.io/wprint3d/wprint3d:latest` for the backend, scheduler, workers, and WebSocket server
+- `docker.io/wprint3d/wprint3d-mapper:latest` for USB, serial, and camera discovery
+- `docker.io/wprint3d/wprint3d-streamer:latest` for hardware camera streaming
+- `docker.io/wprint3d/wprint3d-proxy:latest` and `docker.io/wprint3d/wprint3d-frontend:latest` for web traffic
+
+The backend Dockerfile exposes `backend`, `production`, `mapper`, `streamer`, and `development` targets. `production` and the final `backend` target are equivalent so that plain `docker build .` remains compatible. The frontend Dockerfile exposes `build`, `production`, and `development` targets. Build the complete production set for the host architecture with:
+
+```bash
+docker buildx bake production
+```
+
+Use `docker buildx bake backend`, `mapper`, `streamer`, `proxy`, or `frontend` to build a single production image. To build and start the consolidated development targets directly through Compose, run:
+
+```bash
+docker compose -f docker-compose-development.yml build
+docker compose -f docker-compose-development.yml up -d
+```
+
+Production images contain prebuilt Composer dependencies and do not download packages during startup. A missing `vendor/` directory therefore indicates an invalid image and causes startup to fail explicitly. The development stack continues to install dependencies from the bind-mounted checkout and persists frontend packages in Docker volumes.
+
 For public-registry inclusion, the temporary process is simple: keep the plugin in its own repository, open a PR against the public registry with that repository URL, and then wait for the WPrint 3D team to reach out. We will document the registry workflow in more detail once the foundation is finalized.
 
 ## System requirements

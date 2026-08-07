@@ -32,6 +32,10 @@ if [[ "$1" == 'volume' && "$2" == 'inspect' ]]; then
     exit $?
 fi
 
+if [[ "$1" == 'ps' ]]; then
+    exit 0
+fi
+
 if [[ "$1" == 'run' ]]; then
     printf 'fake-tar-stream'
     exit 0
@@ -79,7 +83,7 @@ INNER
 
 chmod +x "$FAKE_BIN/sudo" "$FAKE_BIN/podman" "$FAKE_BIN/docker"
 
-PATH="$FAKE_BIN:$PATH" TEST_LOG_FILE="$LOG_FILE" \
+PATH="$FAKE_BIN:$PATH" TEST_LOG_FILE="$LOG_FILE" COMPOSE_PROJECT_NAME=wprint3d-core \
     "$ROOT_DIR/internal/migrate-podman-mongo-volume-to-docker.sh" production
 
 assert_contains() {
