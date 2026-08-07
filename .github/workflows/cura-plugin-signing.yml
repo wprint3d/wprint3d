@@ -37,6 +37,12 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: wprint-release-signing
+    env:
+      APP_ENV: testing
+      BROADCAST_DRIVER: 'null'
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
     steps:
       - name: Checkout WPrint toolchain
         uses: actions/checkout@v4
