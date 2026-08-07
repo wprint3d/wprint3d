@@ -122,6 +122,22 @@ class PrintGcode implements ShouldQueue
 
     const STREAM_BUFFER_INTERVAL_SECS = 10;   // seconds
 
+    private const COOL_DOWN_COMMANDS = [
+        'M104 S0', // turn off hotend
+        'M140 S0', // turn off heatbed
+    ];
+
+    private const PRINTER_RESET_COMMANDS = [
+        'M108',      // break and continue (get out of M0/M1)
+        'M77',       // stop print job timer
+        'M73 P0',    // reset print progress
+        'M486 C',    // cancel objects
+        'M107',      // turn off fan
+        ...self::COOL_DOWN_COMMANDS,
+        'M84 X Y E', // disable motors
+        'M999',      // restart from STOP (emergency abort)
+    ];
+
     // A print must not inherit G91/M83 left active by manual or terminal commands.
     private const PRINT_START_MODE_COMMANDS = [
         'G90', // absolute XYZ positioning
@@ -172,64 +188,26 @@ class PrintGcode implements ShouldQueue
      *
      * @return void
      */
-    public function finished(bool $resetPrinter = false)
+    public function finished(bool $resetPrinter = false, bool $coolDown = false)
     {
         $log = Log::channel(self::LOG_CHANNEL);
 
         $this->printer->setCurrentLine(0);
         $this->printer->setMaxLine(0);
 
+        if ($resetPrinter || $coolDown) {
+            $this->sendPrinterCommands(
+                $resetPrinter ? self::PRINTER_RESET_COMMANDS : self::COOL_DOWN_COMMANDS,
+                $log
+            );
+        }
+
         if ($resetPrinter) {
-            $serial = null;
-
-            try {
-                $serial = new Serial(
-                    fileName: $this->printer->node,
-                    baudRate: $this->printer->baudRate,
-                    printerId: $this->printer->_id,
-                    timeout: $this->commandTimeoutSecs,
-                    terminalAutoAppend: false,
-                    pluginHooks: $this->getSerialPluginHooks()
-                );
-
-                // Send command sequence for board reset
-                foreach ([
-                    'M108',      // break and continue (get out of M0/M1)
-                    'M77',       // stop print job timer
-                    'M73 P0',    // reset print progress
-                    'M486 C',    // cancel objects
-                    'M107',      // turn off fan
-                    'M140 S0',   // turn off heatbed
-                    'M104 S0',   // turn off temperature
-                    'M84 X Y E', // disable motors
-                    'M999',       // restart from STOP (emergency abort)
-
-                /**
-                 * More Hellbot quirks, yay! :)
-                 *
-                 * M999 is being sent here because apparently, Hellbot printers
-                 * REALLY dislike the way in that WPrint 3D sends commands in
-                 * rapid succession. That is, after completing a print job, the
-                 * printer might be stuck unable to warm up again (probably a
-                 * buffer overflow somewhere in the custom firmware).
-                 *
-                 * This command tells the printer that everything is fine and
-                 * that, in fact, nothing would've been lost throughout said
-                 * transaction.
-                 */
-                ] as $command) {
-                    try {
-                        $serial->query($command);
-                    } catch (Exception $exception) {
-                        $log->warning(
-                            __METHOD__.': failed to send command: '.$exception->getMessage().PHP_EOL.
-                            $exception->getTraceAsString()
-                        );
-                    }
-                }
-            } finally {
-                $serial?->close();
-            }
+            /*
+             * M999 is part of PRINTER_RESET_COMMANDS because Hellbot printers
+             * can otherwise remain unable to warm up after receiving the reset
+             * sequence in rapid succession.
+             */
 
             $this->printer->lastLine = null;
             $this->printer->activeFile = null;
@@ -305,7 +283,41 @@ class PrintGcode implements ShouldQueue
             );
         }
 
-        $this->finished(resetPrinter: false);
+        $this->finished(resetPrinter: false, coolDown: true);
+    }
+
+    private function sendPrinterCommands(array $commands, Logger $log): void
+    {
+        $serial = null;
+
+        try {
+            $serial = new Serial(
+                fileName: $this->printer->node,
+                baudRate: $this->printer->baudRate,
+                printerId: $this->printer->_id,
+                timeout: $this->commandTimeoutSecs,
+                terminalAutoAppend: false,
+                pluginHooks: $this->getSerialPluginHooks()
+            );
+
+            foreach ($commands as $command) {
+                try {
+                    $serial->query($command);
+                } catch (Exception $exception) {
+                    $log->warning(
+                        __METHOD__.': failed to send command: '.$exception->getMessage().PHP_EOL.
+                        $exception->getTraceAsString()
+                    );
+                }
+            }
+        } catch (Exception $exception) {
+            $log->warning(
+                __METHOD__.': failed to connect for printer shutdown: '.$exception->getMessage().PHP_EOL.
+                $exception->getTraceAsString()
+            );
+        } finally {
+            $serial?->close();
+        }
     }
 
     private function updatePrintedFile(?DurationEstimate $durationEstimate = null): void
