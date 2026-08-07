@@ -52,6 +52,13 @@ for pinned_dependency in \
     fi
 done
 
+if rg -F "find /camera-root/usr/local/bin -type f -exec ldd" "$DOCKERFILE" > /dev/null \
+    || ! rg -F "ldd /camera-root/usr/local/bin/ustreamer 2>&1" "$DOCKERFILE" > /dev/null \
+    || ! rg -F "ldd /camera-root/usr/local/bin/camera-streamer 2>&1" "$DOCKERFILE" > /dev/null; then
+    echo 'Camera dependency checks must allow static binaries while rejecting unresolved shared libraries.' >&2
+    exit 1
+fi
+
 if ! rg -n '^\*\*/\.git$' "$DOCKERIGNORE" > /dev/null \
     || rg -n '^!.*\.git' "$DOCKERIGNORE" > /dev/null \
     || ! rg -n '^\.env$' "$DOCKERIGNORE" > /dev/null; then

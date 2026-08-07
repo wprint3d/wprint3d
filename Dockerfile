@@ -185,7 +185,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         make -C /tmp/camera-streamer DESTDIR=/camera-root install; \
         strip --strip-unneeded /camera-root/usr/local/bin/camera-streamer; \
     fi \
-    && ! find /camera-root/usr/local/bin -type f -exec ldd '{}' \; | grep -q 'not found'
+    && if ldd /camera-root/usr/local/bin/ustreamer 2>&1 | grep -q 'not found'; then \
+        exit 1; \
+    fi \
+    && if [ "$(dpkg --print-architecture)" = 'arm64' ] \
+        && ldd /camera-root/usr/local/bin/camera-streamer 2>&1 | grep -q 'not found'; then \
+        exit 1; \
+    fi
 
 FROM ${DEBIAN_IMAGE} AS php-runtime
 
