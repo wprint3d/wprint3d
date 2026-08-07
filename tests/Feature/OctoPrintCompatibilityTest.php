@@ -475,6 +475,53 @@ class OctoPrintCompatibilityTest extends TestCase
             ->assertJsonPath('printers.0.recoveryRequired', true);
     }
 
+    public function test_job_exposes_adaptive_timing_only_for_an_active_running_print(): void
+    {
+        $user = $this->user();
+        $printer = $this->printer('adaptive-timing-printer');
+        $token = app(ApiTokenService::class)->create($user, 'Adaptive ETA', 'adaptive-timing-printer', 365);
+        $headers = ['X-Api-Key' => $token->plainTextToken];
+
+        $printer->activeFile = 'synthetic.gcode';
+        $printer->hasActiveJob = true;
+        $printer->lastJobHasFailed = false;
+        $printer->save();
+        $printer->setCurrentLine(10);
+        $printer->setMaxLine(100);
+        $printer->setPrintTiming([
+            'estimatedSeconds' => 1000,
+            'printTime' => 100,
+            'printTimeLeft' => 900,
+            'printTimeLeftOrigin' => 'mixed-analysis',
+            'stable' => true,
+            'hasUnboundedWait' => false,
+        ]);
+
+        $this->withHeaders($headers)->getJson('/octoprint-api/job')
+            ->assertOk()
+            ->assertJsonPath('job.estimatedPrintTime', 1000)
+            ->assertJsonPath('progress.completion', 10)
+            ->assertJsonPath('progress.printTime', 100)
+            ->assertJsonPath('progress.printTimeLeft', 900)
+            ->assertJsonPath('progress.printTimeLeftOrigin', 'mixed-analysis')
+            ->assertJsonPath('progress.wprint3dEtaStable', true)
+            ->assertJsonPath('progress.wprint3dHasUnboundedWait', false);
+
+        $printer->pause();
+        $this->withHeaders($headers)->getJson('/octoprint-api/job')
+            ->assertOk()
+            ->assertJsonPath('state', 'Paused')
+            ->assertJsonPath('progress.printTimeLeft', null);
+
+        $printer->hasActiveJob = false;
+        $printer->lastJobHasFailed = true;
+        $printer->save();
+        $this->withHeaders($headers)->getJson('/octoprint-api/job')
+            ->assertOk()
+            ->assertJsonPath('progress.completion', null)
+            ->assertJsonPath('progress.printTimeLeft', null);
+    }
+
     public function test_arbitrary_printer_commands_use_the_octoprint_contract_and_control_permission(): void
     {
         Event::fake([CommandQueued::class]);

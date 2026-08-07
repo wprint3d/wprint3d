@@ -10,9 +10,11 @@ use App\Enums\ToastMessageType;
 use App\Events\PrintJobFailed;
 use App\Events\PrintJobFinished;
 use App\Events\ToastMessage;
+use App\Gcode\AdaptiveEta;
+use App\Gcode\DurationEstimate;
+use App\Gcode\GcodeDurationEstimator;
 use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
-use App\Libraries\GcodeStat;
 use App\Libraries\Serial;
 use App\Models\Configuration;
 use App\Models\File;
@@ -159,6 +161,7 @@ class PrintGcode implements ShouldQueue
         $this->printer->setCurrentLine(0);
         $this->printer->setCurrentLayer(0);
         $this->printer->setLastCommand(null);
+        $this->printer->setPrintTiming(null);
 
         $this->shouldRecord = $this->owner->settings['recording']['enabled'];
         $this->recordableCameras = [];
@@ -237,6 +240,7 @@ class PrintGcode implements ShouldQueue
 
         // Disable last command reporting.
         $this->printer->setLastCommand(null);
+        $this->printer->setPrintTiming(null);
 
         // Reset the printer's paused state in case it was left paused.
         $this->printer->resume();
@@ -304,7 +308,7 @@ class PrintGcode implements ShouldQueue
         $this->finished(resetPrinter: false);
     }
 
-    private function updatePrintedFile(): void
+    private function updatePrintedFile(?DurationEstimate $durationEstimate = null): void
     {
         $printedFile = File::where('path', $this->filePath)->first();
 
@@ -317,6 +321,14 @@ class PrintGcode implements ShouldQueue
         }
 
         $printedFile->prints++;
+        if ($durationEstimate !== null) {
+            $printedFile->estimatedPrintTime = $durationEstimate->seconds;
+            $printedFile->estimatedPrintTimeOrigin = $durationEstimate->origin;
+            $printedFile->simulatedPrintTime = $durationEstimate->simulatedSeconds;
+            $printedFile->gcodeLineCount = $durationEstimate->lineCount;
+            $printedFile->hasUnboundedWait = $durationEstimate->hasUnboundedWait;
+            $printedFile->analyzedAt = now();
+        }
         $printedFile->save();
     }
 
@@ -445,18 +457,30 @@ class PrintGcode implements ShouldQueue
             return;
         }
 
-        $gcodeStat = new GcodeStat(Storage::disk('gcode')->path($this->filePath));
-
-        $stopTimestampSecs = null;
+        $durationEstimate = null;
+        $adaptiveEta = null;
 
         try {
             $log->debug(__METHOD__.': trying to estimate print time...');
 
-            $expectedPrintTimeSecs = $gcodeStat->getPrintTimeSeconds();
+            $durationEstimate = (new GcodeDurationEstimator)->estimate(
+                Storage::disk('gcode')->path($this->filePath)
+            );
+            $expectedPrintTimeSecs = $durationEstimate->seconds;
 
             $log->info(__METHOD__.": this print should take about {$expectedPrintTimeSecs} seconds.");
 
-            $stopTimestampSecs = time() + $expectedPrintTimeSecs;
+            if ($expectedPrintTimeSecs > 0) {
+                $adaptiveEta = new AdaptiveEta($expectedPrintTimeSecs);
+                $this->printer->setPrintTiming([
+                    'estimatedSeconds' => $expectedPrintTimeSecs,
+                    'printTime' => 0,
+                    'printTimeLeft' => null,
+                    'printTimeLeftOrigin' => $durationEstimate->origin,
+                    'stable' => false,
+                    'hasUnboundedWait' => $durationEstimate->hasUnboundedWait,
+                ]);
+            }
         } catch (Exception $exception) {
             $log->warning(
                 __METHOD__.': couldn\'t query estimated print time: '.$exception->getMessage().PHP_EOL.
@@ -625,7 +649,7 @@ class PrintGcode implements ShouldQueue
 
             tryToWaitForMapper($log);
 
-            $this->updatePrintedFile();
+            $this->updatePrintedFile($durationEstimate);
 
             $lastSeen = $this->printer->getLastSeen();
 
@@ -654,6 +678,11 @@ class PrintGcode implements ShouldQueue
                 }
 
                 while (! $this->printer->isRunning()) {
+                    if ($adaptiveEta) {
+                        $timing = $adaptiveEta->sample($this->lineNumber, $this->lineNumberCount, false);
+                        $timing['hasUnboundedWait'] = $durationEstimate?->hasUnboundedWait ?? false;
+                        $this->printer->setPrintTiming($timing);
+                    }
                     if ($this->printer->getPauseReason() == PauseReason::AUTOMATIC) {
                         $received = $serial->query(
                             command: 'M105',
@@ -689,6 +718,8 @@ class PrintGcode implements ShouldQueue
                     $serial->query('M108'); // break pause and continue unconditionally
 
                     $wasPaused = false;
+
+                    $adaptiveEta?->sample($this->lineNumber, $this->lineNumberCount, true);
 
                     $this->lineNumber = $this->printer->incrementCurrentLine();
 
@@ -736,10 +767,21 @@ class PrintGcode implements ShouldQueue
                 if ($time - $lastCommandUpdate >= self::TERMINAL_REFRESH_INTERVAL_SECS) {
                     $this->printer->setLastCommand(Marlin::getLabel($line));
 
+                    $isActivelyPrinting = $this->printer->isRunning();
+                    $timing = $adaptiveEta?->sample($this->lineNumber, $this->lineNumberCount, $isActivelyPrinting);
+                    if ($timing) {
+                        $timing['hasUnboundedWait'] = $durationEstimate?->hasUnboundedWait ?? false;
+                        $this->printer->setPrintTiming($timing);
+                    }
+
+                    $stopTimestampSecs = $isActivelyPrinting && isset($timing['printTimeLeft'])
+                        ? time() + $timing['printTimeLeft']
+                        : null;
+
                     $serial->tryToAppendNow(
                         lineNumber: $this->lineNumber,
                         maxLine: $this->lineNumberCount,
-                        isRunning: true,
+                        isRunning: $isActivelyPrinting,
                         statistics: $this->printer->getStatistics(),
                         stopTimestampSecs: $stopTimestampSecs
                     );

@@ -82,6 +82,8 @@ class PrinterController extends Controller
         $printer = $this->context->printer($request);
         $currentLine = $printer->getCurrentLine();
         $maxLine = $printer->getMaxLine();
+        $timing = $printer->getPrintTiming();
+        $active = $printer->hasActivePrintJob();
 
         return response()->json([
             'job' => [
@@ -92,16 +94,18 @@ class PrinterController extends Controller
                     'size' => null,
                     'date' => null,
                 ],
-                'estimatedPrintTime' => null,
+                'estimatedPrintTime' => $active ? ($timing['estimatedSeconds'] ?? null) : null,
                 'lastPrintTime' => null,
                 'filament' => null,
             ],
             'progress' => [
-                'completion' => $maxLine > 0 ? round(($currentLine * 100) / $maxLine, 2) : null,
+                'completion' => $active && $maxLine > 0 ? round(($currentLine * 100) / $maxLine, 2) : null,
                 'filepos' => $currentLine,
-                'printTime' => null,
-                'printTimeLeft' => null,
-                'printTimeLeftOrigin' => null,
+                'printTime' => $active ? ($timing['printTime'] ?? null) : null,
+                'printTimeLeft' => $active && $printer->isRunning() ? ($timing['printTimeLeft'] ?? null) : null,
+                'printTimeLeftOrigin' => $active ? ($timing['printTimeLeftOrigin'] ?? null) : null,
+                'wprint3dEtaStable' => $active ? ($timing['stable'] ?? false) : null,
+                'wprint3dHasUnboundedWait' => $active ? ($timing['hasUnboundedWait'] ?? false) : null,
             ],
             'state' => $this->stateText($printer),
         ]);

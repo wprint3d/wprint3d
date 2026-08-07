@@ -32,7 +32,7 @@ export default function UserPrinterFileProgress({ lastTerminalMessage }) {
     }, []);
 
     useEffect(() => {
-        if (!lastStopTimestampSecs) { return; }
+        if (!lastStopTimestampSecs || lastTerminalMessage?.running === false) { return; }
 
         console.debug('UserPrinterFileProgress: lastStopTimestampSecs:', lastStopTimestampSecs);
         console.debug('UserPrinterFileProgress: clockHasTicked:', clockHasTicked);
@@ -62,7 +62,7 @@ export default function UserPrinterFileProgress({ lastTerminalMessage }) {
         } else {
             setRemainingTime(t("files.aFewSeconds"));
         }
-    }, [ lastStopTimestampSecs, clockHasTicked, t ]);
+    }, [ lastStopTimestampSecs, clockHasTicked, lastTerminalMessage?.running, t ]);
 
     useEffect(() => {
         console.debug('UserPrinterFileProgress: lastTerminalMessage:', lastTerminalMessage);
@@ -70,11 +70,11 @@ export default function UserPrinterFileProgress({ lastTerminalMessage }) {
         if (
             !lastTerminalMessage
             ||
-            !lastTerminalMessage.stopTimestampSecs
+            !lastTerminalMessage.maxLine
         ) { return; }
 
         setLastActionMeaning(lastTerminalMessage.meaning ?? null);
-        setLastStopTimestampSecs(lastTerminalMessage.stopTimestampSecs);
+        setLastStopTimestampSecs(lastTerminalMessage.stopTimestampSecs ?? null);
     }, [ lastTerminalMessage ]);
 
     if (!lastTerminalMessage || !lastTerminalMessage.maxLine) { return; }
@@ -104,7 +104,11 @@ export default function UserPrinterFileProgress({ lastTerminalMessage }) {
                     </Text>
                     {'\n'}
                     <Text>
-                        {lastStopTimestampSecs ? t("files.timeLeft", { time: remainingTime }) : ''}
+                        {lastStopTimestampSecs
+                            ? (remainingTime === t("files.aFewSeconds")
+                                ? t("files.fewSecondsLeft")
+                                : t("files.timeLeft", { time: remainingTime }))
+                            : t("files.etaRecalculating")}
                     </Text>
                 </Text>
             </View>

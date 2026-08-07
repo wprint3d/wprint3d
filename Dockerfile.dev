@@ -181,20 +181,6 @@ RUN BUILD_TIME_DEPS='build-essential pkg-config' &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
-# Install gcodestat
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential &&\
-    git clone https://github.com/wprint3d/gcodestat /root/gcodestat --depth 1 &&\
-    cd /root/gcodestat &&\
-    sed -i'' 's/CFLAGS := -Wall -Werror/CFLAGS := -Wall/' Makefile &&\
-    make STATIC=0 NOCURL=1 -j$( nproc --all ) &&\
-    mv gcodestat.exe gcodestat &&\
-    find -not -name 'gcodestat' -delete &&\
-    cd .. &&\
-    apt-get purge -y build-essential &&\
-    apt-get autoremove -y &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/*
-
 # Copy PHP limits configuration
 ADD ./internal/limits.ini /usr/local/etc/php/conf.d/limits.ini
 ADD ./internal/php-fpm-dev-www.conf /usr/local/etc/php-fpm.d/zz-wprint3d-dev.conf

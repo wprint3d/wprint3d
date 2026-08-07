@@ -1,7 +1,6 @@
 #!/bin/bash
 
 export PATH="$PATH":$(pwd)/bin;
-export PATH="$PATH":/root/gcodestat;
 export PATH="$PATH":"$HOME"/bin;
 
 source /var/www/internal/service-status.sh;

@@ -42,6 +42,7 @@ class Printer extends Model
     const CACHE_MAX_LAYER_SUFFIX         = '_maxLayer';
     const CACHE_CONNECTION_STATUS_SUFFIX = '_connectionStatus';
     const CACHE_CONNECTION_DIAGNOSTIC_SUFFIX = '_connectionDiagnostic';
+    const CACHE_PRINT_TIMING_SUFFIX      = '_printTiming';
 
     const CONNECTION_STATUS_ONLINE       = 'online';
     const CONNECTION_STATUS_OFFLINE      = 'offline';
@@ -125,6 +126,24 @@ class Printer extends Model
         return ! $this->hasActivePrintJob()
             && ! empty($this->activeFile)
             && (bool) ($this->lastJobHasFailed ?? false);
+    }
+
+    public function getPrintTiming(): ?array
+    {
+        return Cache::get($this->_id.self::CACHE_PRINT_TIMING_SUFFIX);
+    }
+
+    public function setPrintTiming(?array $timing): bool
+    {
+        if ($timing === null) {
+            return Cache::forget($this->_id.self::CACHE_PRINT_TIMING_SUFFIX);
+        }
+
+        return Cache::put(
+            key: $this->_id.self::CACHE_PRINT_TIMING_SUFFIX,
+            value: $timing,
+            ttl: self::CACHE_TTL
+        );
     }
 
     public function videos(): HasMany {
