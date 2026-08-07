@@ -219,6 +219,11 @@ jobs:
             --compatibility-record "$RUNNER_TEMP/cura-builtin/compatibility.json"
           php artisan plugin:verify-builtins
 
+      - name: Verify bundled trust bootstrap
+        run: |
+          set -euo pipefail
+          php artisan plugin:verify-builtins
+
       - name: Upload staged built-in payload
         uses: actions/upload-artifact@v4
         with:
