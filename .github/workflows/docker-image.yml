@@ -147,6 +147,12 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     needs: validate
     runs-on: ubuntu-24.04
+    env:
+      APP_ENV: testing
+      BROADCAST_DRIVER: 'null'
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
     steps:
       - name: Checkout
         uses: actions/checkout@v4
