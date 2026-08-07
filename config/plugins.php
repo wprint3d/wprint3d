@@ -121,8 +121,8 @@ return [
     'runtime' => [
         'timeout_secs' => (int) env('PLUGIN_RUNTIME_TIMEOUT_SECS', 10),
         'bridge_timeout_secs' => (int) env('PLUGIN_BRIDGE_TIMEOUT_SECS', 5),
-        'healthcheck_retries' => (int) env('PLUGIN_HEALTHCHECK_RETRIES', 10),
-        'healthcheck_delay_ms' => (int) env('PLUGIN_HEALTHCHECK_DELAY_MS', 250),
+        'healthcheck_retries' => (int) env('PLUGIN_HEALTHCHECK_RETRIES', 30),
+        'healthcheck_delay_ms' => (int) env('PLUGIN_HEALTHCHECK_DELAY_MS', 500),
         'blue_green_updates' => filter_var(env('PLUGIN_BLUE_GREEN_UPDATES', true), FILTER_VALIDATE_BOOL),
         'max_payload_bytes' => (int) env('PLUGIN_RUNTIME_MAX_PAYLOAD_BYTES', 262144),
         'max_upload_payload_bytes' => (int) env('PLUGIN_RUNTIME_MAX_UPLOAD_PAYLOAD_BYTES', 268435456),

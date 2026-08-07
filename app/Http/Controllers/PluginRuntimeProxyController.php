@@ -270,6 +270,15 @@ class PluginRuntimeProxyController extends Controller
             return null;
         }
 
+        if (! str_starts_with(strtolower((string) $request->header('content-type', '')), 'multipart/form-data')) {
+            $body = (string) $request->getContent();
+            if (strlen($body) > $maxBytes) {
+                throw new RuntimeProxyPayloadTooLarge;
+            }
+
+            return $body;
+        }
+
         $source = $request->getContent(true);
         if (! is_resource($source)) {
             $body = (string) $request->getContent();

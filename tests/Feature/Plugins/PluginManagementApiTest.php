@@ -247,6 +247,42 @@ class PluginManagementApiTest extends TestCase
         }
     }
 
+    public function test_runtime_proxy_forwards_json_request_bodies_without_a_streaming_upload(): void
+    {
+        $pluginId = 'acme.proxy-json-'.uniqid();
+        Plugin::query()->create([
+            'plugin_id' => $pluginId,
+            'name' => 'JSON proxy fixture',
+            'enabled' => true,
+            'manifest' => [
+                'sdkVersion' => 1,
+                'sdkRevision' => 5,
+                'runtime' => [
+                    'type' => 'bridge',
+                    'proxy' => ['enabled' => true, 'allowedPaths' => ['/api/v1']],
+                    'httpProxy' => ['pathPrefix' => '/api/v1', 'methods' => ['POST']],
+                ],
+            ],
+            'dependency_state' => [
+                'runtime' => ['baseUrl' => 'http://cura-gateway:9311'],
+            ],
+        ]);
+        Http::fake(['http://cura-gateway:9311/*' => Http::response('{"id":"job-1"}', 201, ['Content-Type' => 'application/json'])]);
+
+        try {
+            $response = $this->withoutMiddleware()->postJson('/api/plugins/'.$pluginId.'/runtime/api/v1/jobs', [
+                'apiVersion' => '1.1',
+                'models' => [],
+            ]);
+
+            $response->assertCreated();
+            $this->assertSame('{"id":"job-1"}', $response->streamedContent());
+            Http::assertSent(fn (\Illuminate\Http\Client\Request $request): bool => $request->body() === '{"apiVersion":"1.1","models":[]}');
+        } finally {
+            Plugin::where('plugin_id', $pluginId)->delete();
+        }
+    }
+
     public function test_runtime_proxy_can_be_disabled_by_the_host_without_exposing_the_runtime(): void
     {
         config()->set('plugins.rollout.runtime_proxy_enabled', false);
