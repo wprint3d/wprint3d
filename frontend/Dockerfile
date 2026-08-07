@@ -36,7 +36,6 @@ COPY . .
 RUN --mount=type=cache,target=/pnpm/store,sharing=locked \
     pnpm config set store-dir /pnpm/store \
     && pnpm install --offline --frozen-lockfile \
-    && cp public/index.production.html public/index.html \
     && pnpm exec expo export -p web
 
 FROM ${ALPINE_IMAGE} AS production

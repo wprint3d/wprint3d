@@ -2,86 +2,1038 @@
 <html lang="%LANG_ISO_CODE%">
   <head>
     <meta charset="utf-8" />
-    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <title>%WEB_TITLE%</title>
-    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+
     <style id="expo-reset">
-      /* Chrome, Edge, and Safari */
+      :root {
+        color-scheme: light dark;
+
+        --color-background: #fffbff;
+        --color-surface: #fcfcfc;
+        --color-surface-variant: #f2f2f2;
+        --color-surface-strong: #e6e6e6;
+        --color-text: #1f1f1f;
+        --color-text-muted: #3f464f;
+        --color-primary: #4f5863;
+        --color-on-primary: #ffffff;
+        --color-outline: #8e98a4;
+        --color-outline-variant: #cdcdcd;
+        --color-success: #087f23;
+        --color-warning: #816800;
+        --color-danger: #ba1a1a;
+        --color-danger-container: #ffdad6;
+        --color-focus: #2563eb;
+        --preloader-icon-size: clamp(2.75rem, 9vmin, 3.5rem);
+        --preloader-width: min(calc(100vw - 2rem), 25rem);
+        --radius-small: .5rem;
+        --radius-medium: .75rem;
+        --font-sans: Roboto, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
       *::-webkit-scrollbar {
-          height: .35em;
-          width:  .35em;
+        width: .35rem;
+        height: .35rem;
       }
 
       *::-webkit-scrollbar-track,
-      *::-webkit-scrollbar-corner { background-color: transparent; }
+      *::-webkit-scrollbar-corner {
+        background-color: transparent;
+      }
 
       *::-webkit-scrollbar-thumb {
-          background-color: rgb(79, 88, 99);
-          border-radius:    1em;
+        border-radius: 1rem;
+        background-color: var(--color-primary);
       }
 
-      /* These styles make the body full-height */
       html,
-      body {
+      body,
+      #root {
+        width: 100%;
+        min-width: 20rem;
         height: 100%;
+        min-height: 100%;
       }
-      /* These styles disable body scrolling if you are using <ScrollView> */
+
       body {
         overflow: hidden;
+        margin: 0;
+        background-color: var(--color-background);
+        background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAABefAAAXnwFLnDNSAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAArhJREFUeJztm89PE1EQx7/zthcStAFN0EBa6sGklSMaJREwARP13r/n8W/4J+xdoBbTLQGxlqNQr60kSIJtysmE7o6HumXZ/lAjvo3LfE7dX+nMvDezu/N9S1s7lacAYJFqLS/MHxKRhxijtVaLKy+zHngSAJR/wGVvwnm/n2NmNfzy/5uw8wCgFKjpb8Q5CFqzWlp9lQs6b5FqETPTu0oliw7d6p2d4Haz0TjI5/NuJNZeMYNG3k95RUS8s7n5OTgT0KFkciqdisTaf8CTZy/SYefLxW69I38nM1Nht5pLgCc7jLOz4/qnuMwA27atyTupB1CUDBf7Xq4TEX/YWq+dn3tf4uQ8AOTzebf5tXHgujjyRz5qmwRBEARBEARBEARBEITYY9u2VShXMloPb7lrrdVGaW/Wtm3LlF3061P+nlFNSZ+omrJGBJDkVDoFRUngQnwJzgSttSr9dB4AEoSbptryRgKwV9qohxWopdWuAsXM9DgkWiDB7fZJvWHCNiMpAPjS1H7OZW/C32eRajEzD1JsTLWujRUbx1njTGr6dPbe/XEGxgCAwWP+byAahdpYAADAcRzOpKa/BYPQMyQieT52KvCfYqwGAINV2iCxToFuERzv0+cV0XcG92pC4+j4Rib1+tRx1tiEXUZSoDvy1Wz4DrC8MH9YLr45HHaLNGGbkT8Zpc9rrb3trYc1i1TLP+6yN/F2+2PahG1GAtA+qTfgcRu4GHmtL/Jca/KCM0Exzkw9CBnj916GWBXKlYzJlyFBEARBEARBEARBEAThWhPnltSwltwliXpxpZq1LMzcvpuei1MQ/PUJloWZcMtdAf0fFXoG9XkTjFqfoIaJFs8XH9WjMviqGbU+gUq71bmw8+Xi5b59HBi2PkENkqvi5jzQL74A3ZnQKwbX4fP5rgy3XgsG4Qdl3LKltE6ZcwAAAABJRU5ErkJggg==");
+        color: var(--color-text);
+        font-family: var(--font-sans);
+        font-size: 1rem;
+        line-height: 1.5;
       }
-      /* These styles make the root element full-height */
+
+      button {
+        font: inherit;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      button:focus-visible {
+        outline: 3px solid var(--color-focus);
+        outline-offset: 2px;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
       #root {
         display: flex;
-        height: 100%;
         flex: 1;
       }
 
-      /* Base theme */
-      body {
-        background-color: #f3f3f3;
-        background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAABefAAAXnwFLnDNSAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAArhJREFUeJztm89PE1EQx7/zthcStAFN0EBa6sGklSMaJREwARP13r/n8W/4J+xdoBbTLQGxlqNQr60kSIJtysmE7o6HumXZ/lAjvo3LfE7dX+nMvDezu/N9S1s7lacAYJFqLS/MHxKRhxijtVaLKy+zHngSAJR/wGVvwnm/n2NmNfzy/5uw8wCgFKjpb8Q5CFqzWlp9lQs6b5FqETPTu0oliw7d6p2d4Haz0TjI5/NuJNZeMYNG3k95RUS8s7n5OTgT0KFkciqdisTaf8CTZy/SYefLxW69I38nM1Nht5pLgCc7jLOz4/qnuMwA27atyTupB1CUDBf7Xq4TEX/YWq+dn3tf4uQ8AOTzebf5tXHgujjyRz5qmwRBEARBEARBEARBEITYY9u2VShXMloPb7lrrdVGaW/Wtm3LlF3061P+nlFNSZ+omrJGBJDkVDoFRUngQnwJzgSttSr9dB4AEoSbptryRgKwV9qohxWopdWuAsXM9DgkWiDB7fZJvWHCNiMpAPjS1H7OZW/C32eRajEzD1JsTLWujRUbx1njTGr6dPbe/XEGxgCAwWP+byAahdpYAADAcRzOpKa/BYPQMyQieT52KvCfYqwGAINV2iCxToFuERzv0+cV0XcG92pC4+j4Rib1+tRx1tiEXUZSoDvy1Wz4DrC8MH9YLr45HHaLNGGbkT8Zpc9rrb3trYc1i1TLP+6yN/F2+2PahG1GAtA+qTfgcRu4GHmtL/Jca/KCM0Exzkw9CBnj916GWBXKlYzJlyFBEARBEARBEARBEAThWhPnltSwltwliXpxpZq1LMzcvpuei1MQ/PUJloWZcMtdAf0fFXoG9XkTjFqfoIaJFs8XH9WjMviqGbU+gUq71bmw8+Xi5b59HBi2PkENkqvi5jzQL74A3ZnQKwbX4fP5rgy3XgsG4Qdl3LKltE6ZcwAAAABJRU5ErkJggg==");
+      .preloader {
+        display: grid;
+        width: 100%;
+        min-height: 100vh;
+        min-height: 100dvh;
+        place-items: center;
+        padding:
+          max(1rem, env(safe-area-inset-top))
+          max(1rem, env(safe-area-inset-right))
+          max(1rem, env(safe-area-inset-bottom))
+          max(1rem, env(safe-area-inset-left));
       }
 
-      .preloader-text-color { color: black; }
+      .preloader-surface {
+        width: var(--preloader-width);
+        padding: clamp(1rem, 4vmin, 1.5rem);
+        border: 1px solid var(--color-outline-variant);
+        border-radius: var(--radius-medium);
+        background: var(--color-surface);
+      }
 
-      /* Dark theme */
+      .preloader-header {
+        display: flex;
+        align-items: center;
+        gap: clamp(.75rem, 3vmin, 1rem);
+      }
+
+      .preloader-mark {
+        display: grid;
+        width: var(--preloader-icon-size);
+        height: var(--preloader-icon-size);
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--color-surface-strong);
+        color: var(--color-primary);
+      }
+
+      .preloader-gear {
+        width: 54%;
+        height: 54%;
+        animation: preloader-rotate 2.5s linear infinite;
+      }
+
+      .preloader-brand {
+        min-width: 0;
+      }
+
+      .preloader-brand h1,
+      .preloader-brand p,
+      .preloader-status h2,
+      .preloader-status p,
+      .preloader-notice,
+      .noscript-message {
+        margin: 0;
+      }
+
+      .preloader-brand h1 {
+        font-size: clamp(1.45rem, 5vmin, 1.75rem);
+        line-height: 1.1;
+        letter-spacing: -.025em;
+      }
+
+      .preloader-brand p,
+      .preloader-status p,
+      .preloader-meta,
+      .preloader-notice {
+        color: var(--color-text-muted);
+        font-size: .8125rem;
+      }
+
+      .preloader-brand p {
+        margin-top: .1rem;
+      }
+
+      .preloader-progress {
+        margin-top: 1rem;
+        padding: .75rem 1rem;
+        border: 1px solid var(--color-outline-variant);
+        border-radius: var(--radius-medium);
+        background: var(--color-surface-variant);
+      }
+
+      .preloader-status h2 {
+        color: var(--color-text);
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      .preloader-status-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: .75rem;
+      }
+
+      .preloader-step {
+        color: var(--color-text-muted);
+        font-size: .6875rem;
+        font-weight: 600;
+        line-height: 1.5rem;
+        white-space: nowrap;
+      }
+
+      .preloader-status p {
+        margin-top: .1rem;
+      }
+
+      .preloader-track {
+        position: relative;
+        height: .375rem;
+        overflow: hidden;
+        margin: .75rem 0 .6rem;
+        border-radius: 999px;
+        background: var(--color-outline-variant);
+      }
+
+      .preloader-indicator {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 42%;
+        border-radius: inherit;
+        background: var(--color-primary);
+        animation: preloader-progress 1.5s cubic-bezier(.4, 0, .2, 1) infinite;
+      }
+
+      .preloader-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 1.5rem;
+        gap: .75rem;
+        font-size: .75rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .preloader-state {
+        display: inline-flex;
+        align-items: center;
+        min-width: 0;
+        gap: .4rem;
+      }
+
+      .preloader-state-dot {
+        width: .5rem;
+        height: .5rem;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: var(--color-warning);
+      }
+
+      .preloader-elapsed {
+        flex: 0 0 auto;
+      }
+
+      .preloader-notice {
+        margin-top: .75rem;
+        line-height: 1.45;
+      }
+
+      .preloader-footer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        margin-top: .75rem;
+        color: var(--color-text-muted);
+        font-size: .6875rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .preloader-footer strong {
+        color: var(--color-text);
+        font-weight: 500;
+      }
+
+      .preloader-retry {
+        display: inline-flex;
+        min-height: 2.75rem;
+        align-items: center;
+        justify-content: center;
+        margin-top: .75rem;
+        padding: .55rem 1rem;
+        border: 0;
+        border-radius: 999px;
+        background: var(--color-primary);
+        color: var(--color-on-primary);
+        font-size: .8125rem;
+        font-weight: 600;
+      }
+
+      .preloader-retry:hover {
+        opacity: .88;
+      }
+
+      .preloader-surface[data-state="error"] .preloader-mark {
+        background: var(--color-danger-container);
+        color: var(--color-danger);
+      }
+
+      .preloader-surface[data-state="error"] .preloader-gear,
+      .preloader-surface[data-state="error"] .preloader-indicator {
+        animation: none;
+      }
+
+      .preloader-surface[data-state="error"] .preloader-indicator {
+        width: 100%;
+        background: var(--color-danger);
+        opacity: .7;
+        transform: none;
+      }
+
+      .preloader-surface[data-state="error"] .preloader-state-dot {
+        background: var(--color-danger);
+      }
+
+      .preloader-surface[data-stage="starting"] .preloader-state-dot {
+        background: var(--color-success);
+      }
+
+      .noscript-message {
+        position: fixed;
+        right: 1rem;
+        bottom: 1rem;
+        left: 1rem;
+        z-index: 1;
+        padding: .75rem 1rem;
+        border: 1px solid var(--color-outline-variant);
+        border-radius: var(--radius-small);
+        background: var(--color-surface);
+        color: var(--color-text);
+        text-align: center;
+      }
+
+      @keyframes preloader-rotate {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes preloader-progress {
+        0% {
+          transform: translateX(-110%);
+        }
+
+        55% {
+          transform: translateX(105%);
+        }
+
+        100% {
+          transform: translateX(240%);
+        }
+      }
+
+      @media (max-width: 22rem) {
+        :root {
+          --preloader-width: calc(100vw - 1.5rem);
+        }
+
+        .preloader {
+          padding: .75rem;
+        }
+
+        .preloader-progress {
+          padding: .75rem;
+        }
+      }
+
+      @media (max-height: 30rem) and (min-width: 36rem) {
+        :root {
+          --preloader-icon-size: clamp(2.5rem, 14vmin, 3.25rem);
+          --preloader-width: min(calc(100vw - 2rem), 36rem);
+        }
+
+        .preloader-surface {
+          display: grid;
+          grid-template-columns: minmax(10rem, .8fr) minmax(16rem, 1.2fr);
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .preloader-progress {
+          margin-top: 0;
+        }
+      }
+
       @media (prefers-color-scheme: dark) {
-        body { background-color: black; }
-
-        .preloader-text-color { color: white; }
+        :root {
+          --color-background: #000000;
+          --color-surface: #121013;
+          --color-surface-variant: #1b1e22;
+          --color-surface-strong: #3d3d3d;
+          --color-text: #e7e1e5;
+          --color-text-muted: #ccc4ce;
+          --color-primary: #cbcbcb;
+          --color-on-primary: #222222;
+          --color-outline: #968e98;
+          --color-outline-variant: #3f464f;
+          --color-success: #65d568;
+          --color-warning: #e3c34c;
+          --color-danger: #ffb4ab;
+          --color-danger-container: #3f1618;
+          --color-focus: #9ecaff;
+        }
       }
 
-      /* See https://stackoverflow.com/a/6410923 */
-      @-webkit-keyframes preloader-rotating {
-        from { -webkit-transform: rotate(0deg);   }
-        to   { -webkit-transform: rotate(360deg); }
-      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: .01ms !important;
+          animation-duration: .01ms !important;
+          animation-iteration-count: 1 !important;
+        }
 
-      .preloader-rotating {
-          width: 4vw;
-          -webkit-animation: preloader-rotating 2.5s linear infinite;
+        .preloader-gear {
+          transform: none;
+        }
+
+        .preloader-indicator {
+          transform: translateX(70%);
+        }
       }
     </style>
   </head>
 
   <body>
-    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
     <noscript>
-      You need to enable JavaScript to run this app.
+      <p class="noscript-message">JavaScript must be enabled to run WPrint 3D.</p>
     </noscript>
 
-    <!-- The root element for your Expo app. -->
     <div id="root">
-      <div style="font-family: Arial, Helvetica, sans-serif; height: 100vh; text-align: center; align-items: center; display: flex; flex-direction: row;">
-        <div class="preloader-text-color" style="width: 100vw">
-          <svg class="preloader-rotating" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-gear-fill" viewBox="0 0 16 16">
-            <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/>
-          </svg>
+      <main class="preloader" aria-labelledby="preloaderTitle">
+        <section id="preloaderSurface" class="preloader-surface" data-state="loading" role="status" aria-live="polite">
+          <header class="preloader-header">
+            <span class="preloader-mark" aria-hidden="true">
+              <svg class="preloader-gear" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z" />
+              </svg>
+            </span>
 
-          <h2> WPrint 3D </h2>
-        </div>
-      </div>
+            <div class="preloader-brand">
+              <h1 id="preloaderTitle">WPrint 3D</h1>
+              <p data-i18n="brandSubtitle">Preparing the local interface</p>
+            </div>
+          </header>
+
+          <div class="preloader-progress">
+            <div class="preloader-status">
+              <div class="preloader-status-header">
+                <h2 id="preloaderStatus">Connecting to WPrint 3D</h2>
+                <span id="preloaderStep" class="preloader-step">Step 1 of 3</span>
+              </div>
+              <p id="preloaderDescription">Checking the local application and its version.</p>
+            </div>
+
+            <div
+              class="preloader-track"
+              role="progressbar"
+              aria-label="Loading WPrint 3D"
+              aria-valuetext="Step 1 of 3: Connecting to WPrint 3D"
+            >
+              <span class="preloader-indicator"></span>
+            </div>
+
+            <div class="preloader-meta">
+              <span class="preloader-state">
+                <span class="preloader-state-dot" aria-hidden="true"></span>
+                <span id="preloaderStateLabel">Checking local connection</span>
+              </span>
+              <span id="preloaderElapsed" class="preloader-elapsed" hidden></span>
+            </div>
+
+            <p id="preloaderNotice" class="preloader-notice" hidden>
+              The first load after an update can take a little longer than usual.
+            </p>
+
+            <button id="preloaderRetry" class="preloader-retry" type="button" hidden>
+              <span data-i18n="retry">Try again</span>
+            </button>
+          </div>
+
+          <footer class="preloader-footer">
+            <span data-i18n="runtime">Local web interface</span>
+            <span aria-hidden="true">•</span>
+            <span><span data-i18n="versionLabel">Version</span> <strong id="preloaderVersion">…</strong></span>
+          </footer>
+        </section>
+      </main>
     </div>
+
+    <script>
+      (() => {
+        const translations = {
+          en: {
+            brandSubtitle: 'Preparing the local interface',
+            runtime: 'Local web interface',
+            versionLabel: 'Version',
+            versionUnavailable: 'unavailable',
+            progressLabel: 'Loading WPrint 3D',
+            step: 'Step {current} of {total}',
+            connectingTitle: 'Connecting to WPrint 3D',
+            connectingDescription: 'Checking the local application and its version.',
+            connectingState: 'Checking local connection',
+            bundleTitle: 'Loading interface',
+            bundleDescription: 'Downloading the application bundle and required resources.',
+            bundleState: 'Receiving application resources',
+            startingTitle: 'Starting workspace',
+            startingDescription: 'The interface is ready; the application is now starting.',
+            startingState: 'Starting application',
+            slowTitle: 'WPrint 3D is still loading',
+            slowDescription: 'The application is taking longer than usual, but loading is still in progress.',
+            slowState: 'Waiting for application resources',
+            slowNotice: 'The first load after an update can take a little longer than usual.',
+            offlineTitle: 'No network connection',
+            offlineDescription: 'Reconnect this device to the network used by WPrint 3D, then try again.',
+            offlineState: 'Connection unavailable',
+            connectionLostTitle: 'Connection lost',
+            connectionLostDescription: 'The application cannot finish loading while this device is offline.',
+            resourceErrorTitle: 'Application resources unavailable',
+            resourceErrorDescription: 'A required file could not be loaded from the WPrint 3D device.',
+            resourceErrorState: 'Resource loading failed',
+            restoredTitle: 'Connection restored',
+            restoredDescription: 'Continuing to load the local interface.',
+            restoredState: 'Resuming application loading',
+            retry: 'Try again',
+            seconds: '{seconds} s'
+          },
+          es: {
+            brandSubtitle: 'Preparando la interfaz local',
+            runtime: 'Interfaz web local',
+            versionLabel: 'Versión',
+            versionUnavailable: 'no disponible',
+            progressLabel: 'Cargando WPrint 3D',
+            step: 'Paso {current} de {total}',
+            connectingTitle: 'Conectando con WPrint 3D',
+            connectingDescription: 'Comprobando la aplicación local y su versión.',
+            connectingState: 'Verificando la conexión local',
+            bundleTitle: 'Cargando la interfaz',
+            bundleDescription: 'Descargando el bundle de la aplicación y los recursos necesarios.',
+            bundleState: 'Recibiendo recursos de la aplicación',
+            startingTitle: 'Iniciando el espacio de trabajo',
+            startingDescription: 'La interfaz está lista; ahora se está iniciando la aplicación.',
+            startingState: 'Iniciando la aplicación',
+            slowTitle: 'WPrint 3D todavía se está cargando',
+            slowDescription: 'La aplicación está tardando más de lo habitual, pero la carga continúa.',
+            slowState: 'Esperando recursos de la aplicación',
+            slowNotice: 'La primera carga después de una actualización puede tardar un poco más de lo habitual.',
+            offlineTitle: 'No hay conexión de red',
+            offlineDescription: 'Vuelve a conectar este dispositivo a la red que utiliza WPrint 3D e inténtalo otra vez.',
+            offlineState: 'Conexión no disponible',
+            connectionLostTitle: 'Se perdió la conexión',
+            connectionLostDescription: 'La aplicación no puede terminar de cargar mientras el dispositivo esté sin conexión.',
+            resourceErrorTitle: 'Los recursos de la aplicación no están disponibles',
+            resourceErrorDescription: 'No se pudo cargar un archivo necesario desde el dispositivo WPrint 3D.',
+            resourceErrorState: 'Falló la carga de recursos',
+            restoredTitle: 'Se restableció la conexión',
+            restoredDescription: 'Continuando con la carga de la interfaz local.',
+            restoredState: 'Reanudando la carga de la aplicación',
+            retry: 'Reintentar',
+            seconds: '{seconds} s'
+          },
+          fr: {
+            brandSubtitle: 'Préparation de l’interface locale',
+            runtime: 'Interface web locale',
+            versionLabel: 'Version',
+            versionUnavailable: 'indisponible',
+            progressLabel: 'Chargement de WPrint 3D',
+            step: 'Étape {current} sur {total}',
+            connectingTitle: 'Connexion à WPrint 3D',
+            connectingDescription: 'Vérification de l’application locale et de sa version.',
+            connectingState: 'Vérification de la connexion locale',
+            bundleTitle: 'Chargement de l’interface',
+            bundleDescription: 'Téléchargement de l’application et des ressources nécessaires.',
+            bundleState: 'Réception des ressources de l’application',
+            startingTitle: 'Démarrage de l’espace de travail',
+            startingDescription: 'L’interface est prête ; l’application démarre maintenant.',
+            startingState: 'Démarrage de l’application',
+            slowTitle: 'WPrint 3D est toujours en cours de chargement',
+            slowDescription: 'Le chargement prend plus de temps que prévu, mais il est toujours en cours.',
+            slowState: 'En attente des ressources de l’application',
+            slowNotice: 'Le premier chargement après une mise à jour peut prendre un peu plus de temps.',
+            offlineTitle: 'Aucune connexion réseau',
+            offlineDescription: 'Reconnectez cet appareil au réseau utilisé par WPrint 3D, puis réessayez.',
+            offlineState: 'Connexion indisponible',
+            connectionLostTitle: 'Connexion perdue',
+            connectionLostDescription: 'L’application ne peut pas terminer son chargement lorsque cet appareil est hors ligne.',
+            resourceErrorTitle: 'Ressources de l’application indisponibles',
+            resourceErrorDescription: 'Un fichier requis n’a pas pu être chargé depuis l’appareil WPrint 3D.',
+            resourceErrorState: 'Échec du chargement des ressources',
+            restoredTitle: 'Connexion rétablie',
+            restoredDescription: 'Reprise du chargement de l’interface locale.',
+            restoredState: 'Reprise du chargement de l’application',
+            retry: 'Réessayer',
+            seconds: '{seconds} s'
+          },
+          pt: {
+            brandSubtitle: 'Preparando a interface local',
+            runtime: 'Interface web local',
+            versionLabel: 'Versão',
+            versionUnavailable: 'indisponível',
+            progressLabel: 'Carregando o WPrint 3D',
+            step: 'Etapa {current} de {total}',
+            connectingTitle: 'Conectando ao WPrint 3D',
+            connectingDescription: 'Verificando a aplicação local e a sua versão.',
+            connectingState: 'Verificando a conexão local',
+            bundleTitle: 'Carregando a interface',
+            bundleDescription: 'Baixando o pacote da aplicação e os recursos necessários.',
+            bundleState: 'Recebendo recursos da aplicação',
+            startingTitle: 'Iniciando o espaço de trabalho',
+            startingDescription: 'A interface está pronta; a aplicação está sendo iniciada.',
+            startingState: 'Iniciando a aplicação',
+            slowTitle: 'O WPrint 3D ainda está carregando',
+            slowDescription: 'A aplicação está demorando mais do que o habitual, mas o carregamento continua.',
+            slowState: 'Aguardando recursos da aplicação',
+            slowNotice: 'O primeiro carregamento após uma atualização pode demorar um pouco mais.',
+            offlineTitle: 'Sem conexão de rede',
+            offlineDescription: 'Reconecte este dispositivo à rede usada pelo WPrint 3D e tente novamente.',
+            offlineState: 'Conexão indisponível',
+            connectionLostTitle: 'Conexão perdida',
+            connectionLostDescription: 'A aplicação não pode terminar de carregar enquanto este dispositivo estiver offline.',
+            resourceErrorTitle: 'Recursos da aplicação indisponíveis',
+            resourceErrorDescription: 'Não foi possível carregar um arquivo necessário do dispositivo WPrint 3D.',
+            resourceErrorState: 'Falha ao carregar recursos',
+            restoredTitle: 'Conexão restabelecida',
+            restoredDescription: 'Continuando o carregamento da interface local.',
+            restoredState: 'Retomando o carregamento da aplicação',
+            retry: 'Tentar novamente',
+            seconds: '{seconds} s'
+          },
+          it: {
+            brandSubtitle: 'Preparazione dell’interfaccia locale',
+            runtime: 'Interfaccia web locale',
+            versionLabel: 'Versione',
+            versionUnavailable: 'non disponibile',
+            progressLabel: 'Caricamento di WPrint 3D',
+            step: 'Passaggio {current} di {total}',
+            connectingTitle: 'Connessione a WPrint 3D',
+            connectingDescription: 'Verifica dell’applicazione locale e della sua versione.',
+            connectingState: 'Verifica della connessione locale',
+            bundleTitle: 'Caricamento dell’interfaccia',
+            bundleDescription: 'Download del bundle dell’applicazione e delle risorse necessarie.',
+            bundleState: 'Ricezione delle risorse dell’applicazione',
+            startingTitle: 'Avvio dell’area di lavoro',
+            startingDescription: 'L’interfaccia è pronta; l’applicazione è in fase di avvio.',
+            startingState: 'Avvio dell’applicazione',
+            slowTitle: 'WPrint 3D è ancora in fase di caricamento',
+            slowDescription: 'Il caricamento sta richiedendo più tempo del solito, ma è ancora in corso.',
+            slowState: 'In attesa delle risorse dell’applicazione',
+            slowNotice: 'Il primo caricamento dopo un aggiornamento può richiedere un po’ più di tempo.',
+            offlineTitle: 'Nessuna connessione di rete',
+            offlineDescription: 'Riconnetti questo dispositivo alla rete usata da WPrint 3D e riprova.',
+            offlineState: 'Connessione non disponibile',
+            connectionLostTitle: 'Connessione persa',
+            connectionLostDescription: 'L’applicazione non può completare il caricamento mentre il dispositivo è offline.',
+            resourceErrorTitle: 'Risorse dell’applicazione non disponibili',
+            resourceErrorDescription: 'Non è stato possibile caricare un file necessario dal dispositivo WPrint 3D.',
+            resourceErrorState: 'Caricamento delle risorse non riuscito',
+            restoredTitle: 'Connessione ripristinata',
+            restoredDescription: 'Ripresa del caricamento dell’interfaccia locale.',
+            restoredState: 'Ripresa del caricamento dell’applicazione',
+            retry: 'Riprova',
+            seconds: '{seconds} s'
+          },
+          de: {
+            brandSubtitle: 'Lokale Benutzeroberfläche wird vorbereitet',
+            runtime: 'Lokale Weboberfläche',
+            versionLabel: 'Version',
+            versionUnavailable: 'nicht verfügbar',
+            progressLabel: 'WPrint 3D wird geladen',
+            step: 'Schritt {current} von {total}',
+            connectingTitle: 'Verbindung mit WPrint 3D wird hergestellt',
+            connectingDescription: 'Die lokale Anwendung und ihre Version werden geprüft.',
+            connectingState: 'Lokale Verbindung wird geprüft',
+            bundleTitle: 'Benutzeroberfläche wird geladen',
+            bundleDescription: 'Das Anwendungspaket und die erforderlichen Ressourcen werden heruntergeladen.',
+            bundleState: 'Anwendungsressourcen werden empfangen',
+            startingTitle: 'Arbeitsbereich wird gestartet',
+            startingDescription: 'Die Benutzeroberfläche ist bereit; die Anwendung wird jetzt gestartet.',
+            startingState: 'Anwendung wird gestartet',
+            slowTitle: 'WPrint 3D wird weiterhin geladen',
+            slowDescription: 'Das Laden dauert länger als gewöhnlich, wird aber weiterhin ausgeführt.',
+            slowState: 'Warten auf Anwendungsressourcen',
+            slowNotice: 'Das erste Laden nach einem Update kann etwas länger dauern.',
+            offlineTitle: 'Keine Netzwerkverbindung',
+            offlineDescription: 'Verbinden Sie dieses Gerät wieder mit dem von WPrint 3D verwendeten Netzwerk und versuchen Sie es erneut.',
+            offlineState: 'Verbindung nicht verfügbar',
+            connectionLostTitle: 'Verbindung unterbrochen',
+            connectionLostDescription: 'Die Anwendung kann nicht vollständig geladen werden, solange dieses Gerät offline ist.',
+            resourceErrorTitle: 'Anwendungsressourcen nicht verfügbar',
+            resourceErrorDescription: 'Eine erforderliche Datei konnte nicht vom WPrint 3D-Gerät geladen werden.',
+            resourceErrorState: 'Ressourcen konnten nicht geladen werden',
+            restoredTitle: 'Verbindung wiederhergestellt',
+            restoredDescription: 'Die lokale Benutzeroberfläche wird weiter geladen.',
+            restoredState: 'Anwendung wird weiter geladen',
+            retry: 'Erneut versuchen',
+            seconds: '{seconds} Sek.'
+          }
+        };
+
+        translations.es_AR = {
+          ...translations.es,
+          offlineDescription: 'Reconectá este dispositivo a la red que usa WPrint 3D y volvé a intentarlo.',
+          connectionLostDescription: 'La aplicación no puede terminar de cargar mientras el dispositivo esté sin conexión.',
+          resourceErrorDescription: 'No se pudo cargar un archivo necesario desde el dispositivo WPrint 3D.',
+          restoredDescription: 'Continuando con la carga de la interfaz local.',
+          retry: 'Volver a intentar'
+        };
+
+        const startedAt = Date.now();
+        const surface = document.getElementById('preloaderSurface');
+        const status = document.getElementById('preloaderStatus');
+        const description = document.getElementById('preloaderDescription');
+        const step = document.getElementById('preloaderStep');
+        const stateLabel = document.getElementById('preloaderStateLabel');
+        const elapsed = document.getElementById('preloaderElapsed');
+        const notice = document.getElementById('preloaderNotice');
+        const retry = document.getElementById('preloaderRetry');
+        const version = document.getElementById('preloaderVersion');
+        const progress = document.querySelector('.preloader-track');
+        const supportedLanguages = new Set(Object.keys(translations));
+        const stages = {
+          connecting: { index: 1, title: 'connectingTitle', description: 'connectingDescription', state: 'connectingState' },
+          bundle: { index: 2, title: 'bundleTitle', description: 'bundleDescription', state: 'bundleState' },
+          starting: { index: 3, title: 'startingTitle', description: 'startingDescription', state: 'startingState' }
+        };
+        let currentLanguage = 'en';
+        let currentView = { type: 'stage', stage: 'connecting' };
+        let currentStage = 'connecting';
+        let revisionValue = null;
+        let revisionUnavailable = false;
+        let revisionAttempts = 0;
+        let revisionFetchInProgress = false;
+        let revisionRetryTimer;
+        let bundleScript = null;
+        let bundleLoaded = false;
+        let elapsedTimer;
+
+        const interpolate = (value, params = {}) => value.replace(/\{(\w+)\}/g, (_match, key) => (
+          params[key] === undefined || params[key] === null ? '' : String(params[key])
+        ));
+
+        const t = (key, params = {}) => interpolate(
+          translations[currentLanguage]?.[key] ?? translations.en[key] ?? key,
+          params
+        );
+
+        const normalizeLanguageTag = (value) => {
+          if (typeof value !== 'string') {
+            return '';
+          }
+
+          const [rawLanguage = '', rawRegion = ''] = value.replace('-', '_').split('_');
+          const language = rawLanguage.toLowerCase();
+          const region = rawRegion.toUpperCase();
+
+          return region ? `${language}_${region}` : language;
+        };
+
+        const resolveLanguage = () => {
+          let storedLanguage = null;
+
+          try {
+            storedLanguage = normalizeLanguageTag(localStorage.getItem('wprint3d.language'));
+          } catch (_error) {}
+
+          if (storedLanguage && storedLanguage !== 'auto' && supportedLanguages.has(storedLanguage)) {
+            return storedLanguage;
+          }
+
+          const resolvedOptions = Intl.DateTimeFormat().resolvedOptions();
+          const languageTags = [
+            ...(Array.isArray(navigator.languages) ? navigator.languages : []),
+            navigator.language,
+            resolvedOptions.locale
+          ].map(normalizeLanguageTag).filter(Boolean);
+          const argentinaTimeZones = new Set([
+            'America/Buenos_Aires',
+            'America/Catamarca',
+            'America/Cordoba',
+            'America/Jujuy',
+            'America/Mendoza'
+          ]);
+          const isArgentinaTimeZone = resolvedOptions.timeZone?.startsWith('America/Argentina/')
+            || argentinaTimeZones.has(resolvedOptions.timeZone);
+
+          if (isArgentinaTimeZone && languageTags.some((language) => language.startsWith('es'))) {
+            return 'es_AR';
+          }
+
+          for (const language of languageTags) {
+            if (supportedLanguages.has(language)) {
+              return language;
+            }
+          }
+
+          for (const language of languageTags) {
+            const [baseLanguage] = language.split('_');
+
+            if (supportedLanguages.has(baseLanguage)) {
+              return baseLanguage;
+            }
+          }
+
+          return 'en';
+        };
+
+        const updateVersion = () => {
+          version.textContent = revisionValue ?? (revisionUnavailable ? t('versionUnavailable') : '…');
+        };
+
+        const updateElapsed = () => {
+          const elapsedSeconds = Math.max(1, Math.floor((Date.now() - startedAt) / 1000));
+          elapsed.textContent = t('seconds', { seconds: elapsedSeconds });
+        };
+
+        const renderView = () => {
+          document.documentElement.lang = currentLanguage.replace('_', '-');
+          document.querySelectorAll('[data-i18n]').forEach((element) => {
+            element.textContent = t(element.dataset.i18n);
+          });
+          progress.setAttribute('aria-label', t('progressLabel'));
+
+          if (currentView.type === 'error') {
+            surface.dataset.state = 'error';
+            surface.setAttribute('role', 'alert');
+            surface.setAttribute('aria-live', 'assertive');
+            surface.setAttribute('aria-busy', 'false');
+            status.textContent = t(currentView.title);
+            description.textContent = t(currentView.description);
+            stateLabel.textContent = t(currentView.state);
+            step.hidden = true;
+            elapsed.hidden = true;
+            notice.hidden = true;
+            retry.hidden = false;
+            progress.setAttribute('aria-valuetext', t(currentView.title));
+            updateVersion();
+            return;
+          }
+
+          surface.dataset.state = 'loading';
+          surface.dataset.stage = currentStage;
+          surface.setAttribute('role', 'status');
+          surface.setAttribute('aria-live', 'polite');
+          surface.setAttribute('aria-busy', 'true');
+          retry.hidden = true;
+          step.hidden = false;
+
+          const stage = stages[currentStage];
+          step.textContent = t('step', { current: stage.index, total: Object.keys(stages).length });
+
+          if (currentView.type === 'slow') {
+            status.textContent = t('slowTitle');
+            description.textContent = t('slowDescription');
+            stateLabel.textContent = t('slowState');
+            elapsed.hidden = false;
+            notice.textContent = t('slowNotice');
+            notice.hidden = false;
+            updateElapsed();
+          } else if (currentView.type === 'restored') {
+            status.textContent = t('restoredTitle');
+            description.textContent = t('restoredDescription');
+            stateLabel.textContent = t('restoredState');
+            elapsed.hidden = true;
+            notice.hidden = true;
+          } else {
+            status.textContent = t(stage.title);
+            description.textContent = t(stage.description);
+            stateLabel.textContent = t(stage.state);
+            elapsed.hidden = true;
+            notice.hidden = true;
+          }
+
+          progress.setAttribute(
+            'aria-valuetext',
+            `${step.textContent}: ${status.textContent}`
+          );
+          updateVersion();
+        };
+
+        const applyLanguage = () => {
+          currentLanguage = resolveLanguage();
+          renderView();
+        };
+
+        const setStage = (stage, force = false) => {
+          if (!stages[stage]) {
+            return;
+          }
+
+          if (!force && stages[stage].index < stages[currentStage].index) {
+            return;
+          }
+
+          currentStage = stage;
+          currentView = { type: 'stage', stage };
+          renderView();
+        };
+
+        const showSlowState = () => {
+          if (surface.dataset.state === 'error') {
+            return;
+          }
+
+          currentView = { type: 'slow' };
+          renderView();
+          window.clearInterval(elapsedTimer);
+          elapsedTimer = window.setInterval(updateElapsed, 1000);
+        };
+
+        const showErrorState = (title, descriptionKey, state) => {
+          currentView = { type: 'error', title, description: descriptionKey, state };
+          window.clearInterval(elapsedTimer);
+          renderView();
+        };
+
+        const restoreLoadingState = () => {
+          currentView = { type: 'restored' };
+          renderView();
+
+          window.setTimeout(() => {
+            setStage(bundleLoaded ? 'starting' : bundleScript ? 'bundle' : 'connecting', true);
+          }, 900);
+        };
+
+        const loadRevision = async () => {
+          if (revisionFetchInProgress || revisionValue || !surface.isConnected) {
+            return;
+          }
+
+          revisionFetchInProgress = true;
+
+          try {
+            const response = await fetch('/backend/api/app/revision', {
+              cache: 'no-store',
+              headers: { Accept: 'text/plain, application/json' }
+            });
+
+            if (!response.ok) {
+              throw new Error(`Revision request failed with status ${response.status}.`);
+            }
+
+            const content = await response.text();
+            let parsedContent = content;
+
+            try {
+              parsedContent = JSON.parse(content);
+            } catch (_error) {}
+
+            const normalizedRevision = String(parsedContent ?? '').trim();
+
+            if (!normalizedRevision || normalizedRevision.length > 64 || normalizedRevision.includes('<')) {
+              throw new Error('The revision response was invalid.');
+            }
+
+            revisionValue = normalizedRevision;
+            revisionUnavailable = false;
+            window.clearTimeout(revisionRetryTimer);
+          } catch (_error) {
+            revisionAttempts += 1;
+            revisionUnavailable = revisionAttempts >= 3;
+            revisionRetryTimer = window.setTimeout(loadRevision, 1500);
+          } finally {
+            revisionFetchInProgress = false;
+            updateVersion();
+          }
+        };
+
+        const attachBundleScript = (script) => {
+          if (bundleScript || !script?.src || !script.src.includes('/_expo/static/js/web/')) {
+            return;
+          }
+
+          bundleScript = script;
+          const connectionStageMinimum = Math.max(0, 350 - (Date.now() - startedAt));
+
+          window.setTimeout(() => setStage('bundle'), connectionStageMinimum);
+
+          script.addEventListener('load', () => {
+            bundleLoaded = true;
+            setStage('starting');
+          }, { once: true });
+        };
+
+        const bundleObserver = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+              if (node.nodeName === 'SCRIPT') {
+                attachBundleScript(node);
+              }
+            });
+          });
+        });
+
+        applyLanguage();
+        loadRevision();
+        document.querySelectorAll('script[src]').forEach(attachBundleScript);
+        bundleObserver.observe(document.documentElement, { childList: true, subtree: true });
+        window.setTimeout(showSlowState, 8000);
+
+        if (!navigator.onLine) {
+          showErrorState(
+            'offlineTitle',
+            'offlineDescription',
+            'offlineState'
+          );
+        }
+
+        window.addEventListener('offline', () => {
+          showErrorState(
+            'connectionLostTitle',
+            'connectionLostDescription',
+            'offlineState'
+          );
+        });
+
+        window.addEventListener('online', restoreLoadingState);
+
+        window.addEventListener('error', (event) => {
+          const elementName = event.target?.tagName;
+
+          if (elementName !== 'SCRIPT' && elementName !== 'LINK') {
+            return;
+          }
+
+          showErrorState(
+            'resourceErrorTitle',
+            'resourceErrorDescription',
+            'resourceErrorState'
+          );
+        }, true);
+
+        window.addEventListener('languagechange', applyLanguage);
+        window.addEventListener('storage', (event) => {
+          if (event.key === 'wprint3d.language') {
+            applyLanguage();
+          }
+        });
+        retry.addEventListener('click', () => window.location.reload());
+      })();
+    </script>
   </body>
 </html>
