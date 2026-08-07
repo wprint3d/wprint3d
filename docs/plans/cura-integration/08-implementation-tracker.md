@@ -163,8 +163,8 @@ the candidate WPrint image and published gateway digest.
 
 Detailed source: [`07-release-verification-and-rollout.md`](07-release-verification-and-rollout.md).
 
-- [ ] **G01** Generate compatibility record from exact verified artifacts. Requires E10–E11.
-- [ ] **G02** Stage exact signed `.w3dp` into WPrint candidate image. Requires C09, G01.
+- [x] **G01** Generate compatibility record from exact verified artifacts. Requires E10–E11.
+- [x] **G02** Stage exact signed `.w3dp` into WPrint candidate image. Requires C09, G01.
 - [ ] **G03** Run WPrint/Cura/integrated required CI matrices. Requires F11, G02.
 - [ ] **G04** Complete every failure-injection scenario or document bounded approved exception. Requires G03.
 - [ ] **G05** Complete fresh install, slice/import, restart, update, rollback, disable/re-enable, and uninstall retention flows. Requires G03.
