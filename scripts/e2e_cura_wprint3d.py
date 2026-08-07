@@ -15,8 +15,6 @@ import os
 import re
 import shlex
 import subprocess
-import tempfile
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -29,32 +27,13 @@ sync_playwright: Any = None
 BASE_URL = os.environ.get("WPRINT3D_E2E_BASE_URL", "https://127.0.0.1")
 COMPOSE = shlex.split(os.environ.get("WPRINT3D_E2E_COMPOSE", "docker compose -f docker-compose-development.yml"))
 PLUGIN_ID = "cura-web-ui"
-PLUGIN_LABEL = os.environ.get("WPRINT3D_E2E_PLUGIN_LABEL", "Cura Web UI")
+PLUGIN_LABEL = os.environ.get("WPRINT3D_E2E_PLUGIN_LABEL", "Cura Slicer")
 PLUGIN_PATH = os.environ.get("WPRINT3D_E2E_PLUGIN_PATH", "/var/www/plugins-dev/cura-web-ui")
 EMAIL = os.environ.get("WPRINT3D_E2E_EMAIL", "admin@admin.com")
 PASSWORD = os.environ.get("WPRINT3D_E2E_PASSWORD", "admin")
 SECOND_EMAIL = os.environ.get("WPRINT3D_E2E_SECOND_EMAIL")
 SECOND_PASSWORD = os.environ.get("WPRINT3D_E2E_SECOND_PASSWORD")
 EXPECTED_IMAGE = os.environ.get("CURA_GATEWAY_IMAGE")
-
-SAMPLE_STL = """solid integration_cube
-  facet normal 0 0 1
-    outer loop
-      vertex 0 0 0
-      vertex 20 0 0
-      vertex 0 20 0
-    endloop
-  endfacet
-  facet normal 0 0 1
-    outer loop
-      vertex 20 0 0
-      vertex 20 20 0
-      vertex 0 20 0
-    endloop
-  endfacet
-endsolid integration_cube
-"""
-
 
 def run_backend(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -98,24 +77,40 @@ def install_unpacked_plugin(page: Page) -> None:
 
 
 def login(page: Page, email: str = EMAIL, password: str = PASSWORD) -> None:
-    page.goto(BASE_URL, wait_until="networkidle")
-    page.locator("input").nth(0).fill(email)
+    email_input = page.locator("input").nth(0)
+    for attempt in range(3):
+        page.goto(BASE_URL, wait_until="domcontentloaded")
+        try:
+            expect(email_input).to_be_visible(timeout=30_000)
+            break
+        except AssertionError:
+            if attempt == 2:
+                raise
+    email_input.fill(email)
     page.locator('input[type="password"]').fill(password)
     page.get_by_role("button", name="Log in").click()
-    page.wait_for_load_state("networkidle")
     expect(page.get_by_role("button", name="Settings")).to_be_visible(timeout=20_000)
 
 
 def cura_frame(page: Page):
-    frame = page.frame(url=re.compile(r"hostMode=embedded"))
-    if frame is None:
-        fail("The WPrint page did not expose an embedded Cura frame.")
-    return frame
+    for _ in range(60):
+        frame = page.frame(url=re.compile(r"hostMode=embedded"))
+        if frame is not None:
+            return frame
+        page.wait_for_timeout(500)
+    fail("The WPrint page did not expose an embedded Cura frame.")
 
 
 def open_cura(page: Page):
-    expect(page.get_by_role("tab", name=PLUGIN_LABEL, exact=True)).to_be_visible(timeout=30_000)
-    page.get_by_role("tab", name=PLUGIN_LABEL, exact=True).click()
+    navigation = page.get_by_role("button", name=re.compile(re.escape(PLUGIN_LABEL), re.I))
+    for attempt in range(3):
+        if navigation.count() > 0:
+            break
+        if attempt < 2:
+            page.wait_for_timeout(2_000)
+            page.reload(wait_until="domcontentloaded")
+    expect(navigation).to_be_visible(timeout=30_000)
+    navigation.click()
     frame = cura_frame(page)
     expect(frame.get_by_test_id("cura-viewport")).to_be_visible(timeout=30_000)
     if page.locator(".cura-header").count() != 0:
@@ -132,10 +127,19 @@ def assert_host_safety(frame) -> None:
 
 
 def list_files(page: Page) -> str:
-    response = page.request.get(f"{BASE_URL}/backend/api/files")
+    response = page.request.get(f"{BASE_URL}/backend/api/files?subPath=cura")
     if not response.ok:
         fail(f"WPrint file-list request failed with HTTP {response.status}")
     return response.text()
+
+
+def wait_for_new_file(page: Page, filename: str, previous_listing: str) -> None:
+    previous_count = previous_listing.count(filename)
+    for _ in range(60):
+        if list_files(page).count(filename) > previous_count:
+            return
+        page.wait_for_timeout(500)
+    fail(f"Saved Cura G-code {filename!r} did not appear in the WPrint file list")
 
 
 def assert_second_user_cannot_read_first_job(browser: Any, first_job_id: str) -> None:
@@ -188,10 +192,6 @@ def main() -> None:
     run_backend("php", "artisan", "plugin:disable", PLUGIN_ID, check=False)
     run_backend("php", "artisan", "plugin:remove", PLUGIN_ID, check=False)
 
-    with tempfile.NamedTemporaryFile("w", suffix=".stl", delete=False) as sample:
-        sample.write(SAMPLE_STL)
-        sample_path = sample.name
-
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
@@ -199,33 +199,26 @@ def main() -> None:
             page = context.new_page()
             login(page)
             install_unpacked_plugin(page)
-            page.reload(wait_until="networkidle")
+            run_backend("php", "artisan", "plugin:enable", PLUGIN_ID)
+            page.reload(wait_until="domcontentloaded")
             frame = open_cura(page)
             assert_host_safety(frame)
-            frame.get_by_test_id("model-file-input").set_input_files(sample_path)
+            expect(frame.get_by_test_id("object-list").get_by_text("web-calibration-cube.stl", exact=True)).to_be_visible(timeout=30_000)
             expect(frame.get_by_test_id("slice-button")).to_be_enabled(timeout=30_000)
             frame.get_by_test_id("slice-button").click()
-            expect(frame.get_by_text(re.compile(r"slicing|completed", re.I))).to_be_visible(timeout=180_000)
+            expect(frame.get_by_test_id("event-timeline")).to_contain_text("job.completed", timeout=180_000)
             first_job = latest_job_id(page)
-            page.reload(wait_until="networkidle")
-            frame = open_cura(page)
-            expect(frame.get_by_test_id("cura-viewport")).to_be_visible()
             frame.get_by_role("button", name="Preview", exact=True).click()
             expect(frame.get_by_test_id("preview-panel")).to_be_visible(timeout=30_000)
-            frame.get_by_role("tab", name="Monitor", exact=True).click()
+            frame.locator(".stage-tabs button").filter(has_text="Monitor").click()
             expect(frame.get_by_role("button", name="Save to WPrint 3D", exact=True)).to_be_enabled(timeout=30_000)
+            files_before_import = list_files(page)
             frame.get_by_role("button", name="Save to WPrint 3D", exact=True).click()
-            expect(page.get_by_role("status")).to_contain_text(re.compile(r"saved|imported|WPrint", re.I), timeout=30_000)
-            if "integration_cube.gcode" not in list_files(page):
-                fail("Saved Cura G-code did not appear in the WPrint file list")
+            wait_for_new_file(page, "web-calibration-cube.gcode", files_before_import)
             assert_second_user_cannot_read_first_job(browser, first_job)
 
+            page.reload(wait_until="domcontentloaded")
             frame = open_cura(page)
-            frame.get_by_test_id("model-file-input").set_input_files({
-                "name": "integration_cancel.stl",
-                "mimeType": "model/stl",
-                "buffer": SAMPLE_STL.encode("utf-8"),
-            })
             expect(frame.get_by_test_id("slice-button")).to_be_enabled(timeout=30_000)
             frame.get_by_test_id("slice-button").click()
             cancel = frame.get_by_role("button", name="Cancel", exact=True)
@@ -234,17 +227,16 @@ def main() -> None:
             expect(frame.get_by_text(re.compile(r"cancelled|canceled", re.I))).to_be_visible(timeout=60_000)
 
             run_backend("php", "artisan", "plugin:disable", PLUGIN_ID)
-            page.reload(wait_until="networkidle")
-            expect(page.get_by_role("tab", name=PLUGIN_LABEL, exact=True)).to_have_count(0, timeout=30_000)
+            page.reload(wait_until="domcontentloaded")
+            expect(page.get_by_role("button", name=PLUGIN_LABEL, exact=True)).to_have_count(0, timeout=30_000)
             run_backend("php", "artisan", "plugin:enable", PLUGIN_ID)
-            page.reload(wait_until="networkidle")
+            page.reload(wait_until="domcontentloaded")
             frame = open_cura(page)
             if first_job not in (page.request.get(f"{BASE_URL}/backend/api/plugins/{PLUGIN_ID}/runtime/api/v1/jobs").text()):
                 fail("Completed Cura job did not survive plugin disable/re-enable")
             context.close()
             browser.close()
     finally:
-        Path(sample_path).unlink(missing_ok=True)
         run_backend("php", "artisan", "plugin:disable", PLUGIN_ID, check=False)
         run_backend("php", "artisan", "plugin:remove", PLUGIN_ID, check=False)
 

@@ -37,6 +37,12 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: wprint-release-signing
+    env:
+      APP_ENV: testing
+      BROADCAST_DRIVER: 'null'
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
     steps:
       - name: Checkout WPrint toolchain
         uses: actions/checkout@v4
@@ -45,7 +51,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: curl,dom,fileinfo,intl,mbstring,mongodb,pcntl,pdo,pdo_mysql,redis,zip
+          extensions: curl,dom,fileinfo,intl,mbstring,mongodb-1.21.0,pcntl,pdo,pdo_mysql,redis,zip
           tools: composer:v2
 
       - name: Install pinned WPrint packager

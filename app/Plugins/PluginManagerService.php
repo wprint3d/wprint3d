@@ -414,8 +414,8 @@ class PluginManagerService implements PluginManager
      */
     private function healthcheckBridgeWithRetry(BridgePluginRuntimeAdapter $adapter, array $payload): void
     {
-        $attempts = max(1, (int) config('plugins.runtime.healthcheck_retries', 10));
-        $delayMicroseconds = max(0, (int) config('plugins.runtime.healthcheck_delay_ms', 250)) * 1000;
+        $attempts = max(1, (int) config('plugins.runtime.healthcheck_retries', 30));
+        $delayMicroseconds = max(0, (int) config('plugins.runtime.healthcheck_delay_ms', 500)) * 1000;
 
         for ($attempt = 1; $attempt <= $attempts; $attempt++) {
             try {
@@ -1059,7 +1059,14 @@ class PluginManagerService implements PluginManager
         $normalizedAssetPath = ltrim(urldecode($assetPath), DIRECTORY_SEPARATOR);
         $declaredAssets = collect($plugin['manifest']['assets'] ?? []);
 
-        if (! $declaredAssets->contains(fn (array $asset) => ($asset['path'] ?? null) === $normalizedAssetPath)) {
+        if (! $declaredAssets->contains(function (array $asset) use ($normalizedAssetPath): bool {
+            $declaredPath = trim((string) ($asset['path'] ?? ''), DIRECTORY_SEPARATOR);
+
+            return $declaredPath !== '' && (
+                $normalizedAssetPath === $declaredPath
+                || str_starts_with($normalizedAssetPath, $declaredPath.DIRECTORY_SEPARATOR)
+            );
+        })) {
             throw new PluginRuntimeException("Plugin asset {$normalizedAssetPath} is not declared by {$pluginId}.");
         }
 

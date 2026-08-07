@@ -622,4 +622,67 @@ class PluginManagerServiceTest extends TestCase
             File::deleteDirectory($runtimePath);
         }
     }
+
+    public function test_it_resolves_files_beneath_a_declared_asset_directory(): void
+    {
+        $runtimePath = storage_path('framework/testing/plugin-asset-directory-'.uniqid());
+        File::ensureDirectoryExists($runtimePath.'/ui');
+        File::put($runtimePath.'/ui/index.html', '<html><body>Cura</body></html>');
+
+        Plugin::query()->create([
+            'plugin_id' => 'cura-web-ui',
+            'name' => 'Cura Web UI',
+            'current_version' => '0.1.0',
+            'enabled' => true,
+            'trust_level' => 'signed',
+            'install_source' => ['type' => 'local_upload'],
+            'manifest' => [
+                'id' => 'cura-web-ui',
+                'name' => 'Cura Web UI',
+                'version' => '0.1.0',
+                'runtime' => ['type' => 'php'],
+                'assets' => [['id' => 'ui', 'path' => 'ui']],
+                'uiExtensions' => [],
+                'components' => [],
+            ],
+            'permissions' => [],
+            'hooks' => [],
+            'actions' => [],
+            'ui_extensions' => [],
+            'versions' => [
+                '0.1.0' => [
+                    'path' => $runtimePath,
+                    'trust_level' => 'signed',
+                ],
+            ],
+        ]);
+
+        $dependencyService = Mockery::mock(PluginDependencyService::class);
+        $dependencyService->shouldReceive('summarize')->andReturn([
+            'classification' => 'lightweight',
+            'requirements' => [],
+            'host' => [],
+            'warnings' => [],
+            'runtime' => [],
+            'images' => [],
+        ]);
+        $archiveService = Mockery::mock(PluginArchiveService::class);
+        $archiveService->shouldReceive('inspectDirectory')->once()->andThrow(new \RuntimeException('not required'));
+        $service = new PluginManagerService(
+            $archiveService,
+            Mockery::mock(PluginRegistryClient::class),
+            Mockery::mock(PluginRuntimeRegistry::class),
+            $dependencyService,
+            new PluginLifecycleLogStore,
+        );
+
+        try {
+            $asset = $service->resolveAsset('cura-web-ui', 'ui/index.html');
+
+            $this->assertSame(realpath($runtimePath.'/ui/index.html'), $asset['path']);
+            $this->assertSame('text/html', $asset['mimeType']);
+        } finally {
+            File::deleteDirectory($runtimePath);
+        }
+    }
 }

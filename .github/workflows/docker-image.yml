@@ -147,6 +147,12 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     needs: validate
     runs-on: ubuntu-24.04
+    env:
+      APP_ENV: testing
+      BROADCAST_DRIVER: 'null'
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -155,7 +161,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: curl,dom,fileinfo,intl,mbstring,mongodb,pcntl,pdo,pdo_mysql,redis,zip
+          extensions: curl,dom,fileinfo,intl,mbstring,mongodb-1.21.0,pcntl,pdo,pdo_mysql,redis,zip
           tools: composer:v2
 
       - name: Install WPrint verification dependencies
@@ -163,20 +169,28 @@ jobs:
 
       - name: Download and verify signed Cura artifacts
         env:
+          CURA_RELEASE_READ_TOKEN: ${{ secrets.CURA_RELEASE_READ_TOKEN }}
           CURA_W3DP_URL: ${{ inputs.cura_w3dp_url }}
           CURA_W3DP_SHA256: ${{ inputs.cura_w3dp_sha256 }}
           CURA_COMPATIBILITY_URL: ${{ inputs.cura_compatibility_url }}
           CURA_COMPATIBILITY_SHA256: ${{ inputs.cura_compatibility_sha256 }}
         run: |
           set -euo pipefail
+          [[ -n "$CURA_RELEASE_READ_TOKEN" ]] || { echo 'CURA_RELEASE_READ_TOKEN is required.' >&2; exit 1; }
           [[ "$CURA_W3DP_URL" == https://* ]] || { echo 'Cura W3DP URL must use HTTPS.' >&2; exit 1; }
           [[ "$CURA_COMPATIBILITY_URL" == https://* ]] || { echo 'Cura compatibility URL must use HTTPS.' >&2; exit 1; }
           [[ "$CURA_W3DP_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo 'Invalid Cura W3DP SHA-256.' >&2; exit 1; }
           [[ "$CURA_COMPATIBILITY_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo 'Invalid Cura compatibility SHA-256.' >&2; exit 1; }
           mkdir -p "$RUNNER_TEMP/cura-builtin"
           curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --retry-all-errors \
+            --header 'Accept: application/octet-stream' \
+            --header "Authorization: Bearer $CURA_RELEASE_READ_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
             "$CURA_W3DP_URL" -o "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp"
           curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --retry-all-errors \
+            --header 'Accept: application/octet-stream' \
+            --header "Authorization: Bearer $CURA_RELEASE_READ_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
             "$CURA_COMPATIBILITY_URL" -o "$RUNNER_TEMP/cura-builtin/compatibility.json"
           printf '%s  %s\n' "${CURA_W3DP_SHA256,,}" "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp" | sha256sum --check --status
           printf '%s  %s\n' "${CURA_COMPATIBILITY_SHA256,,}" "$RUNNER_TEMP/cura-builtin/compatibility.json" | sha256sum --check --status
@@ -191,6 +205,9 @@ jobs:
           [[ -n "$CURA_W3DP_SIGNER_PUBLIC_KEY" ]] || { echo 'CURA_W3DP_SIGNER_PUBLIC_KEY is required.' >&2; exit 1; }
           printf '%s\n' "$CURA_W3DP_SIGNER_PUBLIC_KEY" > "$RUNNER_TEMP/cura-builtin/signer-public.pem"
           chmod 600 "$RUNNER_TEMP/cura-builtin/signer-public.pem"
+          mkdir -p resources/plugins/builtin/trusted
+          cp "$RUNNER_TEMP/cura-builtin/signer-public.pem" resources/plugins/builtin/trusted/cura-w3dp-release.pem
+          chmod 644 resources/plugins/builtin/trusted/cura-w3dp-release.pem
           archive_sha256="$(sha256sum "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp" | awk '{print tolower($1)}')"
           scripts/stage-builtin-plugin.sh \
             --archive "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp" \
@@ -200,6 +217,11 @@ jobs:
             --destination "resources/plugins/builtin/archives/cura-web-ui-${PLUGIN_VERSION}.w3dp" \
             --inventory resources/plugins/builtin/index.json \
             --compatibility-record "$RUNNER_TEMP/cura-builtin/compatibility.json"
+          php artisan plugin:verify-builtins
+
+      - name: Verify bundled trust bootstrap
+        run: |
+          set -euo pipefail
           php artisan plugin:verify-builtins
 
       - name: Upload staged built-in payload
@@ -346,17 +368,42 @@ jobs:
 
       - name: Create commit manifests
         run: |
+          create_manifest() {
+            local attempt
+            for attempt in 1 2 3 4 5; do
+              if docker buildx imagetools create "$@"; then
+                return 0
+              fi
+              if [[ "$attempt" -eq 5 ]]; then
+                return 1
+              fi
+              sleep "$((attempt * 5))"
+            done
+          }
           for image in wprint3d wprint3d-mapper wprint3d-streamer wprint3d-proxy wprint3d-frontend; do
-            docker buildx imagetools create \
+            create_manifest \
               --tag "$REGISTRY/$image:${GITHUB_SHA}" \
               "$REGISTRY/$image:${GITHUB_SHA}-amd64" \
               "$REGISTRY/$image:${GITHUB_SHA}-arm64"
           done
 
       - name: Promote release manifests
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
+          create_manifest() {
+            local attempt
+            for attempt in 1 2 3 4 5; do
+              if docker buildx imagetools create "$@"; then
+                return 0
+              fi
+              if [[ "$attempt" -eq 5 ]]; then
+                return 1
+              fi
+              sleep "$((attempt * 5))"
+            done
+          }
           for image in wprint3d-mapper wprint3d-streamer wprint3d-proxy wprint3d-frontend wprint3d; do
-            docker buildx imagetools create \
+            create_manifest \
               --tag "$REGISTRY/$image:latest" \
               "$REGISTRY/$image:${GITHUB_SHA}"
           done

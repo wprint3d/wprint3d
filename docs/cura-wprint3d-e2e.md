@@ -15,6 +15,6 @@ WPRINT3D_E2E_SECOND_PASSWORD='test-password' \
 
 The mounted `plugin.json` must contain the exact same non-zero digest as `CURA_GATEWAY_IMAGE`; the script rejects development placeholders. The second account is mandatory because the flow verifies owner isolation.
 
-The sequence covers login, unpacked-plugin installation, embedded host safety, real STL upload, real slicing, reload during/after the job, preview, Save-to-WPrint, file-list visibility, cancellation of a second job, disable/re-enable durability, and a second-user job-visibility check. Cleanup disables/removes only `cura-web-ui` in the disposable stack.
+The sequence covers login, unpacked-plugin installation, embedded host safety, slicing the bundled calibration cube with the real CuraEngine, preview, Save-to-WPrint, file-list visibility, cancellation of a second job, disable/re-enable durability, and a second-user job-visibility check. Cleanup disables/removes only `cura-web-ui` in the disposable stack.
 
 The script is an implementation of the F11 flow, but F11 remains unchecked until it has been executed against the published digest and candidate WPrint image. A local signed-package smoke already proves the lower-level install/proxy/slice/import lifecycle; this browser run is the cross-application release evidence.

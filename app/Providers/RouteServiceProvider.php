@@ -59,13 +59,14 @@ class RouteServiceProvider extends ServiceProvider
             $isArtifact = str_contains((string) $request->path(), 'runtime-artifacts/');
             $isUpload = str_starts_with($contentType, 'multipart/form-data')
                 || in_array(strtoupper($request->method()), ['POST', 'PUT', 'PATCH'], true);
-            $limit = $isArtifact
-                ? (int) config('plugins.runtime.proxy_rate_limits.artifact_per_minute', 30)
-                : ($isUpload
-                    ? (int) config('plugins.runtime.proxy_rate_limits.upload_per_minute', 10)
-                    : (int) config('plugins.runtime.proxy_rate_limits.metadata_per_minute', 120));
+            $bucket = $isArtifact ? 'artifact' : ($isUpload ? 'upload' : 'metadata');
+            $limit = match ($bucket) {
+                'artifact' => (int) config('plugins.runtime.proxy_rate_limits.artifact_per_minute', 30),
+                'upload' => (int) config('plugins.runtime.proxy_rate_limits.upload_per_minute', 10),
+                default => (int) config('plugins.runtime.proxy_rate_limits.metadata_per_minute', 120),
+            };
 
-            return Limit::perMinute(max(1, $limit))->by(($request->user()?->getAuthIdentifier() ?? $request->ip()).':'.$pluginId);
+            return Limit::perMinute(max(1, $limit))->by(($request->user()?->getAuthIdentifier() ?? $request->ip()).':'.$pluginId.':'.$bucket);
         });
     }
 }
