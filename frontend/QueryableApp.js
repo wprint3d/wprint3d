@@ -9,11 +9,12 @@ import Main   from './components/Main';
 
 import API from './includes/API';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import UserChangePasswordModal from './components/UserChangePasswordModal';
 import PluginLoadingProvider from './components/PluginLoadingProvider';
 import { useLocalization } from './includes/LocalizationProvider';
 import { EchoProvider } from './hooks/useEcho';
+import { getBackendAvailabilityFailure, isBackendStartingError } from './utils/backendAvailability';
 
 export default function QueryableApp({ colorScheme, setColorScheme }) {
   const { colors } = useTheme();
@@ -25,7 +26,9 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
 
   const getAppName = useQuery({
     queryKey: ['getAppName'],
-    queryFn:  () => API.get('/app/name')
+    queryFn:  () => API.get('/app/name'),
+    retry: true,
+    retryDelay: 5000
   });
 
   console.debug('getAppName:', getAppName);
@@ -51,15 +54,9 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
     };
   }, [ lastAppState ]);
 
-  useEffect(() => {
-    if (getAppName.isFetching || getAppName.isSuccess) { return; }
+  const sharedRetryingScale = useRef(new Animated.Value(1)).current;
 
-    setTimeout(() => getAppName.refetch(), 5000);
-  }, [ getAppName.isFetching, getAppName.isSuccess ]);
-
-  const sharedRetryingScale = new Animated.Value(1);
-
-  // Write a useEffect() hook to make the heart bounce while the app name is being fetched
+  // Make the heart bounce while the app name is being fetched.
   useEffect(() => {
     if (!getAppName.isFetching) { return; }
 
@@ -75,7 +72,7 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
     }, 750);
 
     return () => clearInterval(interval);
-  }, [ getAppName.isFetching ]);
+  }, [ getAppName.isFetching, sharedRetryingScale ]);
 
   // if (lastAppState !== null && lastAppState !== 'active') {
   //   return (
@@ -96,7 +93,9 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
   //   );
   // }
 
-  if (getAppName.isError && getAppName?.error?.status === 502) {
+  const backendAvailabilityFailure = getBackendAvailabilityFailure(getAppName);
+
+  if (!getAppName.isSuccess && isBackendStartingError(backendAvailabilityFailure)) {
     return (
       <Reanimated.View 
         style={styles.preloader}
@@ -118,7 +117,7 @@ export default function QueryableApp({ colorScheme, setColorScheme }) {
     );
   }
 
-  if (!getAppName.isSuccess && getAppName.isFetched) {
+  if (!getAppName.isSuccess && backendAvailabilityFailure) {
     return (
       <View style={styles.preloader}>
         <View style={styles.container}>
