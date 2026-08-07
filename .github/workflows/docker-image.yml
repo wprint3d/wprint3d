@@ -6,6 +6,27 @@ on:
   pull_request:
     branches: ["pre-alpha", "alpha", "beta", "master"]
   workflow_dispatch:
+    inputs:
+      cura_w3dp_url:
+        description: HTTPS URL of the exact signed Cura W3DP archive
+        required: true
+        type: string
+      cura_w3dp_sha256:
+        description: SHA-256 of the signed Cura W3DP archive
+        required: true
+        type: string
+      cura_plugin_version:
+        description: Expected signed Cura plugin version
+        required: true
+        type: string
+      cura_compatibility_url:
+        description: HTTPS URL of the matching Cura compatibility record
+        required: true
+        type: string
+      cura_compatibility_sha256:
+        description: SHA-256 of the matching compatibility record
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,6 +62,7 @@ jobs:
             fi
             bash "$test_file"
           done
+          bash tests/Unit/cura-cross-app-e2e-harness-test.sh
 
   pull-request-build:
     name: PR validation build (amd64)
@@ -120,12 +142,81 @@ jobs:
             echo "Code-only cache verification duration: ${CACHE_BUILD_DURATION}s"
           } >> "$GITHUB_STEP_SUMMARY"
 
+  prepare-cura-builtin:
+    name: Prepare signed Cura built-in
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP and Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl,dom,fileinfo,intl,mbstring,mongodb,pcntl,pdo,pdo_mysql,redis,zip
+          tools: composer:v2
+
+      - name: Install WPrint verification dependencies
+        run: composer install --no-dev --no-interaction --no-progress --prefer-dist --no-scripts
+
+      - name: Download and verify signed Cura artifacts
+        env:
+          CURA_W3DP_URL: ${{ inputs.cura_w3dp_url }}
+          CURA_W3DP_SHA256: ${{ inputs.cura_w3dp_sha256 }}
+          CURA_COMPATIBILITY_URL: ${{ inputs.cura_compatibility_url }}
+          CURA_COMPATIBILITY_SHA256: ${{ inputs.cura_compatibility_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$CURA_W3DP_URL" == https://* ]] || { echo 'Cura W3DP URL must use HTTPS.' >&2; exit 1; }
+          [[ "$CURA_COMPATIBILITY_URL" == https://* ]] || { echo 'Cura compatibility URL must use HTTPS.' >&2; exit 1; }
+          [[ "$CURA_W3DP_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo 'Invalid Cura W3DP SHA-256.' >&2; exit 1; }
+          [[ "$CURA_COMPATIBILITY_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo 'Invalid Cura compatibility SHA-256.' >&2; exit 1; }
+          mkdir -p "$RUNNER_TEMP/cura-builtin"
+          curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --retry-all-errors \
+            "$CURA_W3DP_URL" -o "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp"
+          curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --retry-all-errors \
+            "$CURA_COMPATIBILITY_URL" -o "$RUNNER_TEMP/cura-builtin/compatibility.json"
+          printf '%s  %s\n' "${CURA_W3DP_SHA256,,}" "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp" | sha256sum --check --status
+          printf '%s  %s\n' "${CURA_COMPATIBILITY_SHA256,,}" "$RUNNER_TEMP/cura-builtin/compatibility.json" | sha256sum --check --status
+
+      - name: Stage and verify the trusted built-in
+        env:
+          CURA_W3DP_SIGNER_PUBLIC_KEY: ${{ secrets.CURA_W3DP_SIGNER_PUBLIC_KEY }}
+          PLUGIN_VERSION: ${{ inputs.cura_plugin_version }}
+          PLUGIN_TRUSTED_PUBLIC_KEYS: ${{ runner.temp }}/cura-builtin/signer-public.pem
+        run: |
+          set -euo pipefail
+          [[ -n "$CURA_W3DP_SIGNER_PUBLIC_KEY" ]] || { echo 'CURA_W3DP_SIGNER_PUBLIC_KEY is required.' >&2; exit 1; }
+          printf '%s\n' "$CURA_W3DP_SIGNER_PUBLIC_KEY" > "$RUNNER_TEMP/cura-builtin/signer-public.pem"
+          chmod 600 "$RUNNER_TEMP/cura-builtin/signer-public.pem"
+          archive_sha256="$(sha256sum "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp" | awk '{print tolower($1)}')"
+          scripts/stage-builtin-plugin.sh \
+            --archive "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp" \
+            --expected-plugin-id cura-web-ui \
+            --expected-version "$PLUGIN_VERSION" \
+            --expected-sha256 "$archive_sha256" \
+            --destination "resources/plugins/builtin/archives/cura-web-ui-${PLUGIN_VERSION}.w3dp" \
+            --inventory resources/plugins/builtin/index.json \
+            --compatibility-record "$RUNNER_TEMP/cura-builtin/compatibility.json"
+          php artisan plugin:verify-builtins
+
+      - name: Upload staged built-in payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: cura-builtin-staged
+          if-no-files-found: error
+          path: resources/plugins/builtin
+
   architecture-build:
     name: Build and push (${{ matrix.arch }})
     if: >-
+      always() &&
       needs.validate.result == 'success' &&
+      (needs.prepare-cura-builtin.result == 'success' || needs.prepare-cura-builtin.result == 'skipped') &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    needs: validate
+    needs: [validate, prepare-cura-builtin]
     strategy:
       fail-fast: true
       matrix:
@@ -140,6 +231,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download staged Cura built-in
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          name: cura-builtin-staged
+          path: resources/plugins/builtin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

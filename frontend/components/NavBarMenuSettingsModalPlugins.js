@@ -571,6 +571,15 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
     refetchInterval: logsDialogPlugin ? 3000 : false,
   });
 
+  const pluginDoctorQuery = useQuery({
+    queryKey: ["pluginDoctor"],
+    queryFn: () => API.get("/plugins/doctor"),
+    enabled: isAdministrator,
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
+  });
+
   useEffect(() => {
     if (isAdministrator && developerModeEnabled && installModalVisible && installModalTab === "development") {
       developmentPluginsQuery.refetch();
@@ -592,6 +601,11 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
     staleTime: 30000,
   });
 
+  const pluginDiagnosticsById = useMemo(
+    () => Object.fromEntries((pluginDoctorQuery?.data?.data || []).map((entry) => [entry.id, entry])),
+    [ pluginDoctorQuery?.data?.data ],
+  );
+
   const settingsPageMap = useMemo(() => buildSettingsPageMap(pluginSettingsPages), [ pluginSettingsPages ]);
 
   const mutateAndRefresh = useMutation({
@@ -603,6 +617,7 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
       queryClient.invalidateQueries({ queryKey: ["pluginDevelopment"] });
       queryClient.invalidateQueries({ queryKey: ["pluginExtensions"] });
       queryClient.invalidateQueries({ queryKey: ["pluginLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["pluginDoctor"] });
       queryClient.invalidateQueries({ queryKey: ["pluginPreferences"] });
 
       const feedback = buildMutationFeedback(response, variables, t, effectiveLanguage);
@@ -664,6 +679,26 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
         action: { label: t("notifications.gotIt") },
       });
     }
+  });
+
+  const deleteRuntimeStorageMutation = useMutation({
+    mutationFn: ({ pluginId, expectedVolume }) => API.delete(`/plugins/${pluginId}/runtime-storage`, { expectedVolume }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      queryClient.invalidateQueries({ queryKey: ["pluginDoctor"] });
+      enqueueSnackbar({
+        message: t("plugins.retainedDataDeleted"),
+        variant: "success",
+        action: { label: t("notifications.gotIt") },
+      });
+    },
+    onError: (error) => {
+      enqueueSnackbar({
+        message: error?.response?.data?.message || error.message,
+        variant: "error",
+        action: { label: t("notifications.gotIt") },
+      });
+    },
   });
 
   const updateRegistrySourcesMutation = useMutation({
@@ -745,6 +780,13 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
 
     if (confirmationDialog.kind === "remove") {
       deleteMutation.mutate(confirmationDialog.plugin.id);
+    }
+
+    if (confirmationDialog.kind === "delete-retained-storage") {
+      deleteRuntimeStorageMutation.mutate({
+        pluginId: confirmationDialog.plugin.id,
+        expectedVolume: confirmationDialog.expectedVolume,
+      });
     }
 
     if (confirmationDialog.kind === "safe-mode") {
@@ -1052,6 +1094,18 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                       confirmLabel: t("plugins.removePlugin"),
                     });
 
+                    const retainedVolumes = (pluginDiagnosticsById[plugin.id]?.runtimeDiagnostics || [])
+                      .flatMap((diagnostic) => diagnostic.volumes || [])
+                      .filter((volume) => volume.present && volume.name);
+                    const openRetainedStorageDialog = (volume) => openConfirmationDialog({
+                      kind: "delete-retained-storage",
+                      plugin,
+                      expectedVolume: volume.name,
+                      title: t("plugins.deleteRetainedDataTitle", { name: plugin.name }),
+                      body: t("plugins.deleteRetainedDataBody"),
+                      confirmLabel: t("plugins.deleteRetainedData"),
+                    });
+
                     const secondaryActions = [
                       {
                         key: "logs",
@@ -1075,6 +1129,13 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                         titleStyle: { color: theme.colors.error },
                         onPress: openRemoveDialog,
                       },
+                      ...(!plugin.enabled ? retainedVolumes.map((volume) => ({
+                        key: `delete-retained-storage-${volume.name}`,
+                        icon: "database-remove-outline",
+                        label: t("plugins.deleteRetainedData"),
+                        titleStyle: { color: theme.colors.error },
+                        onPress: () => openRetainedStorageDialog(volume),
+                      })) : []),
                     ];
 
                     return (
@@ -1275,6 +1336,21 @@ const NavBarMenuSettingsModalPlugins = ({ pluginSettingsPages = [], onOpenSettin
                               >
                                 {t("plugins.remove")}
                               </Button>
+                              {!plugin.enabled && retainedVolumes.map((volume) => (
+                                <Button
+                                  key={`delete-retained-storage-${volume.name}`}
+                                  mode="contained"
+                                  icon="database-remove-outline"
+                                  buttonColor={theme.colors.error}
+                                  textColor={theme.colors.white || "#ffffff"}
+                                  iconColor={theme.colors.white || "#ffffff"}
+                                  style={pillButtonStyle}
+                                  contentStyle={pillButtonContentStyle}
+                                  onPress={() => openRetainedStorageDialog(volume)}
+                                >
+                                  {t("plugins.deleteRetainedData")}
+                                </Button>
+                              ))}
                             </View>
                           )}
                         </Card.Content>

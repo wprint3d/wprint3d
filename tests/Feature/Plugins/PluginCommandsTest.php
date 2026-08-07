@@ -2,8 +2,12 @@
 
 namespace Tests\Feature\Plugins;
 
+use App\Models\Plugin;
 use App\Plugins\Contracts\PluginManager;
+use App\Plugins\PluginArchiveService;
+use App\Plugins\PluginPackage;
 use App\Plugins\PluginTrustedKeySynchronizer;
+use Illuminate\Support\Facades\File;
 use Mockery;
 use Tests\TestCase;
 
@@ -106,5 +110,136 @@ class PluginCommandsTest extends TestCase
         $this->artisan('plugin:auto-update')
             ->expectsOutput('Automatic plugin updates checked 3 plugins: 1 updated, 1 already current, 1 skipped, 0 failed.')
             ->assertExitCode(0);
+    }
+
+    public function test_cura_builtin_can_be_disabled_without_affecting_other_builtins(): void
+    {
+        $archivePath = sys_get_temp_dir().'/cura-web-ui-fixture.w3dp';
+        config()->set('plugins.builtins.inventory', __DIR__.'/missing-builtins.json');
+        config()->set('plugins.builtins.entries', [[
+            'id' => 'cura-web-ui',
+            'version' => '1.0.0',
+            'archive' => $archivePath,
+            'required' => false,
+            'feature' => 'builtin_cura_enabled',
+        ]]);
+        config()->set('plugins.rollout.builtin_cura_enabled', false);
+
+        $manager = Mockery::mock(PluginManager::class);
+        $this->app->instance(PluginManager::class, $manager);
+
+        $this->artisan('plugin:install-builtins')
+            ->expectsOutput('Skipped disabled built-in cura-web-ui.')
+            ->assertExitCode(0);
+    }
+
+    public function test_cura_builtin_auto_enable_is_a_separate_rollout_switch(): void
+    {
+        $archivePath = sys_get_temp_dir().'/cura-web-ui-fixture-'.uniqid().'.w3dp';
+        file_put_contents($archivePath, 'fixture');
+        config()->set('plugins.builtins.inventory', __DIR__.'/missing-builtins.json');
+        config()->set('plugins.builtins.entries', [[
+            'id' => 'cura-web-ui',
+            'version' => '1.0.0',
+            'archive' => $archivePath,
+            'required' => false,
+            'defaultEnabled' => false,
+            'feature' => 'builtin_cura_enabled',
+        ]]);
+        config()->set('plugins.rollout.builtin_cura_enabled', true);
+        config()->set('plugins.rollout.builtin_cura_auto_enable', true);
+
+        $plugin = new Plugin;
+        $plugin->plugin_id = 'cura-web-ui';
+        $plugin->enabled = false;
+
+        $manager = Mockery::mock(PluginManager::class);
+        $archiveService = Mockery::mock(PluginArchiveService::class);
+        $archiveService->shouldReceive('inspect')
+            ->once()
+            ->with($archivePath, 'builtin')
+            ->andReturn(new PluginPackage(
+                manifest: [
+                    'id' => 'cura-web-ui',
+                    'name' => 'Cura Web UI',
+                    'version' => '1.0.0',
+                    'signature' => ['algorithm' => 'openssl-sha256'],
+                ],
+                rawManifest: null,
+                archivePath: $archivePath,
+                archiveSha256: hash('sha256', 'fixture'),
+                sourceType: 'builtin',
+                trustLevel: 'signed',
+            ));
+        $manager->shouldReceive('findModel')
+            ->twice()
+            ->with('cura-web-ui')
+            ->andReturn(null, $plugin);
+        $manager->shouldReceive('installFromArchive')
+            ->once()
+            ->with($archivePath, 'builtin', [
+                'builtinId' => 'cura-web-ui',
+                'bundledVersion' => '1.0.0',
+                'archiveSha256' => hash('sha256', 'fixture'),
+                'path' => $archivePath,
+            ])
+            ->andReturn(['id' => 'cura-web-ui']);
+        $manager->shouldReceive('enable')
+            ->once()
+            ->with('cura-web-ui')
+            ->andReturn(['id' => 'cura-web-ui', 'enabled' => true]);
+        $this->app->instance(PluginManager::class, $manager);
+        $this->app->instance(PluginArchiveService::class, $archiveService);
+
+        try {
+            $this->artisan('plugin:install-builtins')
+                ->expectsOutput('Installed built-in cura-web-ui.')
+                ->assertExitCode(0);
+        } finally {
+            @unlink($archivePath);
+        }
+    }
+
+    public function test_verify_builtins_checks_the_inventory_archive_and_trust_level(): void
+    {
+        $root = sys_get_temp_dir().'/wprint3d-builtins-command-'.uniqid();
+        mkdir($root.'/archives', 0777, true);
+        $archivePath = $root.'/archives/cura-web-ui-1.0.0.w3dp';
+        file_put_contents($archivePath, 'fixture');
+        file_put_contents($root.'/index.json', json_encode([
+            'schemaVersion' => 1,
+            'plugins' => [[
+                'id' => 'cura-web-ui',
+                'version' => '1.0.0',
+                'archive' => 'archives/cura-web-ui-1.0.0.w3dp',
+                'sha256' => hash_file('sha256', $archivePath),
+            ]],
+        ]));
+        config()->set('plugins.builtins.inventory', $root.'/index.json');
+
+        $archiveService = Mockery::mock(PluginArchiveService::class);
+        $archiveService->shouldReceive('inspect')
+            ->once()
+            ->with($archivePath, 'builtin_verify')
+            ->andReturn(new PluginPackage(
+                manifest: ['id' => 'cura-web-ui', 'version' => '1.0.0'],
+                rawManifest: null,
+                archivePath: $archivePath,
+                archiveSha256: hash_file('sha256', $archivePath),
+                sourceType: 'builtin_verify',
+                trustLevel: 'signed',
+            ));
+        $archiveService->shouldReceive('verifyIntegrity')
+            ->once()
+            ->with($archivePath, ['id' => 'cura-web-ui', 'version' => '1.0.0']);
+        $this->app->instance(PluginArchiveService::class, $archiveService);
+
+        try {
+            $this->artisan('plugin:verify-builtins')
+                ->expectsOutput('Verified built-in cura-web-ui 1.0.0.')
+                ->assertExitCode(0);
+        } finally {
+            File::deleteDirectory($root);
+        }
     }
 }

@@ -287,6 +287,28 @@ class PluginArchiveServiceTest extends TestCase
         }
     }
 
+    public function test_revision_five_integrity_map_must_cover_every_staged_asset_file(): void
+    {
+        $directory = storage_path('framework/testing/plugins-integrity-map-'.uniqid());
+        @mkdir($directory.'/ui', 0777, true);
+        file_put_contents($directory.'/ui/index.html', '<!doctype html>');
+        file_put_contents($directory.'/ui/extra.js', 'console.log("extra");');
+
+        try {
+            $this->expectException(\App\Plugins\Exceptions\PluginRuntimeException::class);
+            $this->expectExceptionMessage('does not declare every staged asset file');
+            (new PluginArchiveService(new PluginManifestValidator))->assertAssetIntegrity($directory, [
+                'assets' => [['path' => 'ui']],
+                'integrity' => [
+                    'algorithm' => 'sha256',
+                    'files' => ['ui/index.html' => hash_file('sha256', $directory.'/ui/index.html')],
+                ],
+            ]);
+        } finally {
+            File::deleteDirectory($directory);
+        }
+    }
+
     private function generateKeyPair(): array
     {
         $resource = openssl_pkey_new([

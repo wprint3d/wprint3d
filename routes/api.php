@@ -8,6 +8,7 @@ use App\Http\Controllers\DeveloperFakeSerialController;
 use App\Http\Controllers\FilesController;
 use App\Http\Controllers\LoggingController;
 use App\Http\Controllers\PluginController;
+use App\Http\Controllers\PluginRuntimeProxyController;
 use App\Http\Controllers\PrinterController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\UserController;
@@ -77,6 +78,12 @@ Route::middleware(['auth:sanctum', 'native.api', 'password.ensure_changed'])->gr
         Route::get('/sdk', [PluginController::class, 'sdk']);
         Route::get('/sdk/octoprint-compat.js', [PluginController::class, 'octoPrintCompatScript']);
         Route::get('/ui', [PluginController::class, 'ui']);
+        Route::get('/{pluginId}/host-context', [PluginController::class, 'hostContext']);
+        Route::match(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], '/{pluginId}/runtime/{runtimePath?}', [PluginRuntimeProxyController::class, 'forward'])
+            ->where('runtimePath', '.*')
+            ->middleware('throttle:plugin-runtime');
+        Route::post('/{pluginId}/runtime-artifacts/{importId}', [PluginRuntimeProxyController::class, 'importArtifact'])
+            ->middleware('throttle:plugin-runtime');
         Route::get('/{pluginId}/assets/{assetPath}', [PluginController::class, 'asset'])->where('assetPath', '.*');
         Route::get('/{pluginId}/settings', [PluginController::class, 'settings']);
         Route::put('/{pluginId}/settings', [PluginController::class, 'updateSettings']);
@@ -125,6 +132,7 @@ Route::middleware(['auth:sanctum', 'native.api', 'password.ensure_changed'])->gr
             Route::post('/disable-all', [PluginController::class, 'disableAll']);
             Route::post('/enable-all', [PluginController::class, 'enableAll']);
             Route::post('/install', [PluginController::class, 'install']);
+            Route::delete('/{pluginId}/runtime-storage', [PluginController::class, 'deleteRuntimeStorage']);
             Route::get('/', [PluginController::class, 'index']);
             Route::get('/{pluginId}', [PluginController::class, 'show']);
             Route::put('/{pluginId}/automatic-updates', [PluginController::class, 'setAutomaticUpdates']);

@@ -182,6 +182,18 @@ php artisan plugin:publish \
   --token="$GITHUB_TOKEN"
 ```
 
+### Protected Cura Web UI signing handoff
+
+The Cura release workflow emits a deterministic unsigned source tarball and a
+sidecar checksum after the digest-gated multi-architecture stage. The protected
+`.github/workflows/cura-plugin-signing.yml` workflow accepts that tarball URL,
+checksum, plugin version, and exact image digest through `workflow_dispatch`.
+It validates the archive, signs it with the `CURA_W3DP_SIGNING_PRIVATE_KEY`
+secret and optional `CURA_W3DP_SIGNING_PASSPHRASE`, verifies the result with
+`--require-trusted`, and publishes only the signed package metadata as an
+artifact. Configure the `wprint-release-signing` environment with required
+reviewers before enabling this job.
+
 ## Publishing To The Public Registry
 
 The current public-registry process is still PR-driven.

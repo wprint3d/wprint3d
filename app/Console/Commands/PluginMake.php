@@ -39,7 +39,7 @@ class PluginMake extends Command
         if ($includeImage && $imageReference === '') {
             $imageReference = trim((string) $this->ask(
                 'Required image reference',
-                'ghcr.io/example/'.str_replace('.', '-', $pluginId).'-service:latest'
+                'ghcr.io/example/'.str_replace('.', '-', $pluginId).'-service@sha256:'.str_repeat('0', 64)
             ));
         }
 

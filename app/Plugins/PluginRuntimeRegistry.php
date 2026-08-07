@@ -8,12 +8,11 @@ use App\Plugins\Exceptions\PluginRuntimeException;
 class PluginRuntimeRegistry
 {
     /**
-     * @param array<int, PluginRuntimeAdapter> $adapters
+     * @param  array<int, PluginRuntimeAdapter>  $adapters
      */
     public function __construct(
         private array $adapters,
-    ) {
-    }
+    ) {}
 
     public function resolve(string $runtimeType): PluginRuntimeAdapter
     {

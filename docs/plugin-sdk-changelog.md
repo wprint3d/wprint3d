@@ -10,9 +10,41 @@
 ## Current SDK
 
 - `sdkVersion: 1`
-- `sdkRevision: 4`
+- `sdkRevision: 5`
 
 ## Version 1
+
+### Revision 5
+
+Status:
+
+- `current`
+
+Released:
+
+- `2026-08-06`
+
+Summary:
+
+- Managed heavyweight runtimes, authenticated host proxying, durable artifact import, and release-grade package integrity.
+
+Changes:
+
+- Added host-managed bridge authentication, same-origin runtime proxying, and server-to-server artifact imports.
+- Restricted managed service storage to private named volumes below `/data`; host paths, Docker sockets, USB devices, and host-selected Docker networks are not accepted.
+- Required immutable `@sha256` image references for managed dependencies and enforced resource/security settings through the host runner.
+- Added bounded stop grace periods and numeric runtime users for managed services; image healthchecks now run with an explicit entrypoint in an isolated read-only, network-disabled check container.
+- Added bounded declarative `/tmp` tmpfs sizing for revision-5 managed services, with a safe fallback when omitted.
+- Added fail-closed host maximums for image pull timeouts, service resources, PID counts, and capability drops; declarative `cpuCores`/`pids` aliases normalize to the Docker runner fields.
+- Added compact managed-storage normalization with explicit retention metadata and a one-writable-volume invariant.
+- Added declarative HTTP proxy and artifact-import normalization, including method/path/size policy checks and workspace presentation validation.
+- Added built-in heavyweight package inventory metadata, aggregate asset integrity, compatibility records, and protected release signing handoff.
+
+Migration notes:
+
+- New heavyweight plugins should target `sdkRevision: 5` and use digest-pinned image references.
+- Remove any `service.network` field from revision-5 manifests; WPrint selects the plugin-capable network.
+- Revisions 0–4 remain supported for existing packages, but they do not receive revision-5 guarantees until migrated.
 
 ### Revision 4
 

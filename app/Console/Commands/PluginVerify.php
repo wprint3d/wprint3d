@@ -20,6 +20,7 @@ class PluginVerify extends Command
         $packagePath = (string) $this->argument('package');
         $package = $archiveService->inspect($packagePath, 'verify');
         $manifest = $package->manifest;
+        $archiveService->verifyIntegrity($packagePath, $manifest);
         $signedManifest = $package->rawManifest ?? $manifest;
         $signature = $signedManifest['signature'] ?? [];
         $algorithm = $signature['algorithm'] ?? 'none';

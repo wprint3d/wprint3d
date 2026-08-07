@@ -42,6 +42,9 @@ class PluginPackageCommandsTest extends TestCase
                 trustLevel: 'signed',
                 warnings: [],
             ));
+        $archiveService->shouldReceive('verifyIntegrity')
+            ->once()
+            ->with($packagePath, $manifest);
 
         $signatureService = Mockery::mock(PluginSignatureService::class);
         $signatureService->shouldReceive('embeddedPublicKey')

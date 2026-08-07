@@ -15,6 +15,7 @@ use App\Plugins\PluginPackager;
 use App\Plugins\PluginRegistryClient;
 use App\Plugins\PluginRuntimeRegistry;
 use App\Plugins\PluginSignatureService;
+use App\Plugins\Runtime\PluginRuntimeHttpClient;
 use App\Plugins\Runtimes\BridgePluginRuntimeAdapter;
 use App\Plugins\Runtimes\PhpPluginRuntimeAdapter;
 use App\Support\FakeSerial\FakeSerialManager;
@@ -52,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PluginPackager::class);
         $this->app->singleton(PluginRegistryClient::class);
         $this->app->singleton(PhpPluginRuntimeAdapter::class);
+        $this->app->singleton(PluginRuntimeHttpClient::class);
         $this->app->singleton(BridgePluginRuntimeAdapter::class);
         $this->app->singleton(PluginRuntimeRegistry::class, function ($app) {
             return new PluginRuntimeRegistry([

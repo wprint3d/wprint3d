@@ -46,6 +46,50 @@ class PluginManagerServiceTest extends TestCase
         $this->assertFalse($service->uninstall('missing.plugin'));
     }
 
+    public function test_archive_install_rolls_back_staged_package_when_dependency_preparation_fails(): void
+    {
+        $runtimePath = storage_path('framework/testing/transactional-plugin-'.uniqid());
+        File::ensureDirectoryExists($runtimePath);
+        File::put($runtimePath.'/plugin.json', '{}');
+        $package = new PluginPackage(
+            manifest: [
+                'id' => 'acme.transactional',
+                'name' => 'Transactional plugin',
+                'version' => '1.0.0',
+                'runtime' => ['type' => 'php'],
+                'permissions' => [],
+                'hooks' => [],
+                'actions' => [],
+                'uiExtensions' => [],
+            ],
+            rawManifest: null,
+            archivePath: 'fixture.w3dp',
+            archiveSha256: str_repeat('a', 64),
+            sourceType: 'local_upload',
+        );
+        $archiveService = Mockery::mock(PluginArchiveService::class);
+        $archiveService->shouldReceive('inspect')->once()->andReturn($package);
+        $archiveService->shouldReceive('extract')->once()->andReturn($runtimePath);
+        $dependencyService = Mockery::mock(PluginDependencyService::class);
+        $dependencyService->shouldReceive('prepare')->once()->andThrow(new PluginRuntimeException('digest mismatch'));
+
+        $service = new PluginManagerService(
+            $archiveService,
+            Mockery::mock(PluginRegistryClient::class),
+            Mockery::mock(PluginRuntimeRegistry::class),
+            $dependencyService,
+            new PluginLifecycleLogStore,
+        );
+
+        $this->expectException(PluginRuntimeException::class);
+        try {
+            $service->installFromArchive('fixture.w3dp');
+        } finally {
+            $this->assertFalse(is_dir($runtimePath));
+            $this->assertNull(Plugin::where('plugin_id', 'acme.transactional')->first());
+        }
+    }
+
     public function test_update_repairs_an_up_to_date_registry_plugin_when_its_runtime_path_is_missing(): void
     {
         $missingRuntimePath = storage_path('framework/testing/missing-plugin-runtime-'.uniqid());
@@ -113,6 +157,62 @@ class PluginManagerServiceTest extends TestCase
         $this->assertSame('0.1.0', $payload['latestVersion']);
     }
 
+    public function test_update_rolls_back_to_the_previous_version_when_new_bridge_healthcheck_fails(): void
+    {
+        config(['plugins.runtime.blue_green_updates' => false]);
+        $oldPath = storage_path('framework/testing/acme-old-'.uniqid());
+        File::ensureDirectoryExists($oldPath);
+        Plugin::query()->create([
+            'plugin_id' => 'acme.bridge',
+            'name' => 'ACME Bridge',
+            'current_version' => '1.0.0',
+            'enabled' => true,
+            'load_status' => 'ready',
+            'trust_level' => 'signed',
+            'install_source' => ['type' => 'official_registry', 'registry' => ['source' => ['id' => 'official']]],
+            'manifest' => ['runtime' => ['type' => 'bridge', 'managedImageId' => 'gateway'], 'uiExtensions' => []],
+            'versions' => ['1.0.0' => ['path' => $oldPath]],
+        ]);
+
+        $dependencyService = Mockery::mock(PluginDependencyService::class);
+        $dependencyService->shouldReceive('hasCandidate')->andReturn(false);
+        $dependencyService->shouldReceive('deactivate')->once();
+        $dependencyService->shouldReceive('summarize')->zeroOrMoreTimes()->andReturn([
+            'classification' => 'heavyweight',
+            'hint' => 'heavyweight',
+            'requirements' => [],
+            'host' => ['cpuCores' => 8, 'memoryMb' => 8192, 'meetsRequirements' => true],
+            'warnings' => [],
+            'runtime' => [],
+            'images' => [],
+        ]);
+        $pluginRegistry = Mockery::mock(PluginRegistryClient::class);
+        $pluginRegistry->shouldReceive('getPackage')->once()->andReturn(['version' => '2.0.0', 'latestVersion' => '2.0.0']);
+        $service = Mockery::mock(PluginManagerService::class, [
+            Mockery::mock(PluginArchiveService::class),
+            $pluginRegistry,
+            Mockery::mock(PluginRuntimeRegistry::class),
+            $dependencyService,
+            new PluginLifecycleLogStore,
+        ])->makePartial();
+        $service->shouldReceive('installFromRegistry')->once()->andReturn([
+            'id' => 'acme.bridge',
+            'version' => '2.0.0',
+            'enabled' => false,
+            'lastError' => 'new image failed readiness',
+        ]);
+        $service->shouldReceive('enable')->twice()->andReturnValues([
+            ['id' => 'acme.bridge', 'enabled' => false, 'lastError' => 'new image failed readiness'],
+            ['id' => 'acme.bridge', 'enabled' => true, 'loadStatus' => 'ready'],
+        ]);
+
+        $payload = $service->update('acme.bridge');
+
+        $this->assertSame('rollback', $payload['updateStatus']);
+        $this->assertSame('1.0.0', Plugin::where('plugin_id', 'acme.bridge')->first()->current_version);
+        File::deleteDirectory($oldPath);
+    }
+
     public function test_missing_plugin_runtime_is_reported_as_failed_and_its_ui_extensions_are_not_loaded(): void
     {
         Plugin::query()->create([
@@ -143,6 +243,7 @@ class PluginManagerServiceTest extends TestCase
         ]);
 
         $dependencyService = Mockery::mock(PluginDependencyService::class);
+        $dependencyService->shouldReceive('hasCandidate')->andReturn(false);
         $dependencyService->shouldReceive('summarize')->andReturn([
             'classification' => 'lightweight',
             'requirements' => [],
@@ -212,6 +313,7 @@ class PluginManagerServiceTest extends TestCase
         $dependencyService->shouldReceive('activate')->once()->andReturn([
             'warnings' => [],
         ]);
+        $dependencyService->shouldReceive('hasCandidate')->andReturn(false);
         $dependencyService->shouldReceive('deactivate')->once();
 
         $runtimeRegistry->shouldReceive('resolve')
@@ -240,6 +342,66 @@ class PluginManagerServiceTest extends TestCase
 
         $this->assertNotEmpty($logs);
         $this->assertSame('error', $logs[count($logs) - 1]['level']);
+    }
+
+    public function test_host_context_omits_runtime_urls_when_the_proxy_kill_switch_is_active(): void
+    {
+        config()->set('plugins.rollout.runtime_proxy_enabled', false);
+
+        Plugin::query()->create([
+            'plugin_id' => 'acme.proxy-disabled',
+            'name' => 'Proxy disabled fixture',
+            'current_version' => '1.0.0',
+            'enabled' => true,
+            'load_status' => 'ready',
+            'trust_level' => 'signed',
+            'manifest' => [
+                'id' => 'acme.proxy-disabled',
+                'name' => 'Proxy disabled fixture',
+                'version' => '1.0.0',
+                'runtime' => [
+                    'type' => 'bridge',
+                    'proxy' => ['enabled' => true, 'allowedPaths' => ['/api/v1']],
+                ],
+                'permissions' => ['ui.custom_bundle', 'storage.write'],
+                'uiExtensions' => [],
+                'hooks' => [],
+                'actions' => [],
+            ],
+            'permissions' => ['ui.custom_bundle', 'storage.write'],
+            'hooks' => [],
+            'actions' => [],
+            'ui_extensions' => [],
+            'versions' => [
+                '1.0.0' => ['path' => sys_get_temp_dir()],
+            ],
+            'warnings' => [],
+        ]);
+
+        $dependencyService = Mockery::mock(PluginDependencyService::class);
+        $dependencyService->shouldReceive('summarize')
+            ->once()
+            ->andReturn([
+                'classification' => 'heavyweight',
+                'requirements' => [],
+                'host' => [],
+                'warnings' => [],
+                'runtime' => [],
+                'images' => [],
+            ]);
+
+        $service = new PluginManagerService(
+            Mockery::mock(PluginArchiveService::class),
+            Mockery::mock(PluginRegistryClient::class),
+            Mockery::mock(PluginRuntimeRegistry::class),
+            $dependencyService,
+            new PluginLifecycleLogStore,
+        );
+
+        $context = $service->hostContext('acme.proxy-disabled');
+
+        $this->assertNull($context['runtimeBase']);
+        $this->assertNull($context['artifactImportBase']);
     }
 
     public function test_it_installs_from_a_live_development_mount_even_when_the_explicit_dev_flag_is_stale(): void

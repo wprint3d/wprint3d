@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Plugins;
 
+use App\Plugins\PluginArchiveService;
 use App\Plugins\PluginPackager;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;
@@ -9,6 +10,34 @@ use ZipArchive;
 
 class PluginPackagerTest extends TestCase
 {
+    public function test_it_rejects_zip_path_traversal_during_restore(): void
+    {
+        $archivePath = sys_get_temp_dir().'/wprint3d-unsafe-'.uniqid().'.w3dp';
+        $targetPath = sys_get_temp_dir().'/wprint3d-restore-'.uniqid();
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($archivePath, ZipArchive::CREATE) === true);
+        $zip->addFromString('../outside.txt', 'must not escape');
+        $zip->addFromString('plugin.json', json_encode([
+            'id' => 'acme.unsafe',
+            'name' => 'Unsafe',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 4,
+            'runtime' => ['type' => 'php', 'entry' => 'plugin.php'],
+            'permissions' => ['printer.read'],
+        ]));
+        $zip->close();
+
+        try {
+            $this->expectException(\App\Plugins\Exceptions\PluginRuntimeException::class);
+            $this->expectExceptionMessage('path traversal');
+            app(PluginArchiveService::class)->restoreToDirectory($archivePath, $targetPath);
+        } finally {
+            @unlink($archivePath);
+            \Illuminate\Support\Facades\File::deleteDirectory($targetPath);
+        }
+    }
+
     public function test_it_excludes_existing_build_artifacts_from_packaged_plugins(): void
     {
         $pluginPath = sys_get_temp_dir().'/wprint3d-packager-'.uniqid();
@@ -50,6 +79,7 @@ class PluginPackagerTest extends TestCase
             $this->assertContains('plugin.json', $entries);
             $this->assertContains('plugin.php', $entries);
             $this->assertNotContains('builds/old-package.w3dp', $entries);
+            $this->assertSame([], glob($outputPath.'.part-*') ?: []);
         } finally {
             File::deleteDirectory($pluginPath);
         }
@@ -106,8 +136,51 @@ class PluginPackagerTest extends TestCase
         }
     }
 
+    public function test_it_rejects_tampered_asset_contents_after_extraction(): void
+    {
+        $pluginPath = sys_get_temp_dir().'/wprint3d-packager-integrity-'.uniqid();
+        $assetsPath = $pluginPath.'/assets';
+        $archivePath = $pluginPath.'/builds/integrity.w3dp';
+        File::ensureDirectoryExists($assetsPath);
+        File::put($assetsPath.'/widget.js', 'console.log("trusted");');
+        File::put($pluginPath.'/plugin.json', json_encode([
+            'id' => 'acme.integrity-demo',
+            'name' => 'ACME Integrity Demo',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 4,
+            'runtime' => ['type' => 'php', 'entry' => 'plugin.php'],
+            'permissions' => ['printer.read'],
+            'assets' => [[
+                'id' => 'assets',
+                'path' => 'assets',
+                'integrity' => 'sha256-'.base64_encode(hash('sha256', "widget.js\0console.log(\"trusted\");", true)),
+            ]],
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        File::put($pluginPath.'/plugin.php', "<?php\n");
+
+        try {
+            app(PluginPackager::class)->build($pluginPath, $archivePath);
+            $zip = new ZipArchive;
+            $this->assertTrue($zip->open($archivePath) === true);
+            $this->assertTrue($zip->deleteName('assets/widget.js'));
+            $this->assertTrue($zip->addFromString('assets/widget.js', 'console.log("tampered");'));
+            $this->assertTrue($zip->close());
+
+            $this->expectException(\App\Plugins\Exceptions\PluginRuntimeException::class);
+            $this->expectExceptionMessage('asset integrity mismatch');
+            app(PluginArchiveService::class)->restoreToDirectory($archivePath, $pluginPath.'/restore');
+        } finally {
+            File::deleteDirectory($pluginPath);
+        }
+    }
+
     public function test_it_rejects_non_writable_output_directories_with_a_clear_error(): void
     {
+        if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+            $this->markTestSkipped('Root can write chmod 0555 directories; run this assertion as an unprivileged user.');
+        }
+
         $pluginPath = sys_get_temp_dir().'/wprint3d-packager-permissions-'.uniqid();
         $lockedPath = $pluginPath.'/locked';
         $outputPath = $lockedPath.'/acme-demo.w3dp';

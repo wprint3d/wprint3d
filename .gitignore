@@ -3,6 +3,7 @@ THIRD_PARTY_LICENSES.txt
 /public/build
 /public/hot
 /public/storage
+/resources/plugins/builtin/archives/*.w3dp
 /storage/*.key
 /vendor
 .env

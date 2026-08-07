@@ -76,6 +76,8 @@ class PluginManifestValidator
             throw new InvalidPluginManifestException('Unsupported plugin SDK revision.');
         }
 
+        $this->assertRevisionFiveFields($manifest, (int) $manifest['sdkRevision']);
+
         if (! preg_match('/^[a-z0-9]+(?:[._-][a-z0-9]+)+$/', (string) $manifest['id'])) {
             throw new InvalidPluginManifestException('Plugin ID must be a dotted or dashed lowercase identifier.');
         }
@@ -86,11 +88,13 @@ class PluginManifestValidator
             throw new InvalidPluginManifestException('Unsupported plugin runtime type.');
         }
 
+        $manifest['runtime'] = $this->normalizeRuntime($manifest['runtime'], $runtimeType, (int) $manifest['sdkRevision']);
+
         if ($runtimeType === 'php' && empty($manifest['runtime']['entry'])) {
             throw new InvalidPluginManifestException('PHP plugins must declare runtime.entry.');
         }
 
-        $manifest['images'] = $this->normalizeImages($manifest['images'] ?? []);
+        $manifest['images'] = $this->normalizeImages($manifest['images'] ?? [], (int) $manifest['sdkRevision']);
         $manifest['requirements'] = $this->normalizeRequirements($manifest['requirements'] ?? []);
 
         if (
@@ -109,6 +113,10 @@ class PluginManifestValidator
             if (! $managedImage || empty($managedImage['service']['port'])) {
                 throw new InvalidPluginManifestException('Bridge runtime.managedImageId must reference an image that declares service.port.');
             }
+        }
+
+        if ($runtimeType === 'bridge' && $manifest['sdkRevision'] >= 5 && ! empty($manifest['runtime']['managedImageId'])) {
+            $manifest['runtime']['auth']['mode'] = $manifest['runtime']['auth']['mode'] ?? 'wprint-bridge';
         }
 
         $manifest['permissions'] = array_values(array_unique($manifest['permissions'] ?? []));
@@ -156,6 +164,7 @@ class PluginManifestValidator
         }
 
         $manifest['assets'] = $this->normalizeAssets($manifest['assets'] ?? []);
+        $manifest['integrity'] = $this->normalizeIntegrity($manifest['integrity'] ?? []);
         $manifest['components'] = $this->normalizeComponents($manifest['components'] ?? [], $manifest['assets']);
         $manifest['uiExtensions'] = array_values($manifest['uiExtensions'] ?? []);
 
@@ -166,6 +175,12 @@ class PluginManifestValidator
 
             if (! in_array($extension['surface'], $this->allowedSurfaces, true)) {
                 throw new InvalidPluginManifestException("Unsupported UI extension surface: {$extension['surface']}");
+            }
+
+            if (isset($extension['presentation'])) {
+                if ($extension['presentation'] !== 'workspace' || $extension['surface'] !== 'page' || ($extension['mode'] ?? 'declarative') !== 'custom_bundle') {
+                    throw new InvalidPluginManifestException("UI extension {$extension['id']} workspace presentation requires a page custom_bundle extension.");
+                }
             }
 
             if (isset($extension['mobilePresentation'])) {
@@ -266,6 +281,77 @@ class PluginManifestValidator
         return (int) ($versionConfig['defaultRevision'] ?? $this->sdkRevision ?? 0);
     }
 
+    private function assertRevisionFiveFields(array $manifest, int $revision): void
+    {
+        if ($revision >= 5) {
+            return;
+        }
+
+        $runtime = is_array($manifest['runtime'] ?? null) ? $manifest['runtime'] : [];
+        foreach (['proxy', 'httpProxy', 'artifactImports'] as $field) {
+            if (array_key_exists($field, $runtime)) {
+                throw new InvalidPluginManifestException("runtime.{$field} requires SDK revision 5.");
+            }
+        }
+
+        if (array_key_exists('diskMb', $manifest['requirements'] ?? [])) {
+            throw new InvalidPluginManifestException('requirements.diskMb requires SDK revision 5.');
+        }
+
+        if (array_key_exists('integrity', $manifest) && $manifest['integrity'] !== []) {
+            throw new InvalidPluginManifestException('integrity requires SDK revision 5.');
+        }
+
+        foreach (($manifest['images'] ?? []) as $image) {
+            if (! is_array($image)) {
+                continue;
+            }
+
+            if (array_key_exists('pullTimeoutSecs', $image)) {
+                throw new InvalidPluginManifestException('images.pullTimeoutSecs requires SDK revision 5.');
+            }
+
+            $service = is_array($image['service'] ?? null) ? $image['service'] : [];
+            foreach (['stopGracePeriodSecs'] as $field) {
+                if (array_key_exists($field, $service)) {
+                    throw new InvalidPluginManifestException("images.service.{$field} requires SDK revision 5.");
+                }
+            }
+
+            $storage = $service['storage'] ?? [];
+            if (is_array($storage) && array_key_exists('mountPath', $storage)) {
+                throw new InvalidPluginManifestException('images.service.storage.mountPath requires SDK revision 5.');
+            }
+            if (is_array($storage)) {
+                foreach (array_values($storage) as $mount) {
+                    if (is_array($mount) && array_key_exists('retainOnUninstall', $mount)) {
+                        throw new InvalidPluginManifestException('images.service.storage.retainOnUninstall requires SDK revision 5.');
+                    }
+                }
+            }
+
+            $resources = is_array($service['resources'] ?? null) ? $service['resources'] : [];
+            foreach (['cpuCores', 'pids'] as $field) {
+                if (array_key_exists($field, $resources)) {
+                    throw new InvalidPluginManifestException("images.service.resources.{$field} requires SDK revision 5.");
+                }
+            }
+
+            $security = is_array($service['security'] ?? null) ? $service['security'] : [];
+            foreach (['readOnlyRootFilesystem', 'user', 'tmpfs'] as $field) {
+                if (array_key_exists($field, $security)) {
+                    throw new InvalidPluginManifestException("images.service.security.{$field} requires SDK revision 5.");
+                }
+            }
+        }
+
+        foreach (($manifest['uiExtensions'] ?? []) as $extension) {
+            if (is_array($extension) && array_key_exists('presentation', $extension)) {
+                throw new InvalidPluginManifestException('uiExtensions.presentation requires SDK revision 5.');
+            }
+        }
+    }
+
     private function normalizeAssets(array $assets): array
     {
         $normalizedAssets = [];
@@ -289,6 +375,29 @@ class PluginManifestValidator
         }
 
         return $normalizedAssets;
+    }
+
+    private function normalizeIntegrity(mixed $integrity): array
+    {
+        if ($integrity === []) {
+            return [];
+        }
+        if (! is_array($integrity) || ($integrity['algorithm'] ?? null) !== 'sha256' || ! is_array($integrity['files'] ?? null)) {
+            throw new InvalidPluginManifestException('Plugin integrity must declare sha256 and a files object.');
+        }
+
+        $normalized = [];
+        foreach ($integrity['files'] as $path => $digest) {
+            if (! is_string($path) || $path === '' || str_contains($path, "\0") || str_contains('/'.str_replace('\\', '/', $path).'/', '/../') || str_starts_with($path, '/')) {
+                throw new InvalidPluginManifestException('Plugin integrity file path is unsafe.');
+            }
+            if (! is_string($digest) || ! preg_match('/^[a-f0-9]{64}$/', $digest)) {
+                throw new InvalidPluginManifestException("Plugin integrity digest is invalid: {$path}.");
+            }
+            $normalized[str_replace('\\', '/', $path)] = $digest;
+        }
+
+        return ['algorithm' => 'sha256', 'files' => $normalized];
     }
 
     private function normalizeSettings(array $settings): array
@@ -343,7 +452,7 @@ class PluginManifestValidator
         ]);
     }
 
-    private function normalizeImages(array $images): array
+    private function normalizeImages(array $images, int $manifestRevision): array
     {
         $normalizedImages = [];
         $seenIds = [];
@@ -360,12 +469,25 @@ class PluginManifestValidator
                 throw new InvalidPluginManifestException("Plugin image at index {$index} must declare id and image.");
             }
 
+            if ($manifestRevision >= 5 && ! preg_match('/@sha256:[a-f0-9]{64}$/', $reference)) {
+                throw new InvalidPluginManifestException("Plugin image {$id} must use an immutable @sha256 digest in SDK revision 5.");
+            }
+
             if (in_array($id, $seenIds, true)) {
                 throw new InvalidPluginManifestException("Plugin image IDs must be unique: {$id}");
             }
 
             $seenIds[] = $id;
             $image['engine'] = $image['engine'] ?? 'auto';
+
+            if (isset($image['pullTimeoutSecs'])) {
+                $pullTimeout = (int) $image['pullTimeoutSecs'];
+                $maxPullTimeout = max(1, (int) $this->config('plugins.container.max_pull_timeout_secs', 1800));
+                if ($pullTimeout <= 0 || $pullTimeout > $maxPullTimeout) {
+                    throw new InvalidPluginManifestException("Plugin image {$id} pullTimeoutSecs must be between 1 and {$maxPullTimeout}.");
+                }
+                $image['pullTimeoutSecs'] = $pullTimeout;
+            }
 
             if (! in_array($image['engine'], ['auto', 'docker'], true)) {
                 throw new InvalidPluginManifestException("Plugin image {$id} declares an unsupported engine.");
@@ -384,6 +506,10 @@ class PluginManifestValidator
                     throw new InvalidPluginManifestException("Plugin image {$id} service must declare port.");
                 }
 
+                if ($manifestRevision >= 5 && array_key_exists('network', $image['service'])) {
+                    throw new InvalidPluginManifestException("Plugin image {$id} cannot select a Docker network; WPrint owns the managed runtime network.");
+                }
+
                 $image['service']['port'] = (int) $image['service']['port'];
 
                 if ($image['service']['port'] <= 0) {
@@ -395,6 +521,16 @@ class PluginManifestValidator
                     ? $image['service']['environment']
                     : [];
                 $image['service']['args'] = $this->normalizeCommand($image['service']['args'] ?? []);
+                $image['service']['storage'] = $this->normalizeStorage($image['service']['storage'] ?? []);
+                $image['service']['resources'] = $this->normalizeResources($image['service']['resources'] ?? []);
+                $image['service']['security'] = $this->normalizeSecurity($image['service']['security'] ?? []);
+                if (array_key_exists('stopGracePeriodSecs', $image['service'])) {
+                    $stopGrace = (int) $image['service']['stopGracePeriodSecs'];
+                    if ($stopGrace <= 0) {
+                        throw new InvalidPluginManifestException("Plugin image {$id} service.stopGracePeriodSecs must be greater than zero.");
+                    }
+                    $image['service']['stopGracePeriodSecs'] = $stopGrace;
+                }
             }
 
             $normalizedImages[] = array_merge($image, [
@@ -404,6 +540,313 @@ class PluginManifestValidator
         }
 
         return $normalizedImages;
+    }
+
+    private function normalizeRuntime(array $runtime, string $runtimeType, int $manifestRevision): array
+    {
+        $runtime['type'] = $runtimeType;
+
+        if ($runtimeType !== 'bridge') {
+            return $runtime;
+        }
+
+        if (isset($runtime['auth']) && ! is_array($runtime['auth'])) {
+            throw new InvalidPluginManifestException('Bridge runtime.auth must be an object.');
+        }
+
+        $auth = $runtime['auth'] ?? [];
+        $authMode = (string) ($auth['mode'] ?? 'none');
+
+        if (! in_array($authMode, ['none', 'wprint-bridge'], true)) {
+            throw new InvalidPluginManifestException('Unsupported bridge runtime auth mode.');
+        }
+
+        $runtime['auth'] = ['mode' => $authMode];
+
+        if (isset($runtime['proxy']) && ! is_array($runtime['proxy'])) {
+            throw new InvalidPluginManifestException('Bridge runtime.proxy must be an object.');
+        }
+
+        if (isset($runtime['httpProxy'])) {
+            if (! is_array($runtime['httpProxy'])) {
+                throw new InvalidPluginManifestException('Bridge runtime.httpProxy must be an object.');
+            }
+
+            $httpProxy = $runtime['httpProxy'];
+            $pathPrefix = trim((string) ($httpProxy['pathPrefix'] ?? ''));
+            if ($pathPrefix === '' || ! str_starts_with($pathPrefix, '/') || str_contains($pathPrefix, '..')) {
+                throw new InvalidPluginManifestException('Bridge runtime.httpProxy.pathPrefix must be an absolute safe path.');
+            }
+            $methods = array_values(array_unique(array_map('strtoupper', is_array($httpProxy['methods'] ?? null) ? $httpProxy['methods'] : [])));
+            $allowedMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+            if ($methods === [] || array_diff($methods, $allowedMethods) !== []) {
+                throw new InvalidPluginManifestException('Bridge runtime.httpProxy.methods contains an unsupported method.');
+            }
+            $hostMaxUploadMb = max(1, (int) floor((int) $this->config('plugins.runtime.max_upload_payload_bytes', 268435456) / 1048576));
+            $maxUploadMb = (int) ($httpProxy['maxUploadMb'] ?? $hostMaxUploadMb);
+            if ($maxUploadMb <= 0 || $maxUploadMb > $hostMaxUploadMb) {
+                throw new InvalidPluginManifestException("Bridge runtime.httpProxy.maxUploadMb must be between 1 and {$hostMaxUploadMb}.");
+            }
+            $runtime['httpProxy'] = [
+                'pathPrefix' => '/'.trim($pathPrefix, '/'),
+                'methods' => $methods,
+                'requestTimeoutSecs' => $this->boundedRuntimeTimeout($httpProxy['requestTimeoutSecs'] ?? 30, 'requestTimeoutSecs'),
+                'streamTimeoutSecs' => $this->boundedRuntimeTimeout($httpProxy['streamTimeoutSecs'] ?? 900, 'streamTimeoutSecs'),
+                'maxUploadMb' => $maxUploadMb,
+            ];
+        }
+
+        $proxy = $runtime['proxy'] ?? [];
+        if (isset($runtime['httpProxy'])) {
+            $proxy['enabled'] = true;
+            $proxy['allowedPaths'] = [$runtime['httpProxy']['pathPrefix']];
+            $proxy['methods'] = $runtime['httpProxy']['methods'];
+            $proxy['requestTimeoutSecs'] = $runtime['httpProxy']['requestTimeoutSecs'];
+            $proxy['streamTimeoutSecs'] = $runtime['httpProxy']['streamTimeoutSecs'];
+            $proxy['maxUploadMb'] = $runtime['httpProxy']['maxUploadMb'];
+        }
+        $rawAllowedPaths = is_array($proxy['allowedPaths'] ?? null) ? array_map('strval', $proxy['allowedPaths']) : [];
+        $invalidAllowedPaths = array_filter($rawAllowedPaths, fn (string $path): bool => ! str_starts_with($path, '/') || str_contains($path, '..') || str_contains($path, "\0"));
+        if ($manifestRevision >= 5 && $invalidAllowedPaths !== []) {
+            throw new InvalidPluginManifestException('Bridge runtime.proxy.allowedPaths contains an invalid path.');
+        }
+        $runtime['proxy'] = [
+            'enabled' => (bool) ($proxy['enabled'] ?? false),
+            'allowedPaths' => array_values(array_filter(
+                $rawAllowedPaths,
+                fn (string $path) => str_starts_with($path, '/') && ! str_contains($path, '..')
+            )),
+        ];
+        foreach (['methods', 'requestTimeoutSecs', 'streamTimeoutSecs', 'maxUploadMb'] as $proxyKey) {
+            if (array_key_exists($proxyKey, $proxy)) {
+                $runtime['proxy'][$proxyKey] = $proxyKey === 'methods'
+                    ? array_values(array_unique(array_map('strtoupper', (array) $proxy[$proxyKey])))
+                    : max(1, (int) $proxy[$proxyKey]);
+            }
+        }
+        $runtime['artifactImports'] = $this->normalizeArtifactImports($runtime['artifactImports'] ?? []);
+
+        return $runtime;
+    }
+
+    private function boundedRuntimeTimeout(mixed $value, string $field): int
+    {
+        $timeout = (int) $value;
+        $max = max(1, (int) $this->config(
+            $field === 'streamTimeoutSecs'
+                ? 'plugins.runtime.max_proxy_stream_timeout_secs'
+                : 'plugins.runtime.max_proxy_timeout_secs',
+            $field === 'streamTimeoutSecs' ? 1800 : 300,
+        ));
+
+        if ($timeout <= 0 || $timeout > $max) {
+            throw new InvalidPluginManifestException("Bridge runtime.httpProxy.{$field} must be between 1 and {$max}.");
+        }
+
+        return $timeout;
+    }
+
+    private function normalizeArtifactImports(mixed $imports): array
+    {
+        if ($imports === []) {
+            return [];
+        }
+        if (! is_array($imports)) {
+            throw new InvalidPluginManifestException('Bridge runtime.artifactImports must be an array.');
+        }
+
+        $normalized = [];
+        $seen = [];
+        $maxSize = max(1, (int) $this->config('plugins.runtime.max_artifact_import_bytes', 268435456));
+        foreach (array_values($imports) as $index => $import) {
+            if (! is_array($import) || empty($import['id']) || empty($import['pathPattern'])) {
+                throw new InvalidPluginManifestException("Artifact import {$index} must declare id and pathPattern.");
+            }
+            $id = trim((string) $import['id']);
+            $pattern = (string) $import['pathPattern'];
+            if (isset($seen[$id]) || strlen($pattern) > 512 || ! str_starts_with($pattern, '^') || ! str_ends_with($pattern, '$') || str_contains($pattern, '://')) {
+                throw new InvalidPluginManifestException("Artifact import {$id} has an invalid or duplicate pathPattern.");
+            }
+            set_error_handler(static fn () => true);
+            $compiled = preg_match('~'.$pattern.'~', '');
+            restore_error_handler();
+            if ($compiled === false) {
+                throw new InvalidPluginManifestException("Artifact import {$id} has an invalid pathPattern.");
+            }
+            $sizeMb = (int) ($import['maxSizeMb'] ?? floor($maxSize / 1048576));
+            if ($sizeMb <= 0 || $sizeMb * 1048576 > $maxSize) {
+                throw new InvalidPluginManifestException("Artifact import {$id} exceeds the host import limit.");
+            }
+            $seen[$id] = true;
+            $normalized[] = [
+                'id' => $id,
+                'pathPattern' => $pattern,
+                'contentTypes' => array_values(array_filter(array_map('strval', (array) ($import['contentTypes'] ?? [])))),
+                'maxSizeMb' => $sizeMb,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeStorage(mixed $storage): array
+    {
+        if ($storage === []) {
+            return [];
+        }
+
+        if (! is_array($storage)) {
+            throw new InvalidPluginManifestException('Managed service storage must be an array.');
+        }
+
+        if (array_key_exists('mountPath', $storage)) {
+            $storage = [[
+                'name' => 'data',
+                'target' => $storage['mountPath'],
+                'retainOnUninstall' => $storage['retainOnUninstall'] ?? true,
+            ]];
+        }
+
+        $normalized = [];
+        $writableMounts = 0;
+
+        foreach (array_values($storage) as $index => $mount) {
+            if (! is_array($mount) || empty($mount['name']) || empty($mount['target'] ?? $mount['mountPath'] ?? null)) {
+                throw new InvalidPluginManifestException("Managed service storage mount {$index} must declare name and target.");
+            }
+
+            $target = trim((string) ($mount['target'] ?? $mount['mountPath']));
+
+            if (! str_starts_with($target, '/data') || str_contains($target, '..')) {
+                throw new InvalidPluginManifestException("Managed service storage target {$target} must be below /data.");
+            }
+
+            if (($mount['readOnly'] ?? false) !== true) {
+                $writableMounts++;
+                if ($writableMounts > 1) {
+                    throw new InvalidPluginManifestException('Managed service storage may declare only one writable volume.');
+                }
+            }
+
+            $normalized[] = [
+                'name' => trim((string) $mount['name']),
+                'target' => $target,
+                'readOnly' => (bool) ($mount['readOnly'] ?? false),
+                'retainOnUninstall' => (bool) ($mount['retainOnUninstall'] ?? true),
+            ];
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeResources(mixed $resources): array
+    {
+        if ($resources === []) {
+            return [];
+        }
+
+        if (! is_array($resources)) {
+            throw new InvalidPluginManifestException('Managed service resources must be an object.');
+        }
+
+        $normalized = [];
+        $aliases = [
+            'memoryMb' => 'memoryMb',
+            'cpuQuota' => 'cpuQuota',
+            'pidsLimit' => 'pidsLimit',
+            'cpuCores' => 'cpuQuota',
+            'pids' => 'pidsLimit',
+        ];
+        $maxMemory = max(1, (int) $this->config('plugins.container.max_memory_mb', 16384));
+        $maxCpuQuota = max(1, (int) $this->config('plugins.container.max_cpu_quota', 1600000));
+        $maxPids = max(1, (int) $this->config('plugins.container.max_pids', 4096));
+
+        foreach ($aliases as $inputKey => $key) {
+            if (! array_key_exists($inputKey, $resources)) {
+                continue;
+            }
+
+            $value = $inputKey === 'cpuCores'
+                ? (int) round((float) $resources[$inputKey] * 100000)
+                : (int) $resources[$inputKey];
+            if ($value <= 0) {
+                throw new InvalidPluginManifestException("Managed service resources.{$inputKey} must be greater than zero.");
+            }
+
+            $max = match ($key) {
+                'memoryMb' => $maxMemory,
+                'cpuQuota' => $maxCpuQuota,
+                default => $maxPids,
+            };
+            if ($value > $max) {
+                throw new InvalidPluginManifestException("Managed service resources.{$inputKey} exceeds the host maximum of {$max}.");
+            }
+
+            if (! isset($normalized[$key]) || $inputKey === $key) {
+                $normalized[$key] = $value;
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeSecurity(mixed $security): array
+    {
+        if ($security === []) {
+            return [];
+        }
+
+        if (! is_array($security)) {
+            throw new InvalidPluginManifestException('Managed service security must be an object.');
+        }
+
+        $capDrop = $security['capDrop'] ?? ['ALL'];
+
+        if (! is_array($capDrop)) {
+            throw new InvalidPluginManifestException('Managed service security.capDrop must be an array.');
+        }
+
+        $allowedCapDrops = $this->config('plugins.container.allowed_cap_drops', ['ALL']);
+        $allowedCapDrops = is_array($allowedCapDrops) ? array_map('strval', $allowedCapDrops) : ['ALL'];
+        if (array_diff(array_map('strval', $capDrop), $allowedCapDrops) !== []) {
+            throw new InvalidPluginManifestException('Managed service security.capDrop contains a capability outside the host allowlist.');
+        }
+
+        $user = $security['user'] ?? null;
+        if ($user !== null && (! is_string($user) || ! preg_match('/^\d+(?::\d+)?$/', $user))) {
+            throw new InvalidPluginManifestException('Managed service security.user must be a numeric uid[:gid].');
+        }
+        if ($user !== null && preg_match('/^0(?::\d+)?$/', $user)) {
+            throw new InvalidPluginManifestException('Managed service security.user cannot run as root.');
+        }
+
+        $tmpfs = $security['tmpfs'] ?? [];
+        if (! is_array($tmpfs)) {
+            throw new InvalidPluginManifestException('Managed service security.tmpfs must be an array.');
+        }
+
+        $normalizedTmpfs = [];
+        $maxTmpfsMb = max(1, (int) $this->config('plugins.container.max_tmpfs_mb', 4096));
+        foreach (array_values($tmpfs) as $index => $mount) {
+            if (! is_array($mount) || ! in_array($mount['path'] ?? null, ['/tmp', '/run'], true)) {
+                throw new InvalidPluginManifestException("Managed service security.tmpfs entry {$index} must target /tmp or /run.");
+            }
+
+            $sizeMb = (int) ($mount['sizeMb'] ?? 0);
+            if ($sizeMb <= 0 || $sizeMb > $maxTmpfsMb) {
+                throw new InvalidPluginManifestException("Managed service security.tmpfs entry {$index} sizeMb must be between 1 and {$maxTmpfsMb}.");
+            }
+
+            $normalizedTmpfs[] = ['path' => (string) $mount['path'], 'sizeMb' => $sizeMb];
+        }
+
+        return [
+            'readOnlyRootFs' => (bool) ($security['readOnlyRootFs'] ?? $security['readOnlyRootFilesystem'] ?? true),
+            'noNewPrivileges' => (bool) ($security['noNewPrivileges'] ?? true),
+            'capDrop' => array_values(array_unique(array_map('strval', $capDrop))),
+            ...($user !== null ? ['user' => $user] : []),
+            ...($normalizedTmpfs !== [] ? ['tmpfs' => $normalizedTmpfs] : []),
+        ];
     }
 
     private function normalizeRequirements(array $requirements): array
@@ -427,6 +870,14 @@ class PluginManifestValidator
 
             if ($normalized['cpuCores'] <= 0) {
                 throw new InvalidPluginManifestException('Plugin requirements.cpuCores must be greater than zero.');
+            }
+        }
+
+        if (array_key_exists('diskMb', $requirements)) {
+            $normalized['diskMb'] = (int) $requirements['diskMb'];
+
+            if ($normalized['diskMb'] <= 0) {
+                throw new InvalidPluginManifestException('Plugin requirements.diskMb must be greater than zero.');
             }
         }
 
@@ -523,7 +974,11 @@ class PluginManifestValidator
         $assetPath = ltrim(substr($reference, strlen('asset://')), DIRECTORY_SEPARATOR);
         $declaredAssets = collect($declaredAssets);
 
-        if ($declaredAssets->contains(fn (array $asset) => ($asset['path'] ?? null) === $assetPath)) {
+        if ($declaredAssets->contains(function (array $asset) use ($assetPath): bool {
+            $declaredPath = trim((string) ($asset['path'] ?? ''), '/');
+
+            return $declaredPath !== '' && ($declaredPath === $assetPath || str_starts_with($assetPath, $declaredPath.'/'));
+        })) {
             return;
         }
 

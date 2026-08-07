@@ -9,18 +9,18 @@ $defaultDevelopmentMountPaths = array_values(array_unique(array_filter([
 
 return [
     'sdk_version' => 1,
-    'sdk_revision' => 4,
+    'sdk_revision' => 5,
 
     'sdk' => [
         'current' => [
             'version' => 1,
-            'revision' => 4,
+            'revision' => 5,
         ],
         'versions' => [
             1 => [
                 'label' => 'WPrint3D Plugin SDK 1',
                 'status' => 'active',
-                'defaultRevision' => 4,
+                'defaultRevision' => 5,
                 'deprecatedAfter' => null,
                 'revisions' => [
                     0 => [
@@ -73,12 +73,22 @@ return [
                             'Added plugin-scoped error boundaries so broken plugin surfaces degrade locally instead of crashing the full app.',
                         ],
                     ],
+                    5 => [
+                        'releasedAt' => '2026-08-06',
+                        'status' => 'current',
+                        'summary' => 'Managed service lifecycle, runtime proxy, artifact import, and built-in heavyweight plugin packaging.',
+                        'changes' => [
+                            'Added resource, storage, security, and bridge authentication declarations for managed services.',
+                            'Added host-mediated same-origin runtime proxy and runtime artifact import contracts.',
+                            'Added integrity metadata and built-in plugin inventory metadata for heavyweight packages.',
+                        ],
+                    ],
                 ],
             ],
         ],
     ],
 
-    'core_version' => env('APP_VERSION', '0.0.0'),
+    'core_version' => env('APP_VERSION', '1.0.0'),
 
     'paths' => [
         'root' => storage_path('app/plugins'),
@@ -86,12 +96,46 @@ return [
         'runtime' => storage_path('app/plugins/runtime'),
         'tmp' => storage_path('app/plugins/tmp'),
         'examples' => base_path('examples/plugins'),
+        'builtins' => base_path('resources/plugins'),
+    ],
+
+    'archive' => [
+        'max_entries' => (int) env('PLUGIN_ARCHIVE_MAX_ENTRIES', 2048),
+        'max_uncompressed_bytes' => (int) env('PLUGIN_ARCHIVE_MAX_UNCOMPRESSED_BYTES', 262144000),
+    ],
+
+    'builtins' => [
+        'inventory' => base_path('resources/plugins/builtin/index.json'),
+        'entries' => [],
+    ],
+
+    'rollout' => [
+        // The built-in package is installed by default, but activation remains
+        // an explicit rollout decision until the release candidate is approved.
+        'builtin_cura_enabled' => filter_var(env('WPRINT3D_BUILTIN_CURA_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'builtin_cura_auto_enable' => filter_var(env('WPRINT3D_BUILTIN_CURA_AUTO_ENABLE', false), FILTER_VALIDATE_BOOL),
+        'runtime_proxy_enabled' => filter_var(env('WPRINT3D_PLUGIN_RUNTIME_PROXY_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'runtime_reconcile_enabled' => filter_var(env('WPRINT3D_PLUGIN_RUNTIME_RECONCILE_ENABLED', true), FILTER_VALIDATE_BOOL),
     ],
 
     'runtime' => [
         'timeout_secs' => (int) env('PLUGIN_RUNTIME_TIMEOUT_SECS', 10),
         'bridge_timeout_secs' => (int) env('PLUGIN_BRIDGE_TIMEOUT_SECS', 5),
+        'healthcheck_retries' => (int) env('PLUGIN_HEALTHCHECK_RETRIES', 10),
+        'healthcheck_delay_ms' => (int) env('PLUGIN_HEALTHCHECK_DELAY_MS', 250),
+        'blue_green_updates' => filter_var(env('PLUGIN_BLUE_GREEN_UPDATES', true), FILTER_VALIDATE_BOOL),
         'max_payload_bytes' => (int) env('PLUGIN_RUNTIME_MAX_PAYLOAD_BYTES', 262144),
+        'max_upload_payload_bytes' => (int) env('PLUGIN_RUNTIME_MAX_UPLOAD_PAYLOAD_BYTES', 268435456),
+        'max_artifact_import_bytes' => (int) env('PLUGIN_RUNTIME_MAX_ARTIFACT_IMPORT_BYTES', 268435456),
+        'proxy_timeout_secs' => (int) env('PLUGIN_RUNTIME_PROXY_TIMEOUT_SECS', 30),
+        'max_proxy_timeout_secs' => (int) env('PLUGIN_RUNTIME_MAX_PROXY_TIMEOUT_SECS', 300),
+        'max_proxy_stream_timeout_secs' => (int) env('PLUGIN_RUNTIME_MAX_PROXY_STREAM_TIMEOUT_SECS', 1800),
+        'proxy_rate_limits' => [
+            'metadata_per_minute' => (int) env('PLUGIN_RUNTIME_METADATA_RATE_LIMIT', 120),
+            'upload_per_minute' => (int) env('PLUGIN_RUNTIME_UPLOAD_RATE_LIMIT', 10),
+            'artifact_per_minute' => (int) env('PLUGIN_RUNTIME_ARTIFACT_RATE_LIMIT', 30),
+        ],
+        'runtime_token_key' => env('PLUGIN_RUNTIME_TOKEN_KEY'),
     ],
 
     'logs' => [
@@ -101,6 +145,19 @@ return [
     'container' => [
         'cli' => env('CONTAINER_CLI', 'docker'),
         'command_timeout_secs' => (int) env('PLUGIN_CONTAINER_COMMAND_TIMEOUT_SECS', 60),
+        'default_memory_mb' => (int) env('PLUGIN_CONTAINER_DEFAULT_MEMORY_MB', 2048),
+        'default_cpu_quota' => (int) env('PLUGIN_CONTAINER_DEFAULT_CPU_QUOTA', 100000),
+        'default_pids_limit' => (int) env('PLUGIN_CONTAINER_DEFAULT_PIDS_LIMIT', 256),
+        'max_tmpfs_mb' => (int) env('PLUGIN_CONTAINER_MAX_TMPFS_MB', 4096),
+        'pull_timeout_secs' => (int) env('PLUGIN_CONTAINER_PULL_TIMEOUT_SECS', 300),
+        'max_pull_timeout_secs' => (int) env('PLUGIN_CONTAINER_MAX_PULL_TIMEOUT_SECS', 1800),
+        'max_memory_mb' => (int) env('PLUGIN_CONTAINER_MAX_MEMORY_MB', 16384),
+        'max_cpu_quota' => (int) env('PLUGIN_CONTAINER_MAX_CPU_QUOTA', 1600000),
+        'max_pids' => (int) env('PLUGIN_CONTAINER_MAX_PIDS', 4096),
+        'allowed_cap_drops' => ['ALL'],
+        'healthcheck_timeout_secs' => (int) env('PLUGIN_CONTAINER_HEALTHCHECK_TIMEOUT_SECS', 30),
+        'stop_grace_secs' => (int) env('PLUGIN_CONTAINER_STOP_GRACE_SECS', 30),
+        'network' => env('PLUGIN_CONTAINER_NETWORK'),
     ],
 
     'registry' => [

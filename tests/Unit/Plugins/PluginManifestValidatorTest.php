@@ -426,6 +426,48 @@ class PluginManifestValidatorTest extends TestCase
         $this->assertSame(2.0, $manifest['requirements']['cpuCores']);
     }
 
+    public function test_revision_five_only_fields_are_rejected_by_legacy_manifests(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 4);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('runtime.httpProxy requires SDK revision 5');
+
+        $validator->validate([
+            'id' => 'acme.legacy',
+            'name' => 'Legacy plugin',
+            'version' => '1.0.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 4,
+            'runtime' => [
+                'type' => 'bridge',
+                'managedImageId' => 'gateway',
+                'httpProxy' => ['pathPrefix' => '/api', 'methods' => ['GET']],
+            ],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway:1.0.0',
+                'service' => ['port' => 9311],
+            ]],
+        ]);
+    }
+
+    public function test_disk_requirement_must_be_positive(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('Plugin requirements.diskMb must be greater than zero');
+
+        $validator->validate([
+            'id' => 'acme.disk',
+            'name' => 'Disk plugin',
+            'version' => '1.0.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => ['type' => 'php', 'entry' => 'plugin.php'],
+            'requirements' => ['diskMb' => 0],
+        ]);
+    }
+
     public function test_it_accepts_plugin_settings_defaults(): void
     {
         $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
@@ -663,5 +705,376 @@ class PluginManifestValidatorTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function test_it_normalizes_revision_five_managed_runtime_controls(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $manifest = $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => [
+                'type' => 'bridge',
+                'managedImageId' => 'gateway',
+                'auth' => ['mode' => 'wprint-bridge'],
+                'proxy' => ['enabled' => true, 'allowedPaths' => ['/api/v1']],
+                'httpProxy' => [
+                    'pathPrefix' => '/api/v1',
+                    'methods' => ['get', 'POST'],
+                    'requestTimeoutSecs' => 30,
+                    'streamTimeoutSecs' => 900,
+                    'maxUploadMb' => 256,
+                ],
+                'artifactImports' => [[
+                    'id' => 'gcode',
+                    'pathPattern' => '^/api/v1/jobs/[A-Za-z0-9_-]+/gcode$',
+                    'contentTypes' => ['text/plain'],
+                    'maxSizeMb' => 256,
+                ]],
+            ],
+            'permissions' => ['network.outbound', 'ui.page', 'ui.custom_bundle'],
+            'requirements' => ['diskMb' => 4096],
+            'integrity' => ['algorithm' => 'sha256', 'files' => ['ui/index.html' => str_repeat('a', 64)]],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'service' => [
+                    'port' => 9311,
+                    'storage' => [['name' => 'data', 'target' => '/data']],
+                    'resources' => ['memoryMb' => 2048, 'cpuQuota' => 100000, 'pidsLimit' => 256],
+                    'security' => ['readOnlyRootFs' => true, 'noNewPrivileges' => true, 'capDrop' => ['ALL'], 'user' => '10001:10001', 'tmpfs' => [['path' => '/tmp', 'sizeMb' => 1024]]],
+                    'stopGracePeriodSecs' => 30,
+                ],
+            ]],
+        ]);
+
+        $this->assertSame('wprint-bridge', $manifest['runtime']['auth']['mode']);
+        $this->assertSame(4096, $manifest['requirements']['diskMb']);
+        $this->assertSame(['/api/v1'], $manifest['runtime']['proxy']['allowedPaths']);
+        $this->assertSame(['GET', 'POST'], $manifest['runtime']['proxy']['methods']);
+        $this->assertSame('gcode', $manifest['runtime']['artifactImports'][0]['id']);
+        $this->assertSame(str_repeat('a', 64), $manifest['integrity']['files']['ui/index.html']);
+        $this->assertSame('/data', $manifest['images'][0]['service']['storage'][0]['target']);
+        $this->assertSame(256, $manifest['images'][0]['service']['resources']['pidsLimit']);
+        $this->assertSame('10001:10001', $manifest['images'][0]['service']['security']['user']);
+        $this->assertSame(1024, $manifest['images'][0]['service']['security']['tmpfs'][0]['sizeMb']);
+        $this->assertSame(30, $manifest['images'][0]['service']['stopGracePeriodSecs']);
+    }
+
+    public function test_revision_five_managed_services_cannot_select_the_docker_network(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('cannot select a Docker network');
+
+        $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => [
+                'type' => 'bridge',
+                'managedImageId' => 'gateway',
+            ],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'service' => [
+                    'port' => 9311,
+                    'network' => 'host',
+                ],
+            ]],
+        ]);
+    }
+
+    public function test_managed_service_user_must_be_numeric_uid_and_gid(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('security.user must be a numeric uid[:gid]');
+
+        $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => ['type' => 'bridge', 'managedImageId' => 'gateway'],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'service' => ['port' => 9311, 'security' => ['user' => 'cura:cura']],
+            ]],
+        ]);
+    }
+
+    public function test_managed_service_stop_grace_must_be_positive(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('stopGracePeriodSecs must be greater than zero');
+
+        $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => ['type' => 'bridge', 'managedImageId' => 'gateway'],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'service' => ['port' => 9311, 'stopGracePeriodSecs' => 0],
+            ]],
+        ]);
+    }
+
+    public function test_managed_service_tmpfs_is_limited_to_tmp_and_configured_size(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('sizeMb must be between 1 and 4096');
+
+        $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => ['type' => 'bridge', 'managedImageId' => 'gateway'],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'service' => ['port' => 9311, 'security' => ['tmpfs' => [['path' => '/tmp', 'sizeMb' => 4097]]]],
+            ]],
+        ]);
+    }
+
+    public function test_managed_service_resource_aliases_are_normalized_and_limited(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $manifest = $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => ['type' => 'bridge', 'managedImageId' => 'gateway'],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'pullTimeoutSecs' => 900,
+                'service' => ['port' => 9311, 'resources' => ['memoryMb' => 4096, 'cpuCores' => 2, 'pids' => 256]],
+            ]],
+        ]);
+
+        $resources = $manifest['images'][0]['service']['resources'];
+        $this->assertSame(['memoryMb' => 4096, 'cpuQuota' => 200000, 'pidsLimit' => 256], $resources);
+    }
+
+    public function test_managed_service_cap_drop_outside_host_allowlist_is_rejected(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('capDrop contains a capability outside the host allowlist');
+
+        $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => ['type' => 'bridge', 'managedImageId' => 'gateway'],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'service' => ['port' => 9311, 'security' => ['capDrop' => ['NET_ADMIN']]],
+            ]],
+        ]);
+    }
+
+    public function test_managed_service_storage_object_normalizes_mount_and_retention(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $manifest = $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => ['type' => 'bridge', 'managedImageId' => 'gateway'],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'service' => ['port' => 9311, 'storage' => ['mountPath' => '/data', 'retainOnUninstall' => true]],
+            ]],
+        ]);
+
+        $this->assertSame([
+            'name' => 'data',
+            'target' => '/data',
+            'readOnly' => false,
+            'retainOnUninstall' => true,
+        ], $manifest['images'][0]['service']['storage'][0]);
+    }
+
+    public function test_managed_service_storage_rejects_multiple_writable_mounts(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('only one writable volume');
+
+        $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => ['type' => 'bridge', 'managedImageId' => 'gateway'],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'service' => ['port' => 9311, 'storage' => [
+                    ['name' => 'data', 'target' => '/data'],
+                    ['name' => 'cache', 'target' => '/data/cache'],
+                ]],
+            ]],
+        ]);
+    }
+
+    public function test_workspace_presentation_requires_page_custom_bundle(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('workspace presentation requires a page custom_bundle');
+
+        $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => ['type' => 'bridge', 'managedImageId' => 'gateway'],
+            'uiExtensions' => [[
+                'id' => 'bad-workspace',
+                'surface' => 'settings_tab',
+                'mode' => 'custom_bundle',
+                'presentation' => 'workspace',
+                'title' => 'Bad workspace',
+                'bundle' => ['url' => 'asset://ui/index.html'],
+            ]],
+            'assets' => [['id' => 'ui', 'path' => 'ui']],
+            'components' => [],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'service' => ['port' => 9311],
+            ]],
+        ]);
+    }
+
+    public function test_revision_five_proxy_rejects_invalid_allowed_path(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('runtime.proxy.allowedPaths contains an invalid path');
+
+        $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => ['type' => 'bridge', 'managedImageId' => 'gateway', 'proxy' => ['allowedPaths' => ['api/v1']]],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'service' => ['port' => 9311],
+            ]],
+        ]);
+    }
+
+    public function test_revision_five_proxy_timeout_is_bounded_by_host_policy(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('streamTimeoutSecs must be between 1 and 1800');
+
+        $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => [
+                'type' => 'bridge',
+                'managedImageId' => 'gateway',
+                'httpProxy' => [
+                    'pathPrefix' => '/api/v1',
+                    'methods' => ['GET'],
+                    'maxUploadMb' => 256,
+                    'streamTimeoutSecs' => 1801,
+                ],
+            ],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway@sha256:'.str_repeat('a', 64),
+                'service' => ['port' => 9311],
+            ]],
+        ]);
+    }
+
+    public function test_revision_five_images_must_be_digest_pinned(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('immutable @sha256 digest');
+
+        $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => [
+                'type' => 'bridge',
+                'managedImageId' => 'gateway',
+            ],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway:latest',
+                'service' => ['port' => 9311],
+            ]],
+        ]);
+    }
+
+    public function test_legacy_revision_four_managed_services_keep_network_compatibility(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 4);
+        $manifest = $validator->validate([
+            'id' => 'legacy.bridge',
+            'name' => 'Legacy Bridge',
+            'version' => '0.1.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 4,
+            'runtime' => [
+                'type' => 'bridge',
+                'managedImageId' => 'gateway',
+            ],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'ghcr.io/example/gateway:1.0.0',
+                'service' => [
+                    'port' => 9311,
+                    'network' => 'legacy-network',
+                ],
+            ]],
+        ]);
+
+        $this->assertSame('legacy-network', $manifest['images'][0]['service']['network']);
     }
 }

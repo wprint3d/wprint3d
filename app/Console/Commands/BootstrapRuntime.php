@@ -86,6 +86,24 @@ class BootstrapRuntime extends Command
                     return Command::FAILURE;
                 }
             }
+
+            if ($this->shouldBootstrapPluginRuntime()) {
+                $runtimeSteps = [
+                    ['Installing shipped built-in plugins...', 'plugin:install-builtins', []],
+                ];
+
+                if ((bool) config('plugins.rollout.runtime_reconcile_enabled', true)) {
+                    $runtimeSteps[] = ['Reconciling heavyweight plugin runtimes...', 'plugin:reconcile-runtime', []];
+                }
+
+                foreach ($runtimeSteps as [$message, $command, $parameters]) {
+                    $this->logInfo($message);
+
+                    if ($this->runNestedCommand($command, $parameters) === null) {
+                        return Command::FAILURE;
+                    }
+                }
+            }
         }
 
         if ($queueMaintenance) {
@@ -132,6 +150,11 @@ class BootstrapRuntime extends Command
     protected function octaneEnabled(): bool
     {
         return filter_var(env('OCTANE_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    protected function shouldBootstrapPluginRuntime(): bool
+    {
+        return ! app()->environment('testing');
     }
 
     protected function currentMachineUuid(): string
