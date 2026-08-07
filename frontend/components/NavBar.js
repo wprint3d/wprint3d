@@ -6,7 +6,7 @@ import { Appbar } from 'react-native-paper';
 import NavBarMenu from './NavBarMenu';
 import PluginHostRenderer from './PluginHostRenderer';
 import usePluginExtensions from '../hooks/usePluginExtensions';
-import { getNavBarLeftPadding } from '../utils/navBar';
+import { getNavBarLeftPadding, groupNavbarWidgets } from '../utils/navBar';
 
 export default function NavBar({
   heightReporter = () => {}, enqueueSnackbar = () => {},
@@ -15,17 +15,15 @@ export default function NavBar({
   const [ headerHeight, _setHeaderHeight ] = useState(0);
   const navbarWidgetExtensions = usePluginExtensions('navbar_widget');
   const windowWidth = useWindowDimensions().width;
+  const widgets = navbarWidgetExtensions?.data?.data || [];
+  const { inlineWidgets, mobileCardWidgets } = groupNavbarWidgets(widgets, isSmallTablet);
 
   const setHeaderHeight = (height) => {
     _setHeaderHeight(height);
-
-    if (heightReporter) {
-      heightReporter(height);
-    }
   };
 
   return (
-    <>
+    <View onLayout={event => heightReporter?.(event.nativeEvent.layout.height)}>
       <Appbar.Header
         onLayout={event => setHeaderHeight(event.nativeEvent.layout.height)}
         style={{ minHeight: 46, paddingLeft: getNavBarLeftPadding(windowWidth) }}
@@ -38,7 +36,7 @@ export default function NavBar({
               titleStyle={{ fontSize: 18, fontWeight: 'bold' }}
             />
           </View>
-          {!!navbarWidgetExtensions?.data?.data?.length && (
+          {!!inlineWidgets.length && (
             <View
               style={{
                 flex: 1,
@@ -51,10 +49,11 @@ export default function NavBar({
                 paddingVertical: 7,
               }}
             >
-              {(navbarWidgetExtensions?.data?.data || []).map((extension) => (
+              {inlineWidgets.map((extension) => (
                 <PluginHostRenderer
                   key={`${extension.pluginId}-${extension.id}`}
                   extension={extension}
+                  navbarLayout={isSmallTablet ? extension.mobilePresentation : "inline"}
                 />
               ))}
             </View>
@@ -69,6 +68,18 @@ export default function NavBar({
           enqueueSnackbar={enqueueSnackbar}
         />
       </Appbar.Header>
-    </>
+
+      {isSmallTablet && !!mobileCardWidgets.length && (
+        <View style={{ gap: 8 }}>
+          {mobileCardWidgets.map((extension) => (
+            <PluginHostRenderer
+              key={`${extension.pluginId}-${extension.id}`}
+              extension={extension}
+              navbarLayout={extension.mobilePresentation}
+            />
+          ))}
+        </View>
+      )}
+    </View>
   );
 };

@@ -168,6 +168,16 @@ class PluginManifestValidator
                 throw new InvalidPluginManifestException("Unsupported UI extension surface: {$extension['surface']}");
             }
 
+            if (isset($extension['mobilePresentation'])) {
+                if (! in_array($extension['mobilePresentation'], ['card', 'gauges'], true)) {
+                    throw new InvalidPluginManifestException("Unsupported mobile presentation for UI extension {$extension['id']}.");
+                }
+
+                if ($extension['surface'] !== 'navbar_widget') {
+                    throw new InvalidPluginManifestException("Detached mobile presentation is only supported for navbar widgets: {$extension['id']}.");
+                }
+            }
+
             $mode = $extension['mode'] ?? 'declarative';
 
             if (! in_array($mode, $this->allowedModes, true)) {

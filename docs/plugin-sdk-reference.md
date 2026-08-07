@@ -404,6 +404,29 @@ This is the preferred bridge for ported OctoPrint settings pages that previously
 
 OctoPrint navbar plugins should prefer a host-rendered `data_strip` widget instead of recreating the entire navbar inside a WebView. On `surface: "navbar_widget"`, the host renders `data_strip` as an inline telemetry lane that expands across the center navbar slot so ports like NavbarTemp feel native to the shell instead of looking like detached chip stacks.
 
+Navbar widgets may set `mobilePresentation` on the UI extension. Use `card` to move normal text-and-icon items into a wrapped surface below the mobile app bar, or `gauges` to keep numeric items inside the app bar as icon-only micro gauges. Omit the field to keep the standard inline presentation at every breakpoint.
+
+Example UI extension:
+
+```json
+{
+  "id": "navbartemp-navbar",
+  "surface": "navbar_widget",
+  "mode": "declarative",
+  "title": "NavbarTemp",
+  "mobilePresentation": "gauges",
+  "schema": {
+    "component": "data_strip",
+    "dataActionId": "snapshot",
+    "pollIntervalMs": 10000,
+    "itemsPath": "items",
+    "gap": 4
+  }
+}
+```
+
+Gauge items keep the normal desktop `text` field and add `label`, `displayValue`, `value`, `targetValue`, `min`, and `max`. The numeric range controls the mobile ring. Tapping a micro gauge shows its compact actual/target values for five seconds, then fades back to the icon-only presentation. A null `targetValue` displays only the current value.
+
 Example declarative schema:
 
 ```json

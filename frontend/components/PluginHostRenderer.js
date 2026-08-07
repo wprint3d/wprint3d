@@ -1,7 +1,8 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
-import { Platform, ScrollView, View } from "react-native";
-import { Button, Card, Chip, Dialog, Divider, Icon, List, Portal, ProgressBar, Switch, Text, TextInput, useTheme } from "react-native-paper";
+import { AccessibilityInfo, Animated, Platform, ScrollView, View } from "react-native";
+import { Button, Card, Chip, Dialog, Divider, Icon, List, Portal, ProgressBar, Switch, Text, TextInput, TouchableRipple, useTheme } from "react-native-paper";
 import { WebView } from "react-native-webview";
+import Svg, { Circle } from "react-native-svg";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSnackbar } from "react-native-paper-snackbar-stack";
 import API from "../includes/API";
@@ -285,7 +286,184 @@ const NavbarStripItem = ({ item }) => {
   );
 };
 
-const DataStripNode = ({ extension, node, printerId = null }) => {
+const MobileGaugeStripItem = ({ item, compact = false }) => {
+  const { colors } = useTheme();
+  const [ showDetails, setShowDetails ] = useState(false);
+  const [ reduceMotion, setReduceMotion ] = useState(false);
+  const opacity = useRef(new Animated.Value(1)).current;
+  const detailsTimeoutRef = useRef(null);
+  const size = compact ? 28 : 36;
+  const strokeWidth = compact ? 2.5 : 3;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const value = Number(item.value);
+  const min = Number.isFinite(Number(item.min)) ? Number(item.min) : 0;
+  const max = Number.isFinite(Number(item.max)) ? Number(item.max) : 100;
+  const hasRange = Number.isFinite(value) && max > min;
+  const progress = hasRange ? clampPercentage(((value - min) / (max - min)) * 100) / 100 : 0;
+  const label = item.label || item.id || "";
+  const displayValue = item.displayValue || item.text || (Number.isFinite(value) ? String(value) : "--");
+  const targetValue = Number(item.targetValue);
+  const hasTarget = item.targetValue !== null
+    && item.targetValue !== undefined
+    && Number.isFinite(targetValue);
+  const formatCompactValue = (candidate) => {
+    if (!Number.isFinite(candidate)) { return "--"; }
+
+    return `${Number.isInteger(candidate) ? candidate : candidate.toFixed(1)}°`;
+  };
+  const detailsText = Number.isFinite(value)
+    ? (
+        hasTarget
+          ? `${formatCompactValue(value)}/${formatCompactValue(targetValue)}`
+          : formatCompactValue(value)
+      )
+    : displayValue;
+
+  useEffect(() => {
+    let mounted = true;
+
+    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted) {
+        setReduceMotion(enabled);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      clearTimeout(detailsTimeoutRef.current);
+      opacity.stopAnimation();
+    };
+  }, [opacity]);
+
+  const returnToGauge = () => {
+    if (reduceMotion) {
+      setShowDetails(false);
+      return;
+    }
+
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) { return; }
+
+      setShowDetails(false);
+      opacity.setValue(0);
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const showTemperatureDetails = () => {
+    clearTimeout(detailsTimeoutRef.current);
+    opacity.stopAnimation();
+    opacity.setValue(1);
+    setShowDetails(true);
+    detailsTimeoutRef.current = setTimeout(returnToGauge, 5000);
+  };
+
+  const gauge = (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={colors.outlineVariant}
+          strokeWidth={strokeWidth}
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={item.color || colors.primary}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={circumference * (1 - progress)}
+          rotation="-90"
+          origin={`${size / 2}, ${size / 2}`}
+        />
+      </Svg>
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Icon source={item.icon || "gauge"} size={compact ? 13 : 15} color={item.color || colors.onSurface} />
+      </View>
+    </View>
+  );
+
+  if (compact) {
+    return (
+      <TouchableRipple
+        onPress={showTemperatureDetails}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}: ${detailsText}`}
+        accessibilityState={{ expanded: showDetails }}
+        borderless
+        hitSlop={8}
+        style={{ borderRadius: 999 }}
+      >
+        <Animated.View
+          style={{
+            width: showDetails ? 72 : 30,
+            height: 32,
+            opacity,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {showDetails ? (
+            <Text
+              variant="labelSmall"
+              numberOfLines={1}
+              style={{ color: colors.onSurface, fontWeight: "700", fontSize: 9, lineHeight: 11 }}
+            >
+              {detailsText}
+            </Text>
+          ) : gauge}
+        </Animated.View>
+      </TouchableRipple>
+    );
+  }
+
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${label}: ${displayValue}`}
+      style={{ width: compact ? 30 : 68, alignItems: "center", gap: 1 }}
+    >
+      {gauge}
+      {!compact && (
+        <Text
+          variant="labelSmall"
+          numberOfLines={1}
+          style={{ color: colors.onSurface, fontWeight: "700", fontSize: 8, lineHeight: 10 }}
+        >
+          {`${label} ${displayValue}`}
+        </Text>
+      )}
+    </View>
+  );
+};
+
+const DataStripNode = ({ extension, node, printerId = null, navbarLayout = "inline" }) => {
   const { colors } = useTheme();
   const { t } = useLocalization();
   const { setPluginTaskState } = usePluginLoading();
@@ -365,6 +543,59 @@ const DataStripNode = ({ extension, node, printerId = null }) => {
   }
 
   if (extension.surface === "navbar_widget") {
+    const stripItems = resolvedItems.map((item, index) => (
+      <NavbarStripItem
+        key={item.id || item.label || item.text || index}
+        item={item}
+      />
+    ));
+
+    if (navbarLayout === "gauges") {
+      return (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: node.gap ?? 4,
+          }}
+        >
+          {resolvedItems.map((item, index) => (
+            <MobileGaugeStripItem
+              key={item.id || item.label || item.text || index}
+              item={item}
+              compact
+            />
+          ))}
+        </View>
+      );
+    }
+
+    if (navbarLayout === "card") {
+      return (
+        <View
+          style={{
+            marginHorizontal: 8,
+            marginTop: 4,
+            marginBottom: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            borderWidth: 1,
+            borderRadius: 8,
+            borderColor: colors.outlineVariant,
+            backgroundColor: colors.elevation?.level1 || colors.surface,
+            flexDirection: "row",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            gap: node.gap ?? 12,
+          }}
+        >
+          {stripItems}
+        </View>
+      );
+    }
+
     return (
       <ScrollView
         horizontal
@@ -382,12 +613,7 @@ const DataStripNode = ({ extension, node, printerId = null }) => {
           maxWidth: "100%",
         }}
       >
-        {resolvedItems.map((item, index) => (
-          <NavbarStripItem
-            key={item.id || item.label || item.text || index}
-            item={item}
-          />
-        ))}
+        {stripItems}
       </ScrollView>
     );
   }
@@ -638,7 +864,7 @@ const PluginRenderFallback = ({ extension, error, onRetry }) => {
   );
 };
 
-const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId = null }) => {
+const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId = null, navbarLayout = "inline" }) => {
   const { colors } = useTheme();
   const { effectiveLanguage, t } = useLocalization();
   const { enqueueSnackbar } = useSnackbar();
@@ -1076,6 +1302,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
             extension={extension}
             node={node}
             printerId={effectivePrinterId}
+            navbarLayout={navbarLayout}
           />
         );
       case "remote_component": {
@@ -1190,7 +1417,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
   );
 };
 
-const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null }) => {
+const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null, navbarLayout = "inline" }) => {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
   const { t } = useLocalization();
@@ -1251,6 +1478,7 @@ const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null 
         extension={extension}
         modalExtensions={modalExtensions}
         printerId={printerId}
+        navbarLayout={navbarLayout}
       />
     </PluginRenderBoundary>
   );

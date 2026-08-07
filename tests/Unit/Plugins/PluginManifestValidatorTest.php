@@ -61,6 +61,7 @@ class PluginManifestValidatorTest extends TestCase
                     'surface' => 'navbar_widget',
                     'mode' => 'declarative',
                     'title' => 'Host Metrics',
+                    'mobilePresentation' => 'gauges',
                     'schema' => [
                         'component' => 'gauge_cluster',
                         'dataActionId' => 'ping',
@@ -90,6 +91,42 @@ class PluginManifestValidatorTest extends TestCase
         $this->assertSame('app.boot', array_key_first($manifest['hooks']));
         $this->assertSame('settings_tab', $manifest['uiExtensions'][0]['surface']);
         $this->assertSame('navbar_widget', $manifest['uiExtensions'][1]['surface']);
+        $this->assertSame('gauges', $manifest['uiExtensions'][1]['mobilePresentation']);
+    }
+
+    public function test_it_rejects_detached_mobile_presentation_outside_navbar_widgets(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
+
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('only supported for navbar widgets');
+
+        $validator->validate([
+            'id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'runtime' => [
+                'type' => 'php',
+                'entry' => 'plugin.php',
+            ],
+            'permissions' => [
+                'ui.settings_tab',
+            ],
+            'uiExtensions' => [
+                [
+                    'id' => 'settings',
+                    'surface' => 'settings_tab',
+                    'mode' => 'declarative',
+                    'title' => 'Demo',
+                    'mobilePresentation' => 'card',
+                    'schema' => [
+                        'component' => 'text',
+                        'text' => 'Hello world',
+                    ],
+                ],
+            ],
+        ]);
     }
 
     public function test_it_defaults_to_the_current_sdk_revision_when_not_declared(): void
