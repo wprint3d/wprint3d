@@ -170,7 +170,10 @@ return [
     'signature' => [
         'private_key_path' => env('PLUGIN_SIGNING_PRIVATE_KEY'),
         'private_key_passphrase' => env('PLUGIN_SIGNING_PRIVATE_KEY_PASSPHRASE'),
-        'trusted_public_keys' => array_filter(array_map('trim', explode(',', (string) env('PLUGIN_TRUSTED_PUBLIC_KEYS', '')))),
+        'trusted_public_keys' => array_values(array_unique(array_merge(
+            array_filter(array_map('trim', explode(',', (string) env('PLUGIN_TRUSTED_PUBLIC_KEYS', '')))),
+            glob(base_path('resources/plugins/builtin/trusted/*.pem')) ?: [],
+        ))),
         'synced_trusted_keys_path' => env('PLUGIN_SYNCED_TRUSTED_KEYS_PATH', storage_path('app/plugins/trusted-keys')),
     ],
 

@@ -205,6 +205,9 @@ jobs:
           [[ -n "$CURA_W3DP_SIGNER_PUBLIC_KEY" ]] || { echo 'CURA_W3DP_SIGNER_PUBLIC_KEY is required.' >&2; exit 1; }
           printf '%s\n' "$CURA_W3DP_SIGNER_PUBLIC_KEY" > "$RUNNER_TEMP/cura-builtin/signer-public.pem"
           chmod 600 "$RUNNER_TEMP/cura-builtin/signer-public.pem"
+          mkdir -p resources/plugins/builtin/trusted
+          cp "$RUNNER_TEMP/cura-builtin/signer-public.pem" resources/plugins/builtin/trusted/cura-w3dp-release.pem
+          chmod 644 resources/plugins/builtin/trusted/cura-w3dp-release.pem
           archive_sha256="$(sha256sum "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp" | awk '{print tolower($1)}')"
           scripts/stage-builtin-plugin.sh \
             --archive "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp" \
@@ -360,17 +363,42 @@ jobs:
 
       - name: Create commit manifests
         run: |
+          create_manifest() {
+            local attempt
+            for attempt in 1 2 3 4 5; do
+              if docker buildx imagetools create "$@"; then
+                return 0
+              fi
+              if [[ "$attempt" -eq 5 ]]; then
+                return 1
+              fi
+              sleep "$((attempt * 5))"
+            done
+          }
           for image in wprint3d wprint3d-mapper wprint3d-streamer wprint3d-proxy wprint3d-frontend; do
-            docker buildx imagetools create \
+            create_manifest \
               --tag "$REGISTRY/$image:${GITHUB_SHA}" \
               "$REGISTRY/$image:${GITHUB_SHA}-amd64" \
               "$REGISTRY/$image:${GITHUB_SHA}-arm64"
           done
 
       - name: Promote release manifests
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
+          create_manifest() {
+            local attempt
+            for attempt in 1 2 3 4 5; do
+              if docker buildx imagetools create "$@"; then
+                return 0
+              fi
+              if [[ "$attempt" -eq 5 ]]; then
+                return 1
+              fi
+              sleep "$((attempt * 5))"
+            done
+          }
           for image in wprint3d-mapper wprint3d-streamer wprint3d-proxy wprint3d-frontend wprint3d; do
-            docker buildx imagetools create \
+            create_manifest \
               --tag "$REGISTRY/$image:latest" \
               "$REGISTRY/$image:${GITHUB_SHA}"
           done
