@@ -21,6 +21,7 @@ fi
 
 grep -q '^  prepare-cura-builtin:' "$workflow"
 grep -q 'secrets.CURA_W3DP_SIGNER_PUBLIC_KEY' "$workflow"
+grep -q 'secrets.CURA_RELEASE_READ_TOKEN' "$workflow"
 grep -q 'scripts/stage-builtin-plugin.sh' "$workflow"
 grep -q 'php artisan plugin:verify-builtins' "$workflow"
 grep -q 'actions/upload-artifact@v4' "$workflow"
@@ -34,6 +35,8 @@ grep -q "needs.prepare-cura-builtin.result == 'skipped'" "$workflow"
 grep -q "github.event_name == 'workflow_dispatch'" "$workflow"
 grep -q 'sha256sum --check --status' "$workflow"
 grep -q -- "--proto-redir '=https'" "$workflow"
+[[ "$(grep -c 'Accept: application/octet-stream' "$workflow")" -eq 2 ]]
+[[ "$(grep -c 'Authorization: Bearer \$CURA_RELEASE_READ_TOKEN' "$workflow")" -eq 2 ]]
 
 # Both architecture pushes and the manifest aggregation job must authenticate
 # before reading/copying Docker Hub layers; otherwise a valid release can fail

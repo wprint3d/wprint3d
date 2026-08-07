@@ -163,20 +163,28 @@ jobs:
 
       - name: Download and verify signed Cura artifacts
         env:
+          CURA_RELEASE_READ_TOKEN: ${{ secrets.CURA_RELEASE_READ_TOKEN }}
           CURA_W3DP_URL: ${{ inputs.cura_w3dp_url }}
           CURA_W3DP_SHA256: ${{ inputs.cura_w3dp_sha256 }}
           CURA_COMPATIBILITY_URL: ${{ inputs.cura_compatibility_url }}
           CURA_COMPATIBILITY_SHA256: ${{ inputs.cura_compatibility_sha256 }}
         run: |
           set -euo pipefail
+          [[ -n "$CURA_RELEASE_READ_TOKEN" ]] || { echo 'CURA_RELEASE_READ_TOKEN is required.' >&2; exit 1; }
           [[ "$CURA_W3DP_URL" == https://* ]] || { echo 'Cura W3DP URL must use HTTPS.' >&2; exit 1; }
           [[ "$CURA_COMPATIBILITY_URL" == https://* ]] || { echo 'Cura compatibility URL must use HTTPS.' >&2; exit 1; }
           [[ "$CURA_W3DP_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo 'Invalid Cura W3DP SHA-256.' >&2; exit 1; }
           [[ "$CURA_COMPATIBILITY_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo 'Invalid Cura compatibility SHA-256.' >&2; exit 1; }
           mkdir -p "$RUNNER_TEMP/cura-builtin"
           curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --retry-all-errors \
+            --header 'Accept: application/octet-stream' \
+            --header "Authorization: Bearer $CURA_RELEASE_READ_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
             "$CURA_W3DP_URL" -o "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp"
           curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --retry-all-errors \
+            --header 'Accept: application/octet-stream' \
+            --header "Authorization: Bearer $CURA_RELEASE_READ_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
             "$CURA_COMPATIBILITY_URL" -o "$RUNNER_TEMP/cura-builtin/compatibility.json"
           printf '%s  %s\n' "${CURA_W3DP_SHA256,,}" "$RUNNER_TEMP/cura-builtin/cura-web-ui.w3dp" | sha256sum --check --status
           printf '%s  %s\n' "${CURA_COMPATIBILITY_SHA256,,}" "$RUNNER_TEMP/cura-builtin/compatibility.json" | sha256sum --check --status
