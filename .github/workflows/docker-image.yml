@@ -43,7 +43,7 @@ jobs:
           done
 
   pull-request-build:
-    name: Build production images (amd64)
+    name: PR validation build (amd64)
     if: github.event_name == 'pull_request'
     needs: validate
     runs-on: ubuntu-24.04
