@@ -185,6 +185,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         make -C /tmp/camera-streamer DESTDIR=/camera-root install; \
         strip --strip-unneeded /camera-root/usr/local/bin/camera-streamer; \
     fi \
+    && ldconfig \
     && if ldd /camera-root/usr/local/bin/ustreamer 2>&1 | grep -q 'not found'; then \
         exit 1; \
     fi \
