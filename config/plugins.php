@@ -88,7 +88,7 @@ return [
         ],
     ],
 
-    'core_version' => env('APP_VERSION', '0.0.0'),
+    'core_version' => env('APP_VERSION', '1.0.0'),
 
     'paths' => [
         'root' => storage_path('app/plugins'),

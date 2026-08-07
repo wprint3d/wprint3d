@@ -71,10 +71,15 @@ jobs:
         env:
           SOURCE_ARCHIVE_URL: ${{ inputs.source_archive_url }}
           SOURCE_ARCHIVE_SHA256: ${{ inputs.source_archive_sha256 }}
+          CURA_SOURCE_READ_TOKEN: ${{ secrets.CURA_SOURCE_READ_TOKEN }}
         run: |
           set -euo pipefail
+          [[ -n "$CURA_SOURCE_READ_TOKEN" ]] || { echo 'CURA_SOURCE_READ_TOKEN is required for the private Cura release handoff.' >&2; exit 1; }
           mkdir -p "$RUNNER_TEMP/cura-signing/source"
           curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 --retry-all-errors \
+            --header 'Accept: application/octet-stream' \
+            --header "Authorization: Bearer $CURA_SOURCE_READ_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
             "$SOURCE_ARCHIVE_URL" -o "$RUNNER_TEMP/cura-signing/source.tar.gz"
           printf '%s  %s\n' "${SOURCE_ARCHIVE_SHA256,,}" "$RUNNER_TEMP/cura-signing/source.tar.gz" | sha256sum --check --status
           python3 scripts/validate-plugin-source-archive.py "$RUNNER_TEMP/cura-signing/source.tar.gz"
