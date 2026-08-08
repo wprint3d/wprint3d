@@ -82,6 +82,10 @@ class PrintGcode implements ShouldQueue
 
     private ?array $serialPluginHooks = null;
 
+    private ?string $serialNode = null;
+
+    private ?int $serialBaudRate = null;
+
     private int $streamMaxLengthBytes;
 
     private int $lineNumber = 0;
@@ -479,14 +483,13 @@ class PrintGcode implements ShouldQueue
                     }
                 );
 
-                return new Serial(
-                    fileName: $this->printer->node,
-                    baudRate: $this->printer->baudRate,
-                    printerId: $this->printer->_id,
-                    timeout: $this->commandTimeoutSecs,
-                    terminalAutoAppend: false,
-                    pluginHooks: $this->getSerialPluginHooks()
-                );
+                $node = (string) $this->printer->node;
+                $baudRate = (int) $this->printer->baudRate;
+                $serial = $this->createSerialConnection($node, $baudRate);
+                $this->serialNode = $node;
+                $this->serialBaudRate = $baudRate;
+
+                return $serial;
             } catch (Throwable $exception) {
                 $lastException = $exception;
                 $this->heartbeat();
@@ -496,6 +499,54 @@ class PrintGcode implements ShouldQueue
         throw new PrintRecoveryRequiredException(
             'Failed to open the printer connection for renegotiation: '.
                 ($lastException?->getMessage() ?? 'unknown error')
+        );
+    }
+
+    protected function createSerialConnection(string $node, int $baudRate): Serial
+    {
+        return new Serial(
+            fileName: $node,
+            baudRate: $baudRate,
+            printerId: $this->printer->_id,
+            timeout: $this->commandTimeoutSecs,
+            terminalAutoAppend: false,
+            pluginHooks: $this->getSerialPluginHooks()
+        );
+    }
+
+    private function configurePrintSerial(Serial $serial): void
+    {
+        if ($this->executionToken !== null) {
+            $serial->everyBusyMillis(
+                clockName: 'printExecutionHeartbeat',
+                interval: PrintExecutionState::HEARTBEAT_INTERVAL_SECS * 1000,
+                function: fn () => $this->heartbeat()
+            );
+        }
+
+        if (! isset($this->shouldRecord) || ! $this->shouldRecord) {
+            return;
+        }
+
+        $serial->everyBusyMillis(
+            clockName: 'lastSnapshot',
+            interval: $this->captureIntervalSecs * 1000,
+            function: function () {
+                foreach ($this->recordableCameras as $camera) {
+                    $snapshotURL = $camera->getSnapshotURL();
+
+                    if ($snapshotURL) {
+                        SaveSnapshot::dispatch(
+                            $camera->index,
+                            $camera->requiresLibCamera,
+                            $snapshotURL,
+                            $this->filePath,
+                            $this->uid,
+                            $this->captureIntervalSecs
+                        );
+                    }
+                }
+            }
         );
     }
 
@@ -571,23 +622,122 @@ class PrintGcode implements ShouldQueue
         return $checkpoint;
     }
 
+    private function waitForConnectionRetry(int $seconds): void
+    {
+        for ($elapsed = 0; $elapsed < $seconds; $elapsed++) {
+            $this->heartbeat();
+            $this->assertCurrentExecution();
+            sleep(1);
+        }
+    }
+
+    private function reconcileMappedConnection(Serial &$serial, array $checkpoint): string
+    {
+        $log = Log::channel(self::LOG_CHANNEL);
+        $maxRetries = max(0, (int) Configuration::get('negotiationMaxRetries'));
+        $retryDelaySecs = max(1, (int) Configuration::get('negotiationTimeoutSecs'));
+        $executionContext = $this->printer->activePrintExecution ?? [];
+
+        if (! is_array($executionContext)) {
+            $executionContext = [];
+        }
+
+        $expectedFingerprint = (string) (
+            $checkpoint['machineFingerprint']
+            ?? $executionContext['machineFingerprint']
+            ?? ''
+        );
+        $serialNode = $this->serialNode ?? (string) $this->printer->node;
+        $serialBaudRate = $this->serialBaudRate ?? (int) $this->printer->baudRate;
+        $lastException = null;
+
+        for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
+            try {
+                tryToWaitForMapper(
+                    $log,
+                    function (): void {
+                        $this->heartbeat();
+                        $this->assertCurrentExecution();
+                    }
+                );
+
+                $this->printer->refresh();
+            } catch (Throwable $exception) {
+                $lastException = $exception;
+
+                if ($attempt < $maxRetries) {
+                    $this->waitForConnectionRetry($retryDelaySecs);
+                }
+
+                continue;
+            }
+
+            $mappedFingerprint = (string) ($this->printer->machine['uuid'] ?? '');
+
+            if (
+                $expectedFingerprint === ''
+                || $mappedFingerprint === ''
+                || ! hash_equals($expectedFingerprint, $mappedFingerprint)
+            ) {
+                throw new PrintRecoveryRequiredException(
+                    'The remapped serial device fingerprint does not match the active print.'
+                );
+            }
+
+            $mappedNode = (string) $this->printer->node;
+            $mappedBaudRate = (int) $this->printer->baudRate;
+
+            try {
+                if ($mappedNode === '') {
+                    throw new InitializationException('The remapped printer has no serial node.');
+                }
+
+                if ($mappedNode !== $serialNode || $mappedBaudRate !== $serialBaudRate) {
+                    $log->warning(
+                        "[{$this->printer->_id}] Printer fingerprint matched after remapping; ".
+                        "moving the active print connection from {$serialNode} to {$mappedNode}."
+                    );
+
+                    $serial->close();
+                    $serial = $this->createSerialConnection($mappedNode, $mappedBaudRate);
+                    $this->configurePrintSerial($serial);
+                    $serialNode = $mappedNode;
+                    $serialBaudRate = $mappedBaudRate;
+                    $this->serialNode = $mappedNode;
+                    $this->serialBaudRate = $mappedBaudRate;
+                }
+
+                return $this->connectionReconciler()->reconcile($this->printer, $serial, $checkpoint);
+            } catch (PrintRecoveryRequiredException $exception) {
+                if ($exception->identityValidated) {
+                    throw $exception;
+                }
+
+                $lastException = $exception;
+            } catch (Throwable $exception) {
+                $lastException = $exception;
+            }
+
+            if ($attempt < $maxRetries) {
+                $this->waitForConnectionRetry($retryDelaySecs);
+            }
+        }
+
+        throw new PrintRecoveryRequiredException(
+            'Failed to renegotiate the mapped printer connection after the configured attempts: '.
+                ($lastException?->getMessage() ?? 'unknown error')
+        );
+    }
+
     private function reconcilePendingCommand(Serial &$serial): string
     {
-        tryToWaitForMapper(
-            Log::channel(self::LOG_CHANNEL),
-            function (): void {
-                $this->heartbeat();
-                $this->assertCurrentExecution();
-            }
-        );
-
         $checkpoint = $this->executionState()->checkpoint((string) $this->printer->_id);
 
         if (! is_array($checkpoint)) {
             throw new PrintRecoveryRequiredException('The active print checkpoint disappeared.');
         }
 
-        $outcome = $this->connectionReconciler()->reconcile($this->printer, $serial, $checkpoint);
+        $outcome = $this->reconcileMappedConnection($serial, $checkpoint);
 
         if ($outcome === 'continue') {
             $this->synchronizeCheckpoint($checkpoint);
@@ -618,7 +768,7 @@ class PrintGcode implements ShouldQueue
             );
         } catch (TimedOutException|InitializationException|LockTimeoutException) {
             $checkpoint = $this->executionState()->checkpoint((string) $this->printer->_id);
-            $secondOutcome = $this->connectionReconciler()->reconcile($this->printer, $serial, $checkpoint);
+            $secondOutcome = $this->reconcileMappedConnection($serial, $checkpoint);
 
             if ($secondOutcome !== 'executed') {
                 throw new PrintRecoveryRequiredException(
@@ -873,42 +1023,15 @@ class PrintGcode implements ShouldQueue
         $serial = $this->openSerial($log);
 
         try {
-            if ($this->executionToken !== null) {
-                $serial->everyBusyMillis(
-                    clockName: 'printExecutionHeartbeat',
-                    interval: PrintExecutionState::HEARTBEAT_INTERVAL_SECS * 1000,
-                    function: fn () => $this->heartbeat()
-                );
-            }
-
             if ($this->shouldRecord) {
                 foreach ($this->printer->getRecordableCameras() as $camera) {
                     if ($camera->connected) {
                         $this->recordableCameras[] = $camera;
                     }
                 }
-
-                $serial->everyBusyMillis(
-                    clockName: 'lastSnapshot',
-                    interval: $this->captureIntervalSecs * 1000,
-                    function: function () {
-                        foreach ($this->recordableCameras as $camera) {
-                            $snapshotURL = $camera->getSnapshotURL();
-
-                            if ($snapshotURL) {
-                                SaveSnapshot::dispatch(
-                                    $camera->index,             // index
-                                    $camera->requiresLibCamera, // requiresLibCamera
-                                    $snapshotURL,               // url
-                                    $this->filePath,            // fileName
-                                    $this->uid,                 // jobUID
-                                    $this->captureIntervalSecs  // expectedIntervalSecs
-                                );
-                            }
-                        }
-                    }
-                );
             }
+
+            $this->configurePrintSerial($serial);
 
             $buffer = [];
             $this->lineNumberCount++;

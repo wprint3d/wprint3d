@@ -60,6 +60,43 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
         $this->assertTrue($printer->hasActiveJob);
     }
 
+    public function test_it_moves_the_active_connection_to_a_remapped_node_when_the_fingerprint_matches(): void
+    {
+        [$job, $serial, $executionState, $printer] = $this->remappedNodeScenario(
+            'FAKE-UUID/canonical-suffix'
+        );
+
+        $response = $this->querySourceCommand($job, $serial, 'G1 X11');
+        $checkpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertSame('ok', $response);
+        $this->assertTrue($serial->wasClosed);
+        $this->assertSame(['USB1'], $job->openedNodes);
+        $this->assertSame(1, $checkpoint['sourceCommandIndex']);
+        $this->assertSame(11.0, $checkpoint['state']['position']['x']);
+    }
+
+    public function test_it_rejects_a_remapped_node_when_the_fingerprint_changes(): void
+    {
+        [$job, $serial, $executionState, $printer] = $this->remappedNodeScenario(
+            'OTHER-UUID/other-suffix'
+        );
+
+        try {
+            $this->querySourceCommand($job, $serial, 'G1 X11');
+            $this->fail('A different physical printer must not inherit the active print.');
+        } catch (\App\Exceptions\PrintRecoveryRequiredException $exception) {
+            $this->assertStringContainsString('fingerprint', $exception->getMessage());
+        }
+
+        $checkpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertFalse($serial->wasClosed);
+        $this->assertSame([], $job->openedNodes);
+        $this->assertSame(0, $checkpoint['sourceCommandIndex']);
+        $this->assertSame(10.0, $checkpoint['state']['position']['x']);
+    }
+
     private function querySourceCommand(PrintGcode $job, Serial &$serial, string $command): string
     {
         return \Closure::bind(
@@ -83,6 +120,10 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
 
             public bool $hasActiveJob = true;
 
+            public string $node = 'USB0';
+
+            public int $baudRate = 115200;
+
             public array $machine = ['uuid' => 'FAKE-UUID/canonical-suffix'];
 
             public mixed $activePrintExecution = null;
@@ -97,6 +138,11 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
             public function save(array $options = []): bool
             {
                 return true;
+            }
+
+            public function refresh()
+            {
+                return $this;
             }
 
             public function setStatistics(string $lines, int $extruderIndex): bool
@@ -192,7 +238,158 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
             $job->lineNumber = 1;
             $job->lineNumberCount = 2;
             $job->lastMovementMode = 'G90';
+            $job->serialNode = 'USB0';
+            $job->serialBaudRate = 115200;
         }, null, PrintGcode::class)();
+
+        return [$job, $serial, $executionState, $printer];
+    }
+
+    private function remappedNodeScenario(string $mappedFingerprint): array
+    {
+        $printer = new class($mappedFingerprint) extends Printer
+        {
+            public string $_id = 'remapped-node-printer';
+
+            public bool $hasActiveJob = true;
+
+            public string $node = 'USB0';
+
+            public int $baudRate = 115200;
+
+            public array $machine = ['uuid' => 'FAKE-UUID/canonical-suffix'];
+
+            public mixed $activePrintExecution = null;
+
+            public array $statistics = [
+                'extruders' => [0 => ['temperature' => 205.0, 'target' => 210.0]],
+                'bed' => ['temperature' => 60.0, 'target' => 60.0],
+            ];
+
+            public function __construct(private readonly string $mappedFingerprint) {}
+
+            public function save(array $options = []): bool
+            {
+                return true;
+            }
+
+            public function refresh()
+            {
+                $this->node = 'USB1';
+                $this->machine = ['uuid' => $this->mappedFingerprint];
+
+                return $this;
+            }
+
+            public function setStatistics(string $lines, int $extruderIndex): bool
+            {
+                $this->statistics['extruders'][$extruderIndex] = [
+                    'temperature' => 205.0,
+                    'target' => 210.0,
+                ];
+                $this->statistics['bed'] = [
+                    'temperature' => 60.0,
+                    'target' => 60.0,
+                ];
+
+                return true;
+            }
+
+            public function getStatistics(): array
+            {
+                return $this->statistics;
+            }
+
+            public function setCurrentLine(int $line): bool
+            {
+                return true;
+            }
+
+            public function setAbsolutePosition(?float $x, ?float $y, ?float $z, ?float $e): bool
+            {
+                return true;
+            }
+        };
+        $owner = new class extends User
+        {
+            public string $_id = 'remapped-node-owner';
+
+            public function __construct() {}
+        };
+        $executionState = app(PrintExecutionState::class);
+        $executionState->begin($printer, $owner, 'remapped-node-uid', 'remapped-node-token');
+        $executionState->markReady(
+            $printer->_id,
+            'remapped-node-token',
+            ['x' => 10, 'y' => 20, 'z' => 0.2, 'e' => 4],
+            $printer->statistics
+        );
+
+        $serial = new class extends Serial
+        {
+            public bool $wasClosed = false;
+
+            public function __construct() {}
+
+            public function query(
+                ?string $command = null,
+                ?int $lineNumber = null,
+                ?int $maxLine = null,
+                ?int $timeout = null
+            ): string {
+                throw new TimedOutException('The original serial node disappeared.');
+            }
+
+            public function close(): void
+            {
+                $this->wasClosed = true;
+            }
+        };
+        $replacementSerial = new class extends Serial
+        {
+            public function __construct() {}
+
+            public function query(
+                ?string $command = null,
+                ?int $lineNumber = null,
+                ?int $maxLine = null,
+                ?int $timeout = null
+            ): string {
+                return match ($command) {
+                    'M115' => 'FIRMWARE_NAME:Fake UUID:FAKE-UUID ok',
+                    'M114' => 'X:11.00 Y:20.00 Z:0.20 E:4.00 ok',
+                    'M105' => 'ok T:205.00 /210.00 B:60.00 /60.00',
+                    default => 'ok',
+                };
+            }
+        };
+        $job = new class($replacementSerial) extends PrintGcode
+        {
+            public array $openedNodes = [];
+
+            public function __construct(private readonly Serial $replacementSerial) {}
+
+            protected function createSerialConnection(string $node, int $baudRate): Serial
+            {
+                $this->openedNodes[] = $node;
+
+                return $this->replacementSerial;
+            }
+        };
+
+        \Closure::bind(function () use ($job, $printer) {
+            $job->printer = $printer;
+            $job->executionToken = 'remapped-node-token';
+            $job->lineNumber = 1;
+            $job->lineNumberCount = 2;
+            $job->lastMovementMode = 'G90';
+            $job->serialNode = 'USB0';
+            $job->serialBaudRate = 115200;
+        }, null, PrintGcode::class)();
+
+        // The main print loop refreshes the model periodically, so it may already
+        // expose the remapped node while the current Serial still owns USB0.
+        $printer->refresh();
 
         return [$job, $serial, $executionState, $printer];
     }
