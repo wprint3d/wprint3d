@@ -138,8 +138,31 @@ generateSecrets() {
     cat /tmp/.secrets > /var/www/.env;
 }
 
+stopHostMetricsSampler() {
+    local sampler_pid="$1";
+
+    if [[ ! "$sampler_pid" =~ ^[0-9]+$ ]]; then
+        return 0;
+    fi;
+
+    kill "$sampler_pid" > /dev/null 2>&1 || true;
+    wait "$sampler_pid" > /dev/null 2>&1 || true;
+}
+
 refreshDockerLog() {
+    local host_metrics_pid='';
+
     IFS=$'\n';
+
+    if [[ -f '/var/www/internal/startup-metrics.php' ]]; then
+        php /var/www/internal/startup-metrics.php \
+            --output=/var/www/internal/startup/host-metrics.txt \
+            --interval-ms=2000 \
+            > /dev/null 2>&1 &
+        host_metrics_pid=$!;
+    fi;
+
+    trap 'stopHostMetricsSampler "$host_metrics_pid"' EXIT;
 
     ALL_SERVICES_READY=0;
 

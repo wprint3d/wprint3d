@@ -108,6 +108,14 @@
             background: var(--color-surface);
         }
 
+        .startup-shell.has-diagnostics {
+            grid-template-rows: auto auto auto auto minmax(8rem, 1fr);
+            height: min(54rem, calc(100vh - 2rem));
+            height: min(54rem, calc(100dvh - 2rem));
+            min-height: min(48rem, calc(100vh - 2rem));
+            min-height: min(48rem, calc(100dvh - 2rem));
+        }
+
         .app-header,
         .progress-header,
         .section-header,
@@ -227,6 +235,10 @@
         }
 
         .last-updated,
+        .metrics-status,
+        .metric-value,
+        .metric-detail,
+        .process-chip,
         .service-count,
         .service-status,
         .service-internal-name,
@@ -235,8 +247,194 @@
             font-variant-numeric: tabular-nums;
         }
 
+        .host-metrics {
+            padding: .7rem .85rem;
+            border: 1px solid var(--color-outline-variant);
+            border-radius: var(--radius-medium);
+            background: var(--color-surface);
+        }
+
+        .host-metrics[hidden] {
+            display: none;
+        }
+
+        .metrics-header,
+        .metric-label-row,
+        .processes-row {
+            display: flex;
+            align-items: center;
+        }
+
+        .metrics-header {
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: .5rem;
+        }
+
+        .metrics-status {
+            color: var(--color-text-muted);
+            font-size: .6875rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: .45rem;
+        }
+
+        .metric-card {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: center;
+            min-width: 0;
+            min-height: 4rem;
+            gap: .6rem;
+            padding: .5rem .65rem;
+            border: 1px solid var(--color-outline-variant);
+            border-radius: var(--radius-small);
+            background: var(--color-surface-variant);
+        }
+
+        .metric-card[data-pressure="true"] {
+            border-color: var(--color-warning);
+        }
+
+        .metric-icon {
+            width: 1.6rem;
+            height: 1.6rem;
+            color: var(--color-text-muted);
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 1.6;
+        }
+
+        .metric-copy {
+            min-width: 0;
+        }
+
+        .metric-label-row {
+            gap: .4rem;
+        }
+
+        .metric-label {
+            color: var(--color-text-muted);
+            font-size: .6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .metric-status {
+            padding: .05rem .35rem;
+            border: 1px solid var(--color-warning);
+            border-radius: 999px;
+            color: var(--color-warning);
+            font-size: .5625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            display: inline-block;
+            margin-top: .05rem;
+            color: var(--color-text);
+            font-size: 1.2rem;
+            font-weight: 700;
+            line-height: 1.15;
+        }
+
+        .metric-detail,
+        .storage-rate {
+            display: block;
+            overflow: hidden;
+            color: var(--color-text-muted);
+            font-size: .6875rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .storage-rates {
+            margin-top: .1rem;
+        }
+
+        .host-hint {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: center;
+            min-height: 2.5rem;
+            gap: .55rem;
+            padding: .45rem .65rem;
+            margin-top: .5rem;
+            border: 1px solid var(--color-warning);
+            border-radius: var(--radius-small);
+            background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface));
+            color: var(--color-text);
+            font-size: .75rem;
+        }
+
+        .host-hint-icon {
+            display: inline-grid;
+            width: 1.2rem;
+            height: 1.2rem;
+            place-items: center;
+            border: 1.5px solid var(--color-warning);
+            border-radius: 50%;
+            color: var(--color-warning);
+            font-size: .75rem;
+            font-weight: 700;
+        }
+
+        .processes-row {
+            min-width: 0;
+            gap: .6rem;
+            margin-top: .5rem;
+        }
+
+        .processes-label {
+            flex: 0 0 auto;
+            color: var(--color-text-muted);
+            font-size: .6875rem;
+            font-weight: 600;
+        }
+
+        .process-list {
+            display: flex;
+            min-width: 0;
+            flex: 1;
+            gap: .35rem;
+        }
+
+        .process-chip {
+            min-width: 0;
+            overflow: hidden;
+            padding: .25rem .5rem;
+            border: 1px solid var(--color-outline-variant);
+            border-radius: 999px;
+            background: var(--color-surface-variant);
+            color: var(--color-text-muted);
+            font-size: .625rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .process-empty {
+            color: var(--color-text-muted);
+            font-size: .6875rem;
+        }
+
+        .host-metrics[data-stale="true"] .metrics-grid,
+        .host-metrics[data-stale="true"] .processes-row {
+            opacity: .58;
+        }
+
         .services-section {
             min-height: 0;
+        }
+
+        .startup-shell.has-diagnostics .services-section {
+            overflow: auto;
+            padding-right: .15rem;
         }
 
         .section-header {
@@ -533,6 +731,17 @@
                 overflow: visible;
             }
 
+            .startup-shell.has-diagnostics {
+                grid-template-rows: auto auto auto auto auto;
+                height: auto;
+                min-height: 0;
+            }
+
+            .startup-shell.has-diagnostics .services-section {
+                overflow: visible;
+                padding-right: 0;
+            }
+
             .service-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
@@ -562,6 +771,24 @@
                 grid-template-columns: minmax(0, 1fr);
             }
 
+            .metrics-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .processes-row {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .process-list {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .process-chip {
+                width: 100%;
+            }
+
             .progress-description {
                 white-space: normal;
             }
@@ -582,6 +809,17 @@
                 min-height: 0;
                 margin: 0 auto;
                 overflow: visible;
+            }
+
+            .startup-shell.has-diagnostics {
+                grid-template-rows: auto auto auto auto 14rem;
+                height: auto;
+                min-height: 0;
+            }
+
+            .startup-shell.has-diagnostics .services-section {
+                overflow: visible;
+                padding-right: 0;
             }
         }
 
@@ -617,16 +855,16 @@
     </style>
 </head>
 <body>
-    <main class="startup-shell">
+    <main id="startupShell" class="startup-shell">
         <header class="app-header">
             <div class="brand-copy">
                 <h1>WPrint 3D</h1>
-                <p class="app-subtitle">Preparing the local environment</p>
+                <p class="app-subtitle" data-i18n="brandSubtitle">Preparing the local environment</p>
             </div>
 
             <div id="liveBadge" class="status-chip" data-state="starting" aria-live="polite">
                 <span class="live-dot" aria-hidden="true"></span>
-                <span id="liveBadgeText">Startup in progress</span>
+                <span id="liveBadgeText" data-i18n="badgeStarting">Startup in progress</span>
             </div>
         </header>
 
@@ -644,6 +882,7 @@
                 class="progress-track"
                 role="progressbar"
                 aria-label="Service startup progress"
+                data-i18n-aria-label="progressAriaLabel"
                 aria-valuemin="0"
                 aria-valuemax="100"
                 aria-valuenow="0"
@@ -658,11 +897,88 @@
             </div>
         </section>
 
+        <section
+            id="hostMetrics"
+            class="host-metrics"
+            data-stale="false"
+            aria-labelledby="hostMetricsTitle"
+            aria-label="Current host activity"
+            data-i18n-aria-label="metricsAriaLabel"
+            hidden
+        >
+            <header class="metrics-header">
+                <h2 id="hostMetricsTitle" data-i18n="hostActivity">Host activity</h2>
+                <span id="metricsStatus" class="metrics-status" data-i18n="metricsWaiting">Waiting for the first host sample</span>
+            </header>
+
+            <div class="metrics-grid">
+                <article id="cpuMetric" class="metric-card" data-pressure="false">
+                    <svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="6" y="6" width="12" height="12" rx="2"/>
+                        <rect x="9" y="9" width="6" height="6" rx="1"/>
+                        <path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>
+                    </svg>
+                    <div class="metric-copy">
+                        <div class="metric-label-row">
+                            <span class="metric-label" data-i18n="cpu">CPU</span>
+                            <span id="cpuHigh" class="metric-status" data-i18n="high" hidden>High</span>
+                        </div>
+                        <strong id="cpuValue" class="metric-value">—</strong>
+                    </div>
+                </article>
+
+                <article id="memoryMetric" class="metric-card" data-pressure="false">
+                    <svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="7" width="18" height="10" rx="2"/>
+                        <path d="M7 10v4M11 10v4M15 10v4M19 10v4M6 4v3M10 4v3M14 4v3M18 4v3M6 17v3M10 17v3M14 17v3M18 17v3"/>
+                    </svg>
+                    <div class="metric-copy">
+                        <div class="metric-label-row">
+                            <span class="metric-label" data-i18n="memory">Memory</span>
+                            <span id="memoryHigh" class="metric-status" data-i18n="high" hidden>High</span>
+                        </div>
+                        <strong id="memoryValue" class="metric-value">—</strong>
+                        <span id="memoryDetail" class="metric-detail">—</span>
+                    </div>
+                </article>
+
+                <article id="storageMetric" class="metric-card" data-pressure="false">
+                    <svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 4h14l2 6H3l2-6Z"/>
+                        <rect x="3" y="10" width="18" height="10" rx="2"/>
+                        <path d="M7 15h.01M11 15h.01"/>
+                    </svg>
+                    <div class="metric-copy">
+                        <div class="metric-label-row">
+                            <span class="metric-label" data-i18n="storage">Storage</span>
+                            <span id="storageHigh" class="metric-status" data-i18n="high" hidden>High</span>
+                        </div>
+                        <div class="storage-rates">
+                            <span id="storageRead" class="storage-rate">—</span>
+                            <span id="storageWrite" class="storage-rate">—</span>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="host-hint" role="status" aria-live="polite">
+                <span class="host-hint-icon" aria-hidden="true">i</span>
+                <span id="hostHintText" data-i18n="hintUnavailable">Host activity is temporarily unavailable. Service and log checks will continue automatically.</span>
+            </div>
+
+            <div class="processes-row">
+                <span id="activeProcessesTitle" class="processes-label" data-i18n="activeProcesses">Most active processes</span>
+                <div id="processList" class="process-list">
+                    <span class="process-empty" data-i18n="noProcesses">No process activity reported</span>
+                </div>
+            </div>
+        </section>
+
         <section class="services-section" aria-labelledby="servicesTitle">
             <header class="section-header">
                 <div class="section-title-group">
-                    <h2 id="servicesTitle">Services</h2>
-                    <p class="section-description">Health reported by the local Docker stack</p>
+                    <h2 id="servicesTitle" data-i18n="servicesTitle">Services</h2>
+                    <p class="section-description" data-i18n="servicesDescription">Health reported by the local Docker stack</p>
                 </div>
                 <span id="serviceCount" class="service-count" aria-label="0 services">0</span>
             </header>
@@ -671,8 +987,8 @@
                 <li id="servicesEmpty" class="empty-state">
                     <span class="empty-spinner" aria-hidden="true"></span>
                     <div>
-                        <strong>Waiting for service discovery</strong>
-                        <p>The service list is not available yet. Retrying automatically.</p>
+                        <strong data-i18n="emptyWaitingTitle">Waiting for service discovery</strong>
+                        <p data-i18n="emptyWaitingDescription">The service list is not available yet. Retrying automatically.</p>
                     </div>
                 </li>
             </ul>
@@ -681,8 +997,8 @@
         <section class="logs-section" aria-labelledby="logsTitle">
             <header class="logs-header">
                 <div class="log-heading">
-                    <h2 id="logsTitle">Startup log</h2>
-                    <span id="logStatus" class="log-status">Waiting for startup output…</span>
+                    <h2 id="logsTitle" data-i18n="logsTitle">Startup log</h2>
+                    <span id="logStatus" class="log-status" data-i18n="logsWaiting">Waiting for startup output…</span>
                 </div>
 
                 <button id="copyLogs" class="copy-button" type="button" disabled>
@@ -690,15 +1006,21 @@
                         <rect x="9" y="9" width="11" height="11" rx="2"/>
                         <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/>
                     </svg>
-                    <span id="copyButtonLabel">Copy logs</span>
+                    <span id="copyButtonLabel" data-i18n="copyLogs">Copy logs</span>
                 </button>
             </header>
 
-            <pre id="startupLog" tabindex="0" aria-label="Startup log output">Waiting for startup output…</pre>
+            <pre
+                id="startupLog"
+                tabindex="0"
+                aria-label="Startup log output"
+                data-i18n-aria-label="startupLogAriaLabel"
+            >Waiting for startup output…</pre>
             <p id="copyFeedback" class="sr-only" aria-live="polite"></p>
         </section>
     </main>
 
+    <script src="startup-localization.js" defer></script>
     <script src="service-name.js" defer></script>
     <script src="startup-page.js" defer></script>
 </body>
