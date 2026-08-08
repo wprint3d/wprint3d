@@ -27,6 +27,8 @@ class PrintExecutionStateTest extends TestCase
 
             public mixed $activePrintExecution = null;
 
+            public array $machine = ['uuid' => 'FAKE-UUID/canonical-fingerprint'];
+
             public bool $saved = false;
 
             public function __construct() {}
@@ -47,6 +49,17 @@ class PrintExecutionStateTest extends TestCase
         $state = new PrintExecutionState(new PrintStateTracker);
 
         $state->begin($printer, $owner, 'print-uid', 'token-1');
+        $initialCheckpoint = $state->checkpoint($printer->_id);
+
+        $this->assertSame(
+            'FAKE-UUID/canonical-fingerprint',
+            $printer->activePrintExecution['machineFingerprint']
+        );
+        $this->assertSame(
+            'FAKE-UUID/canonical-fingerprint',
+            $initialCheckpoint['machineFingerprint']
+        );
+
         $state->markReady(
             $printer->_id,
             'token-1',

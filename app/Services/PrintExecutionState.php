@@ -20,11 +20,13 @@ class PrintExecutionState
 
     public function begin(Printer $printer, User $owner, string $uid, string $token): void
     {
+        $machineFingerprint = (string) ($printer->machine['uuid'] ?? '');
         $context = [
             'version' => self::VERSION,
             'uid' => $uid,
             'ownerId' => (string) $owner->_id,
             'token' => $token,
+            'machineFingerprint' => $machineFingerprint,
             'startedAt' => now()->toAtomString(),
         ];
 
@@ -36,6 +38,7 @@ class PrintExecutionState
             'version' => self::VERSION,
             'uid' => $uid,
             'token' => $token,
+            'machineFingerprint' => $machineFingerprint,
             'ready' => false,
             'sourceCommandIndex' => 0,
             'displayedLine' => 0,
