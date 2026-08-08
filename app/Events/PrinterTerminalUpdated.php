@@ -78,7 +78,7 @@ class PrinterTerminalUpdated implements ShouldBroadcast
                     );
                 } else { // output
                     if (
-                        strpos($line, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false // with temperature data
+                        Printer::hasTemperatureReport($line) // with temperature data
                         || strpos($line, 'busy') !== false // Marlin keepalive while processing
                     ) {
                         $dispatchConnectionUpdate = true;

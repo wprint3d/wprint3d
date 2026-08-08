@@ -505,7 +505,7 @@ class Serial
 
     private function isTemperatureMessage(string $message): bool
     {
-        return strpos($message, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false;
+        return Printer::hasTemperatureReport($message);
     }
 
     private function appendIncomingLine(string $message, ?string $command = null, ?int $lineNumber = null, ?int $maxLine = null): void
@@ -868,7 +868,7 @@ class Serial
                     (
                         strpos($result, 'busy') !== false // contains a "busy" message
                         ||
-                        strpos($result, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false // is a message about temperature
+                        $this->isTemperatureMessage($result) // is a message about temperature
                     )
                 ) {
                     $newLastLineIndex = false;
@@ -890,7 +890,7 @@ class Serial
                         $this->validateResponse($message);
 
                         // Is querying temperature?
-                        if (strpos($message, Printer::MARLIN_TEMPERATURE_INDICATOR) !== false) {
+                        if ($this->isTemperatureMessage($message)) {
                             $extruderIndex = 0;
 
                             // Is selecting a specific extruder?
@@ -916,7 +916,13 @@ class Serial
                             $this->terminalBuffer .= PHP_EOL;
                         }
 
-                        if ($this->terminalAutoAppend || strpos($this->terminalBuffer, 'busy') !== false) {
+                        if (
+                            $this->terminalAutoAppend
+                            ||
+                            strpos($this->terminalBuffer, 'busy') !== false
+                            ||
+                            $this->isTemperatureMessage($message)
+                        ) {
                             $this->appendLog(
                                 message: $this->terminalBuffer,
                                 lineNumber: $lineNumber,
