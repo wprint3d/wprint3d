@@ -52,6 +52,14 @@ directory=/var/www
 autorestart=true
 $(supervisor_log_options "$SUPERVISOR_LOG_DIR/refresh-printer-workers.log")
 EOF
+
+            cat > "$SUPERVISOR_CONF_DIR/reconcile-active-prints.conf" <<EOF
+[program:reconcile-active-prints]
+command=php artisan concurrent:run-indefinitely --services=ReconcileActivePrints
+directory=/var/www
+autorestart=true
+$(supervisor_log_options "$SUPERVISOR_LOG_DIR/reconcile-active-prints.log")
+EOF
             ;;
 
         server)

@@ -11,9 +11,14 @@ use App\Models\User;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PrintJobService
 {
+    public function __construct(
+        private readonly PrintExecutionState $executionState
+    ) {}
+
     public function start(User $owner, Printer $printer, string $fileName, bool $alreadyLocked = false): void
     {
         $operation = fn () => $this->startUnlocked($owner, $printer, $fileName);
@@ -97,7 +102,17 @@ class PrintJobService
         $printer->setCurrentLine(0);
         $printer->setCurrentLayer(0);
 
-        PrintGcode::dispatch($owner, $printer->_id);
+        $this->dispatchActivePrint($owner, $printer);
+    }
+
+    public function dispatchActivePrint(User $owner, Printer $printer): void
+    {
+        $uid = (string) Str::uuid();
+        $token = (string) Str::uuid();
+
+        $this->executionState->begin($printer, $owner, $uid, $token);
+
+        PrintGcode::dispatch($owner, $printer->_id, $uid, $token);
     }
 
     private function ensureConnected(Printer $printer): void

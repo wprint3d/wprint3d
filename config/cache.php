@@ -115,5 +115,9 @@ return [
     'mapper_busy_key' => 'mapperBsy',
     'serial_mapper_lock_key' => 'serialMapperLock',
     'serial_mapper_debounce_key' => 'serialMapperDebounce',
+    'print_execution_store' => env(
+        'PRINT_EXECUTION_CACHE_STORE',
+        env('APP_ENV') === 'testing' ? 'array' : 'fast'
+    ),
 
 ];

@@ -114,6 +114,7 @@ class Printer extends Model
         'lastJobHasFailed',
         'activeFile',
         'lastLine',
+        'activePrintExecution',
     ];
 
     public function hasActivePrintJob(): bool

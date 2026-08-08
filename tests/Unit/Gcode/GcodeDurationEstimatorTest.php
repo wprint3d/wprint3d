@@ -76,10 +76,17 @@ GCODE);
             fwrite($stream, "G91\nG1 X0.01 F6000\n");
         }
         fclose($stream);
-        $estimate = (new GcodeDurationEstimator)->estimate($path);
+        $progressCallbacks = 0;
+        $estimate = (new GcodeDurationEstimator)->estimate(
+            $path,
+            function () use (&$progressCallbacks): void {
+                $progressCallbacks++;
+            }
+        );
         unlink($path);
 
         $this->assertGreaterThanOrEqual(40_000, $estimate->lineCount);
+        $this->assertGreaterThanOrEqual(40, $progressCallbacks);
         $this->assertGreaterThanOrEqual(0, $estimate->seconds);
         $this->assertLessThanOrEqual(31_536_000, $estimate->seconds);
     }

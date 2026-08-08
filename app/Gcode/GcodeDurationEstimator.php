@@ -56,7 +56,7 @@ final class GcodeDurationEstimator
 
     private int $lineCount = 0;
 
-    public function estimate(string $path): DurationEstimate
+    public function estimate(string $path, ?callable $onProgress = null): DurationEstimate
     {
         $stream = @fopen($path, 'rb');
 
@@ -67,6 +67,11 @@ final class GcodeDurationEstimator
         try {
             while (($line = fgets($stream)) !== false) {
                 $this->lineCount++;
+
+                if ($onProgress !== null && $this->lineCount % 1000 === 0) {
+                    $onProgress();
+                }
+
                 $this->parseMetadata($line);
                 $this->processLine($line);
             }

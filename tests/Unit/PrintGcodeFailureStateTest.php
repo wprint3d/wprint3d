@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Events\PrintJobFinished;
+use App\Exceptions\PrintRecoveryRequiredException;
 use App\Jobs\PrintGcode;
 use App\Libraries\Serial;
 use App\Models\Configuration;
@@ -11,7 +13,7 @@ use App\Support\FakeSerial\FakeSerialEmulator;
 use App\Support\FakeSerial\FakeSerialManager;
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\Repository;
-use Mockery;
+use Illuminate\Support\Facades\Event;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -31,8 +33,6 @@ class PrintGcodeFailureStateTest extends TestCase
     {
         app()->forgetInstance(FakeSerialManager::class);
         Configuration::query()->delete();
-
-        Mockery::close();
 
         parent::tearDown();
     }
@@ -69,15 +69,7 @@ class PrintGcodeFailureStateTest extends TestCase
         $serial->query('M140 S50');
         $serial->close();
 
-        Mockery::mock('alias:App\Events\PrintJobFailed')
-            ->shouldReceive('dispatch')
-            ->once()
-            ->with('printer-1');
-
-        Mockery::mock('alias:App\Events\PrintJobFinished')
-            ->shouldReceive('dispatch')
-            ->once()
-            ->with('printer-1');
+        Event::fake([PrintJobFinished::class]);
 
         app()->instance(PluginHookDispatcher::class, new class
         {
@@ -172,5 +164,41 @@ class PrintGcodeFailureStateTest extends TestCase
 
         $this->assertSame(0.0, $state['hotend']['target']);
         $this->assertSame(0.0, $state['bed']['target']);
+
+        $serial = new Serial(
+            fileName: 'PRINT_FAILURE_TEST',
+            baudRate: 115200,
+            timeout: 1,
+            pluginHooks: $serialPluginHooks
+        );
+        $serial->query('M104 S200');
+        $serial->query('M140 S50');
+        $serial->close();
+        $state = $fakeSerialCache->get('fake-serial:PRINT_FAILURE_TEST:state');
+
+        $this->assertSame(200.0, $state['hotend']['target']);
+        $this->assertSame(50.0, $state['bed']['target']);
+
+        $printer->hasActiveJob = true;
+        $printer->lastJobHasFailed = false;
+        $job = (new \ReflectionClass(PrintGcode::class))->newInstanceWithoutConstructor();
+
+        \Closure::bind(function () use ($job, $printer, $serialPluginHooks) {
+            $job->printer = $printer;
+            $job->filePath = 'test_connectivity.gcode';
+            $job->uid = 'identity-mismatch-job-uid';
+            $job->shouldRecord = false;
+            $job->recordableCameras = [];
+            $job->commandTimeoutSecs = 1;
+            $job->serialPluginHooks = $serialPluginHooks;
+        }, null, PrintGcode::class)();
+
+        $job->failed(new PrintRecoveryRequiredException('Printer identity could not be validated.'));
+        gc_collect_cycles();
+        $state = $fakeSerialCache->get('fake-serial:PRINT_FAILURE_TEST:state');
+
+        $this->assertSame(200.0, $state['hotend']['target']);
+        $this->assertSame(50.0, $state['bed']['target']);
+        Event::assertDispatchedTimes(PrintJobFinished::class, 2);
     }
 }

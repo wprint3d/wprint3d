@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Printer;
+use App\Services\PrintExecutionState;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -27,7 +28,12 @@ class ResetActiveJobs extends Command
      */
     protected function getPrinters(): iterable
     {
-        return Printer::select('hasActiveJob')->cursor();
+        return Printer::select(
+            'hasActiveJob',
+            'activeFile',
+            'lastLine',
+            'activePrintExecution'
+        )->cursor();
     }
 
     /**
@@ -36,6 +42,7 @@ class ResetActiveJobs extends Command
     public function handle(): int
     {
         $log = Log::channel('jobs-reset');
+        $executionState = app(PrintExecutionState::class);
 
         foreach ($this->getPrinters() as $printer) {
             if (($printer->hasActiveJob ?? false) === false) {
@@ -44,9 +51,13 @@ class ResetActiveJobs extends Command
                 continue;
             }
 
-            $printer->hasActiveJob = false;
-            $printer->lastJobHasFailed = true;
-            $printer->save();
+            if ($executionState->hasRestartCandidate($printer)) {
+                $log->info("[{$printer->_id}] Resumable active job detected; leaving it for connection reconciliation.");
+
+                continue;
+            }
+
+            $executionState->markRecovery($printer);
 
             $log->info("[{$printer->_id}] Stalled job detected, resetting printer state.");
         }
