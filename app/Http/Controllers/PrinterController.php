@@ -10,7 +10,6 @@ use App\Events\RecoveryStageChanged;
 use App\Exceptions\InitializationException;
 use App\Exceptions\PrintJobException;
 
-use App\Jobs\PrintGcode;
 use App\Jobs\RenderVideo;
 use App\Libraries\Serial;
 use App\Models\Camera;
@@ -381,7 +380,7 @@ class PrinterController extends Controller
         $this->abortRecovery($request->printer);
     }
 
-    public function recoverPrint(Request $request) {
+    public function recoverPrint(Request $request, PrintJobService $jobs) {
         $request->validate([ 'startFrom' => 'required|integer|min:0' ]);
 
         $startFrom = $request->get('startFrom');
@@ -721,10 +720,9 @@ class PrinterController extends Controller
         $printer->lastJobHasFailed = false;
         $printer->save();
 
-        PrintGcode::dispatch(
-            Auth::user(),   // owner
-            $printer->_id   // printerId
-        );
+        $printer->setCurrentLine(0);
+        $printer->setCurrentLayer(0);
+        $jobs->dispatchActivePrint(Auth::user(), $printer);
     }
 
     public function handleControlCommand(Request $request) {

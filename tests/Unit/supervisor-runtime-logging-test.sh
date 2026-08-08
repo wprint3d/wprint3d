@@ -9,6 +9,7 @@ cleanup() {
     rm -rf "$TMP_RUNTIME"
     rm -f /tmp/supervisor/cron.conf \
           /tmp/supervisor/poll-serial-connections.conf \
+          /tmp/supervisor/reconcile-active-prints.conf \
           /tmp/supervisor/refresh-printer-workers.conf \
           /tmp/supervisor/server.conf \
           /tmp/supervisor/reverb.conf
@@ -44,6 +45,7 @@ WPRINT3D_RUNTIME_LOG_DIR="$TMP_RUNTIME" \
 
 for conf in /tmp/supervisor/cron.conf \
             /tmp/supervisor/poll-serial-connections.conf \
+            /tmp/supervisor/reconcile-active-prints.conf \
             /tmp/supervisor/refresh-printer-workers.conf \
             /tmp/supervisor/server.conf \
             /tmp/supervisor/reverb.conf; do
@@ -57,11 +59,14 @@ for conf in /tmp/supervisor/cron.conf \
 done
 
 poll_contents="$(cat /tmp/supervisor/poll-serial-connections.conf)"
+reconcile_contents="$(cat /tmp/supervisor/reconcile-active-prints.conf)"
 refresh_contents="$(cat /tmp/supervisor/refresh-printer-workers.conf)"
 
 assert_contains "$poll_contents" 'command=php artisan concurrent:run-indefinitely --services=PollSerialConnections' 'poll serial supervisor command'
+assert_contains "$reconcile_contents" 'command=php artisan concurrent:run-indefinitely --services=ReconcileActivePrints' 'active print reconciler supervisor command'
 assert_contains "$refresh_contents" 'command=php artisan concurrent:run-indefinitely --services=RefreshPrinterWorkers' 'refresh workers supervisor command'
 assert_contains "$poll_contents" 'stdout_logfile='"$TMP_RUNTIME"'/supervisor/poll-serial-connections.log' 'poll serial supervisor log'
+assert_contains "$reconcile_contents" 'stdout_logfile='"$TMP_RUNTIME"'/supervisor/reconcile-active-prints.log' 'active print reconciler supervisor log'
 assert_contains "$refresh_contents" 'stdout_logfile='"$TMP_RUNTIME"'/supervisor/refresh-printer-workers.log' 'refresh workers supervisor log'
 
 refresh_source="$(cat "$ROOT_DIR/app/Console/Services/Concurrent/RefreshPrinterWorkers.php")"
