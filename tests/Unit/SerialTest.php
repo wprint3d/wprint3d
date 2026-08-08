@@ -2,17 +2,20 @@
 
 namespace Tests\Unit;
 
+use App\Events\PrinterConnectionStatusUpdated;
 use App\Exceptions\InitializationException;
 use App\Exceptions\TimedOutException;
 use App\Jobs\PrintGcode;
 use App\Libraries\Serial;
 use App\Models\Configuration;
+use App\Models\Printer;
 use App\Support\FakeSerial\FakeSerialEmulator;
 use App\Support\FakeSerial\FakeSerialManager;
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\Lock as BaseLock;
 use Illuminate\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use ReflectionClass;
 use Tests\TestCase;
 
@@ -119,6 +122,49 @@ class SerialTest extends TestCase
         $this->assertLessThan(2.8, $elapsedSecs);
         $this->assertStringContainsString('busy: processing', $response);
         $this->assertStringContainsString('ok', $response);
+
+        $serial->close();
+    }
+
+    public function test_temperature_auto_reports_without_ok_refresh_cached_statistics(): void
+    {
+        $temperatureReport = 'T:205.70 /230.00 B:69.99 /70.00 @:127 B@:54 W:?';
+        $emulator = new class($temperatureReport) extends FakeSerialEmulator
+        {
+            public function __construct(private readonly string $temperatureReport) {}
+
+            public function transact(string $command, array $state = []): array
+            {
+                if ($command === 'AUDIT_TEMPERATURE_AUTO_REPORT') {
+                    return [
+                        'state' => $state,
+                        'response' => $this->temperatureReport,
+                        'lines' => [[
+                            'text' => $this->temperatureReport,
+                            'delayMs' => 0,
+                        ]],
+                    ];
+                }
+
+                return parent::transact($command, $state);
+            }
+        };
+
+        Event::fake([PrinterConnectionStatusUpdated::class]);
+        $this->bindFakeSerial($emulator);
+
+        $printerId = 'printer-temperature-auto-report-serial-test';
+        $serial = $this->makeSerial(printerId: $printerId);
+
+        $this->assertSame($temperatureReport, $serial->query('AUDIT_TEMPERATURE_AUTO_REPORT'));
+        $this->assertSame(205.7, Printer::getStatisticsOf($printerId)['extruders'][0]['temperature']);
+        $this->assertSame(69.99, Printer::getStatisticsOf($printerId)['bed']['temperature']);
+
+        Event::assertDispatched(
+            PrinterConnectionStatusUpdated::class,
+            fn (PrinterConnectionStatusUpdated $event): bool => $event->printerId === $printerId
+                && $event->statistics === Printer::getStatisticsOf($printerId)
+        );
 
         $serial->close();
     }
@@ -232,12 +278,15 @@ class SerialTest extends TestCase
         ));
     }
 
-    private function makeSerial(int $timeout = 1): Serial
-    {
+    private function makeSerial(
+        int $timeout = 1,
+        ?string $printerId = null
+    ): Serial {
         return new Serial(
             fileName: self::NODE,
             baudRate: 115200,
             timeout: $timeout,
+            printerId: $printerId,
             pluginHooks: $this->hooks,
         );
     }

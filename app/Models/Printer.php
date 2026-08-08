@@ -117,6 +117,17 @@ class Printer extends Model
         'activePrintExecution',
     ];
 
+    public static function hasTemperatureReport(string $lines): bool
+    {
+        foreach (preg_split('/\R/', $lines) as $line) {
+            if (preg_match('/^(?:ok\s+)?T:\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:\s|\/|$)/', trim($line))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function hasActivePrintJob(): bool
     {
         return (bool) ($this->hasActiveJob ?? false) && ! empty($this->activeFile);
@@ -229,7 +240,7 @@ class Printer extends Model
         $rawData = '';
 
         foreach ($lines as $line) {
-            if (str_contains($line, self::MARLIN_TEMPERATURE_INDICATOR) ) {
+            if (self::hasTemperatureReport($line)) {
                 $rawData = $line;
 
                 break;
@@ -243,7 +254,7 @@ class Printer extends Model
         }
 
         try {
-            $temperatures = trim( str_replace('ok', '', $rawData) );
+            $temperatures = preg_replace('/^ok\s+/', '', trim($rawData));
 
             $temperatures = preg_replace(
                 pattern:     '/' . sprintf(self::MARLIN_MULTI_TEMPERATURE_TEMPLATE, '0') . '.*/',
