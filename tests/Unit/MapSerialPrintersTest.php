@@ -242,6 +242,70 @@ class MapSerialPrintersTest extends TestCase
         $this->assertSame(1, Printer::count());
     }
 
+    public function test_it_prioritizes_an_active_printer_baud_rate_when_it_appears_on_a_new_node(): void
+    {
+        config(['app.common_baud_rates' => [9600, 115200, 250000]]);
+
+        Printer::create([
+            'node' => 'OLD_NODE',
+            'baudRate' => 250000,
+            'connected' => false,
+            'hasActiveJob' => true,
+            'machine' => [
+                'uuid' => 'KNOWN-PRINTER/canonical-fingerprint',
+                'connectionType' => 'serial',
+            ],
+        ]);
+        $manager = $this->bindFakeSerial(
+            new FakeSerialEmulator,
+            baudRate: 250000,
+            supportedBaudRates: [9600, 115200, 250000]
+        );
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $messages = array_column($manager->getLog(), 'message');
+
+        $this->assertSame(self::NODE.' connected at 250000 baud', $messages[0]);
+        $this->assertNotContains(self::NODE.' connected at 9600 baud', $messages);
+        $this->assertNotContains(self::NODE.' connected at 115200 baud', $messages);
+    }
+
+    public function test_it_falls_back_to_common_rates_when_a_new_node_rejects_the_active_printer_rate(): void
+    {
+        config(['app.common_baud_rates' => [9600, 115200]]);
+
+        Printer::create([
+            'node' => 'OLD_NODE',
+            'baudRate' => 250000,
+            'connected' => false,
+            'hasActiveJob' => true,
+            'machine' => [
+                'uuid' => 'KNOWN-PRINTER/canonical-fingerprint',
+                'connectionType' => 'serial',
+            ],
+        ]);
+        $manager = $this->bindFakeSerial(
+            new FakeSerialEmulator,
+            baudRate: 115200,
+            supportedBaudRates: [9600, 115200, 250000]
+        );
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $messages = array_column($manager->getLog(), 'message');
+        $knownRateAttempt = array_search(self::NODE.' connected at 250000 baud', $messages, true);
+        $firstCommonAttempt = array_search(self::NODE.' connected at 9600 baud', $messages, true);
+        $successfulAttempt = array_search(self::NODE.' connected at 115200 baud', $messages, true);
+
+        $this->assertIsInt($knownRateAttempt);
+        $this->assertIsInt($firstCommonAttempt);
+        $this->assertIsInt($successfulAttempt);
+        $this->assertLessThan($firstCommonAttempt, $knownRateAttempt);
+        $this->assertLessThan($successfulAttempt, $firstCommonAttempt);
+        $this->assertSame(115200, Printer::where('node', self::NODE)->firstOrFail()->baudRate);
+    }
+
     public function test_it_falls_back_to_full_baud_rate_negotiation_when_the_saved_rate_fails(): void
     {
         config(['app.common_baud_rates' => [115200, 250000]]);

@@ -464,6 +464,22 @@ class MapSerialPrinters extends Command
             $negotiationMaxRetries = Configuration::get('negotiationMaxRetries');
 
             $baudRates = config('app.common_baud_rates');
+            $knownSerialBaudRates = Printer::select(
+                'baudRate',
+                'hasActiveJob',
+                'machine.connectionType'
+            )
+                ->get()
+                ->sortByDesc(fn (Printer $printer): int => (int) ($printer->hasActiveJob ?? false))
+                ->filter(fn (Printer $printer): bool => is_array($printer->machine)
+                    && ($printer->machine['connectionType'] ?? null) === 'serial'
+                    && is_numeric($printer->baudRate)
+                )
+                ->pluck('baudRate')
+                ->map(fn (mixed $baudRate): int => (int) $baudRate)
+                ->unique()
+                ->values()
+                ->all();
             $cacheMapperBusyKey = config('cache.mapper_busy_key');
             $fakeSerialManager = app(FakeSerialManager::class);
 
@@ -582,7 +598,7 @@ class MapSerialPrinters extends Command
                     $baudRatesToTry = array_values(array_unique(array_map(
                         'intval',
                         array_filter(
-                            array_merge([$savedBaudRate], $baudRates),
+                            array_merge([$savedBaudRate], $knownSerialBaudRates, $baudRates),
                             fn ($baudRate) => is_numeric($baudRate)
                         )
                     )));
