@@ -66,14 +66,19 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
             'FAKE-UUID/canonical-suffix'
         );
 
-        $response = $this->querySourceCommand($job, $serial, 'G1 X11');
+        $response = $this->querySourceCommand(
+            $job,
+            $serial,
+            'G0 F9000 X43.431 Y50.772'
+        );
         $checkpoint = $executionState->checkpoint($printer->_id);
 
         $this->assertSame('ok', $response);
         $this->assertTrue($serial->wasClosed);
         $this->assertSame(['USB1'], $job->openedNodes);
         $this->assertSame(1, $checkpoint['sourceCommandIndex']);
-        $this->assertSame(11.0, $checkpoint['state']['position']['x']);
+        $this->assertSame(43.431, $checkpoint['state']['position']['x']);
+        $this->assertSame(50.772, $checkpoint['state']['position']['y']);
     }
 
     public function test_it_rejects_a_remapped_node_when_the_fingerprint_changes(): void
@@ -83,7 +88,7 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
         );
 
         try {
-            $this->querySourceCommand($job, $serial, 'G1 X11');
+            $this->querySourceCommand($job, $serial, 'G0 F9000 X43.431 Y50.772');
             $this->fail('A different physical printer must not inherit the active print.');
         } catch (\App\Exceptions\PrintRecoveryRequiredException $exception) {
             $this->assertStringContainsString('fingerprint', $exception->getMessage());
@@ -94,7 +99,8 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
         $this->assertFalse($serial->wasClosed);
         $this->assertSame([], $job->openedNodes);
         $this->assertSame(0, $checkpoint['sourceCommandIndex']);
-        $this->assertSame(10.0, $checkpoint['state']['position']['x']);
+        $this->assertSame(43.304, $checkpoint['state']['position']['x']);
+        $this->assertSame(50.372, $checkpoint['state']['position']['y']);
     }
 
     private function querySourceCommand(PrintGcode $job, Serial &$serial, string $command): string
@@ -262,8 +268,8 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
             public mixed $activePrintExecution = null;
 
             public array $statistics = [
-                'extruders' => [0 => ['temperature' => 205.0, 'target' => 210.0]],
-                'bed' => ['temperature' => 60.0, 'target' => 60.0],
+                'extruders' => [0 => ['temperature' => 229.77, 'target' => 230.0]],
+                'bed' => ['temperature' => 70.0, 'target' => 70.0],
             ];
 
             public function __construct(private readonly string $mappedFingerprint) {}
@@ -284,12 +290,12 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
             public function setStatistics(string $lines, int $extruderIndex): bool
             {
                 $this->statistics['extruders'][$extruderIndex] = [
-                    'temperature' => 205.0,
-                    'target' => 210.0,
+                    'temperature' => 230.0,
+                    'target' => 230.0,
                 ];
                 $this->statistics['bed'] = [
-                    'temperature' => 60.0,
-                    'target' => 60.0,
+                    'temperature' => 70.01,
+                    'target' => 70.0,
                 ];
 
                 return true;
@@ -321,7 +327,7 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
         $executionState->markReady(
             $printer->_id,
             'remapped-node-token',
-            ['x' => 10, 'y' => 20, 'z' => 0.2, 'e' => 4],
+            ['x' => 43.304, 'y' => 50.372, 'z' => 1.2, 'e' => 79.4985],
             $printer->statistics
         );
 
@@ -357,8 +363,8 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
             ): string {
                 return match ($command) {
                     'M115' => 'FIRMWARE_NAME:Fake UUID:FAKE-UUID ok',
-                    'M114' => 'X:11.00 Y:20.00 Z:0.20 E:4.00 ok',
-                    'M105' => 'ok T:205.00 /210.00 B:60.00 /60.00',
+                    'M114' => 'X:43.43 Y:50.77 Z:1.20 E:79.50 ok',
+                    'M105' => 'ok T:230.00 /230.00 B:70.01 /70.00',
                     default => 'ok',
                 };
             }
