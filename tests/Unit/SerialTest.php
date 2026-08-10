@@ -215,6 +215,20 @@ class SerialTest extends TestCase
         $serial->close();
     }
 
+    public function test_missing_serial_node_is_detected_without_waiting_for_command_timeout(): void
+    {
+        $serialReflection = new ReflectionClass(Serial::class);
+        $serial = $serialReflection->newInstanceWithoutConstructor();
+        $fileName = $serialReflection->getProperty('fileName');
+        $fileName->setValue($serial, 'MISSING_SERIAL_TEST');
+        $assertNodeExists = $serialReflection->getMethod('throwIfSerialNodeDisappeared');
+
+        $this->expectException(InitializationException::class);
+        $this->expectExceptionMessage('disappeared while waiting for a response');
+
+        $assertNodeExists->invoke($serial);
+    }
+
     public function test_contended_lock_is_still_owned_when_returned(): void
     {
         $scriptedLock = new SerialScriptedLock;

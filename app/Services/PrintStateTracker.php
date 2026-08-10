@@ -225,7 +225,7 @@ class PrintStateTracker
         return $state;
     }
 
-    private function effectiveTargetCanBeConfirmed(
+    public function effectiveTargetCanBeConfirmed(
         mixed $requestedTarget,
         mixed $observedTarget,
         mixed $previousTemperature,
