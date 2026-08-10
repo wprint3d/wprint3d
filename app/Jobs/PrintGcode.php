@@ -7,6 +7,7 @@ use App\Enums\FormatterCommands;
 use App\Enums\Marlin;
 use App\Enums\PauseReason;
 use App\Enums\ToastMessageType;
+use App\Events\PrinterConnectionStatusUpdated;
 use App\Events\PrintJobFailed;
 use App\Events\PrintJobFinished;
 use App\Events\ToastMessage;
@@ -825,6 +826,48 @@ class PrintGcode implements ShouldQueue
         return $response;
     }
 
+    private function reconcilePendingCommandWithStatus(Serial &$serial): string
+    {
+        if ($this->executionToken === null) {
+            return $this->reconcilePendingCommand($serial);
+        }
+
+        $printerId = (string) $this->printer->_id;
+        $executionState = $this->executionState();
+
+        $this->assertCurrentExecution();
+
+        if (! $executionState->beginReconnecting($printerId, $this->executionToken)) {
+            throw new Exception('The print execution was superseded before reconnecting.');
+        }
+
+        $this->broadcastConnectionStatus();
+
+        try {
+            return $this->reconcilePendingCommand($serial);
+        } finally {
+            $executionState->finishReconnecting($printerId, $this->executionToken);
+            $this->broadcastConnectionStatus();
+        }
+    }
+
+    private function broadcastConnectionStatus(): void
+    {
+        try {
+            event(new PrinterConnectionStatusUpdated(
+                printerId: (string) $this->printer->_id,
+                hasActiveFile: $this->printer->hasActivePrintJob(),
+                isPaused: ! $this->printer->isRunning(),
+                thresholdSecs: (int) Configuration::get('lastSeenThresholdSecs')
+            ));
+        } catch (Throwable $exception) {
+            Log::channel(self::LOG_CHANNEL)->warning(
+                "[{$this->printer->_id}] Couldn't broadcast the printer reconnection status: ".
+                $exception->getMessage()
+            );
+        }
+    }
+
     private function queryPrintCommand(
         Serial &$serial,
         string $command,
@@ -853,7 +896,7 @@ class PrintGcode implements ShouldQueue
         try {
             $response = $serial->query($command, $lineNumber, $maxLine);
         } catch (TimedOutException|InitializationException|LockTimeoutException) {
-            $response = $this->reconcilePendingCommand($serial);
+            $response = $this->reconcilePendingCommandWithStatus($serial);
             $wasReconciled = true;
         }
 
@@ -1082,7 +1125,7 @@ class PrintGcode implements ShouldQueue
             $this->lastMovementMode = 'G90';
 
             if ($isResuming) {
-                $this->reconcilePendingCommand($serial);
+                $this->reconcilePendingCommandWithStatus($serial);
                 $checkpoint = $this->executionState()->checkpoint((string) $this->printer->_id);
                 $this->commandsToSkip = (int) ($checkpoint['sourceCommandIndex'] ?? 0);
                 $this->synchronizeCheckpoint($checkpoint);

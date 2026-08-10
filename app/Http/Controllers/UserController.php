@@ -8,6 +8,7 @@ use App\Models\Material;
 use App\Models\Printer;
 use App\Models\User;
 use App\Rules\IsValidObjectID;
+use App\Services\PrintExecutionState;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotificationCollection;
@@ -183,6 +184,8 @@ class UserController extends Controller
             'statistics' => $printer->getStatistics(),
             'lastSeen' => $printer->getLastSeen(),
             'isPaused' => ! $printer->isRunning(),
+            'isReconnecting' => app(PrintExecutionState::class)
+                ->isReconnecting((string) $printer->_id),
             'thresholdSecs' => env('PRINTER_LAST_SEEN_ONLINE_THRESHOLD_SECS'),
             'connectionStatus' => $printer->getConnectionStatus(),
             'connectionDiagnostic' => $printer->getConnectionDiagnostic(),

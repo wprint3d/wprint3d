@@ -271,6 +271,156 @@ class MapSerialPrintersTest extends TestCase
         $this->assertNotContains(self::NODE.' connected at 115200 baud', $messages);
     }
 
+    public function test_it_matches_an_active_print_on_a_new_node_before_scanning_a_transient_old_node(): void
+    {
+        config(['app.common_baud_rates' => [9600, 115200, 250000]]);
+
+        $activeManager = $this->bindFakeSerial(
+            new FakeSerialEmulator,
+            baudRate: 250000,
+            supportedBaudRates: [9600, 115200, 250000]
+        );
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $printer = Printer::firstOrFail();
+        $printerId = (string) $printer->_id;
+        $machine = $printer->machine;
+        $machine['connectionType'] = 'serial';
+        $machine['simulated'] = false;
+        $printer->node = 'GHOST_NODE';
+        $printer->machine = $machine;
+        $printer->connected = false;
+        $printer->hasActiveJob = true;
+        $printer->activeFile = 'partial-burnout.gcode';
+        $printer->cameras = ['camera-a'];
+        $printer->recordableCameras = ['camera-a'];
+        $printer->save();
+
+        Configuration::where('key', 'negotiationWaitSecs')->update(['value' => 7]);
+
+        $ghostManager = new FakeSerialManager(
+            cache: new Repository(new ArrayStore),
+            emulator: new FakeSerialEmulator,
+            settings: [
+                'enabled' => true,
+                'node' => 'GHOST_NODE',
+                'baudRate' => 250000,
+                'supportedBaudRates' => [9600, 115200, 250000],
+                'logMaxEntries' => 100,
+            ]
+        );
+        $multiNodeManager = new class($activeManager, $ghostManager, self::NODE, 'GHOST_NODE') extends FakeSerialManager
+        {
+            public function __construct(
+                private readonly FakeSerialManager $activeManager,
+                private readonly FakeSerialManager $ghostManager,
+                private readonly string $activeNode,
+                private readonly string $ghostNode
+            ) {
+                parent::__construct(new Repository(new ArrayStore));
+            }
+
+            public function listVirtualNodes(): array
+            {
+                return [$this->ghostNode, $this->activeNode];
+            }
+
+            public function nodeExists(string $node): bool
+            {
+                return in_array($node, $this->listVirtualNodes(), true);
+            }
+
+            public function connect(string $node, int $baudRate): string
+            {
+                return $this->manager($node)->connect($node, $baudRate);
+            }
+
+            public function disconnect(string $node, ?string $token = null): void
+            {
+                $this->manager($node)->disconnect($node, $token);
+            }
+
+            public function transact(
+                string $node,
+                int $baudRate,
+                string $token,
+                string $command,
+                ?int $timeout = null
+            ): array {
+                return $this->manager($node)->transact(
+                    $node,
+                    $baudRate,
+                    $token,
+                    $command,
+                    $timeout
+                );
+            }
+
+            private function manager(string $node): FakeSerialManager
+            {
+                return $node === $this->activeNode
+                    ? $this->activeManager
+                    : $this->ghostManager;
+            }
+        };
+        app()->instance(FakeSerialManager::class, $multiNodeManager);
+        $activeLogOffset = count($activeManager->getLog());
+
+        $this->assertSame(0, Artisan::call('map:serial-printers'));
+
+        $printer->refresh();
+        $activeMessages = array_column(
+            array_slice($activeManager->getLog(), $activeLogOffset),
+            'message'
+        );
+
+        $this->assertSame($printerId, (string) $printer->_id);
+        $this->assertSame(self::NODE, $printer->node);
+        $this->assertTrue($printer->connected);
+        $this->assertTrue($printer->hasActivePrintJob());
+        $this->assertSame(['camera-a'], $printer->cameras);
+        $this->assertSame(['camera-a'], $printer->recordableCameras);
+        $this->assertContains(self::NODE.' connected at 250000 baud', $activeMessages);
+        $this->assertSame([], $ghostManager->getLog());
+        $this->assertStringNotContainsString(
+            'Waiting 7 seconds for the printer to boot',
+            Artisan::output()
+        );
+    }
+
+    public function test_active_print_fast_path_rejects_a_different_fingerprint(): void
+    {
+        $this->bindFakeSerial(new FakeSerialEmulator);
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $activePrinter = Printer::firstOrFail();
+        $activePrinterId = (string) $activePrinter->_id;
+        $machine = $activePrinter->machine;
+        $machine['uuid'] = 'OTHER-PRINTER/canonical-fingerprint';
+        $machine['connectionType'] = 'serial';
+        $machine['simulated'] = false;
+        $activePrinter->node = 'OLD_NODE';
+        $activePrinter->machine = $machine;
+        $activePrinter->connected = false;
+        $activePrinter->hasActiveJob = true;
+        $activePrinter->activeFile = 'partial-burnout.gcode';
+        $activePrinter->save();
+
+        $this->assertSame(0, Artisan::call('map:serial-printers', ['node' => self::NODE]));
+
+        $activePrinter->refresh();
+        $mappedPrinter = Printer::where('node', self::NODE)->firstOrFail();
+
+        $this->assertSame($activePrinterId, (string) $activePrinter->_id);
+        $this->assertSame('OLD_NODE', $activePrinter->node);
+        $this->assertFalse($activePrinter->connected);
+        $this->assertNotSame($activePrinterId, (string) $mappedPrinter->_id);
+        $this->assertStringStartsWith('FAKESERIAL-DEV-PRINTER/', $mappedPrinter->machine['uuid']);
+        $this->assertSame(2, Printer::count());
+    }
+
     public function test_it_falls_back_to_common_rates_when_a_new_node_rejects_the_active_printer_rate(): void
     {
         config(['app.common_baud_rates' => [9600, 115200]]);

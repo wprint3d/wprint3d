@@ -4,6 +4,8 @@ namespace Tests\Unit;
 
 use App\Events\PrinterConnectionStatusUpdated;
 use App\Models\Printer;
+use App\Models\User;
+use App\Services\PrintExecutionState;
 
 use Illuminate\Support\Facades\Cache;
 
@@ -61,5 +63,38 @@ class PrinterConnectionStatusUpdatedTest extends TestCase
             '[73476.224266] usb 3-2: device descriptor read/64, error -71',
             $event->connectionDiagnostic
         );
+    }
+
+    public function test_connection_status_event_exposes_active_print_reconnection(): void
+    {
+        config(['cache.print_execution_store' => 'array']);
+        Cache::store('array')->flush();
+
+        $printer = new class extends Printer
+        {
+            public string $_id = 'printer-reconnecting-status-test';
+
+            public mixed $activePrintExecution = null;
+
+            public function __construct() {}
+
+            public function save(array $options = []): bool
+            {
+                return true;
+            }
+        };
+        $owner = new class extends User
+        {
+            public string $_id = 'printer-reconnecting-owner';
+
+            public function __construct() {}
+        };
+        $executionState = app(PrintExecutionState::class);
+        $executionState->begin($printer, $owner, 'reconnecting-uid', 'reconnecting-token');
+        $executionState->beginReconnecting($printer->_id, 'reconnecting-token');
+
+        $event = new PrinterConnectionStatusUpdated(printerId: $printer->_id);
+
+        $this->assertTrue($event->isReconnecting);
     }
 }

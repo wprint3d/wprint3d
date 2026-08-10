@@ -33,6 +33,7 @@ class PrintExecutionState
         $printer->activePrintExecution = $context;
         $printer->save();
 
+        $this->cache()->forget($this->reconnectingKey($printer->_id));
         $this->cache()->put($this->fenceKey($printer->_id), $token);
         $this->cache()->put($this->checkpointKey($printer->_id), [
             'version' => self::VERSION,
@@ -253,6 +254,39 @@ class PrintExecutionState
             || microtime(true) - (float) ($heartbeat['at'] ?? 0) > $staleAfterSecs;
     }
 
+    public function beginReconnecting(string $printerId, string $token): bool
+    {
+        if (! $this->isCurrent($printerId, $token)) {
+            return false;
+        }
+
+        $this->cache()->put($this->reconnectingKey($printerId), [
+            'token' => $token,
+            'at' => microtime(true),
+        ]);
+
+        return true;
+    }
+
+    public function finishReconnecting(string $printerId, string $token): bool
+    {
+        $reconnecting = $this->cache()->get($this->reconnectingKey($printerId));
+
+        if (! is_array($reconnecting) || ($reconnecting['token'] ?? null) !== $token) {
+            return false;
+        }
+
+        return $this->cache()->forget($this->reconnectingKey($printerId));
+    }
+
+    public function isReconnecting(string $printerId): bool
+    {
+        $reconnecting = $this->cache()->get($this->reconnectingKey($printerId));
+
+        return is_array($reconnecting)
+            && $this->isCurrent($printerId, (string) ($reconnecting['token'] ?? ''));
+    }
+
     public function clear(Printer $printer, ?string $token = null): bool
     {
         $printerId = (string) $printer->_id;
@@ -266,6 +300,7 @@ class PrintExecutionState
 
         $this->cache()->forget($this->checkpointKey($printerId));
         $this->cache()->forget($this->heartbeatKey($printerId));
+        $this->cache()->forget($this->reconnectingKey($printerId));
         $this->cache()->forget($this->fenceKey($printerId));
 
         return true;
@@ -287,6 +322,7 @@ class PrintExecutionState
 
         $this->cache()->forget($this->checkpointKey($printerId));
         $this->cache()->forget($this->heartbeatKey($printerId));
+        $this->cache()->forget($this->reconnectingKey($printerId));
         $this->cache()->forget($this->fenceKey($printerId));
     }
 
@@ -323,6 +359,11 @@ class PrintExecutionState
     private function heartbeatKey(string $printerId): string
     {
         return 'print-execution:heartbeat:'.$printerId;
+    }
+
+    private function reconnectingKey(string $printerId): string
+    {
+        return 'print-execution:reconnecting:'.$printerId;
     }
 
     private function fenceKey(string $printerId): string

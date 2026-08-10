@@ -22,6 +22,22 @@ test("printer connection status reports unresponsive when backend detects USB er
     );
 });
 
+test("printer connection status reports an active print reconnection explicitly", () => {
+    assert.equal(
+        getPrinterConnectionStatusKey({
+            connectionStatus: {
+                isReconnecting: true,
+                connectionStatus: "unresponsive",
+                lastSeen: 100,
+                thresholdSecs: 7,
+            },
+            isRunningMapper: true,
+            nowSecs: 120,
+        }),
+        "reconnecting"
+    );
+});
+
 test("printer connection status keeps existing online and offline derivation", () => {
     assert.equal(
         getPrinterConnectionStatusKey({
@@ -52,6 +68,16 @@ test("printer connection status is reconciled while unresponsive", () => {
     assert.equal(
         getConnectionStatusRefetchInterval({
             connectionStatus: { connectionStatus: "unresponsive" },
+            realtimeConnectionState: "connected",
+        }),
+        CONNECTION_STATUS_REFETCH_INTERVAL_MS
+    );
+});
+
+test("printer connection status polls while reconnecting", () => {
+    assert.equal(
+        getConnectionStatusRefetchInterval({
+            connectionStatus: { isReconnecting: true, connectionStatus: "online" },
             realtimeConnectionState: "connected",
         }),
         CONNECTION_STATUS_REFETCH_INTERVAL_MS

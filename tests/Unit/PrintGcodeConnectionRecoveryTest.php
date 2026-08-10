@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Events\PrinterConnectionStatusUpdated;
 use App\Exceptions\TimedOutException;
 use App\Jobs\PrintGcode;
 use App\Libraries\Serial;
@@ -10,6 +11,7 @@ use App\Models\Printer;
 use App\Models\User;
 use App\Services\PrintExecutionState;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 class PrintGcodeConnectionRecoveryTest extends TestCase
@@ -34,6 +36,8 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
 
     public function test_lost_ack_for_an_executed_movement_is_renegotiated_without_resending(): void
     {
+        Event::fake([PrinterConnectionStatusUpdated::class]);
+
         [$job, $serial, $executionState, $printer] = $this->scenario(commandWasExecuted: true);
 
         $response = $this->querySourceCommand($job, $serial, 'G1 X11');
@@ -44,6 +48,16 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
         $this->assertSame(1, $checkpoint['sourceCommandIndex']);
         $this->assertSame(11.0, $checkpoint['state']['position']['x']);
         $this->assertTrue($printer->hasActiveJob);
+        $this->assertFalse($executionState->isReconnecting($printer->_id));
+        Event::assertDispatchedTimes(PrinterConnectionStatusUpdated::class, 2);
+        Event::assertDispatched(
+            PrinterConnectionStatusUpdated::class,
+            fn (PrinterConnectionStatusUpdated $event): bool => $event->isReconnecting
+        );
+        Event::assertDispatched(
+            PrinterConnectionStatusUpdated::class,
+            fn (PrinterConnectionStatusUpdated $event): bool => ! $event->isReconnecting
+        );
     }
 
     public function test_lost_ack_for_an_unexecuted_movement_is_safely_resent(): void

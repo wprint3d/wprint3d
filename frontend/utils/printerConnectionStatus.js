@@ -2,6 +2,7 @@ export const PRINTER_CONNECTION_STATUS = {
     CONNECTING: "connecting",
     OFFLINE: "offline",
     ONLINE: "online",
+    RECONNECTING: "reconnecting",
     UNRESPONSIVE: "unresponsive",
 };
 
@@ -13,6 +14,8 @@ export function getConnectionStatusRefetchInterval({
 }) {
     if (
         realtimeConnectionState !== "connected"
+        ||
+        connectionStatus?.isReconnecting
         ||
         connectionStatus?.connectionStatus === PRINTER_CONNECTION_STATUS.UNRESPONSIVE
     ) {
@@ -27,6 +30,10 @@ export function getPrinterConnectionStatusKey({
     isRunningMapper = false,
     nowSecs = Date.now() / 1000,
 }) {
+    if (connectionStatus?.isReconnecting) {
+        return PRINTER_CONNECTION_STATUS.RECONNECTING;
+    }
+
     if (isRunningMapper) {
         return PRINTER_CONNECTION_STATUS.CONNECTING;
     }
