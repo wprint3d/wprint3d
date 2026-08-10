@@ -622,6 +622,39 @@ class PrintGcode implements ShouldQueue
         return $checkpoint;
     }
 
+    private function synchronizeTemperatureReport(string $command, string $response): void
+    {
+        $extruderIndex = $this->temperatureReportExtruderIndex($command);
+
+        if (
+            $extruderIndex === null
+            || ! $this->printer->setStatistics($response, $extruderIndex)
+            || $this->executionToken === null
+        ) {
+            return;
+        }
+
+        $this->executionState()->synchronizeObservedThermal(
+            (string) $this->printer->_id,
+            $this->executionToken,
+            $this->printer->getStatistics(),
+            $extruderIndex
+        );
+    }
+
+    private function temperatureReportExtruderIndex(string $command): ?int
+    {
+        $command = strtoupper(trim($command));
+
+        if (! preg_match('/^M105(?:\s|$)/', $command)) {
+            return null;
+        }
+
+        return preg_match('/(?:^|\s)T\s*(\d+)/', $command, $matches)
+            ? (int) $matches[1]
+            : 0;
+    }
+
     private function waitForConnectionRetry(int $seconds): void
     {
         for ($elapsed = 0; $elapsed < $seconds; $elapsed++) {
@@ -800,7 +833,10 @@ class PrintGcode implements ShouldQueue
         ?int $maxLine = null
     ): string {
         if ($this->executionToken === null) {
-            return $serial->query($command, $lineNumber, $maxLine);
+            $response = $serial->query($command, $lineNumber, $maxLine);
+            $this->synchronizeTemperatureReport($command, $response);
+
+            return $response;
         }
 
         $this->assertCurrentExecution();
@@ -812,10 +848,13 @@ class PrintGcode implements ShouldQueue
             $sourceCommand
         );
 
+        $wasReconciled = false;
+
         try {
             $response = $serial->query($command, $lineNumber, $maxLine);
         } catch (TimedOutException|InitializationException|LockTimeoutException) {
-            return $this->reconcilePendingCommand($serial);
+            $response = $this->reconcilePendingCommand($serial);
+            $wasReconciled = true;
         }
 
         if (! Str::contains($response, 'ok')) {
@@ -825,15 +864,19 @@ class PrintGcode implements ShouldQueue
             );
         }
 
-        $observedPosition = null;
+        if (! $wasReconciled) {
+            $observedPosition = null;
 
-        if ($pending['requiresPositionRefresh'] ?? false) {
-            $checkpoint = $this->executionState()->checkpoint((string) $this->printer->_id);
-            $observedPosition = $this->connectionReconciler()
-                ->observe($this->printer, $serial, $checkpoint)['position'];
+            if ($pending['requiresPositionRefresh'] ?? false) {
+                $checkpoint = $this->executionState()->checkpoint((string) $this->printer->_id);
+                $observedPosition = $this->connectionReconciler()
+                    ->observe($this->printer, $serial, $checkpoint)['position'];
+            }
+
+            $this->commitPendingCommand($observedPosition);
         }
 
-        $this->commitPendingCommand($observedPosition);
+        $this->synchronizeTemperatureReport($command, $response);
 
         return $response;
     }
@@ -1275,15 +1318,12 @@ class PrintGcode implements ShouldQueue
                                     $temperatureCommand .= ' T'.$extruderIndex;
                                 }
 
-                                $this->printer->setStatistics(
-                                    lines: $this->queryPrintCommand(
-                                        serial: $serial,
-                                        command: $temperatureCommand,
-                                        sourceCommand: false,
-                                        lineNumber: $this->lineNumber,
-                                        maxLine: $this->lineNumberCount
-                                    ),
-                                    extruderIndex: $extruderIndex
+                                $this->queryPrintCommand(
+                                    serial: $serial,
+                                    command: $temperatureCommand,
+                                    sourceCommand: false,
+                                    lineNumber: $this->lineNumber,
+                                    maxLine: $this->lineNumberCount
                                 );
                             } catch (PrintRecoveryRequiredException $exception) {
                                 throw $exception;

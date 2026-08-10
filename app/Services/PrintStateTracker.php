@@ -6,6 +6,8 @@ use App\Enums\FormatterCommands;
 
 class PrintStateTracker
 {
+    public const MAX_EFFECTIVE_TARGET_REDUCTION_CELSIUS = 10.0;
+
     public const CLASSIFICATION_OBSERVABLE = 'observable';
 
     public const CLASSIFICATION_IDEMPOTENT = 'idempotent';
@@ -52,6 +54,30 @@ class PrintStateTracker
             ];
             $state['thermal']['bed']['temperature'] = $snapshot['bed']['temperature'];
             $state['thermal']['bed']['target'] ??= $snapshot['bed']['target'];
+        }
+
+        return $state;
+    }
+
+    public function withObservedThermalSnapshot(
+        array $state,
+        array $statistics,
+        int $extruderIndex
+    ): array {
+        $snapshot = $this->thermalSnapshot($statistics);
+
+        if (isset($snapshot['extruders'][$extruderIndex])) {
+            $state['thermal']['extruders'][$extruderIndex] = $this->withObservedHeaterState(
+                $state['thermal']['extruders'][$extruderIndex] ?? [],
+                $snapshot['extruders'][$extruderIndex]
+            );
+        }
+
+        if ($extruderIndex === 0 && $snapshot['bed'] !== null) {
+            $state['thermal']['bed'] = $this->withObservedHeaterState(
+                $state['thermal']['bed'] ?? [],
+                $snapshot['bed']
+            );
         }
 
         return $state;
@@ -128,10 +154,12 @@ class PrintStateTracker
             $target = $parameters['S'] ?? $parameters['R'] ?? null;
 
             if ($target !== null) {
+                $previousTarget = $state['thermal']['extruders'][$tool]['target'] ?? null;
                 $next['thermal']['extruders'][$tool]['target'] = (float) $target;
                 $next['thermal']['extruders'][$tool]['temperature'] ??= null;
-                $classification = $next['thermal']['extruders'][$tool]
-                    === ($state['thermal']['extruders'][$tool] ?? null)
+                $next['thermal']['extruders'][$tool]['requestedTarget'] = (float) $target;
+                $next['thermal']['extruders'][$tool]['targetConfirmationPending'] = true;
+                $classification = $this->targetsMatch($previousTarget, $target)
                     ? self::CLASSIFICATION_IDEMPOTENT
                     : self::CLASSIFICATION_OBSERVABLE;
             }
@@ -139,9 +167,12 @@ class PrintStateTracker
             $target = $parameters['S'] ?? $parameters['R'] ?? null;
 
             if ($target !== null) {
+                $previousTarget = $state['thermal']['bed']['target'] ?? null;
                 $next['thermal']['bed']['target'] = (float) $target;
                 $next['thermal']['bed']['temperature'] ??= null;
-                $classification = $next['thermal']['bed'] === ($state['thermal']['bed'] ?? null)
+                $next['thermal']['bed']['requestedTarget'] = (float) $target;
+                $next['thermal']['bed']['targetConfirmationPending'] = true;
+                $classification = $this->targetsMatch($previousTarget, $target)
                     ? self::CLASSIFICATION_IDEMPOTENT
                     : self::CLASSIFICATION_OBSERVABLE;
             }
@@ -162,6 +193,76 @@ class PrintStateTracker
             'classification' => $classification,
             'requiresPositionRefresh' => $requiresPositionRefresh,
         ];
+    }
+
+    private function withObservedHeaterState(array $state, array $observed): array
+    {
+        $previousTemperature = $state['temperature'] ?? null;
+
+        if (is_numeric($observed['temperature'] ?? null)) {
+            $state['temperature'] = (float) $observed['temperature'];
+        }
+
+        if (($state['targetConfirmationPending'] ?? false) !== true) {
+            return $state;
+        }
+
+        $requestedTarget = $state['requestedTarget'] ?? $state['target'] ?? null;
+        $observedTarget = $observed['target'] ?? null;
+
+        if (! $this->effectiveTargetCanBeConfirmed(
+            requestedTarget: $requestedTarget,
+            observedTarget: $observedTarget,
+            previousTemperature: $previousTemperature,
+            observedTemperature: $observed['temperature'] ?? null
+        )) {
+            return $state;
+        }
+
+        $state['target'] = (float) $observedTarget;
+        $state['targetConfirmationPending'] = false;
+
+        return $state;
+    }
+
+    private function effectiveTargetCanBeConfirmed(
+        mixed $requestedTarget,
+        mixed $observedTarget,
+        mixed $previousTemperature,
+        mixed $observedTemperature
+    ): bool {
+        if (! is_numeric($requestedTarget) || ! is_numeric($observedTarget)) {
+            return false;
+        }
+
+        $requestedTarget = (float) $requestedTarget;
+        $observedTarget = (float) $observedTarget;
+
+        if ($requestedTarget <= 0) {
+            return $observedTarget <= 0;
+        }
+
+        if (
+            $observedTarget <= 0
+            || $observedTarget > $requestedTarget
+            || $requestedTarget - $observedTarget > self::MAX_EFFECTIVE_TARGET_REDUCTION_CELSIUS
+            || ! is_numeric($previousTemperature)
+            || ! is_numeric($observedTemperature)
+        ) {
+            return false;
+        }
+
+        $safeReference = min((float) $previousTemperature, $requestedTarget);
+
+        return (float) $observedTemperature
+            >= $safeReference - self::MAX_EFFECTIVE_TARGET_REDUCTION_CELSIUS;
+    }
+
+    private function targetsMatch(mixed $first, mixed $second): bool
+    {
+        return is_numeric($first)
+            && is_numeric($second)
+            && abs((float) $first - (float) $second) < 0.000001;
     }
 
     public function thermalSnapshot(array $statistics): array
