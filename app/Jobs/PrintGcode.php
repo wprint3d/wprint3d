@@ -691,20 +691,55 @@ class PrintGcode implements ShouldQueue
             : 0;
     }
 
+    protected function connectionRecoveryNow(): float
+    {
+        return hrtime(true) / 1_000_000_000;
+    }
+
+    protected function mappedSerialNodeExists(string $node): bool
+    {
+        return Serial::nodeExists($node);
+    }
+
+    protected function sleepForConnectionRetry(): void
+    {
+        sleep(1);
+    }
+
     private function waitForConnectionRetry(int $seconds): void
     {
         for ($elapsed = 0; $elapsed < $seconds; $elapsed++) {
             $this->heartbeat();
             $this->assertCurrentExecution();
-            sleep(1);
+            $this->sleepForConnectionRetry();
         }
+    }
+
+    private function waitForConnectionRetryUntil(float $deadline, int $maxSeconds): bool
+    {
+        $remainingSecs = $deadline - $this->connectionRecoveryNow();
+
+        if ($remainingSecs <= 0) {
+            return false;
+        }
+
+        $this->waitForConnectionRetry(min(
+            $maxSeconds,
+            max(1, (int) ceil($remainingSecs))
+        ));
+
+        return true;
     }
 
     private function reconcileMappedConnection(Serial &$serial, array $checkpoint): string
     {
         $log = Log::channel(self::LOG_CHANNEL);
-        $maxRetries = max(0, (int) Configuration::get('negotiationMaxRetries'));
         $retryDelaySecs = max(1, (int) Configuration::get('negotiationTimeoutSecs'));
+        $gracePeriodSecs = max(
+            0,
+            (int) Configuration::get('printReconnectionGraceSecs', 30)
+        );
+        $deadline = $this->connectionRecoveryNow() + $gracePeriodSecs;
         $executionContext = $this->printer->activePrintExecution ?? [];
 
         if (! is_array($executionContext)) {
@@ -720,80 +755,88 @@ class PrintGcode implements ShouldQueue
         $serialBaudRate = $this->serialBaudRate ?? (int) $this->printer->baudRate;
         $lastException = null;
 
-        for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
+        do {
+            $this->heartbeat();
+            $this->assertCurrentExecution();
+
             try {
-                tryToWaitForMapper(
-                    $log,
-                    function (): void {
-                        $this->heartbeat();
-                        $this->assertCurrentExecution();
-                    }
-                );
+                if (mapperIsRunning()) {
+                    throw new InitializationException(
+                        'The serial mapper is still refreshing connected devices.'
+                    );
+                }
 
                 $this->printer->refresh();
             } catch (Throwable $exception) {
                 $lastException = $exception;
 
-                if ($attempt < $maxRetries) {
-                    $this->waitForConnectionRetry($retryDelaySecs);
+                if (! $this->waitForConnectionRetryUntil($deadline, $retryDelaySecs)) {
+                    break;
                 }
 
                 continue;
             }
 
-            $mappedFingerprint = (string) ($this->printer->machine['uuid'] ?? '');
-
-            if (
-                $expectedFingerprint === ''
-                || $mappedFingerprint === ''
-                || ! hash_equals($expectedFingerprint, $mappedFingerprint)
-            ) {
+            if ($expectedFingerprint === '') {
                 throw new PrintRecoveryRequiredException(
-                    'The remapped serial device fingerprint does not match the active print.'
+                    'The active print checkpoint has no printer fingerprint.'
                 );
             }
 
             $mappedNode = (string) $this->printer->node;
             $mappedBaudRate = (int) $this->printer->baudRate;
+            $mappedFingerprint = (string) ($this->printer->machine['uuid'] ?? '');
 
-            try {
-                if ($mappedNode === '') {
-                    throw new InitializationException('The remapped printer has no serial node.');
+            if ($mappedNode === '' || ! $this->mappedSerialNodeExists($mappedNode)) {
+                $lastException = new InitializationException(
+                    $mappedNode === ''
+                        ? 'The remapped printer has no serial node.'
+                        : "The remapped serial node {$mappedNode} is not available yet."
+                );
+            } elseif ($mappedFingerprint === '') {
+                $lastException = new InitializationException(
+                    'The remapped printer fingerprint is not available yet.'
+                );
+            } elseif (! hash_equals($expectedFingerprint, $mappedFingerprint)) {
+                throw new PrintRecoveryRequiredException(
+                    'The remapped serial device fingerprint does not match the active print.'
+                );
+            } else {
+                try {
+                    if ($mappedNode !== $serialNode || $mappedBaudRate !== $serialBaudRate) {
+                        $log->warning(
+                            "[{$this->printer->_id}] Printer fingerprint matched after remapping; ".
+                            "moving the active print connection from {$serialNode} to {$mappedNode}."
+                        );
+
+                        $serial->close();
+                        $serial = $this->createSerialConnection($mappedNode, $mappedBaudRate);
+                        $this->configurePrintSerial($serial);
+                        $serialNode = $mappedNode;
+                        $serialBaudRate = $mappedBaudRate;
+                        $this->serialNode = $mappedNode;
+                        $this->serialBaudRate = $mappedBaudRate;
+                    }
+
+                    return $this->connectionReconciler()->reconcile($this->printer, $serial, $checkpoint);
+                } catch (PrintRecoveryRequiredException $exception) {
+                    if ($exception->identityValidated) {
+                        throw $exception;
+                    }
+
+                    $lastException = $exception;
+                } catch (Throwable $exception) {
+                    $lastException = $exception;
                 }
-
-                if ($mappedNode !== $serialNode || $mappedBaudRate !== $serialBaudRate) {
-                    $log->warning(
-                        "[{$this->printer->_id}] Printer fingerprint matched after remapping; ".
-                        "moving the active print connection from {$serialNode} to {$mappedNode}."
-                    );
-
-                    $serial->close();
-                    $serial = $this->createSerialConnection($mappedNode, $mappedBaudRate);
-                    $this->configurePrintSerial($serial);
-                    $serialNode = $mappedNode;
-                    $serialBaudRate = $mappedBaudRate;
-                    $this->serialNode = $mappedNode;
-                    $this->serialBaudRate = $mappedBaudRate;
-                }
-
-                return $this->connectionReconciler()->reconcile($this->printer, $serial, $checkpoint);
-            } catch (PrintRecoveryRequiredException $exception) {
-                if ($exception->identityValidated) {
-                    throw $exception;
-                }
-
-                $lastException = $exception;
-            } catch (Throwable $exception) {
-                $lastException = $exception;
             }
 
-            if ($attempt < $maxRetries) {
-                $this->waitForConnectionRetry($retryDelaySecs);
+            if (! $this->waitForConnectionRetryUntil($deadline, $retryDelaySecs)) {
+                break;
             }
-        }
+        } while (true);
 
         throw new PrintRecoveryRequiredException(
-            'Failed to renegotiate the mapped printer connection after the configured attempts: '.
+            "Failed to renegotiate the mapped printer connection within the {$gracePeriodSecs}-second grace period: ".
                 ($lastException?->getMessage() ?? 'unknown error')
         );
     }

@@ -25,6 +25,7 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
         Configuration::query()->delete();
         Configuration::create(['key' => 'negotiationMaxRetries', 'value' => 0]);
         Configuration::create(['key' => 'negotiationTimeoutSecs', 'value' => 1]);
+        Configuration::create(['key' => 'printReconnectionGraceSecs', 'value' => 30]);
     }
 
     protected function tearDown(): void
@@ -93,6 +94,76 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
         $this->assertSame(1, $checkpoint['sourceCommandIndex']);
         $this->assertSame(43.431, $checkpoint['state']['position']['x']);
         $this->assertSame(50.772, $checkpoint['state']['position']['y']);
+    }
+
+    public function test_it_waits_for_a_late_mapper_pass_before_moving_the_active_connection(): void
+    {
+        [$job, $serial, $executionState, $printer] = $this->remappedNodeScenario(
+            'FAKE-UUID/canonical-suffix',
+            mappingAvailableAfterSecs: 14,
+            serialAvailableAfterSecs: 14
+        );
+
+        $response = $this->querySourceCommand(
+            $job,
+            $serial,
+            'G0 F9000 X43.431 Y50.772'
+        );
+        $checkpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertSame('ok', $response);
+        $this->assertGreaterThanOrEqual(14, $job->reconnectionClock->now);
+        $this->assertTrue($serial->wasClosed);
+        $this->assertSame(['USB1'], $job->openedNodes);
+        $this->assertSame(1, $checkpoint['sourceCommandIndex']);
+    }
+
+    public function test_it_waits_for_the_same_serial_node_to_reappear_after_an_empty_mapper_pass(): void
+    {
+        [$job, $serial, $executionState, $printer] = $this->remappedNodeScenario(
+            'FAKE-UUID/canonical-suffix',
+            mappingAvailableAfterSecs: 14,
+            serialAvailableAfterSecs: 14,
+            mappedNode: 'USB0'
+        );
+
+        $response = $this->querySourceCommand(
+            $job,
+            $serial,
+            'G0 F9000 X43.431 Y50.772'
+        );
+        $checkpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertSame('ok', $response);
+        $this->assertGreaterThanOrEqual(14, $job->reconnectionClock->now);
+        $this->assertFalse($serial->wasClosed);
+        $this->assertSame([], $job->openedNodes);
+        $this->assertSame(1, $checkpoint['sourceCommandIndex']);
+    }
+
+    public function test_it_enters_recovery_only_after_the_reconnection_grace_period_expires(): void
+    {
+        Configuration::where('key', 'printReconnectionGraceSecs')->update(['value' => 5]);
+
+        [$job, $serial, $executionState, $printer] = $this->remappedNodeScenario(
+            'FAKE-UUID/canonical-suffix',
+            mappingAvailableAfterSecs: 10,
+            serialAvailableAfterSecs: 10
+        );
+
+        try {
+            $this->querySourceCommand($job, $serial, 'G0 F9000 X43.431 Y50.772');
+            $this->fail('An unavailable printer must enter recovery after the grace period.');
+        } catch (\App\Exceptions\PrintRecoveryRequiredException $exception) {
+            $this->assertStringContainsString('5-second grace period', $exception->getMessage());
+        }
+
+        $checkpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertGreaterThanOrEqual(5, $job->reconnectionClock->now);
+        $this->assertFalse($serial->wasClosed);
+        $this->assertSame([], $job->openedNodes);
+        $this->assertSame(0, $checkpoint['sourceCommandIndex']);
     }
 
     public function test_it_uses_a_fresh_firmware_clamped_target_during_node_remapping(): void
@@ -358,7 +429,26 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
                 };
             }
         };
-        $job = (new \ReflectionClass(PrintGcode::class))->newInstanceWithoutConstructor();
+        $reconnectionClock = (object) ['now' => 0.0];
+        $job = new class($reconnectionClock) extends PrintGcode
+        {
+            public function __construct(private readonly object $reconnectionClock) {}
+
+            protected function connectionRecoveryNow(): float
+            {
+                return $this->reconnectionClock->now;
+            }
+
+            protected function mappedSerialNodeExists(string $node): bool
+            {
+                return true;
+            }
+
+            protected function sleepForConnectionRetry(): void
+            {
+                $this->reconnectionClock->now++;
+            }
+        };
 
         \Closure::bind(function () use ($job, $printer) {
             $job->printer = $printer;
@@ -376,9 +466,13 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
     private function remappedNodeScenario(
         string $mappedFingerprint,
         string $heaterResponse = 'ok',
-        array $sourceResponses = []
+        array $sourceResponses = [],
+        int $mappingAvailableAfterSecs = 0,
+        int $serialAvailableAfterSecs = 0,
+        string $mappedNode = 'USB1'
     ): array {
-        $printer = new class($mappedFingerprint) extends Printer
+        $reconnectionClock = (object) ['now' => 0.0];
+        $printer = new class($mappedFingerprint, $reconnectionClock, $mappingAvailableAfterSecs, $mappedNode) extends Printer
         {
             public string $_id = 'remapped-node-printer';
 
@@ -397,7 +491,12 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
                 'bed' => ['temperature' => 70.0, 'target' => 70.0],
             ];
 
-            public function __construct(private readonly string $mappedFingerprint) {}
+            public function __construct(
+                private readonly string $mappedFingerprint,
+                private readonly object $reconnectionClock,
+                private readonly int $mappingAvailableAfterSecs,
+                private readonly string $mappedNode
+            ) {}
 
             public function save(array $options = []): bool
             {
@@ -406,7 +505,11 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
 
             public function refresh()
             {
-                $this->node = 'USB1';
+                if ($this->reconnectionClock->now < $this->mappingAvailableAfterSecs) {
+                    return $this;
+                }
+
+                $this->node = $this->mappedNode;
                 $this->machine = ['uuid' => $this->mappedFingerprint];
 
                 return $this;
@@ -456,13 +559,15 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
             $printer->statistics
         );
 
-        $serial = new class($heaterResponse, $sourceResponses) extends Serial
+        $serial = new class($heaterResponse, $sourceResponses, $reconnectionClock, $serialAvailableAfterSecs) extends Serial
         {
             public bool $wasClosed = false;
 
             public function __construct(
                 private readonly string $heaterResponse,
-                private readonly array $sourceResponses
+                private readonly array $sourceResponses,
+                private readonly object $reconnectionClock,
+                private readonly int $serialAvailableAfterSecs
             ) {}
 
             public function query(
@@ -481,6 +586,17 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
 
                 if (isset($this->sourceResponses[$command])) {
                     return $this->sourceResponses[$command];
+                }
+
+                if (
+                    $this->reconnectionClock->now >= $this->serialAvailableAfterSecs
+                    && in_array($command, ['M115', 'M400', 'M114'], true)
+                ) {
+                    return match ($command) {
+                        'M115' => 'FIRMWARE_NAME:Fake UUID:FAKE-UUID ok',
+                        'M114' => 'X:43.43 Y:50.77 Z:1.20 E:79.50 ok',
+                        default => 'ok',
+                    };
                 }
 
                 throw new TimedOutException('The original serial node disappeared.');
@@ -509,11 +625,30 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
                 };
             }
         };
-        $job = new class($replacementSerial) extends PrintGcode
+        $job = new class($replacementSerial, $reconnectionClock, $serialAvailableAfterSecs) extends PrintGcode
         {
             public array $openedNodes = [];
 
-            public function __construct(private readonly Serial $replacementSerial) {}
+            public function __construct(
+                private readonly Serial $replacementSerial,
+                public readonly object $reconnectionClock,
+                private readonly int $serialAvailableAfterSecs
+            ) {}
+
+            protected function connectionRecoveryNow(): float
+            {
+                return $this->reconnectionClock->now;
+            }
+
+            protected function mappedSerialNodeExists(string $node): bool
+            {
+                return $this->reconnectionClock->now >= $this->serialAvailableAfterSecs;
+            }
+
+            protected function sleepForConnectionRetry(): void
+            {
+                $this->reconnectionClock->now++;
+            }
 
             protected function createSerialConnection(string $node, int $baudRate): Serial
             {

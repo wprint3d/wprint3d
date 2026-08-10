@@ -68,6 +68,13 @@ return [
             'description' => 'The maximum amount of times that we\'ll try to set up a printer, exceeding this value will get the printer invalidated and disabled.',
             'section' => 'Connection'
         ],
+        'printReconnectionGraceSecs' => [
+            'value' => 30,
+            'hint' => 'Active print reconnection grace period',
+            'type' => DataType::INTEGER,
+            'description' => 'The maximum time (in seconds) that an active print will wait for its serial device to reappear before entering recovery.',
+            'section' => 'Connection'
+        ],
         'commandTimeoutSecs' => [
             'value' => 60,
             'hint' => 'Command timeout',
