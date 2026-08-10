@@ -90,6 +90,45 @@ class PrintExecutionStateTest extends TestCase
         $this->assertTrue($state->isCurrent($printer->_id, $rotated['token']));
     }
 
+    public function test_reconnecting_state_is_fenced_to_the_active_print_worker(): void
+    {
+        $printer = new class extends Printer
+        {
+            public string $_id = 'reconnecting-printer';
+
+            public mixed $activePrintExecution = null;
+
+            public function __construct() {}
+
+            public function save(array $options = []): bool
+            {
+                return true;
+            }
+        };
+        $owner = new class extends User
+        {
+            public string $_id = 'reconnecting-owner';
+
+            public function __construct() {}
+        };
+        $state = new PrintExecutionState(new PrintStateTracker);
+
+        $state->begin($printer, $owner, 'reconnecting-uid', 'token-1');
+
+        $this->assertFalse($state->beginReconnecting($printer->_id, 'stale-token'));
+        $this->assertTrue($state->beginReconnecting($printer->_id, 'token-1'));
+        $this->assertTrue($state->isReconnecting($printer->_id));
+        $this->assertFalse($state->finishReconnecting($printer->_id, 'stale-token'));
+        $this->assertTrue($state->isReconnecting($printer->_id));
+        $this->assertTrue($state->finishReconnecting($printer->_id, 'token-1'));
+        $this->assertFalse($state->isReconnecting($printer->_id));
+
+        $state->beginReconnecting($printer->_id, 'token-1');
+        $state->clear($printer, 'token-1');
+
+        $this->assertFalse($state->isReconnecting($printer->_id));
+    }
+
     public function test_temperature_targets_are_not_overwritten_by_stale_statistics(): void
     {
         $tracker = new PrintStateTracker;

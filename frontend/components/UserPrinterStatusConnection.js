@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 
-import { ActivityIndicator, Icon, IconButton, Text } from "react-native-paper";
+import { ActivityIndicator, Icon, IconButton, Text, useTheme } from "react-native-paper";
 
 import TextBold from "./TextBold";
 import { useLocalization } from "../includes/LocalizationProvider";
@@ -20,11 +20,13 @@ const STATUS_TRANSLATION_KEYS = {
     connecting:      "printer.status.connecting",
     offline:         "printer.status.offline",
     online:          "printer.status.online",
+    reconnecting:    "printer.status.reconnecting",
     unresponsive:    "printer.status.unresponsive",
 };
 
 export default function UserPrinterStatusConnection({ connectionStatus, isRunningMapper }) {
     const { t } = useLocalization();
+    const { colors } = useTheme();
     const [ currentStatusKey,       setCurrentStatusKey      ] = useState("waitingForServer");
     const [ isWaitingForNewStatus,  setIsWaitingForNewStatus ] = useState(true);
     const [ lastUpdate,             setLastUpdate            ] = useState(Date.now() / 1000);
@@ -38,6 +40,7 @@ export default function UserPrinterStatusConnection({ connectionStatus, isRunnin
         const timeout = setInterval(() => {
             if ((Date.now() / 1000) - lastUpdate <= MAX_THRESHOLD_SECS) { return; }
             if (currentStatusKey === PRINTER_CONNECTION_STATUS.UNRESPONSIVE) { return; }
+            if (currentStatusKey === PRINTER_CONNECTION_STATUS.RECONNECTING) { return; }
 
             setIsWaitingForNewStatus(false);
             setCurrentStatusKey(PRINTER_CONNECTION_STATUS.OFFLINE);
@@ -59,6 +62,8 @@ export default function UserPrinterStatusConnection({ connectionStatus, isRunnin
             const now = Date.now() / 1000;
 
             setIsWaitingForNewStatus(
+                !connectionStatus.isReconnecting
+                &&
                 connectionStatus.connectionStatus !== PRINTER_CONNECTION_STATUS.UNRESPONSIVE
                 &&
                 connectionStatus.lastSeen !== null
@@ -87,7 +92,7 @@ export default function UserPrinterStatusConnection({ connectionStatus, isRunnin
 
         const timeout = setInterval(updateConnectionState, 1000);
 
-        if (isRunningMapper) {
+        if (isRunningMapper && !connectionStatus.isReconnecting) {
             clearInterval(timeout);
 
             handleMapperRunning();
@@ -100,16 +105,19 @@ export default function UserPrinterStatusConnection({ connectionStatus, isRunnin
 
     useEffect(() => {
         if (!isRunningMapper) { return; }
+        if (connectionStatus?.isReconnecting) { return; }
 
         handleMapperRunning();
-    }, [ isRunningMapper ]);
+    }, [ connectionStatus?.isReconnecting, isRunningMapper ]);
 
     useEffect(() => {
         console.debug('UserPrinterStatusConnection: isWaitingForNewStatus:', isWaitingForNewStatus);
     }, [ isWaitingForNewStatus ]);
 
     const isUnresponsive = currentStatusKey === PRINTER_CONNECTION_STATUS.UNRESPONSIVE;
+    const isReconnecting = currentStatusKey === PRINTER_CONNECTION_STATUS.RECONNECTING;
     const statusText = t(STATUS_TRANSLATION_KEYS[currentStatusKey] ?? STATUS_TRANSLATION_KEYS.offline);
+    const statusColor = isReconnecting ? colors.onTertiaryContainer : colors.onSurface;
     const diagnostic = getPrinterConnectionDiagnosticOutput(connectionStatus);
     const hasDiagnostic = hasUnresponsiveConnectionDiagnostic({
         connectionStatus: currentStatusKey,
@@ -126,30 +134,53 @@ export default function UserPrinterStatusConnection({ connectionStatus, isRunnin
             <View style={{
                 width: '100%',
                 paddingTop: 15,
-                flexDirection: 'row',
                 justifyContent: 'center',
                 alignItems: 'center',
-                flexWrap: 'wrap',
             }}>
-                <ActivityIndicator
-                    animating={isWaitingForNewStatus}
-                    size={10}
-                    style={{ marginRight: 4 }}
-                />
-                {hasDiagnostic ? (
-                    <IconButton
-                        icon="help-circle-outline"
-                        size={18}
-                        accessibilityLabel={t("printer.status.viewDiagnostic")}
-                        onPress={() => setShowConnectionDiagnosticDialog(true)}
-                        style={{ width: 24, height: 24, margin: 0 }}
+                <View
+                    accessibilityLabel={`${t("printer.status.connectionStatus")} ${statusText}`}
+                    accessibilityLiveRegion="polite"
+                    style={{
+                        minHeight: 28,
+                        paddingHorizontal: isReconnecting ? 10 : 0,
+                        paddingVertical: isReconnecting ? 4 : 0,
+                        borderRadius: 999,
+                        backgroundColor: isReconnecting ? colors.tertiaryContainer : 'transparent',
+                        flexDirection: 'row',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                    }}
+                >
+                    <ActivityIndicator
+                        animating={isWaitingForNewStatus || isReconnecting}
+                        color={isReconnecting ? statusColor : undefined}
+                        size={isReconnecting ? 14 : 10}
+                        style={{ marginRight: 4 }}
                     />
-                ) : (
-                    <Icon source={isUnresponsive ? 'help-circle-outline' : 'connection'} size={18} />
-                )}
-                <Text style={{ marginLeft: 4 }}>
-                    <TextBold>{t("printer.status.connectionStatus")}</TextBold> {statusText}
-                </Text>
+                    {!isReconnecting && (hasDiagnostic ? (
+                        <IconButton
+                            icon="help-circle-outline"
+                            iconColor={statusColor}
+                            size={18}
+                            accessibilityLabel={t("printer.status.viewDiagnostic")}
+                            onPress={() => setShowConnectionDiagnosticDialog(true)}
+                            style={{ width: 24, height: 24, margin: 0 }}
+                        />
+                    ) : (
+                        <Icon
+                            source={isUnresponsive ? 'help-circle-outline' : 'connection'}
+                            color={statusColor}
+                            size={18}
+                        />
+                    ))}
+                    <Text style={{ marginLeft: 4, color: statusColor }}>
+                        <TextBold>{t("printer.status.connectionStatus")}</TextBold>{' '}
+                        <Text style={{ color: statusColor, fontWeight: isReconnecting ? 'bold' : 'normal' }}>
+                            {statusText}
+                        </Text>
+                    </Text>
+                </View>
             </View>
         </>
     );

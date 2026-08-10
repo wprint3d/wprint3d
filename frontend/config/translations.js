@@ -352,6 +352,7 @@ export const translations = {
             status: {
                 waitingForServer: "waiting for server…",
                 connecting: "connecting…",
+                reconnecting: "reconnecting…",
                 offline: "offline",
                 online: "online",
                 unresponsive: "unresponsive",
@@ -772,6 +773,7 @@ export const translations = {
             status: {
                 waitingForServer: "esperando al servidor…",
                 connecting: "conectando…",
+                reconnecting: "reconectando…",
                 offline: "desconectada",
                 online: "en línea",
                 unresponsive: "sin respuesta",
@@ -1192,6 +1194,7 @@ export const translations = {
             status: {
                 waitingForServer: "esperando al servidor…",
                 connecting: "conectando…",
+                reconnecting: "reconectando…",
                 offline: "desconectada",
                 online: "en línea",
                 unresponsive: "sin respuesta",
@@ -1612,6 +1615,7 @@ export const translations = {
             status: {
                 waitingForServer: "en attente du serveur…",
                 connecting: "connexion…",
+                reconnecting: "reconnexion…",
                 offline: "hors ligne",
                 online: "en ligne",
                 unresponsive: "sans réponse",
@@ -2032,6 +2036,7 @@ export const translations = {
             status: {
                 waitingForServer: "aguardando o servidor…",
                 connecting: "conectando…",
+                reconnecting: "reconectando…",
                 offline: "offline",
                 online: "online",
                 unresponsive: "sem resposta",
@@ -2452,6 +2457,7 @@ export const translations = {
             status: {
                 waitingForServer: "in attesa del server…",
                 connecting: "connessione…",
+                reconnecting: "riconnessione…",
                 offline: "offline",
                 online: "online",
                 unresponsive: "non risponde",
@@ -2872,6 +2878,7 @@ export const translations = {
             status: {
                 waitingForServer: "warte auf den Server…",
                 connecting: "verbinde…",
+                reconnecting: "verbinde erneut…",
                 offline: "offline",
                 online: "online",
                 unresponsive: "keine Antwort",

@@ -9,6 +9,7 @@ use App\Libraries\Serial;
 use App\Models\Configuration;
 use App\Models\Printer;
 use App\Plugins\PluginHookCompiler;
+use App\Services\PrintExecutionState;
 use App\Support\FakeSerial\FakeSerialManager;
 use App\Support\SerialMapperDebouncer;
 use Exception;
@@ -229,7 +230,8 @@ class MapSerialPrinters extends Command
         callable $refreshMapperBusy,
         callable $waitWhileRefreshingMapperBusy,
         int &$retryCount,
-        int &$changeCount
+        int &$changeCount,
+        ?Printer $expectedPrinter = null
     ): bool {
         while (true) {
             $refreshMapperBusy();
@@ -321,19 +323,41 @@ class MapSerialPrinters extends Command
                 $machine['connectionType'] = $isFakeSerial ? 'fakeSerial' : 'serial';
                 $machine['simulated'] = $machine['connectionType'] === 'fakeSerial';
 
-                $isFastReconnect = $printerAtNode
-                    && (int) $printerAtNode->baudRate === $baudRate
-                    && $this->machinesMatch($printerAtNode, $machine);
+                if (
+                    $expectedPrinter
+                    && ! hash_equals(
+                        (string) ($expectedPrinter->machine['uuid'] ?? ''),
+                        $machine['uuid']
+                    )
+                ) {
+                    $log->info(
+                        "Active print fingerprint did not match the candidate at {$device} using {$baudRate} bps."
+                    );
+
+                    return false;
+                }
+
+                $candidatePrinter = $expectedPrinter ?? $printerAtNode;
+
+                $isFastReconnect = $candidatePrinter
+                    && (string) $candidatePrinter->node === $device
+                    && (int) $candidatePrinter->baudRate === $baudRate
+                    && $this->machinesMatch($candidatePrinter, $machine);
 
                 if ($isFastReconnect) {
-                    $printer = $printerAtNode;
+                    $printer = $candidatePrinter;
                     $printer->connected = true;
                     $printer->save();
 
                     $this->info("Known printer reconnected at {$device} using {$baudRate} bps.");
                     $log->info("Known printer reconnected at {$device} using {$baudRate} bps without regenerating its machine profile.");
                 } else {
-                    $printer = $this->findExistingPrinter($machine, $device, $isFakeSerial, $printerAtNode);
+                    $printer = $this->findExistingPrinter(
+                        $machine,
+                        $device,
+                        $isFakeSerial,
+                        $candidatePrinter
+                    );
                     $cameras = $printer?->cameras ?: [];
 
                     if (! $printer) {
@@ -402,6 +426,116 @@ class MapSerialPrinters extends Command
         }
     }
 
+    private function prioritizeActivePrintDevices(
+        array $devices,
+        Printer $printer,
+        array $knownPrinterNodes
+    ): array {
+        $originalNode = (string) $printer->node;
+        $indexedDevices = array_map(
+            static fn (string $device, int $index): array => [
+                'device' => $device,
+                'index' => $index,
+            ],
+            $devices,
+            array_keys($devices)
+        );
+
+        usort($indexedDevices, static function (array $left, array $right) use (
+            $originalNode,
+            $knownPrinterNodes
+        ): int {
+            $priority = static function (string $device) use (
+                $originalNode,
+                $knownPrinterNodes
+            ): int {
+                $node = Str::replaceFirst(Serial::TERMINAL_PREFIX, '', $device);
+
+                if ($node === $originalNode) {
+                    return 2;
+                }
+
+                return in_array($node, $knownPrinterNodes, true) ? 1 : 0;
+            };
+            $comparison = $priority($left['device']) <=> $priority($right['device']);
+
+            return $comparison !== 0
+                ? $comparison
+                : $left['index'] <=> $right['index'];
+        });
+
+        return array_column($indexedDevices, 'device');
+    }
+
+    private function mapActivePrintConnectionsFirst(
+        iterable $activePrintPrinters,
+        array $devices,
+        array $knownPrinterNodes,
+        Logger $log,
+        int $negotiationTimeoutSecs,
+        array $serialPluginHooks,
+        FakeSerialManager $fakeSerialManager,
+        callable $refreshMapperBusy,
+        callable $waitWhileRefreshingMapperBusy,
+        int &$changeCount
+    ): array {
+        $mappedDevices = [];
+        $supersededNodes = [];
+
+        foreach ($activePrintPrinters as $printer) {
+            $originalNode = (string) $printer->node;
+
+            foreach (
+                $this->prioritizeActivePrintDevices($devices, $printer, $knownPrinterNodes) as $rawDevice
+            ) {
+                $device = Str::replaceFirst(Serial::TERMINAL_PREFIX, '', $rawDevice);
+
+                if (isset($mappedDevices[$device])) {
+                    continue;
+                }
+
+                $log->info(
+                    "Trying active print fingerprint at {$device} using the known {$printer->baudRate} bps rate."
+                );
+
+                $retryCount = 0;
+                $printerAtNode = Printer::where('node', $device)->first();
+
+                if (! $this->tryMapDeviceAtBaud(
+                    log: $log,
+                    device: $device,
+                    baudRate: (int) $printer->baudRate,
+                    negotiationTimeoutSecs: $negotiationTimeoutSecs,
+                    negotiationMaxRetries: 0,
+                    serialPluginHooks: $serialPluginHooks,
+                    fakeSerialManager: $fakeSerialManager,
+                    printerAtNode: $printerAtNode,
+                    refreshMapperBusy: $refreshMapperBusy,
+                    waitWhileRefreshingMapperBusy: $waitWhileRefreshingMapperBusy,
+                    retryCount: $retryCount,
+                    changeCount: $changeCount,
+                    expectedPrinter: $printer
+                )) {
+                    continue;
+                }
+
+                $mappedDevices[$device] = true;
+
+                if ($originalNode !== '' && $originalNode !== $device) {
+                    $supersededNodes[$originalNode] = true;
+                }
+
+                $log->info(
+                    "Active print fingerprint matched at {$device}; skipping full baud-rate negotiation."
+                );
+
+                break;
+            }
+        }
+
+        return [$mappedDevices, $supersededNodes];
+    }
+
     /**
      * Execute the console command.
      *
@@ -464,6 +598,32 @@ class MapSerialPrinters extends Command
             $negotiationMaxRetries = Configuration::get('negotiationMaxRetries');
 
             $baudRates = config('app.common_baud_rates');
+            $executionState = app(PrintExecutionState::class);
+            $activePrintPrinters = Printer::select(
+                '_id',
+                'node',
+                'baudRate',
+                'machine',
+                'cameras',
+                'recordableCameras',
+                'activeFile',
+                'hasActiveJob',
+                'connected'
+            )
+                ->where('hasActiveJob', true)
+                ->where('activeFile', '!=', null)
+                ->get()
+                ->filter(fn (Printer $printer): bool => $printer->hasActivePrintJob()
+                    && is_array($printer->machine)
+                    && ($printer->machine['connectionType'] ?? null) === 'serial'
+                    && filled($printer->machine['uuid'] ?? null)
+                    && is_numeric($printer->baudRate)
+                    && (
+                        ! ($printer->connected ?? false)
+                        || ! Serial::nodeExists((string) $printer->node)
+                        || $executionState->isReconnecting((string) $printer->_id)
+                    )
+                );
             $knownSerialBaudRates = Printer::select(
                 'baudRate',
                 'hasActiveJob',
@@ -543,6 +703,25 @@ class MapSerialPrinters extends Command
                 $changeCount = 0;
                 $serialPluginHooks = app(PluginHookCompiler::class)->compileSerialHooks();
                 $waitedForPrinterBoot = false;
+                $knownPrinterNodes = Printer::where('node', '!=', null)
+                    ->pluck('node')
+                    ->filter(fn (mixed $node): bool => filled($node))
+                    ->map(fn (mixed $node): string => (string) $node)
+                    ->values()
+                    ->all();
+
+                [$fastMappedDevices, $supersededActiveNodes] = $this->mapActivePrintConnectionsFirst(
+                    activePrintPrinters: $activePrintPrinters,
+                    devices: $devices,
+                    knownPrinterNodes: $knownPrinterNodes,
+                    log: $log,
+                    negotiationTimeoutSecs: $negotiationTimeoutSecs,
+                    serialPluginHooks: $serialPluginHooks,
+                    fakeSerialManager: $fakeSerialManager,
+                    refreshMapperBusy: $refreshMapperBusy,
+                    waitWhileRefreshingMapperBusy: $waitWhileRefreshingMapperBusy,
+                    changeCount: $changeCount
+                );
 
                 $waitForPrinterBoot = function () use (
                     &$waitedForPrinterBoot,
@@ -564,6 +743,19 @@ class MapSerialPrinters extends Command
 
                 foreach ($devices as $device) {
                     $device = Str::replaceFirst('tty', '', $device);
+
+                    if (isset($fastMappedDevices[$device])) {
+                        continue;
+                    }
+
+                    if (isset($supersededActiveNodes[$device])) {
+                        $log->info(
+                            "Skipping superseded active print node {$device} after its fingerprint moved."
+                        );
+
+                        continue;
+                    }
+
                     $this->info('Probing for printers at "'.$device.'" node...');
 
                     $printerAtNode = Printer::where('node', $device)->first();

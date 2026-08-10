@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\Printer;
+use App\Services\PrintExecutionState;
 
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -22,6 +23,7 @@ class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
     public  mixed $lastSeen;
     public   bool $isPrinting    = false;
     public   bool $isPaused      = false;
+    public   bool $isReconnecting = false;
     public   ?int $layer         = null;
     public   ?int $maxLayer      = null;
     public   ?int $thresholdSecs = null;
@@ -43,6 +45,7 @@ class PrinterConnectionStatusUpdated implements ShouldBroadcastNow
     ) {
         $this->printerId = $printerId;
         $this->isPaused  = $isPaused;
+        $this->isReconnecting = app(PrintExecutionState::class)->isReconnecting($printerId);
 
         $this->statistics =
             $statistics === null
