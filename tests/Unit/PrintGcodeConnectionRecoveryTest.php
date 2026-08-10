@@ -81,6 +81,44 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
         $this->assertSame(50.772, $checkpoint['state']['position']['y']);
     }
 
+    public function test_it_uses_a_fresh_firmware_clamped_target_during_node_remapping(): void
+    {
+        [$job, $serial, $executionState, $printer] = $this->remappedNodeScenario(
+            'FAKE-UUID/canonical-suffix'
+        );
+
+        $this->querySourceCommand($job, $serial, 'M140 S80');
+        $requestedCheckpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertSame(80.0, $requestedCheckpoint['state']['thermal']['bed']['target']);
+        $this->assertTrue(
+            $requestedCheckpoint['state']['thermal']['bed']['targetConfirmationPending']
+        );
+
+        $this->queryRuntimeCommand($job, $serial, 'M105');
+        $confirmedCheckpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertSame(70.0, $confirmedCheckpoint['state']['thermal']['bed']['target']);
+        $this->assertSame(80.0, $confirmedCheckpoint['state']['thermal']['bed']['requestedTarget']);
+        $this->assertFalse(
+            $confirmedCheckpoint['state']['thermal']['bed']['targetConfirmationPending']
+        );
+
+        $response = $this->querySourceCommand(
+            $job,
+            $serial,
+            'G0 F9000 X43.431 Y50.772'
+        );
+        $checkpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertSame('ok', $response);
+        $this->assertTrue($serial->wasClosed);
+        $this->assertSame(['USB1'], $job->openedNodes);
+        $this->assertSame(2, $checkpoint['sourceCommandIndex']);
+        $this->assertSame(70.0, $checkpoint['state']['thermal']['bed']['target']);
+        $this->assertSame(80.0, $checkpoint['state']['thermal']['bed']['requestedTarget']);
+    }
+
     public function test_it_rejects_a_remapped_node_when_the_fingerprint_changes(): void
     {
         [$job, $serial, $executionState, $printer] = $this->remappedNodeScenario(
@@ -105,11 +143,25 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
 
     private function querySourceCommand(PrintGcode $job, Serial &$serial, string $command): string
     {
+        return $this->queryCommand($job, $serial, $command, true);
+    }
+
+    private function queryRuntimeCommand(PrintGcode $job, Serial &$serial, string $command): string
+    {
+        return $this->queryCommand($job, $serial, $command, false);
+    }
+
+    private function queryCommand(
+        PrintGcode $job,
+        Serial &$serial,
+        string $command,
+        bool $sourceCommand
+    ): string {
         return \Closure::bind(
             fn (): string => $job->queryPrintCommand(
                 $serial,
                 $command,
-                sourceCommand: true,
+                sourceCommand: $sourceCommand,
                 lineNumber: 1,
                 maxLine: 2
             ),
@@ -343,6 +395,14 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
                 ?int $maxLine = null,
                 ?int $timeout = null
             ): string {
+                if ($command === 'M140 S80') {
+                    return 'ok';
+                }
+
+                if ($command === 'M105') {
+                    return 'ok T:230.00 /230.00 B:70.00 /70.00';
+                }
+
                 throw new TimedOutException('The original serial node disappeared.');
             }
 

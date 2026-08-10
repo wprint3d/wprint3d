@@ -107,6 +107,51 @@ class PrintExecutionStateTest extends TestCase
         $this->assertSame(202.0, $merged['thermal']['extruders'][0]['temperature']);
     }
 
+    public function test_fresh_temperature_report_confirms_only_a_safe_effective_target(): void
+    {
+        $tracker = new PrintStateTracker;
+        $state = $tracker->initial(
+            ['x' => 0, 'y' => 0, 'z' => 0, 'e' => 0],
+            [
+                'extruders' => [0 => ['temperature' => 230, 'target' => 230]],
+                'bed' => ['temperature' => 70, 'target' => 70],
+            ]
+        );
+        $requested = $tracker->predict($state, 'M140 S80')['state'];
+        $confirmed = $tracker->withObservedThermalSnapshot(
+            $requested,
+            [
+                'extruders' => [0 => ['temperature' => 230, 'target' => 230]],
+                'bed' => ['temperature' => 70, 'target' => 70],
+            ],
+            0
+        );
+        $lostTarget = $tracker->withObservedThermalSnapshot(
+            $requested,
+            [
+                'extruders' => [0 => ['temperature' => 230, 'target' => 230]],
+                'bed' => ['temperature' => 70, 'target' => 0],
+            ],
+            0
+        );
+        $unsafeReduction = $tracker->withObservedThermalSnapshot(
+            $requested,
+            [
+                'extruders' => [0 => ['temperature' => 230, 'target' => 230]],
+                'bed' => ['temperature' => 60, 'target' => 65],
+            ],
+            0
+        );
+
+        $this->assertSame(70.0, $confirmed['thermal']['bed']['target']);
+        $this->assertSame(80.0, $confirmed['thermal']['bed']['requestedTarget']);
+        $this->assertFalse($confirmed['thermal']['bed']['targetConfirmationPending']);
+        $this->assertSame(80.0, $lostTarget['thermal']['bed']['target']);
+        $this->assertTrue($lostTarget['thermal']['bed']['targetConfirmationPending']);
+        $this->assertSame(80.0, $unsafeReduction['thermal']['bed']['target']);
+        $this->assertTrue($unsafeReduction['thermal']['bed']['targetConfirmationPending']);
+    }
+
     public function test_color_swap_tracks_the_physical_park_position_and_preserves_the_return_position(): void
     {
         $tracker = new PrintStateTracker;

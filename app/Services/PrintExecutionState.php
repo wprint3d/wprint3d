@@ -129,6 +129,35 @@ class PrintExecutionState
         return $checkpoint;
     }
 
+    public function synchronizeObservedThermal(
+        string $printerId,
+        string $token,
+        array $statistics,
+        int $extruderIndex
+    ): array {
+        $checkpoint = $this->requireCurrentCheckpoint($printerId, $token);
+
+        if (is_array($checkpoint['pending'] ?? null)) {
+            throw new \RuntimeException(
+                'Observed thermal state cannot be synchronized while a printer command is pending.'
+            );
+        }
+
+        if (! is_array($checkpoint['state'] ?? null)) {
+            throw new \RuntimeException('The print execution checkpoint is not ready.');
+        }
+
+        $checkpoint['state'] = $this->tracker->withObservedThermalSnapshot(
+            $checkpoint['state'],
+            $statistics,
+            $extruderIndex
+        );
+        $checkpoint['updatedAt'] = microtime(true);
+        $this->cache()->put($this->checkpointKey($printerId), $checkpoint);
+
+        return $checkpoint;
+    }
+
     public function checkpoint(string $printerId): ?array
     {
         $checkpoint = $this->cache()->get($this->checkpointKey($printerId));
