@@ -133,6 +133,62 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
         $this->assertSame(80.0, $checkpoint['state']['thermal']['bed']['requestedTarget']);
     }
 
+    public function test_it_accepts_a_safe_firmware_clamp_during_remapping_before_the_next_poll(): void
+    {
+        [$job, $serial, $executionState, $printer] = $this->remappedNodeScenario(
+            'FAKE-UUID/canonical-suffix'
+        );
+
+        $this->querySourceCommand($job, $serial, 'M140 S80');
+        $requestedCheckpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertSame(80.0, $requestedCheckpoint['state']['thermal']['bed']['target']);
+        $this->assertTrue(
+            $requestedCheckpoint['state']['thermal']['bed']['targetConfirmationPending']
+        );
+
+        $response = $this->querySourceCommand(
+            $job,
+            $serial,
+            'G0 F9000 X43.431 Y50.772'
+        );
+        $checkpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertSame('ok', $response);
+        $this->assertSame(70.0, $checkpoint['state']['thermal']['bed']['target']);
+        $this->assertSame(80.0, $checkpoint['state']['thermal']['bed']['requestedTarget']);
+        $this->assertFalse(
+            $checkpoint['state']['thermal']['bed']['targetConfirmationPending']
+        );
+    }
+
+    public function test_auto_report_on_a_subsequent_source_command_confirms_a_firmware_clamp(): void
+    {
+        [$job, $serial, $executionState, $printer] = $this->remappedNodeScenario(
+            'FAKE-UUID/canonical-suffix',
+            sourceResponses: [
+                'M106 S85' => 'ok T:230.00 /230.00 B:70.00 /70.00',
+            ]
+        );
+
+        $this->querySourceCommand($job, $serial, 'M140 S80');
+        $requestedCheckpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertSame(80.0, $requestedCheckpoint['state']['thermal']['bed']['target']);
+        $this->assertTrue(
+            $requestedCheckpoint['state']['thermal']['bed']['targetConfirmationPending']
+        );
+
+        $this->querySourceCommand($job, $serial, 'M106 S85');
+        $checkpoint = $executionState->checkpoint($printer->_id);
+
+        $this->assertSame(70.0, $checkpoint['state']['thermal']['bed']['target']);
+        $this->assertSame(80.0, $checkpoint['state']['thermal']['bed']['requestedTarget']);
+        $this->assertFalse(
+            $checkpoint['state']['thermal']['bed']['targetConfirmationPending']
+        );
+    }
+
     public function test_it_rejects_a_remapped_node_when_the_fingerprint_changes(): void
     {
         [$job, $serial, $executionState, $printer] = $this->remappedNodeScenario(
@@ -317,8 +373,11 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
         return [$job, $serial, $executionState, $printer];
     }
 
-    private function remappedNodeScenario(string $mappedFingerprint): array
-    {
+    private function remappedNodeScenario(
+        string $mappedFingerprint,
+        string $heaterResponse = 'ok',
+        array $sourceResponses = []
+    ): array {
         $printer = new class($mappedFingerprint) extends Printer
         {
             public string $_id = 'remapped-node-printer';
@@ -397,11 +456,14 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
             $printer->statistics
         );
 
-        $serial = new class extends Serial
+        $serial = new class($heaterResponse, $sourceResponses) extends Serial
         {
             public bool $wasClosed = false;
 
-            public function __construct() {}
+            public function __construct(
+                private readonly string $heaterResponse,
+                private readonly array $sourceResponses
+            ) {}
 
             public function query(
                 ?string $command = null,
@@ -410,11 +472,15 @@ class PrintGcodeConnectionRecoveryTest extends TestCase
                 ?int $timeout = null
             ): string {
                 if ($command === 'M140 S80') {
-                    return 'ok';
+                    return $this->heaterResponse;
                 }
 
                 if ($command === 'M105') {
                     return 'ok T:230.00 /230.00 B:70.00 /70.00';
+                }
+
+                if (isset($this->sourceResponses[$command])) {
+                    return $this->sourceResponses[$command];
                 }
 
                 throw new TimedOutException('The original serial node disappeared.');

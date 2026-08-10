@@ -610,28 +610,66 @@ class PrintGcode implements ShouldQueue
         return is_array($returnPosition) ? $returnPosition : $fallback;
     }
 
-    private function commitPendingCommand(?array $observedPosition = null): array
-    {
+    private function commitPendingCommand(
+        ?array $observedPosition = null,
+        bool $synchronizeObservedThermal = false
+    ): array {
         $checkpoint = $this->executionState()->commitPending(
             (string) $this->printer->_id,
             (string) $this->executionToken,
             $this->printer->getStatistics(),
             $observedPosition
         );
+
+        if ($synchronizeObservedThermal) {
+            $checkpoint = $this->synchronizeObservedThermalCheckpoint($checkpoint);
+        }
+
         $this->synchronizeCheckpoint($checkpoint);
+
+        return $checkpoint;
+    }
+
+    private function synchronizeObservedThermalCheckpoint(array $checkpoint): array
+    {
+        if ($this->executionToken === null) {
+            return $checkpoint;
+        }
+
+        $statistics = $this->printer->getStatistics();
+        $extruderIndexes = array_keys($statistics['extruders'] ?? []);
+
+        if (is_array($statistics['bed'] ?? null) && ! in_array(0, $extruderIndexes, true)) {
+            array_unshift($extruderIndexes, 0);
+        }
+
+        foreach ($extruderIndexes as $extruderIndex) {
+            $checkpoint = $this->executionState()->synchronizeObservedThermal(
+                (string) $this->printer->_id,
+                $this->executionToken,
+                $statistics,
+                (int) $extruderIndex
+            );
+        }
 
         return $checkpoint;
     }
 
     private function synchronizeTemperatureReport(string $command, string $response): void
     {
-        $extruderIndex = $this->temperatureReportExtruderIndex($command);
+        $commandCode = strtok(strtoupper(trim($command)), " \t") ?: '';
 
         if (
-            $extruderIndex === null
-            || ! $this->printer->setStatistics($response, $extruderIndex)
+            ! Printer::hasTemperatureReport($response)
             || $this->executionToken === null
+            || in_array($commandCode, ['M104', 'M109', 'M140', 'M190'], true)
         ) {
+            return;
+        }
+
+        $extruderIndex = $this->temperatureReportExtruderIndex($command);
+
+        if (! $this->printer->setStatistics($response, $extruderIndex)) {
             return;
         }
 
@@ -643,15 +681,12 @@ class PrintGcode implements ShouldQueue
         );
     }
 
-    private function temperatureReportExtruderIndex(string $command): ?int
+    private function temperatureReportExtruderIndex(string $command): int
     {
         $command = strtoupper(trim($command));
 
-        if (! preg_match('/^M105(?:\s|$)/', $command)) {
-            return null;
-        }
-
-        return preg_match('/(?:^|\s)T\s*(\d+)/', $command, $matches)
+        return preg_match('/^M105(?:\s|$)/', $command)
+            && preg_match('/(?:^|\s)T\s*(\d+)/', $command, $matches)
             ? (int) $matches[1]
             : 0;
     }
@@ -774,13 +809,14 @@ class PrintGcode implements ShouldQueue
         $outcome = $this->reconcileMappedConnection($serial, $checkpoint);
 
         if ($outcome === 'continue') {
+            $checkpoint = $this->synchronizeObservedThermalCheckpoint($checkpoint);
             $this->synchronizeCheckpoint($checkpoint);
 
             return 'ok';
         }
 
         if ($outcome === 'executed') {
-            $this->commitPendingCommand();
+            $this->commitPendingCommand(synchronizeObservedThermal: true);
 
             return 'ok';
         }
@@ -793,6 +829,8 @@ class PrintGcode implements ShouldQueue
         }
 
         $pendingCommand = $checkpoint['pending']['command'];
+
+        $synchronizeObservedThermal = false;
 
         try {
             $response = $serial->query(
@@ -812,6 +850,7 @@ class PrintGcode implements ShouldQueue
             }
 
             $response = 'ok';
+            $synchronizeObservedThermal = true;
         }
 
         if (! Str::contains($response, 'ok')) {
@@ -821,7 +860,9 @@ class PrintGcode implements ShouldQueue
             );
         }
 
-        $this->commitPendingCommand();
+        $this->commitPendingCommand(
+            synchronizeObservedThermal: $synchronizeObservedThermal
+        );
 
         return $response;
     }

@@ -87,6 +87,64 @@ class PrintConnectionReconcilerTest extends TestCase
         );
     }
 
+    public function test_pending_safe_firmware_clamp_does_not_block_executed_movement(): void
+    {
+        [$printer, $serial, $checkpoint] = $this->scenario(
+            positionX: 11.0,
+            bedTemperature: 70.0,
+            bedTarget: 70.0
+        );
+        $checkpoint['state']['thermal']['bed'] = [
+            'temperature' => 70.0,
+            'target' => 80.0,
+            'requestedTarget' => 80.0,
+            'targetConfirmationPending' => true,
+        ];
+        $checkpoint['pending'] = [
+            'command' => 'G1 X11',
+            'sourceCommand' => true,
+            'beforeState' => $checkpoint['state'],
+            'afterState' => array_replace_recursive($checkpoint['state'], [
+                'position' => ['x' => 11.0],
+            ]),
+            'classification' => 'observable',
+        ];
+
+        $this->assertSame(
+            'executed',
+            (new PrintConnectionReconciler)->reconcile($printer, $serial, $checkpoint)
+        );
+    }
+
+    public function test_pending_unsafe_firmware_target_reduction_still_requires_recovery(): void
+    {
+        [$printer, $serial, $checkpoint] = $this->scenario(
+            positionX: 11.0,
+            bedTemperature: 70.0,
+            bedTarget: 65.0
+        );
+        $checkpoint['state']['thermal']['bed'] = [
+            'temperature' => 70.0,
+            'target' => 80.0,
+            'requestedTarget' => 80.0,
+            'targetConfirmationPending' => true,
+        ];
+        $checkpoint['pending'] = [
+            'command' => 'G1 X11',
+            'sourceCommand' => true,
+            'beforeState' => $checkpoint['state'],
+            'afterState' => array_replace_recursive($checkpoint['state'], [
+                'position' => ['x' => 11.0],
+            ]),
+            'classification' => 'observable',
+        ];
+
+        $this->expectException(PrintRecoveryRequiredException::class);
+        $this->expectExceptionMessage('bed target changed unexpectedly');
+
+        (new PrintConnectionReconciler)->reconcile($printer, $serial, $checkpoint);
+    }
+
     public function test_pending_heater_target_is_classified_as_executed_or_not_executed(): void
     {
         [$printer, $serial, $checkpoint] = $this->scenario(target: 215.0);

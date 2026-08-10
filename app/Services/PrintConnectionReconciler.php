@@ -20,7 +20,8 @@ class PrintConnectionReconciler
     public const MAX_TEMPERATURE_DROP_CELSIUS = 10.0;
 
     public function __construct(
-        private ?Logger $log = null
+        private ?Logger $log = null,
+        private ?PrintStateTracker $stateTracker = null
     ) {}
 
     public function reconcile(Printer $printer, Serial $serial, array $checkpoint): string
@@ -266,10 +267,7 @@ class PrintConnectionReconciler
 
         $matchingStates = array_values(array_filter(
             $expectedStates,
-            fn (array $expected): bool => $this->targetValueMatches(
-                $expected['target'] ?? null,
-                $actualTarget
-            )
+            fn (array $expected): bool => $this->heaterTargetMatches($expected, $actual)
         ));
 
         if ($matchingStates === []) {
@@ -298,7 +296,7 @@ class PrintConnectionReconciler
             if (is_numeric($expected['temperature'] ?? null)) {
                 $referenceTemperatures[] = min(
                     (float) $expected['temperature'],
-                    (float) $expected['target']
+                    (float) $actualTarget
                 );
             }
         }
@@ -377,18 +375,45 @@ class PrintConnectionReconciler
         }
 
         foreach ($affected['extruders'] as $index) {
-            if (! $this->targetValueMatches(
-                $expected['thermal']['extruders'][$index]['target'] ?? null,
-                $statistics['extruders'][$index]['target'] ?? null
+            if (! $this->heaterTargetMatches(
+                $expected['thermal']['extruders'][$index] ?? [],
+                $statistics['extruders'][$index] ?? null
             )) {
                 return false;
             }
         }
 
-        return ! $affected['bed'] || $this->targetValueMatches(
-            $expected['thermal']['bed']['target'] ?? null,
-            $statistics['bed']['target'] ?? null
+        return ! $affected['bed'] || $this->heaterTargetMatches(
+            $expected['thermal']['bed'] ?? [],
+            $statistics['bed'] ?? null
         );
+    }
+
+    private function heaterTargetMatches(array $expected, mixed $actual): bool
+    {
+        if (! is_array($actual)) {
+            return false;
+        }
+
+        if ($this->targetValueMatches($expected['target'] ?? null, $actual['target'] ?? null)) {
+            return true;
+        }
+
+        if (($expected['targetConfirmationPending'] ?? false) !== true) {
+            return false;
+        }
+
+        return $this->stateTracker()->effectiveTargetCanBeConfirmed(
+            requestedTarget: $expected['requestedTarget'] ?? $expected['target'] ?? null,
+            observedTarget: $actual['target'] ?? null,
+            previousTemperature: $expected['temperature'] ?? null,
+            observedTemperature: $actual['temperature'] ?? null
+        );
+    }
+
+    private function stateTracker(): PrintStateTracker
+    {
+        return $this->stateTracker ??= app(PrintStateTracker::class);
     }
 
     private function positionValueMatches(mixed $expected, mixed $actual): bool
@@ -514,10 +539,12 @@ class PrintConnectionReconciler
                 $before['target'] ?? null,
                 $actual['target'] ?? null
             ),
+            'effectiveTargetMatchesBefore' => $this->heaterTargetMatches($before, $actual),
             'targetMatchesAfter' => $this->targetValueMatches(
                 $after['target'] ?? null,
                 $actual['target'] ?? null
             ),
+            'effectiveTargetMatchesAfter' => $this->heaterTargetMatches($after, $actual),
             'temperatureSafeAgainstBefore' => $this->heaterStateIsSafe($before, $actual),
             'temperatureSafeAgainstAfter' => $this->heaterStateIsSafe($after, $actual),
             'beforeTargetDelta' => $this->numericDelta(
@@ -541,7 +568,7 @@ class PrintConnectionReconciler
 
     private function heaterStateIsSafe(array $expected, array $actual): bool
     {
-        if (! $this->targetValueMatches($expected['target'] ?? null, $actual['target'] ?? null)) {
+        if (! $this->heaterTargetMatches($expected, $actual)) {
             return false;
         }
 

@@ -997,6 +997,10 @@ class Serial
                 }
             }
 
+            if (! $read) {
+                $this->throwIfSerialNodeDisappeared();
+            }
+
             $this->tickClocks($millis);
 
             $this->throwIfTimedOut($startedAtMillis, $deadlineMillis, $timeout);
@@ -1065,6 +1069,15 @@ class Serial
         ]);
 
         return trim($result);
+    }
+
+    private function throwIfSerialNodeDisappeared(): void
+    {
+        if (! self::nodeExists($this->fileName)) {
+            throw new InitializationException(
+                "Serial node {$this->fileName} disappeared while waiting for a response."
+            );
+        }
     }
 
     public function query(?string $command = null, ?int $lineNumber = null, ?int $maxLine = null, ?int $timeout = null): string
