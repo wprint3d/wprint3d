@@ -36,25 +36,8 @@ env:
   REGISTRY: docker.io/wprint3d
 
 jobs:
-  sync-cura-release-secrets:
-    name: Synchronize Cura release credentials
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/cura-parity-rc9'
-    runs-on: ubuntu-24.04
-    env:
-      GH_TOKEN: ${{ secrets.CURA_RELEASE_ADMIN_TOKEN }}
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-    steps:
-      - name: Copy Docker Hub credentials into the private release repository
-        run: |
-          set -euo pipefail
-          [[ -n "$GH_TOKEN" && -n "$DOCKERHUB_USERNAME" && -n "$DOCKERHUB_TOKEN" ]]
-          printf '%s' "$DOCKERHUB_USERNAME" | gh secret set DOCKERHUB_USERNAME --repo wprint3d/cura-web-ui
-          printf '%s' "$DOCKERHUB_TOKEN" | gh secret set DOCKERHUB_TOKEN --repo wprint3d/cura-web-ui
-
   validate:
     name: Validate Docker configuration
-    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/codex/cura-parity-rc9'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
