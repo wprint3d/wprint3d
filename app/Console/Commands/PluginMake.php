@@ -253,9 +253,9 @@ class PluginMake extends Command
         }
 
         $requirements = array_filter([
-                'memoryMb' => $memoryMb,
-                'cpuCores' => $cpuCores,
-            ], fn ($value) => $value !== null);
+            'memoryMb' => $memoryMb,
+            'cpuCores' => $cpuCores,
+        ], fn ($value) => $value !== null);
 
         if ($sdkRevision >= 6) {
             $requirements['policy'] = 'disable-by-default-when-unmet';
