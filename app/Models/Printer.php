@@ -103,6 +103,7 @@ class Printer extends Model
         'machine.capabilities.coolerTemperature',
         'machine.capabilities.meatpack',
         'machine.capabilities.configExport',
+        'slicing',
         'recordableCameras',
         'settings',
         'settings.autoScroll',

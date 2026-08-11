@@ -21,7 +21,7 @@ export default function Main({ appName, colorScheme, setColorScheme }) {
 
     return (
         <Reanimated.View 
-            style={{ flex: 1 }}
+            style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}
             entering={FadeIn.duration(500)}
         >
             <NavBar

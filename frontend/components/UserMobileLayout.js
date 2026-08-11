@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { View } from "react-native"
-import { BottomNavigation, Text, useTheme } from "react-native-paper";
+import { useCallback, useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
+import { BottomNavigation, Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
 import UserLeftPane from "./UserLeftPane";
 import { useQuery } from "@tanstack/react-query";
 import API from "../includes/API";
@@ -11,6 +11,43 @@ import UserPrinterRecordings from "./UserPrinterRecordings";
 import usePluginExtensions from "../hooks/usePluginExtensions";
 import PluginHostRenderer from "./PluginHostRenderer";
 import { useLocalization } from "../includes/LocalizationProvider";
+import { getPluginHostNavigationIndex, getPluginNavigationRoute } from "../utils/pluginNavigation";
+
+const CompactNavigationTouchable = ({ route, children: _children, style, accessibilityState, ...touchableProps }) => {
+    const { colors } = useTheme();
+    const focused = !!accessibilityState?.selected;
+
+    return (
+        <TouchableRipple
+            {...touchableProps}
+            accessibilityState={accessibilityState}
+            accessibilityLabel={route.accessibilityLabel || route.title}
+            style={[style, styles.compactNavigationItem]}
+        >
+            <View style={styles.compactNavigationContent}>
+                <View style={[
+                    styles.compactNavigationIcon,
+                    focused && { backgroundColor: colors.secondaryContainer },
+                ]}>
+                    <Icon
+                        source={focused ? route.focusedIcon : (route.unfocusedIcon || route.focusedIcon)}
+                        color={focused ? colors.onSecondaryContainer : colors.onSurfaceVariant}
+                        size={21}
+                    />
+                </View>
+                {focused && (
+                    <Text
+                        numberOfLines={1}
+                        variant="labelSmall"
+                        style={[styles.compactNavigationLabel, { color: colors.onSurface }]}
+                    >
+                        {route.title}
+                    </Text>
+                )}
+            </View>
+        </TouchableRipple>
+    );
+};
 
 const UserMobileLayout = ({
     isLoadingPrinter = true, printerId,
@@ -30,14 +67,20 @@ const UserMobileLayout = ({
         { key: 'preview',    title: t("mobile.preview"),    focusedIcon: 'eye',            unfocusedIcon: 'eye-outline'            },
         { key: 'control',    title: t("mobile.control"),    focusedIcon: 'camera-control', unfocusedIcon: 'camera-control'         },
         { key: 'recordings', title: t("mobile.recordings"), focusedIcon: 'record-circle',  unfocusedIcon: 'record-circle-outline'  },
-        ...((pageExtensions?.data?.data || []).map((extension) => ({
-            key: `plugin:${extension.pluginId}:${extension.id}`,
-            title: extension.title,
-            focusedIcon: 'puzzle',
-            unfocusedIcon: 'puzzle-outline',
-            extension,
-        }))),
+        ...((pageExtensions?.data?.data || []).map(getPluginNavigationRoute)),
     ];
+    const navigateFromPlugin = useCallback((destination) => {
+        if (destination === "printer-slicing" && typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("wprint3d:open-printer-slicing", {
+                detail: { printerId },
+            }));
+            return true;
+        }
+        const destinationIndex = getPluginHostNavigationIndex(destination, { mobile: true });
+        if (destinationIndex === null) { return false; }
+        setIndex(destinationIndex);
+        return true;
+    }, [printerId]);
 
     const renderScene = ({ route }) => {
         switch (route.key) {
@@ -57,6 +100,7 @@ const UserMobileLayout = ({
                         extension={route.extension}
                         modalExtensions={modalExtensions?.data?.data || []}
                         printerId={printerId}
+                        onHostNavigate={navigateFromPlugin}
                     />
                 );
         }
@@ -70,7 +114,9 @@ const UserMobileLayout = ({
                 navigationState={{ index, routes }}
                 onIndexChange={setIndex}
                 renderScene={renderScene}
-                shifting={true}
+                renderTouchable={props => <CompactNavigationTouchable {...props} />}
+                shifting={false}
+                labeled={false}
                 compact={true}
             />
         </View>
@@ -78,3 +124,31 @@ const UserMobileLayout = ({
 }
 
 export default UserMobileLayout;
+
+const styles = StyleSheet.create({
+    compactNavigationItem: {
+        minHeight: 60,
+        paddingVertical: 0,
+    },
+    compactNavigationContent: {
+        minHeight: 60,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 1,
+        paddingHorizontal: 2,
+    },
+    compactNavigationIcon: {
+        width: 38,
+        height: 28,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    compactNavigationLabel: {
+        width: '100%',
+        maxWidth: 64,
+        fontSize: 10,
+        lineHeight: 12,
+        textAlign: 'center',
+    },
+});

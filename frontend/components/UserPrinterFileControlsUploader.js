@@ -1,62 +1,29 @@
-import { useState } from 'react';
-
-import { Menu, Icon, useTheme } from 'react-native-paper';
+import { Icon, useTheme } from 'react-native-paper';
 
 import SmallButton from './SmallButton';
 
 import * as DocumentPicker from 'expo-document-picker';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSnackbar } from 'react-native-paper-snackbar-stack';
-import API from '../includes/API';
 import { useLocalization } from '../includes/LocalizationProvider';
 
-export default function UserPrinterFileControlsUploader({ subDirectory, setSelectedFileName }) {
+export default function UserPrinterFileControlsUploader({ disabled = false, onFilesSelected }) {
   const { colors } = useTheme();
   const { t } = useLocalization();
-
-  const { enqueueSnackbar } = useSnackbar();
-
-  const queryClient = useQueryClient();
-
-  const fileUploadMutation = useMutation({
-    mutationFn:  body => API.post('/user/file/upload', body),
-    onSuccess:   result => {
-      console.debug('fileUploadMutation onSuccess:', result);
-
-      queryClient.invalidateQueries({ queryKey: ['fileList'] });
-
-      const uploadedFileNames = result?.data;
-
-      if (uploadedFileNames?.length === 1) {
-        setSelectedFileName(uploadedFileNames[0]);
-      }
-    },
-    onError:     (error) => {
-      console.error('fileUploadMutation onError:', error);
-
-      enqueueSnackbar({
-        message: t("files.uploadError", { reason: (error.response?.data?.message ?? error.message).toLowerCase() }),
-        variant: 'error',
-        action:  { label: t("notifications.gotIt") }
-      });
-    }
-  });
 
   return (
     <>
       <SmallButton
-        disabled={fileUploadMutation.isPending}
-        loading={fileUploadMutation.isPending}
+        disabled={disabled}
+        loading={disabled}
         onPress={() => {
-          DocumentPicker.getDocumentAsync({ multiple: true }).then(({ assets, canceled, output }) => {
+          DocumentPicker.getDocumentAsync({
+            multiple: true,
+            type: ['text/plain', 'text/x-gcode', 'application/gzip', 'application/octet-stream'],
+          }).then(({ assets, canceled, output }) => {
             console.debug('DocumentPicker.getDocumentAsync:', { assets, canceled, output });
 
             if (canceled || !assets.length) { return; }
 
-            fileUploadMutation.mutate({
-              subDirectory: subDirectory,
-              files:        assets.map(item => item.file)
-            });
+            onFilesSelected(assets.map(item => item.file));
           });
         }}
         right={

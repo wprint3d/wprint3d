@@ -10,15 +10,44 @@
 ## Current SDK
 
 - `sdkVersion: 1`
-- `sdkRevision: 5`
+- `sdkRevision: 6`
 
 ## Version 1
+
+### Revision 6
+
+Status:
+
+- `current`
+
+Released:
+
+- `2026-08-10`
+
+Summary:
+
+- Background preparation, requirement-aware activation, administrator override, and Core-managed heavyweight updates.
+
+Changes:
+
+- Added `requirements.policy: disable-by-default-when-unmet` and `requirements.allowAdminOverride`.
+- Added `activation.prepare: background` and `activation.autoEnableWhenReady` so installation can finish while managed dependencies are pulled and verified asynchronously.
+- Added persistent disabled-on-incompatible-host behavior, with an explicit administrator acknowledgement path when overrides are allowed.
+- Added `updates.managedByCore: true`; revision-6 runtimes do not independently auto-update outside the WPrint release lifecycle.
+- Kept WPrint Core available when image pull, runtime startup, or healthchecks fail, and exposed preparation state and failure diagnostics through plugin inventory.
+- Standardized explicit heavyweight updates on candidate readiness, promotion, and rollback to the previous runtime.
+
+Migration notes:
+
+- New heavyweight plugins should target `sdkRevision: 6` and declare all three lifecycle blocks.
+- Choose `autoEnableWhenReady: true` only when a successfully prepared plugin should become active without a second administrator action.
+- Revision 5 remains supported. It retains synchronous activation semantics and does not receive the revision-6 requirement policy or Core-managed update contract.
 
 ### Revision 5
 
 Status:
 
-- `current`
+- `supported`
 
 Released:
 

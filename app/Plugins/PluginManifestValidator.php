@@ -77,6 +77,7 @@ class PluginManifestValidator
         }
 
         $this->assertRevisionFiveFields($manifest, (int) $manifest['sdkRevision']);
+        $this->assertRevisionSixFields($manifest, (int) $manifest['sdkRevision']);
 
         if (! preg_match('/^[a-z0-9]+(?:[._-][a-z0-9]+)+$/', (string) $manifest['id'])) {
             throw new InvalidPluginManifestException('Plugin ID must be a dotted or dashed lowercase identifier.');
@@ -95,7 +96,20 @@ class PluginManifestValidator
         }
 
         $manifest['images'] = $this->normalizeImages($manifest['images'] ?? [], (int) $manifest['sdkRevision']);
-        $manifest['requirements'] = $this->normalizeRequirements($manifest['requirements'] ?? []);
+        $manifest['requirements'] = $this->normalizeRequirements(
+            $manifest['requirements'] ?? [],
+            (int) $manifest['sdkRevision'],
+        );
+        if ((int) $manifest['sdkRevision'] >= 6) {
+            $manifest['activation'] = $this->normalizeActivation(
+                $manifest['activation'] ?? [],
+                (int) $manifest['sdkRevision'],
+            );
+            $manifest['updates'] = $this->normalizeUpdates(
+                $manifest['updates'] ?? [],
+                (int) $manifest['sdkRevision'],
+            );
+        }
 
         if (
             $runtimeType === 'bridge'
@@ -171,6 +185,21 @@ class PluginManifestValidator
         foreach ($manifest['uiExtensions'] as $extension) {
             if (empty($extension['id']) || empty($extension['surface']) || empty($extension['title'])) {
                 throw new InvalidPluginManifestException('Each UI extension must declare id, surface and title.');
+            }
+
+            if (isset($extension['icon']) && (
+                ! is_string($extension['icon'])
+                || ! preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $extension['icon'])
+            )) {
+                throw new InvalidPluginManifestException("UI extension {$extension['id']} icon must be a Material Community icon name.");
+            }
+
+            if (isset($extension['navigationLabel']) && (
+                ! is_string($extension['navigationLabel'])
+                || trim($extension['navigationLabel']) === ''
+                || mb_strlen($extension['navigationLabel']) > 24
+            )) {
+                throw new InvalidPluginManifestException("UI extension {$extension['id']} navigationLabel must contain between 1 and 24 characters.");
             }
 
             if (! in_array($extension['surface'], $this->allowedSurfaces, true)) {
@@ -349,6 +378,28 @@ class PluginManifestValidator
             if (is_array($extension) && array_key_exists('presentation', $extension)) {
                 throw new InvalidPluginManifestException('uiExtensions.presentation requires SDK revision 5.');
             }
+        }
+    }
+
+    private function assertRevisionSixFields(array $manifest, int $revision): void
+    {
+        if ($revision >= 6) {
+            return;
+        }
+
+        $requirements = is_array($manifest['requirements'] ?? null) ? $manifest['requirements'] : [];
+        foreach (['policy', 'allowAdminOverride'] as $field) {
+            if (array_key_exists($field, $requirements)) {
+                throw new InvalidPluginManifestException("requirements.{$field} requires SDK revision 6.");
+            }
+        }
+
+        if (array_key_exists('activation', $manifest)) {
+            throw new InvalidPluginManifestException('activation requires SDK revision 6.');
+        }
+
+        if (array_key_exists('updates', $manifest)) {
+            throw new InvalidPluginManifestException('updates requires SDK revision 6.');
         }
     }
 
@@ -562,6 +613,10 @@ class PluginManifestValidator
         }
 
         $runtime['auth'] = ['mode' => $authMode];
+
+        if ($manifestRevision < 5) {
+            return $runtime;
+        }
 
         if (isset($runtime['proxy']) && ! is_array($runtime['proxy'])) {
             throw new InvalidPluginManifestException('Bridge runtime.proxy must be an object.');
@@ -849,9 +904,9 @@ class PluginManifestValidator
         ];
     }
 
-    private function normalizeRequirements(array $requirements): array
+    private function normalizeRequirements(array $requirements, int $sdkRevision): array
     {
-        if ($requirements === []) {
+        if ($requirements === [] && $sdkRevision < 6) {
             return [];
         }
 
@@ -881,7 +936,59 @@ class PluginManifestValidator
             }
         }
 
+        if ($sdkRevision >= 6) {
+            $policy = $requirements['policy'] ?? 'disable-by-default-when-unmet';
+            if ($policy !== 'disable-by-default-when-unmet') {
+                throw new InvalidPluginManifestException('Plugin requirements.policy must be disable-by-default-when-unmet.');
+            }
+
+            if (array_key_exists('allowAdminOverride', $requirements) && ! is_bool($requirements['allowAdminOverride'])) {
+                throw new InvalidPluginManifestException('Plugin requirements.allowAdminOverride must be a boolean.');
+            }
+
+            $normalized['policy'] = $policy;
+            $normalized['allowAdminOverride'] = (bool) ($requirements['allowAdminOverride'] ?? false);
+        }
+
         return $normalized;
+    }
+
+    private function normalizeActivation(array $activation, int $sdkRevision): array
+    {
+        if ($sdkRevision < 6) {
+            return [];
+        }
+
+        $prepare = $activation['prepare'] ?? 'background';
+        if ($prepare !== 'background') {
+            throw new InvalidPluginManifestException('Plugin activation.prepare must be background.');
+        }
+
+        if (array_key_exists('autoEnableWhenReady', $activation) && ! is_bool($activation['autoEnableWhenReady'])) {
+            throw new InvalidPluginManifestException('Plugin activation.autoEnableWhenReady must be a boolean.');
+        }
+
+        return [
+            'prepare' => $prepare,
+            'autoEnableWhenReady' => (bool) ($activation['autoEnableWhenReady'] ?? false),
+        ];
+    }
+
+    private function normalizeUpdates(array $updates, int $sdkRevision): array
+    {
+        if ($sdkRevision < 6) {
+            return [];
+        }
+
+        if (array_key_exists('managedByCore', $updates) && ! is_bool($updates['managedByCore'])) {
+            throw new InvalidPluginManifestException('Plugin updates.managedByCore must be a boolean.');
+        }
+
+        if (($updates['managedByCore'] ?? true) !== true) {
+            throw new InvalidPluginManifestException('SDK revision 6 plugins must declare core-managed updates.');
+        }
+
+        return ['managedByCore' => true];
     }
 
     private function normalizeOptionalUrl(mixed $value, string $field): ?string

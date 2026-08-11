@@ -8,6 +8,7 @@ use App\Enums\RecoveryStage;
 use App\Events\RecoveryProgress;
 use App\Events\RecoveryStageChanged;
 use App\Exceptions\InitializationException;
+use App\Exceptions\PrinterSlicingRevisionConflict;
 use App\Exceptions\PrintJobException;
 
 use App\Jobs\RenderVideo;
@@ -15,12 +16,15 @@ use App\Libraries\Serial;
 use App\Models\Camera;
 use App\Models\Configuration;
 use App\Models\Printer;
+use App\Plugins\Exceptions\PluginRuntimeException;
 use App\Services\PrintJobService;
+use App\Services\PrinterSlicingConfigurationService;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
@@ -105,6 +109,88 @@ class PrinterController extends Controller
         }
 
         return $printer;
+    }
+
+    public function getSlicing(
+        string $printerId,
+        Request $request,
+        PrinterSlicingConfigurationService $slicing,
+    ): JsonResponse {
+        $printer = Printer::find($printerId);
+        if (! $printer) {
+            return response()->json([
+                'error' => ['code' => 'printer_not_found', 'message' => 'Printer not found.'],
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        return response()->json($slicing->configuration($printer, $request->user()));
+    }
+
+    public function getSlicingCandidates(
+        string $printerId,
+        Request $request,
+        PrinterSlicingConfigurationService $slicing,
+    ): JsonResponse {
+        $printer = Printer::find($printerId);
+        if (! $printer) {
+            return response()->json([
+                'error' => ['code' => 'printer_not_found', 'message' => 'Printer not found.'],
+            ], Response::HTTP_NOT_FOUND);
+        }
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:200'],
+            'definitionId' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        try {
+            return response()->json($slicing->candidates(
+                $printer,
+                $validated['q'] ?? null,
+                $request->user(),
+                $validated['definitionId'] ?? null,
+            ));
+        } catch (PluginRuntimeException|\Illuminate\Http\Client\HttpClientException $exception) {
+            return response()->json([
+                'error' => ['code' => 'slicer_catalog_unavailable', 'message' => $exception->getMessage()],
+            ], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+    }
+
+    public function updateSlicing(
+        string $printerId,
+        Request $request,
+        PrinterSlicingConfigurationService $slicing,
+    ): JsonResponse {
+        $printer = Printer::find($printerId);
+        if (! $printer) {
+            return response()->json([
+                'error' => ['code' => 'printer_not_found', 'message' => 'Printer not found.'],
+            ], Response::HTTP_NOT_FOUND);
+        }
+        $validated = $request->validate([
+            'expectedRevision' => ['required', 'integer', 'min:0'],
+            'definitionId' => ['required', 'string', 'max:255'],
+            'overrides' => ['sometimes', 'array'],
+        ]);
+
+        try {
+            return response()->json($slicing->confirm($printer, $request->user(), $validated));
+        } catch (PrinterSlicingRevisionConflict $exception) {
+            return response()->json([
+                'error' => [
+                    'code' => 'slicing_revision_conflict',
+                    'message' => $exception->getMessage(),
+                    'details' => [
+                        'expectedRevision' => $exception->expectedRevision,
+                        'currentRevision' => $exception->currentRevision,
+                    ],
+                ],
+            ], Response::HTTP_CONFLICT);
+        } catch (PluginRuntimeException|\Illuminate\Http\Client\HttpClientException $exception) {
+            return response()->json([
+                'error' => ['code' => 'slicer_resolution_failed', 'message' => $exception->getMessage()],
+            ], Response::HTTP_BAD_GATEWAY);
+        }
     }
 
     private function appendConnectionStatus(Printer $printer): void {

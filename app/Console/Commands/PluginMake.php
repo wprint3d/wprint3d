@@ -252,11 +252,23 @@ class PluginMake extends Command
             $manifest['assets'] = $assets;
         }
 
-        if ($memoryMb || $cpuCores) {
-            $manifest['requirements'] = array_filter([
+        $requirements = array_filter([
                 'memoryMb' => $memoryMb,
                 'cpuCores' => $cpuCores,
             ], fn ($value) => $value !== null);
+
+        if ($sdkRevision >= 6) {
+            $requirements['policy'] = 'disable-by-default-when-unmet';
+            $requirements['allowAdminOverride'] = true;
+            $manifest['activation'] = [
+                'prepare' => 'background',
+                'autoEnableWhenReady' => false,
+            ];
+            $manifest['updates'] = ['managedByCore' => true];
+        }
+
+        if ($requirements !== []) {
+            $manifest['requirements'] = $requirements;
         }
 
         if ($imageReference) {

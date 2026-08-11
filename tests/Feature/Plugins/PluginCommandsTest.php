@@ -5,6 +5,7 @@ namespace Tests\Feature\Plugins;
 use App\Models\Plugin;
 use App\Plugins\Contracts\PluginManager;
 use App\Plugins\PluginArchiveService;
+use App\Plugins\PluginDependencyService;
 use App\Plugins\PluginPackage;
 use App\Plugins\PluginTrustedKeySynchronizer;
 use Illuminate\Support\Facades\File;
@@ -110,6 +111,52 @@ class PluginCommandsTest extends TestCase
         $this->artisan('plugin:auto-update')
             ->expectsOutput('Automatic plugin updates checked 3 plugins: 1 updated, 1 already current, 1 skipped, 0 failed.')
             ->assertExitCode(0);
+    }
+
+    public function test_runtime_reconciliation_persists_the_resolved_bridge_state(): void
+    {
+        $plugin = Plugin::query()->create([
+            'plugin_id' => 'acme.reconcile',
+            'name' => 'Reconcile fixture',
+            'current_version' => '1.0.0',
+            'enabled' => true,
+            'load_status' => 'ready',
+            'manifest' => [
+                'id' => 'acme.reconcile',
+                'runtime' => ['type' => 'bridge', 'managedImageId' => 'gateway'],
+            ],
+            'dependency_state' => [],
+        ]);
+        $resolvedState = [
+            'runtime' => ['baseUrl' => 'http://acme-reconcile-gateway:9311'],
+            'images' => [],
+        ];
+        $dependencyService = Mockery::mock(PluginDependencyService::class);
+        $dependencyService->shouldReceive('reconcile')
+            ->once()
+            ->withArgs(fn (array $plugins): bool => collect($plugins)->contains(
+                fn (array $candidate): bool => ($candidate['id'] ?? null) === 'acme.reconcile'
+            ))
+            ->andReturn([[
+                'id' => 'acme.reconcile',
+                'status' => 'ready',
+                'state' => $resolvedState,
+            ]]);
+        $this->app->instance(PluginDependencyService::class, $dependencyService);
+
+        try {
+            $this->artisan('plugin:reconcile-runtime')
+                ->expectsOutput('acme.reconcile: ready')
+                ->assertExitCode(0);
+
+            $plugin->refresh();
+            $this->assertSame($resolvedState, $plugin->dependency_state);
+            $this->assertSame('ready', $plugin->load_status);
+            $this->assertNull($plugin->last_error);
+            $this->assertNotNull($plugin->last_healthcheck_at);
+        } finally {
+            $plugin->delete();
+        }
     }
 
     public function test_cura_builtin_can_be_disabled_without_affecting_other_builtins(): void

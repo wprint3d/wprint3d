@@ -20,7 +20,7 @@ on:
         required: true
         type: string
       minimum_wprint_core_version:
-        description: First WPrint core version supporting SDK revision 5
+        description: First WPrint core version supporting SDK revision 6
         required: true
         type: string
 
@@ -104,8 +104,14 @@ jobs:
             if (($manifest["id"] ?? null) !== "cura-web-ui" || ($manifest["version"] ?? null) !== getenv("PLUGIN_VERSION")) {
                 throw new RuntimeException("Unexpected Cura plugin identity or version.");
             }
+            if (($manifest["sdkVersion"] ?? null) !== 1 || ($manifest["sdkRevision"] ?? null) !== 6) {
+                throw new RuntimeException("Cura plugin must target WPrint SDK 1 revision 6.");
+            }
             if (($manifest["images"][0]["image"] ?? null) !== getenv("IMAGE_REFERENCE")) {
                 throw new RuntimeException("Staged manifest image does not match the release input.");
+            }
+            if (!preg_match("~^docker\\.io/wprint3d/cura-web-ui-gateway:" . preg_quote(getenv("PLUGIN_VERSION"), "~") . "@sha256:[a-f0-9]{64}$~", (string)($manifest["images"][0]["image"] ?? ""))) {
+                throw new RuntimeException("Cura plugin image must be the public Docker Hub release pinned by digest.");
             }
             if (($manifest["minCoreVersion"] ?? null) !== getenv("MINIMUM_WPRINT_CORE_VERSION")) {
                 throw new RuntimeException("Staged manifest minimum WPrint core version does not match the release input.");

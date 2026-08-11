@@ -41,7 +41,9 @@ interface PluginManager
 
     public function installFromDevelopmentPath(string $path): array;
 
-    public function enable(string $pluginId): array;
+    public function enable(string $pluginId, bool $overrideRequirements = false, ?string $overrideBy = null): array;
+
+    public function prepareRuntime(string $pluginId, string $expectedVersion): array;
 
     public function disable(string $pluginId): array;
 

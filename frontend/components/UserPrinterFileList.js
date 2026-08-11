@@ -1,15 +1,112 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { View } from "react-native";
+import { Animated, View } from "react-native";
 
-import { ActivityIndicator, Badge, Divider, Icon, List, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Badge, Divider, Icon, IconButton, List, Text, useTheme } from "react-native-paper";
 
 import UserPrinterFileListControls from "./UserPrinterFileListControls";
 
 import API from "../includes/API";
 import { useLocalization } from "../includes/LocalizationProvider";
+
+function FileTransferListItem({ transfer, colors, t, onRetry, onCancel, onDismiss }) {
+    const progress = useRef(new Animated.Value(transfer.progress || 0)).current;
+
+    useEffect(() => {
+        Animated.timing(progress, {
+            toValue: transfer.progress || 0,
+            duration: 220,
+            useNativeDriver: false,
+        }).start();
+    }, [progress, transfer.progress]);
+
+    const stateLabel = {
+        queued: t("files.transferQueued"),
+        uploading: t("files.transferUploading"),
+        processing: t("files.transferProcessing"),
+        transferring: t("files.transferImporting"),
+        'starting-print': t("files.transferStartingPrint"),
+        ready: t("files.transferReady"),
+        complete: t("files.transferReady"),
+        printing: t("files.transferPrinting"),
+        error: t("files.transferError"),
+        cancelled: t("files.transferCancelled"),
+    }[transfer.state] || t("files.transferring");
+    const isActive = ['queued', 'uploading', 'processing', 'transferring', 'starting-print'].includes(transfer.state);
+    const canRetry = ['error', 'cancelled'].includes(transfer.state) && typeof onRetry === 'function';
+    const canDismiss = ['ready', 'complete', 'printing', 'error', 'cancelled'].includes(transfer.state) && typeof onDismiss === 'function';
+
+    return (
+        <View
+            testID="file-transfer-item"
+            accessibilityLabel={`${transfer.name}, ${stateLabel}, ${Math.round(transfer.progress || 0)}%`}
+            accessibilityLiveRegion="polite"
+            style={{
+                minHeight: 56,
+                position: 'relative',
+                overflow: 'hidden',
+                justifyContent: 'center',
+                backgroundColor: transfer.state === 'error' ? colors.errorContainer : colors.surfaceVariant,
+                opacity: 0.86,
+            }}
+        >
+            <Animated.View
+                testID="file-transfer-progress-fill"
+                pointerEvents="none"
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    bottom: 0,
+                    left: 0,
+                    width: progress.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
+                    backgroundColor: transfer.state === 'error' ? colors.error : colors.primaryContainer,
+                    opacity: 0.72,
+                }}
+            />
+            <View style={{ minHeight: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 12 }}>
+                {['ready', 'complete', 'printing'].includes(transfer.state)
+                    ? <Icon source={transfer.state === 'printing' ? 'printer-3d' : 'check-circle'} color={colors.primary} size={24} />
+                    : ['error', 'cancelled'].includes(transfer.state)
+                        ? <Icon source={transfer.state === 'error' ? 'alert-circle' : 'cancel'} color={colors.error} size={24} />
+                        : <ActivityIndicator animating size={22} color={colors.primary} />}
+                <View style={{ minWidth: 0, flexGrow: 1, flexShrink: 1 }}>
+                    <Text numberOfLines={1} variant="bodyMedium" style={{ color: colors.onSurface, fontWeight: '600' }}>{transfer.name}</Text>
+                    <Text numberOfLines={1} variant="labelSmall" style={{ color: colors.onSurfaceVariant }}>{stateLabel}</Text>
+                </View>
+                <Text variant="labelMedium" style={{ color: colors.onSurface }}>{Math.round(transfer.progress || 0)}%</Text>
+                {canRetry && (
+                    <IconButton
+                        icon="refresh"
+                        size={20}
+                        accessibilityLabel={t("files.retryTransfer")}
+                        onPress={onRetry}
+                        style={{ width: 44, height: 44, margin: 0 }}
+                    />
+                )}
+                {isActive && typeof onCancel === 'function' && (
+                    <IconButton
+                        icon="close"
+                        size={20}
+                        accessibilityLabel={t("files.cancelTransfer")}
+                        onPress={onCancel}
+                        style={{ width: 44, height: 44, margin: 0 }}
+                    />
+                )}
+                {canDismiss && (
+                    <IconButton
+                        icon="close"
+                        size={20}
+                        accessibilityLabel={t("files.dismissTransfer")}
+                        onPress={onDismiss}
+                        style={{ width: 44, height: 44, margin: 0 }}
+                    />
+                )}
+            </View>
+        </View>
+    );
+}
 
 export default function UserPrinterFileList({
     selectedFileName,
@@ -19,7 +116,11 @@ export default function UserPrinterFileList({
     isCreatingFolder,
     setIsCreatingFolder,
     deleteDirectoryMutation,
-    isParentBusy = false
+    isParentBusy = false,
+    pendingUploads = [],
+    onRetryUpload,
+    onCancelUpload,
+    onDismissUpload,
 }) {
     const { colors } = useTheme();
     const { t } = useLocalization();
@@ -59,6 +160,13 @@ export default function UserPrinterFileList({
         enabled:    sortingMode !== null
     });
 
+    const hostTransfers = useQuery({
+        queryKey: ['fileTransfers'],
+        queryFn: async () => [],
+        initialData: [],
+        enabled: false,
+    });
+
     useEffect(() => setSelectedFileName(null), [ subDirectory ]);
 
     useEffect(() => {
@@ -93,6 +201,25 @@ export default function UserPrinterFileList({
     }, [ selectedFileName ]);
 
     let components = [];
+    const transfers = [
+        ...pendingUploads,
+        ...(hostTransfers.data || []),
+    ];
+
+    transfers.forEach(transfer => {
+        components.push(
+            <FileTransferListItem
+                key={`transfer-${transfer.id}`}
+                transfer={transfer}
+                colors={colors}
+                t={t}
+                onRetry={transfer.onRetry || (onRetryUpload ? () => onRetryUpload(transfer.id) : undefined)}
+                onCancel={transfer.onCancel || (onCancelUpload ? () => onCancelUpload(transfer.id) : undefined)}
+                onDismiss={transfer.onDismiss || (onDismissUpload ? () => onDismissUpload(transfer.id) : undefined)}
+            />
+        );
+        components.push(<Divider key={`transfer-divider-${transfer.id}`} />);
+    });
     const formatPrintCount = (count) => (
         count === 1
             ? t("files.printCountOne", { count })

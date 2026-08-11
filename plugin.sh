@@ -288,18 +288,13 @@ backend_runtime_for_copy() {
 copy_file_to_backend() {
     local host_path="$1"
     local container_path="$2"
-    local container_ref
-    local runtime
 
-    container_ref="$(backend_container_ref)"
-    runtime="$(backend_runtime_for_copy)"
-
-    if [[ -z "$container_ref" || -z "$runtime" ]]; then
-        echo 'Unable to resolve a backend container for file copy.' >&2
-        return 1
-    fi
-
-    runtime_container_cli "$runtime" cp "$host_path" "${container_ref}:${container_path}"
+    # Docker copies files into the image layer rather than a mounted tmpfs. A
+    # backend that mounts /tmp therefore cannot see secrets staged with
+    # `docker cp`, even though that command reports success. Stream through the
+    # backend process instead so the file is created in its active mount
+    # namespace, owned by the same user that runs Artisan, and remains private.
+    run_backend_shell "umask 077; cat > '${container_path}'; chmod 600 '${container_path}'" < "$host_path"
 }
 
 remove_file_from_backend() {

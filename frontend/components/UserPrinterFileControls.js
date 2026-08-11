@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useEffect, useRef, useState } from "react";
 
-import { Animated, View } from "react-native";
+import { Animated, Platform, View } from "react-native";
 
 import { Button, Icon, SegmentedButtons, Text, TextInput, TouchableRipple, useTheme } from "react-native-paper";
 
@@ -36,6 +36,13 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
     const [ isRequestingDelete, setIsRequestingDelete ] = useState(false);
     const [ isRequestingRename, setIsRequestingRename ] = useState(false);
     const [ isCreatingFolder,   setIsCreatingFolder   ] = useState(false);
+    const [ isFileDropActive,   setIsFileDropActive   ] = useState(false);
+    const [ uploadTransfers,    setUploadTransfers    ] = useState([]);
+    const fileDragDepth = useRef(0);
+    const fileDropZone = useRef(null);
+    const uploadGcodeFilesRef = useRef(null);
+    const uploadFiles = useRef(new Map());
+    const uploadControllers = useRef(new Map());
 
     const [ newFileName,   setNewFileName   ] = useState(selectedFileName);
     const [ newFolderName, setNewFolderName ] = useState('');
@@ -50,6 +57,162 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
 
     const queryClient = useQueryClient();
     const getErrorReason = error => (error.response?.data?.message ?? error.message).toLowerCase();
+
+    const updateUploadTransfer = (transferId, changes) => {
+        setUploadTransfers(current => current.map(item => (
+            item.id === transferId ? { ...item, ...changes } : item
+        )));
+    };
+
+    const dismissUploadTransfer = transferId => {
+        uploadControllers.current.get(transferId)?.abort();
+        uploadControllers.current.delete(transferId);
+        uploadFiles.current.delete(transferId);
+        setUploadTransfers(current => current.filter(item => item.id !== transferId));
+    };
+
+    const uploadGcodeFile = async transferId => {
+        const upload = uploadFiles.current.get(transferId);
+        if (!upload) { return; }
+
+        const controller = new AbortController();
+        uploadControllers.current.get(transferId)?.abort();
+        uploadControllers.current.set(transferId, controller);
+        updateUploadTransfer(transferId, { progress: 0, state: 'uploading', error: null });
+
+        try {
+            const result = await API.post('/user/file/upload', {
+                subDirectory: upload.directory,
+                files: [upload.file],
+            }, {
+                signal: controller.signal,
+                onUploadProgress: event => {
+                    const total = event.total || 0;
+                    const uploadedPercent = total > 0 ? Math.round((event.loaded / total) * 100) : 8;
+                    updateUploadTransfer(transferId, {
+                        progress: Math.min(95, Math.max(1, uploadedPercent)),
+                        state: uploadedPercent >= 100 ? 'processing' : 'uploading',
+                    });
+                }
+            });
+            if (controller.signal.aborted) { return; }
+
+            const storedName = result?.data?.[0] || upload.file.name;
+            updateUploadTransfer(transferId, { name: storedName, progress: 100, state: 'ready' });
+            queryClient.invalidateQueries({ queryKey: ['fileList'] });
+            if (upload.directory === subDirectory) {
+                setSelectedFileName(storedName);
+            }
+            globalThis.setTimeout(() => {
+                setUploadTransfers(current => current.filter(item => item.id !== transferId || item.state !== 'ready'));
+                uploadFiles.current.delete(transferId);
+            }, 1600);
+        } catch (error) {
+            if (controller.signal.aborted || error?.code === 'ERR_CANCELED') {
+                updateUploadTransfer(transferId, { state: 'cancelled' });
+                return;
+            }
+
+            const reason = getErrorReason(error);
+            updateUploadTransfer(transferId, { state: 'error', error: reason });
+            enqueueSnackbar({
+                message: t("files.uploadError", { reason }),
+                variant: 'error',
+                action: { label: t("notifications.gotIt") }
+            });
+        } finally {
+            if (uploadControllers.current.get(transferId) === controller) {
+                uploadControllers.current.delete(transferId);
+            }
+        }
+    };
+
+    const cancelUploadTransfer = transferId => {
+        uploadControllers.current.get(transferId)?.abort();
+        updateUploadTransfer(transferId, { state: 'cancelled' });
+    };
+
+    const retryUploadTransfer = transferId => {
+        void uploadGcodeFile(transferId);
+    };
+
+    const uploadGcodeFiles = filesInput => {
+        const files = Array.from(filesInput || []);
+        if (!files.length) { return; }
+        const supportedFiles = files.filter(file => /(?:\.gcode\.gz|\.gcode|\.gco)$/i.test(file?.name || ''));
+        if (supportedFiles.length !== files.length) {
+            enqueueSnackbar({
+                message: t('files.uploadOnlyGcode'),
+                variant: 'error',
+                action: { label: t("notifications.gotIt") }
+            });
+        }
+        if (!supportedFiles.length) { return; }
+        const timestamp = Date.now();
+        const transfers = supportedFiles.map((file, index) => {
+            const id = `upload-${timestamp}-${index}`;
+            uploadFiles.current.set(id, { file, directory: subDirectory });
+            return {
+                id,
+                name: file.name,
+                directory: subDirectory,
+                progress: 0,
+                state: 'queued',
+            };
+        });
+        setUploadTransfers(current => [...current, ...transfers]);
+        transfers.forEach(transfer => void uploadGcodeFile(transfer.id));
+    };
+
+    uploadGcodeFilesRef.current = uploadGcodeFiles;
+
+    useEffect(() => {
+        const dropZone = fileDropZone.current;
+        if (Platform.OS !== 'web' || !dropZone?.addEventListener) { return; }
+
+        const isFileDrag = event => Array.from(event.dataTransfer?.types || []).includes('Files');
+        const handleDragEnter = event => {
+            if (!isFileDrag(event)) { return; }
+            event.preventDefault();
+            fileDragDepth.current += 1;
+            setIsFileDropActive(true);
+        };
+        const handleDragOver = event => {
+            if (!isFileDrag(event)) { return; }
+            event.preventDefault();
+            if (event.dataTransfer) { event.dataTransfer.dropEffect = 'copy'; }
+            setIsFileDropActive(true);
+        };
+        const handleDragLeave = event => {
+            event.preventDefault();
+            fileDragDepth.current = Math.max(0, fileDragDepth.current - 1);
+            if (fileDragDepth.current === 0) { setIsFileDropActive(false); }
+        };
+        const handleDrop = event => {
+            if (!isFileDrag(event)) { return; }
+            event.preventDefault();
+            fileDragDepth.current = 0;
+            setIsFileDropActive(false);
+            uploadGcodeFilesRef.current?.(event.dataTransfer?.files);
+        };
+
+        dropZone.addEventListener('dragenter', handleDragEnter);
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('dragleave', handleDragLeave);
+        dropZone.addEventListener('drop', handleDrop);
+
+        return () => {
+            dropZone.removeEventListener('dragenter', handleDragEnter);
+            dropZone.removeEventListener('dragover', handleDragOver);
+            dropZone.removeEventListener('dragleave', handleDragLeave);
+            dropZone.removeEventListener('drop', handleDrop);
+        };
+    }, []);
+
+    useEffect(() => () => {
+        uploadControllers.current.forEach(controller => controller.abort());
+        uploadControllers.current.clear();
+    }, []);
 
     const startPrintMutation = useMutation({
         mutationFn: () => API.post('/user/printer/selected/print', {
@@ -321,7 +484,37 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
     }, [ echo, printerId, queryClient ]);
 
     return (
-        <View style={{ paddingTop: 10 }}>
+        <View
+            ref={fileDropZone}
+            testID="gcode-file-drop-zone"
+            style={{ paddingTop: 10, position: 'relative' }}
+        >
+            {isFileDropActive && (
+                <View
+                    testID="gcode-file-drop-overlay"
+                    pointerEvents="none"
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        left: 0,
+                        zIndex: 20,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: 2,
+                        borderStyle: 'dashed',
+                        borderColor: colors.primary,
+                        borderRadius: 8,
+                        backgroundColor: colors.elevation.level2,
+                        opacity: 0.96,
+                    }}
+                >
+                    <Icon source="file-upload-outline" color={colors.primary} size={36} />
+                    <Text variant="titleMedium" style={{ color: colors.onSurface, marginTop: 8 }}>{t('files.dropGcodeTitle')}</Text>
+                    <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>{t('files.dropGcodeTypes')}</Text>
+                </View>
+            )}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row' }}>
                     {
@@ -391,8 +584,8 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
                 </View>
                 <View>
                     <UserPrinterFileControlsUploader
-                        setSelectedFileName={setSelectedFileName}
-                        subDirectory={subDirectory}
+                        disabled={uploadTransfers.some(item => ['queued', 'uploading', 'processing'].includes(item.state))}
+                        onFilesSelected={uploadGcodeFiles}
                     />
                 </View>
             </View>
@@ -406,6 +599,10 @@ export default function UserPrinterFileControls({ printerId, connectionStatus, p
                 setIsCreatingFolder={setIsCreatingFolder}
                 deleteDirectoryMutation={deleteDirectoryMutation}
                 isParentBusy={createDirectoryMutation.isPending || deleteDirectoryMutation.isPending}
+                pendingUploads={uploadTransfers}
+                onRetryUpload={retryUploadTransfer}
+                onCancelUpload={cancelUploadTransfer}
+                onDismissUpload={dismissUploadTransfer}
             />
 
             <SimpleDialog

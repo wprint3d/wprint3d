@@ -256,7 +256,7 @@ Cover:
 - workspace bundle renders without the generic plugin card title, subtitle, and explanatory paragraph;
 - iframe fills the owning page region with `width: 100%`, `height: 100%`, and `minHeight: 0` rather than a fixed 360 px card;
 - ordinary custom bundles retain current card rendering;
-- page tab still uses the extension title and puzzle icon;
+- page navigation uses the extension's optional compact label and Material Community icon, with the title and puzzle icon as backward-compatible fallbacks;
 - mobile scene does not overflow behind bottom navigation;
 - embedded URL includes `hostMode`, `pluginRuntimeBase`, `pluginArtifactImportBase`, `currentPrinterId`, `locale`, theme, and `realtimeTransport=polling`;
 - embedded URL never includes runtime bearer token/base URL/container state;

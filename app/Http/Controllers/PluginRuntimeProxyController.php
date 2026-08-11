@@ -2,14 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\PrintJobException;
 use App\Models\Plugin;
 use App\Plugins\Exceptions\PluginRuntimeException;
+use App\Services\PrintJobService;
+use GuzzleHttp\Psr7\MultipartStream;
 use GuzzleHttp\Psr7\PumpStream;
+use GuzzleHttp\Psr7\Utils;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Response;
 
 class PluginRuntimeProxyController extends Controller
@@ -37,10 +43,23 @@ class PluginRuntimeProxyController extends Controller
         $this->assertAllowedMethod($plugin, $request->method());
         $baseUrl = $this->baseUrl($plugin);
 
+        try {
+            $requestBody = $this->requestBody($request, $maxBytes);
+        } catch (RuntimeProxyPayloadTooLarge) {
+            return response('Runtime request exceeds the configured payload limit.', Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+        } catch (RuntimeProxyInvalidUpload) {
+            return response('Runtime upload could not be read.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
         $headers = collect($request->headers->all())
             ->only(['accept', 'content-type', 'if-none-match', 'if-modified-since'])
             ->mapWithKeys(fn (array $values, string $key) => [$key => $values[0] ?? ''])
             ->all();
+        if ($requestBody['contentType'] !== null) {
+            $headers['content-type'] = $requestBody['contentType'];
+        }
+        if ($requestBody['contentLength'] !== null) {
+            $headers['content-length'] = (string) $requestBody['contentLength'];
+        }
         $headers['x-wprint-user-id'] = (string) ($request->user()?->getAuthIdentifier() ?? 'wprint-user');
         $headers['x-wprint-plugin-id'] = $plugin->plugin_id;
 
@@ -48,17 +67,29 @@ class PluginRuntimeProxyController extends Controller
             ->withOptions(['stream' => true, 'allow_redirects' => false])
             ->withHeaders($headers);
         $client = $this->withRuntimeToken($client, $plugin);
+        $targetUrl = rtrim($baseUrl, '/').$path;
+        if (($queryString = $request->getQueryString()) !== null && $queryString !== '') {
+            $targetUrl .= '?'.$queryString;
+        }
 
         try {
-            $response = $client->send($request->method(), rtrim($baseUrl, '/').$path, [
-                'body' => $this->boundedRequestBody($request, $maxBytes),
+            $response = $client->send($request->method(), $targetUrl, [
+                'body' => $requestBody['body'],
             ]);
         } catch (RuntimeProxyPayloadTooLarge) {
             return response('Runtime request exceeds the configured payload limit.', Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+        } catch (RuntimeProxyInvalidUpload) {
+            return response('Runtime upload could not be read.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (ConnectionException $exception) {
+            $status = str_contains(strtolower($exception->getMessage()), 'timed out')
+                ? Response::HTTP_GATEWAY_TIMEOUT
+                : Response::HTTP_BAD_GATEWAY;
+
+            return response('Plugin runtime is unavailable.', $status);
         }
 
         $forwardedHeaders = collect($response->headers())
-            ->only(['content-type', 'cache-control', 'etag', 'last-modified'])
+            ->only(['content-type', 'cache-control', 'etag', 'last-modified', 'retry-after', 'x-ratelimit-limit', 'x-ratelimit-remaining'])
             ->mapWithKeys(fn (array $values, string $key) => [$key => $values[0] ?? ''])
             ->all();
 
@@ -71,13 +102,14 @@ class PluginRuntimeProxyController extends Controller
         }, $response->status(), $forwardedHeaders);
     }
 
-    public function importArtifact(Request $request, string $pluginId, string $importId): array|Response
+    public function importArtifact(Request $request, string $pluginId, string $importId, PrintJobService $jobs): array|Response
     {
         if (! $this->proxyEnabled()) {
             return $this->proxyDisabledResponse();
         }
 
         $plugin = $this->plugin($pluginId);
+        $request->validate(['startPrint' => 'sometimes|boolean']);
         if (! data_get($plugin->manifest, 'runtime.proxy.enabled', false)) {
             throw new PluginRuntimeException('Runtime artifact import is disabled by the plugin manifest.');
         }
@@ -157,12 +189,40 @@ class PluginRuntimeProxyController extends Controller
             }
         }
 
-        return [
+        $result = [
             'importId' => $importId,
             'path' => $path,
             'name' => $filename,
             'downloadUrl' => url('/api/files/local/'.str_replace('%2F', '/', rawurlencode($path))),
+            'printing' => false,
         ];
+
+        if ($request->boolean('startPrint')) {
+            $user = $request->user();
+            $printer = $user?->getActivePrinter();
+            if (! $user || ! $printer) {
+                return response()->json([
+                    'message' => 'Select an active printer before starting the imported G-code.',
+                    'error' => ['code' => 'printer_not_selected'],
+                    'artifact' => $result,
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            try {
+                $jobs->start($user, $printer, $path);
+            } catch (PrintJobException $exception) {
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                    'error' => ['code' => $exception->reason],
+                    'artifact' => $result,
+                ], Response::HTTP_CONFLICT);
+            }
+
+            $result['printing'] = true;
+            $result['printerId'] = (string) $printer->getKey();
+        }
+
+        return $result;
     }
 
     private function plugin(string $pluginId): Plugin
@@ -264,10 +324,13 @@ class PluginRuntimeProxyController extends Controller
         }
     }
 
-    private function boundedRequestBody(Request $request, int $maxBytes): mixed
+    /**
+     * @return array{body: mixed, contentType: ?string, contentLength: ?int}
+     */
+    private function requestBody(Request $request, int $maxBytes): array
     {
         if ($request->method() === 'GET' || $request->method() === 'HEAD') {
-            return null;
+            return ['body' => null, 'contentType' => null, 'contentLength' => null];
         }
 
         if (! str_starts_with(strtolower((string) $request->header('content-type', '')), 'multipart/form-data')) {
@@ -276,7 +339,28 @@ class PluginRuntimeProxyController extends Controller
                 throw new RuntimeProxyPayloadTooLarge;
             }
 
-            return $body;
+            return ['body' => $body, 'contentType' => null, 'contentLength' => null];
+        }
+
+        $parts = [
+            ...$this->multipartFieldParts($request->request->all()),
+            ...$this->multipartFileParts($request->files->all()),
+        ];
+        if ($parts !== []) {
+            $body = new MultipartStream($parts);
+            $size = $body->getSize();
+            if ($size === null) {
+                throw new RuntimeProxyInvalidUpload;
+            }
+            if ($size > $maxBytes) {
+                throw new RuntimeProxyPayloadTooLarge;
+            }
+
+            return [
+                'body' => $body,
+                'contentType' => 'multipart/form-data; boundary='.$body->getBoundary(),
+                'contentLength' => $size,
+            ];
         }
 
         $source = $request->getContent(true);
@@ -286,24 +370,28 @@ class PluginRuntimeProxyController extends Controller
                 throw new RuntimeProxyPayloadTooLarge;
             }
 
-            return $body;
+            return [
+                'body' => $body,
+                'contentType' => null,
+                'contentLength' => strlen($body),
+            ];
         }
 
         $read = 0;
-
-        return new PumpStream(function (int $length) use ($source, $maxBytes, &$read): string {
+        $contentLength = (int) ($request->header('content-length') ?? 0);
+        $body = new PumpStream(function (int $length) use ($source, $maxBytes, &$read): string|false {
             if ($read >= $maxBytes) {
                 $extra = fread($source, 1);
                 if ($extra !== false && $extra !== '') {
                     throw new RuntimeProxyPayloadTooLarge;
                 }
 
-                return '';
+                return false;
             }
 
             $chunk = fread($source, min(max(1, $length), $maxBytes - $read + 1));
             if ($chunk === false || $chunk === '') {
-                return '';
+                return false;
             }
 
             $read += strlen($chunk);
@@ -312,7 +400,73 @@ class PluginRuntimeProxyController extends Controller
             }
 
             return $chunk;
-        });
+        }, $contentLength > 0 ? ['size' => $contentLength] : []);
+
+        return [
+            'body' => $body,
+            'contentType' => null,
+            'contentLength' => $contentLength > 0 ? $contentLength : null,
+        ];
+    }
+
+    /**
+     * @param  array<string|int, mixed>  $fields
+     * @return array<int, array{name: string, contents: string}>
+     */
+    private function multipartFieldParts(array $fields, string $prefix = ''): array
+    {
+        $parts = [];
+        foreach ($fields as $name => $value) {
+            $fieldName = $prefix === '' ? (string) $name : $prefix.'['.$name.']';
+            if (is_array($value)) {
+                $parts = [...$parts, ...$this->multipartFieldParts($value, $fieldName)];
+
+                continue;
+            }
+            if ($value === null) {
+                continue;
+            }
+            if (! is_scalar($value) && ! $value instanceof \Stringable) {
+                throw new RuntimeProxyInvalidUpload;
+            }
+            $parts[] = ['name' => $fieldName, 'contents' => (string) $value];
+        }
+
+        return $parts;
+    }
+
+    /**
+     * @param  array<string|int, mixed>  $files
+     * @return array<int, array{name: string, contents: mixed, filename: string, headers: array<string, string>}>
+     */
+    private function multipartFileParts(array $files, string $prefix = ''): array
+    {
+        $parts = [];
+        foreach ($files as $name => $file) {
+            $fieldName = $prefix === '' ? (string) $name : $prefix.'['.$name.']';
+            if (is_array($file)) {
+                $parts = [...$parts, ...$this->multipartFileParts($file, $fieldName)];
+
+                continue;
+            }
+            if (! $file instanceof UploadedFile || ! $file->isValid()) {
+                throw new RuntimeProxyInvalidUpload;
+            }
+            $path = $file->getRealPath();
+            if (! is_string($path) || $path === '' || ! is_readable($path)) {
+                throw new RuntimeProxyInvalidUpload;
+            }
+            $parts[] = [
+                'name' => $fieldName,
+                'contents' => Utils::tryFopen($path, 'r'),
+                'filename' => $file->getClientOriginalName(),
+                'headers' => [
+                    'Content-Type' => $file->getClientMimeType() ?: 'application/octet-stream',
+                ],
+            ];
+        }
+
+        return $parts;
     }
 
     private function copyBoundedStream(mixed $source, mixed $destination, int $maxBytes): void
@@ -369,3 +523,5 @@ class PluginRuntimeProxyController extends Controller
 }
 
 final class RuntimeProxyPayloadTooLarge extends \RuntimeException {}
+
+final class RuntimeProxyInvalidUpload extends \RuntimeException {}

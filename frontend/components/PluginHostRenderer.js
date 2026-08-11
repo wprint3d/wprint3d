@@ -1,6 +1,6 @@
-import { Component, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Platform, ScrollView, View } from "react-native";
-import { Button, Card, Chip, Dialog, Divider, Icon, List, Portal, ProgressBar, Switch, Text, TextInput, TouchableRipple, useTheme } from "react-native-paper";
+import { ActivityIndicator, Button, Card, Chip, Dialog, Divider, Icon, List, Portal, ProgressBar, Switch, Text, TextInput, TouchableRipple, useTheme } from "react-native-paper";
 import { WebView } from "react-native-webview";
 import Svg, { Circle } from "react-native-svg";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +9,17 @@ import API from "../includes/API";
 import { usePluginLoading } from "./PluginLoadingProvider";
 import useActivePrinterId from "../hooks/useActivePrinterId";
 import { useLocalization } from "../includes/LocalizationProvider";
+import { resolveGcodeArtifactImport } from "../utils/pluginArtifactImport";
+import {
+  buildPluginHostActionProgress,
+  buildPluginHostActionResult,
+  buildPluginThemeTokens,
+  getPluginFrameIdentity,
+  getPluginThemeMode,
+  PLUGIN_HOST_CONTEXT_READY,
+  readPluginHostActionRequest,
+  readPluginFullscreenRequest,
+} from "../utils/pluginFrame";
 
 const clampPercentage = (value) => {
   if (!Number.isFinite(value)) { return 0; }
@@ -55,7 +66,7 @@ const resolveRemoteComponentValue = (value, props) => {
   return resolveTemplateString(value, props);
 };
 
-const buildEmbeddedUiUrl = (rawUrl, extension, colors, effectiveLanguage) => {
+const buildEmbeddedUiUrl = (rawUrl, extension, theme, effectiveLanguage) => {
   if (!rawUrl) { return rawUrl; }
 
   let resolvedUrl = null;
@@ -82,27 +93,16 @@ const buildEmbeddedUiUrl = (rawUrl, extension, colors, effectiveLanguage) => {
   resolvedUrl.searchParams.set("pluginArtifactImportBase", `/backend/api/plugins/${extension.pluginId}/runtime-artifacts`);
   resolvedUrl.searchParams.set("pluginHostContextBase", `/backend/api/plugins/${extension.pluginId}/host-context`);
   resolvedUrl.searchParams.set("hostMode", "embedded");
+  if (typeof window !== "undefined" && window.location?.origin) {
+    resolvedUrl.searchParams.set("hostOrigin", window.location.origin);
+  }
   resolvedUrl.searchParams.set("octoPrintCompatUrl", "/backend/api/plugins/sdk/octoprint-compat.js");
   resolvedUrl.searchParams.set("currentPrinterId", extension.currentPrinterId || "");
   resolvedUrl.searchParams.set("components", JSON.stringify(extension.pluginManifest?.components || []));
   resolvedUrl.searchParams.set("componentIds", JSON.stringify(extension.components || []));
   resolvedUrl.searchParams.set("locale", (effectiveLanguage || "en").replace("_", "-"));
   resolvedUrl.searchParams.set("fallbackLocale", "en");
-  resolvedUrl.searchParams.set("theme", JSON.stringify({
-    primary: colors.primary,
-    secondary: colors.secondary,
-    tertiary: colors.tertiary,
-    surface: colors.surface,
-    surfaceVariant: colors.surfaceVariant,
-    background: colors.background,
-    onSurface: colors.onSurface,
-    onSurfaceVariant: colors.onSurfaceVariant,
-    outline: colors.outline,
-    outlineVariant: colors.outlineVariant,
-    elevation: colors.elevation || {},
-    error: colors.error,
-    onError: colors.onError,
-  }));
+  resolvedUrl.searchParams.set("theme", JSON.stringify(buildPluginThemeTokens(theme)));
 
   return resolvedUrl.toString();
 };
@@ -654,9 +654,174 @@ const DataStripNode = ({ extension, node, printerId = null, navbarLayout = "inli
   );
 };
 
-const EmbeddedBrowserFrame = ({ uri, minHeight = 360, fitContentHeight = false }) => {
+const EmbeddedBrowserFrame = ({ uri, minHeight = 360, fitContentHeight = false, fillAvailableHeight = false, hostContext, onHostAction, loadingLabel = "Loading plugin…" }) => {
+  const containerRef = useRef(null);
   const iframeRef = useRef(null);
+  const hostContextRef = useRef(hostContext);
+  const sourceIdentityRef = useRef(getPluginFrameIdentity(uri));
+  const exitTimerRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const previousFocusRef = useRef(null);
+  const previousScrollRef = useRef({ x: 0, y: 0 });
+  const fullscreenOriginRef = useRef(null);
+  const [frameUri, setFrameUri] = useState(uri);
+  const [frameLoading, setFrameLoading] = useState(true);
   const [measuredHeight, setMeasuredHeight] = useState(minHeight);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreenMounted, setFullscreenMounted] = useState(false);
+  const [fullscreenVisible, setFullscreenVisible] = useState(false);
+  const fullscreenTransitionMs = Platform.OS === "web"
+    && typeof window !== "undefined"
+    && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+      ? 1
+      : 220;
+
+  hostContextRef.current = hostContext;
+
+  useEffect(() => {
+    const nextIdentity = getPluginFrameIdentity(uri);
+    if (nextIdentity !== sourceIdentityRef.current) {
+      sourceIdentityRef.current = nextIdentity;
+      setFrameLoading(true);
+      setFrameUri(uri);
+    }
+  }, [uri]);
+
+  const sendHostContext = () => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow || Platform.OS !== "web") { return; }
+
+    try {
+      const targetOrigin = new URL(frameUri, window.location.origin).origin;
+      iframe.contentWindow.postMessage({
+        type: "wprint3d.host-context",
+        context: {
+          ...hostContextRef.current,
+          fullscreen,
+          presentation: fullscreen ? "fullscreen" : (hostContextRef.current?.presentation || "split-pane"),
+        },
+      }, targetOrigin);
+    } catch (_error) {
+      // A malformed or transient plugin URL must not break the host surface.
+    }
+  };
+
+  const setFullscreenMode = (nextFullscreen) => {
+    if (exitTimerRef.current) {
+      window.clearTimeout(exitTimerRef.current);
+      exitTimerRef.current = null;
+    }
+    if (animationFrameRef.current) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    setFullscreen(nextFullscreen);
+    if (nextFullscreen) {
+      const rect = containerRef.current?.getBoundingClientRect?.();
+      const viewportWidth = Math.max(1, window.innerWidth || rect?.width || 1);
+      const viewportHeight = Math.max(1, window.innerHeight || rect?.height || 1);
+      fullscreenOriginRef.current = rect ? {
+        x: rect.left + (rect.width / 2) - (viewportWidth / 2),
+        y: rect.top + (rect.height / 2) - (viewportHeight / 2),
+        scaleX: rect.width / viewportWidth,
+        scaleY: rect.height / viewportHeight,
+      } : null;
+      previousFocusRef.current = document.activeElement;
+      previousScrollRef.current = { x: window.scrollX, y: window.scrollY };
+      setFullscreenMounted(true);
+      setFullscreenVisible(false);
+      animationFrameRef.current = window.requestAnimationFrame(() => {
+        setFullscreenVisible(true);
+        iframeRef.current?.focus?.({ preventScroll: true });
+        animationFrameRef.current = null;
+      });
+      return;
+    }
+
+    setFullscreenVisible(false);
+    exitTimerRef.current = window.setTimeout(() => {
+      setFullscreenMounted(false);
+      window.scrollTo(previousScrollRef.current.x, previousScrollRef.current.y);
+      previousFocusRef.current?.focus?.({ preventScroll: true });
+      exitTimerRef.current = null;
+    }, fullscreenTransitionMs);
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== "web") { return undefined; }
+    const iframe = iframeRef.current;
+    if (!iframe) { return undefined; }
+
+    const receiveMessage = (event) => {
+      if (event.source !== iframe.contentWindow) { return; }
+      try {
+        const expectedOrigin = new URL(frameUri, window.location.origin).origin;
+        if (event.origin !== expectedOrigin) { return; }
+      } catch (_error) {
+        return;
+      }
+      if (event.data?.type === PLUGIN_HOST_CONTEXT_READY) {
+        sendHostContext();
+        return;
+      }
+      const requestedFullscreen = readPluginFullscreenRequest(event.data);
+      if (requestedFullscreen !== null) {
+        setFullscreenMode(requestedFullscreen);
+        return;
+      }
+
+      const hostAction = readPluginHostActionRequest(event.data);
+      if (!hostAction) { return; }
+
+      const respond = (message) => {
+        try {
+          iframe.contentWindow?.postMessage(message, event.origin);
+        } catch (_error) {
+          // The iframe may have navigated while the host action was running.
+        }
+      };
+      const reportProgress = (progress) => respond(buildPluginHostActionProgress(hostAction.requestId, progress));
+      if (hostAction.action === "fullscreen.enter" || hostAction.action === "fullscreen.exit") {
+        const nextFullscreen = hostAction.action === "fullscreen.enter";
+        setFullscreenMode(nextFullscreen);
+        respond(buildPluginHostActionResult(hostAction.requestId, {
+          fullscreen: nextFullscreen,
+          presentation: nextFullscreen ? "fullscreen" : "split-pane",
+        }));
+        return;
+      }
+      Promise.resolve(onHostAction?.({ ...hostAction, reportProgress }))
+        .then((result) => respond(buildPluginHostActionResult(hostAction.requestId, result)))
+        .catch((error) => respond(buildPluginHostActionResult(
+          hostAction.requestId,
+          error?.hostActionResult,
+          error?.response?.data?.message || error?.message || "The host action failed."
+        )));
+    };
+    const closeFromEscape = (event) => {
+      if (event.key === "Escape" && fullscreen) {
+        setFullscreenMode(false);
+      }
+    };
+
+    window.addEventListener("message", receiveMessage);
+    window.addEventListener("keydown", closeFromEscape);
+    return () => {
+      window.removeEventListener("message", receiveMessage);
+      window.removeEventListener("keydown", closeFromEscape);
+    };
+  }, [frameUri, fullscreen, onHostAction]);
+
+  useEffect(() => {
+    sendHostContext();
+  }, [hostContext, fullscreen, frameUri]);
+
+  useEffect(() => () => {
+    if (Platform.OS !== "web") { return; }
+    if (exitTimerRef.current) { window.clearTimeout(exitTimerRef.current); }
+    if (animationFrameRef.current) { window.cancelAnimationFrame(animationFrameRef.current); }
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== "web" || !fitContentHeight) {
@@ -753,23 +918,94 @@ const EmbeddedBrowserFrame = ({ uri, minHeight = 360, fitContentHeight = false }
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [fitContentHeight, minHeight, uri]);
+  }, [fitContentHeight, minHeight, frameUri]);
 
   if (Platform.OS === "web") {
+    const normalHeight = fitContentHeight ? measuredHeight : (fillAvailableHeight ? "100%" : undefined);
+
     return (
+      <div
+        ref={containerRef}
+        data-testid="plugin-browser-frame"
+        data-plugin-fullscreen={fullscreen ? "true" : "false"}
+        style={{
+          position: fullscreenMounted ? "fixed" : "relative",
+          inset: fullscreenMounted ? 0 : undefined,
+          width: "100%",
+          height: fullscreenMounted ? "100dvh" : normalHeight,
+          minHeight,
+          display: "block",
+          overflow: "hidden",
+          zIndex: fullscreenMounted ? 10000 : undefined,
+          background: hostContext?.themeTokens?.background || "transparent",
+          opacity: fullscreenMounted ? (fullscreenVisible ? 1 : 0.96) : 1,
+          transform: fullscreenMounted && !fullscreenVisible && fullscreenTransitionMs > 1 && fullscreenOriginRef.current
+            ? `translate(${fullscreenOriginRef.current.x}px, ${fullscreenOriginRef.current.y}px) scale(${fullscreenOriginRef.current.scaleX}, ${fullscreenOriginRef.current.scaleY})`
+            : "none",
+          transformOrigin: "center center",
+          transition: `opacity ${fullscreenTransitionMs}ms cubic-bezier(0.2, 0, 0, 1), transform ${fullscreenTransitionMs}ms cubic-bezier(0.2, 0, 0, 1)`,
+          willChange: fullscreenMounted && fullscreenTransitionMs > 1 ? "transform, opacity" : undefined,
+        }}
+      >
       <iframe
         ref={iframeRef}
-        src={uri}
-        title={uri}
+          src={frameUri}
+          title={frameUri}
+          allow="fullscreen"
+          allowFullScreen
+          onLoad={() => {
+            sendHostContext();
+            setFrameLoading(false);
+          }}
         style={{
           width: "100%",
-          height: fitContentHeight ? measuredHeight : undefined,
+            height: fullscreenMounted ? "100%" : normalHeight,
           minHeight,
           border: "0",
           display: "block",
           background: "transparent",
+            opacity: frameLoading ? 0 : 1,
+            transition: `opacity ${fullscreenTransitionMs === 1 ? 1 : 160}ms ease`,
+          }}
+        />
+        {frameLoading ? (
+          <View
+            testID="plugin-browser-loading"
+            role="status"
+            accessibilityLiveRegion="polite"
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
+              zIndex: 2,
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 12,
+              padding: 24,
+              backgroundColor: hostContext?.themeTokens?.background || "transparent",
         }}
+          >
+            <ActivityIndicator
+              animating
+              size="large"
+              color={hostContext?.themeTokens?.primary}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
       />
+            <Text
+              variant="bodyMedium"
+              style={{
+                color: hostContext?.themeTokens?.onBackground || hostContext?.themeTokens?.onSurface,
+                textAlign: "center",
+              }}
+            >
+              {loadingLabel}
+            </Text>
+          </View>
+        ) : null}
+      </div>
     );
   }
 
@@ -814,7 +1050,8 @@ class PluginRenderBoundary extends Component {
 }
 
 const PluginRenderFallback = ({ extension, error, onRetry }) => {
-  const { colors } = useTheme();
+  const theme = useTheme();
+  const { colors } = theme;
   const { t } = useLocalization();
   const message = error?.message || t("plugins.unknownPluginRenderError");
 
@@ -868,13 +1105,249 @@ const PluginRenderFallback = ({ extension, error, onRetry }) => {
   );
 };
 
-const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId = null, navbarLayout = "inline" }) => {
-  const { colors } = useTheme();
+const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId = null, navbarLayout = "inline", onHostNavigate }) => {
+  const theme = useTheme();
+  const { colors } = theme;
   const { effectiveLanguage, t } = useLocalization();
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
   const activePrinterIdQuery = useActivePrinterId();
   const effectivePrinterId = printerId || activePrinterIdQuery.data?.data || activePrinterIdQuery.data || null;
+  const pluginThemeTokens = useMemo(() => buildPluginThemeTokens(theme), [theme]);
+  const hostContextQuery = useQuery({
+    queryKey: ["pluginHostContext", extension.pluginId, effectivePrinterId],
+    queryFn: () => API.get(`/plugins/${extension.pluginId}/host-context`),
+    enabled: !!extension.pluginId,
+    staleTime: 10_000,
+    refetchOnWindowFocus: true,
+  });
+  const refetchHostContext = hostContextQuery.refetch;
+  useEffect(() => {
+    if (typeof globalThis.window === "undefined") { return undefined; }
+
+    const handlePrinterSlicingUpdated = (event) => {
+      const updatedPrinterId = event?.detail?.printerId;
+      if (updatedPrinterId && effectivePrinterId && String(updatedPrinterId) !== String(effectivePrinterId)) { return; }
+      void refetchHostContext();
+    };
+
+    globalThis.window.addEventListener("wprint3d:printer-slicing-updated", handlePrinterSlicingUpdated);
+    return () => globalThis.window.removeEventListener("wprint3d:printer-slicing-updated", handlePrinterSlicingUpdated);
+  }, [effectivePrinterId, refetchHostContext]);
+  const serverHostContext = hostContextQuery.data?.data || {};
+  const runtimeArtifactImports = useMemo(() => (
+    extension.runtimeArtifactImports
+      || extension.pluginManifest?.runtime?.artifactImports
+      || []
+  ), [extension.pluginManifest, extension.runtimeArtifactImports]);
+  const defaultGcodeArtifactImport = useMemo(
+    () => resolveGcodeArtifactImport(runtimeArtifactImports),
+    [runtimeArtifactImports],
+  );
+  const hostActions = useMemo(() => {
+    const actions = [
+      { id: "fullscreen.enter", version: 2, available: true },
+      { id: "fullscreen.exit", version: 2, available: true },
+      { id: "transfer.progress", version: 2, available: true },
+      { id: "transfer.result", version: 2, available: true },
+    ];
+    if (onHostNavigate) {
+      actions.push(
+        { id: "files.open", version: 2, available: true },
+        { id: "preview.open", version: 2, available: true },
+        { id: "printer.slicing.open", version: 2, available: true },
+      );
+    }
+    if (defaultGcodeArtifactImport) {
+      actions.push(
+        { id: "artifact.import", version: 2, available: true },
+        { id: "artifact.print", version: 2, available: !!effectivePrinterId },
+      );
+    }
+    return actions;
+  }, [defaultGcodeArtifactImport, effectivePrinterId, onHostNavigate]);
+  const embeddedHostContext = useMemo(() => ({
+    ...serverHostContext,
+    apiVersion: "2.0",
+    hostMode: "embedded",
+    presentation: "split-pane",
+    locale: (effectiveLanguage || "en").replace("_", "-"),
+    theme: getPluginThemeMode(theme),
+    themeTokens: pluginThemeTokens,
+    hostActions,
+    currentPrinterId: effectivePrinterId || serverHostContext.currentPrinterId || null,
+    currentPrinter: serverHostContext.currentPrinter?.id === effectivePrinterId
+      ? serverHostContext.currentPrinter
+      : (effectivePrinterId ? null : (serverHostContext.currentPrinter || null)),
+  }), [effectiveLanguage, effectivePrinterId, hostActions, pluginThemeTokens, serverHostContext, theme]);
+
+  const handleHostAction = useCallback(async ({ action, payload, reportProgress }) => {
+    if (["navigate", "files.open", "preview.open", "printer.slicing.open"].includes(action)) {
+      const destination = action === "files.open"
+        ? "files"
+        : action === "preview.open"
+          ? "preview"
+          : action === "printer.slicing.open"
+            ? "printer-slicing"
+            : (typeof payload?.destination === "string" ? payload.destination : "");
+      if (!destination || !onHostNavigate) {
+        throw new Error("This host does not expose the requested navigation destination.");
+      }
+      const navigated = onHostNavigate(destination);
+      if (navigated === false) {
+        throw new Error(`Unknown host destination '${destination}'.`);
+      }
+      return { navigated: true, destination };
+    }
+
+    if (["import-artifact", "print-artifact", "artifact.import", "artifact.print"].includes(action)) {
+      const jobId = typeof payload?.jobId === "string" ? payload.jobId : "";
+      if (!jobId) {
+        throw new Error("The artifact action requires a slice job id.");
+      }
+      const filename = typeof payload?.filename === "string" ? payload.filename : `cura-${jobId}.gcode`;
+      const artifactPath = typeof payload?.artifactPath === "string" ? payload.artifactPath : "";
+      const artifactImport = resolveGcodeArtifactImport(runtimeArtifactImports, artifactPath);
+      if (!artifactImport?.id) {
+        throw new Error("The requested G-code artifact is not declared by this plugin.");
+      }
+      const transferId = `${extension.pluginId}:${jobId}:${Date.now()}`;
+      const shouldPrint = ["print-artifact", "artifact.print"].includes(action);
+      let importedArtifact = null;
+      let activeController = null;
+
+      const updateTransfer = (changes) => {
+        queryClient.setQueryData(["fileTransfers"], (current = []) => current.map((item) => (
+          item.id === transferId ? { ...item, ...changes } : item
+        )));
+      };
+      const report = (stage, percent, message) => {
+        const state = stage === "complete" ? (shouldPrint ? "printing" : "ready") : stage;
+        updateTransfer({ progress: percent, state });
+        reportProgress?.({ transferId, stage, percent, message });
+      };
+      const dismiss = () => {
+        queryClient.setQueryData(["fileTransfers"], (current = []) => current.filter((item) => item.id !== transferId));
+      };
+      const cancel = () => {
+        activeController?.abort();
+        report("cancelled", 0, t("files.transferCancelled"));
+      };
+      const retry = () => {
+        void runTransfer(false);
+      };
+
+      async function runTransfer(notifyPlugin) {
+        activeController?.abort();
+        activeController = new AbortController();
+        const controller = activeController;
+        report("transferring", 8, t("files.transferImporting"));
+
+        try {
+          let result;
+          if (importedArtifact && shouldPrint) {
+            const pathParts = String(importedArtifact.path || "").split("/").filter(Boolean);
+            const storedFileName = pathParts.pop();
+            if (!storedFileName) {
+              importedArtifact = null;
+              return await runTransfer(notifyPlugin);
+            }
+            report("starting-print", 94, t("files.transferStartingPrint"));
+            await API.post('/user/printer/selected/print', {
+              subDirectory: pathParts.length ? `/${pathParts.join('/')}` : '',
+              fileName: storedFileName,
+            }, { signal: controller.signal });
+            result = { ...importedArtifact, printing: true, printerId: effectivePrinterId };
+          } else {
+            const response = await API.post(`/plugins/${extension.pluginId}/runtime-artifacts/${encodeURIComponent(artifactImport.id)}`, {
+              jobId,
+              filename,
+              artifactPath: artifactPath || undefined,
+              // Axios serializes this request as multipart form data. Laravel's
+              // boolean validator accepts 1/0 consistently across PHP versions.
+              startPrint: shouldPrint ? 1 : 0,
+            }, { signal: controller.signal });
+            result = response?.data || {};
+            importedArtifact = result;
+          }
+
+          if (controller.signal.aborted) {
+            throw new Error(t("files.transferCancelled"));
+          }
+          report("complete", 100, result.printing ? t("files.transferPrinting") : t("files.transferReady"));
+          updateTransfer({ name: result.name || filename, path: result.path, error: null });
+          queryClient.invalidateQueries({ queryKey: ["fileList"] });
+          queryClient.invalidateQueries({ queryKey: ["connectionStatus"] });
+          queryClient.invalidateQueries({ queryKey: ["printStatus"] });
+          reportProgress?.({
+            transferId,
+            stage: "result",
+            percent: 100,
+            message: result.printing ? t("files.transferPrinting") : t("files.transferReady"),
+          });
+          globalThis.setTimeout(() => {
+            onHostNavigate?.("files");
+            if (result.printing) {
+              globalThis.setTimeout(() => onHostNavigate?.("preview"), 900);
+            }
+          }, 0);
+          globalThis.setTimeout(dismiss, 3200);
+          return result;
+        } catch (error) {
+          if (controller.signal.aborted || error?.code === "ERR_CANCELED") {
+            report("cancelled", 0, t("files.transferCancelled"));
+          } else {
+            const artifact = error?.response?.data?.artifact;
+            if (artifact?.path) {
+              importedArtifact = artifact;
+              queryClient.invalidateQueries({ queryKey: ["fileList"] });
+            }
+            const message = error?.response?.data?.message || error?.message || t("files.transferError");
+            updateTransfer({
+              name: artifact?.name || filename,
+              path: artifact?.path,
+              progress: artifact?.path ? 100 : 8,
+              state: "error",
+              error: message,
+            });
+            reportProgress?.({ transferId, stage: "error", percent: artifact?.path ? 100 : 8, message });
+          }
+
+          if (notifyPlugin) {
+            const wrappedError = new Error(error?.response?.data?.message || error?.message || t("files.transferError"));
+            wrappedError.hostActionResult = importedArtifact
+              ? { ...importedArtifact, printing: false, error: error?.response?.data?.error }
+              : undefined;
+            throw wrappedError;
+          }
+          return undefined;
+        } finally {
+          if (activeController === controller) {
+            activeController = null;
+          }
+        }
+      }
+
+      queryClient.setQueryData(["fileTransfers"], (current = []) => [
+        ...current.filter((item) => item.id !== transferId),
+        {
+          id: transferId,
+          name: filename,
+          directory: "/cura",
+          progress: 0,
+          state: "queued",
+          onCancel: cancel,
+          onRetry: retry,
+          onDismiss: dismiss,
+        },
+      ]);
+      reportProgress?.({ transferId, stage: "queued", percent: 0, message: t("files.transferQueued") });
+
+      return runTransfer(true);
+    }
+
+    throw new Error(`Unsupported host action '${action}'.`);
+  }, [effectivePrinterId, extension.pluginId, onHostNavigate, queryClient, runtimeArtifactImports, t]);
 
   const [ openedModalId, setOpenedModalId ] = useState(null);
   const [ formState, setFormState ] = useState({});
@@ -1354,7 +1827,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
     const embeddedUrl = buildEmbeddedUiUrl(
       extension.url,
       { ...extension, currentPrinterId: effectivePrinterId },
-      colors,
+      theme,
       effectiveLanguage
     );
 
@@ -1362,7 +1835,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
       <Card style={{ marginBottom: 12, overflow: "hidden" }}>
         <Card.Title title={extension.title} subtitle={t("plugins.webViewSubtitle", { name: extension.pluginName })} />
         <View style={{ minHeight: 360 }}>
-          <EmbeddedBrowserFrame uri={embeddedUrl} minHeight={360} fitContentHeight={extension.surface === "settings_tab"} />
+          <EmbeddedBrowserFrame uri={embeddedUrl} minHeight={360} fitContentHeight={extension.surface === "settings_tab"} hostContext={embeddedHostContext} onHostAction={handleHostAction} loadingLabel={t("plugins.loadingSurface", { name: extension.pluginName || extension.title || extension.pluginId })} />
         </View>
       </Card>
     );
@@ -1373,14 +1846,14 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
     const embeddedUrl = buildEmbeddedUiUrl(
       customBundleUrl,
       { ...extension, currentPrinterId: effectivePrinterId },
-      colors,
+      theme,
       effectiveLanguage
     );
 
     if (extension.surface === "page") {
       return embeddedUrl ? (
-        <View style={{ width: "100%", minHeight: 720, flex: 1 }}>
-          <EmbeddedBrowserFrame uri={embeddedUrl} minHeight={720} fitContentHeight={false} />
+        <View style={{ width: "100%", minHeight: 0, flex: 1, overflow: "hidden" }}>
+          <EmbeddedBrowserFrame uri={embeddedUrl} minHeight={0} fitContentHeight={false} fillAvailableHeight hostContext={embeddedHostContext} onHostAction={handleHostAction} loadingLabel={t("plugins.loadingSurface", { name: extension.pluginName || extension.title || extension.pluginId })} />
         </View>
       ) : null;
     }
@@ -1395,7 +1868,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
         </Card.Content>
         {embeddedUrl ? (
           <View style={{ minHeight: 360 }}>
-            <EmbeddedBrowserFrame uri={embeddedUrl} minHeight={360} fitContentHeight={extension.surface === "settings_tab"} />
+            <EmbeddedBrowserFrame uri={embeddedUrl} minHeight={360} fitContentHeight={extension.surface === "settings_tab"} hostContext={embeddedHostContext} onHostAction={handleHostAction} loadingLabel={t("plugins.loadingSurface", { name: extension.pluginName || extension.title || extension.pluginId })} />
           </View>
         ) : (
           <Card.Content>
@@ -1429,7 +1902,7 @@ const PluginHostRendererContent = ({ extension, modalExtensions = [], printerId 
   );
 };
 
-const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null, navbarLayout = "inline" }) => {
+const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null, navbarLayout = "inline", onHostNavigate }) => {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
   const { t } = useLocalization();
@@ -1491,6 +1964,7 @@ const PluginHostRenderer = ({ extension, modalExtensions = [], printerId = null,
         modalExtensions={modalExtensions}
         printerId={printerId}
         navbarLayout={navbarLayout}
+        onHostNavigate={onHostNavigate}
       />
     </PluginRenderBoundary>
   );

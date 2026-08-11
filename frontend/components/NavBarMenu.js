@@ -11,6 +11,7 @@ import SimpleDialog from './SimpleDialog';
 import NotificationsCenter from './modules/NotificationsCenter';
 import { useEcho } from '../hooks/useEcho';
 import { useLocalization } from '../includes/LocalizationProvider';
+import PrinterSettingsModal from './PrinterSettingsModal';
 
 export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, setColorScheme, headerHeight, enqueueSnackbar = () => {} }) {
   const { colors } = useTheme();
@@ -39,7 +40,8 @@ export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, 
 
   const [ showSettingsModal, setShowSettingsModal ] = useState(false),
         [ showProfileModal,  setShowProfileModal  ] = useState(false),
-        [ showLogoutDialog,  setShowLogoutDialog  ] = useState(false);
+        [ showLogoutDialog,  setShowLogoutDialog  ] = useState(false),
+        [ slicingPrinter,    setSlicingPrinter    ] = useState(null);
 
   const openMenu  = () => setIsVisible(true);
   const closeMenu = () => setIsVisible(false);
@@ -57,6 +59,28 @@ export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, 
 
     closeMenu();
   }, [ window ]);
+
+  useEffect(() => {
+    if (typeof globalThis.window === 'undefined') { return undefined; }
+
+    const openPrinterSlicing = async (event) => {
+      const printerId = event?.detail?.printerId;
+      if (!printerId) { return; }
+
+      try {
+        const response = await API.get(`/printer/${printerId}`);
+        setSlicingPrinter(response.data);
+      } catch (error) {
+        enqueueSnackbar({
+          message: error?.response?.data?.message || t("settings.slicing.loadError"),
+          variant: 'error',
+        });
+      }
+    };
+
+    globalThis.window.addEventListener("wprint3d:open-printer-slicing", openPrinterSlicing);
+    return () => globalThis.window.removeEventListener("wprint3d:open-printer-slicing", openPrinterSlicing);
+  }, [ enqueueSnackbar, t ]);
 
   return (
     <>
@@ -108,6 +132,16 @@ export default function NavBarMenu({ isSmallTablet, isSmallLaptop, colorScheme, 
           setIsVisible={setShowSettingsModal}
           isSmallTablet={isSmallTablet}
           isSmallLaptop={isSmallLaptop}
+        />
+      )}
+
+      {!!slicingPrinter && (
+        <PrinterSettingsModal
+          isVisible
+          setIsVisible={(visible) => { if (!visible) { setSlicingPrinter(null); } }}
+          printer={slicingPrinter}
+          isSmallTablet={isSmallTablet}
+          defaultTabKey="slicing"
         />
       )}
 

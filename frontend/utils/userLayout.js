@@ -1,5 +1,5 @@
 export function getLeftPaneWidth(windowWidth) {
-    if (windowWidth <= 768) {          // small tablet
+    if (windowWidth < 768) {           // small tablet
         return "100%";
     }
 
@@ -16,10 +16,27 @@ export function getLeftPaneWidth(windowWidth) {
 
 export function getUserLayoutRootStyle({ windowWidth, isSmallTablet }) {
     return {
+        flex: 1,
+        minHeight: 0,
+        minWidth: 0,
+        overflow: "hidden",
         flexDirection: isSmallTablet ? "column" : "row",
         alignItems: "stretch",
         flexWrap: windowWidth <= 425 ? "wrap" : "nowrap",
         flexShrink: isSmallTablet ? 0 : 1,
         padding: isSmallTablet ? 0 : 8,
+    };
+}
+
+export function getDesktopWorkspaceStyle() {
+    return {
+        flex: 1,
+        minHeight: 0,
+        minWidth: 0,
+        maxHeight: "100%",
+        maxWidth: "100%",
+        overflow: "hidden",
+        gap: 8,
+        flexDirection: "row",
     };
 }

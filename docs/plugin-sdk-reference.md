@@ -5,7 +5,7 @@
 Current SDK pair:
 
 - `sdkVersion: 1`
-- `sdkRevision: 5`
+- `sdkRevision: 6`
 
 `sdkVersion` is the API level.
 
@@ -270,7 +270,7 @@ Or, for a host-managed bridge service:
 }
 ```
 
-Revision 5 managed bridges may declare host-mediated authentication and a same-origin proxy:
+Revision 5 and later managed bridges may declare host-mediated authentication and a same-origin proxy:
 
 ```json
 "runtime": {
@@ -321,7 +321,16 @@ Manifest:
 ```json
 "requirements": {
   "memoryMb": 1024,
-  "cpuCores": 2
+  "cpuCores": 2,
+  "policy": "disable-by-default-when-unmet",
+  "allowAdminOverride": true
+},
+"activation": {
+  "prepare": "background",
+  "autoEnableWhenReady": true
+},
+"updates": {
+  "managedByCore": true
 },
 "images": [
   {
@@ -351,19 +360,31 @@ Rules:
 - Install/update pulls declared images automatically.
 - `healthcheck.command` is optional.
 - `requirements.memoryMb`, `requirements.cpuCores`, and `requirements.diskMb` are advisory host checks that surface warnings in the UI when the current system is below the plugin's declared minimum target; disk is checked when free-space metrics are available.
-- Revision 5 service storage is restricted to private named volumes mounted below `/data`; host paths, Docker sockets, USB devices, and arbitrary bind mounts are not accepted.
+- Revision 5 and later service storage is restricted to private named volumes mounted below `/data`; host paths, Docker sockets, USB devices, and arbitrary bind mounts are not accepted.
 - Storage may use the compact `{mountPath, retainOnUninstall}` form or the expanded mount array; WPrint normalizes both forms, permits at most one writable mount, and preserves the retention flag in runtime state.
-- Revision 5 image references must be immutable OCI references ending in `@sha256:<64-hex>`. Mutable tags such as `:latest` are not accepted for managed dependencies.
-- Revision 5 managed services cannot select a Docker network. WPrint resolves the configured/current plugin-capable network; manifests may declare only the service port and network alias and cannot request host/none/foreign networks.
-- Revision 5 service resource/security settings are enforced by the host Docker runner. Runtime changes are identified by a spec fingerprint and cause safe container recreation.
+- Revision 5 and later image references must be immutable OCI references ending in `@sha256:<64-hex>`. Mutable tags such as `:latest` are not accepted for managed dependencies.
+- Revision 5 and later managed services cannot select a Docker network. WPrint resolves the configured/current plugin-capable network; manifests may declare only the service port and network alias and cannot request host/none/foreign networks.
+- Revision 5 and later service resource/security settings are enforced by the host Docker runner. Runtime changes are identified by a spec fingerprint and cause safe container recreation.
 - Host limits reject, rather than silently clamp, pull timeouts, memory, CPU quota, PID count, tmpfs size, and capability drops outside the configured allowlists. `cpuCores`/`pids` are accepted aliases and normalize to the host runner's `cpuQuota`/`pidsLimit` fields.
 - `service.stopGracePeriodSecs` controls the bounded Docker stop timeout during replacement; `security.user` accepts a numeric `uid[:gid]` and is enforced with `docker run --user`.
 - `security.tmpfs` may declare `/tmp` or `/run`; its size is bounded by the host `plugins.container.max_tmpfs_mb` limit (4,096 MB by default). A read-only service without a declaration receives the safe 256 MB fallback.
 - Image healthchecks execute with an explicit `--entrypoint` override, `--network none`, a read-only root, and a bounded temporary filesystem so an image entrypoint cannot reinterpret the check command.
 - `runtime.managedImageId` can point at an image with `service.port` so WPrint 3D can run a self-contained bridge sidecar.
-- Revision-5 manifests may use `runtime.httpProxy` as the declarative form of the host proxy; WPrint normalizes its path prefix/methods into the internal proxy policy, bounds request/stream timeouts, and enforces the declared multipart ceiling. WebSocket upgrades are rejected in favor of polling. `runtime.artifactImports` declares anchored server-to-server artifact patterns and host-bounded content types/sizes.
+- Revision-5-and-later manifests may use `runtime.httpProxy` as the declarative form of the host proxy; WPrint normalizes its path prefix/methods into the internal proxy policy, bounds request/stream timeouts, and enforces the declared multipart ceiling. WebSocket upgrades are rejected in favor of polling. `runtime.artifactImports` declares anchored server-to-server artifact patterns and host-bounded content types/sizes.
 - Runtime proxy routes use separate host rate-limit buckets for metadata/polling, uploads/job creation, and artifact imports; throttled responses retain Laravel's `429`/`Retry-After` contract.
-- Signed revision-5 W3DP packages include `integrity: { algorithm: "sha256", files: { ... } }`; the map must cover exactly every staged asset file and cannot contain paths outside declared assets.
+- Signed revision-5-and-later W3DP packages include `integrity: { algorithm: "sha256", files: { ... } }`; the map must cover exactly every staged asset file and cannot contain paths outside declared assets.
+
+### Revision 6 Managed Lifecycle
+
+Revision 6 makes heavyweight installation non-blocking and keeps plugin runtime updates coupled to WPrint Core releases:
+
+- `requirements.policy` must be `disable-by-default-when-unmet`.
+- `requirements.allowAdminOverride` controls whether an administrator may acknowledge the persistent hardware warning and force-enable the plugin.
+- `activation.prepare` must be `background`; image pull, verification, and readiness checks run outside the install request.
+- `activation.autoEnableWhenReady` enables the plugin automatically after successful preparation when hardware requirements are satisfied.
+- `updates.managedByCore` must be `true`; a revision-6 plugin cannot independently auto-update its managed image.
+
+An install remains present but disabled when the host does not meet the declared requirements. Preparation and healthcheck failures are recorded on the plugin without taking down WPrint Core. Explicit updates use the managed candidate/readiness/promote flow and retain the previous runtime for rollback.
 
 ## OctoPrint Compatibility Layer
 
@@ -435,6 +456,8 @@ This is the preferred bridge for ported OctoPrint settings pages that previously
 OctoPrint navbar plugins should prefer a host-rendered `data_strip` widget instead of recreating the entire navbar inside a WebView. On `surface: "navbar_widget"`, the host renders `data_strip` as an inline telemetry lane that expands across the center navbar slot so ports like NavbarTemp feel native to the shell instead of looking like detached chip stacks.
 
 Navbar widgets may set `mobilePresentation` on the UI extension. Use `card` to move normal text-and-icon items into a wrapped surface below the mobile app bar, or `gauges` to keep numeric items inside the app bar as icon-only micro gauges. Omit the field to keep the standard inline presentation at every breakpoint.
+
+Any UI extension may also declare `icon` with a Material Community Icons name and `navigationLabel` with a compact label of at most 24 characters. Page surfaces use these fields in desktop tabs and mobile navigation. When omitted, the host uses the full extension title and the `puzzle` icon.
 
 Example UI extension:
 
@@ -856,22 +879,111 @@ Elevated UI entrypoints receive query parameters for:
 - `components`
 - `componentIds`
 - `theme`
+- `hostMode`
+- `hostOrigin`
 
 The `theme` value is JSON and includes the current Paper theme color tokens such as:
 
 - `primary`
+- `onPrimary`
+- `primaryContainer`
+- `onPrimaryContainer`
 - `secondary`
+- `onSecondary`
+- `secondaryContainer`
+- `onSecondaryContainer`
 - `tertiary`
+- `onTertiary`
+- `tertiaryContainer`
+- `onTertiaryContainer`
 - `surface`
 - `surfaceVariant`
 - `background`
+- `onBackground`
 - `onSurface`
 - `onSurfaceVariant`
 - `outline`
 - `outlineVariant`
 - `error`
+- `onError`
+- `errorContainer`
+- `onErrorContainer`
+- `success`
+- `onSuccess`
+- `warning`
+- `onWarning`
+- `colorScheme`
 
 Elevated browser surfaces also receive the plugin API base URL and declared component metadata so they can call host actions and load manifest-declared browser modules without bypassing host control.
+
+Page surfaces should treat the query value as initial bootstrap state. WPrint posts later theme and host state changes to the iframe without forcing a reload:
+
+```js
+window.addEventListener("message", (event) => {
+  if (event.source !== window.parent || event.origin !== hostOrigin) return;
+  if (event.data?.type !== "wprint3d.host-context") return;
+  const { theme, themeTokens, fullscreen } = event.data.context;
+});
+```
+
+An embedded page can request a host-managed full-viewport presentation by posting to the declared `hostOrigin`:
+
+```js
+window.parent.postMessage({
+  type: "wprint3d.plugin-fullscreen-request",
+  fullscreen: true,
+}, hostOrigin);
+```
+
+Send `fullscreen: false` to restore the normal plugin pane. The host validates the iframe source and origin, owns the transition and Escape behavior, and returns the resulting state through `wprint3d.host-context`. Plugins must not use `"*"` as the target origin.
+
+### Programmable host actions
+
+The live host context includes a `hostActions` array. An embedded page may
+request only an advertised action by sending a bounded request to the declared
+`hostOrigin`:
+
+```js
+const requestId = crypto.randomUUID();
+
+window.parent.postMessage({
+  type: "wprint3d.plugin-host-action-request",
+  requestId,
+  action: "navigate",
+  payload: { destination: "preview" },
+}, hostOrigin);
+```
+
+The host responds to the requesting iframe and origin:
+
+```js
+{
+  type: "wprint3d.plugin-host-action-result",
+  requestId,
+  ok: true,
+  result: { navigated: true, destination: "preview" }
+}
+```
+
+An error response sets `ok: false` and provides a human-readable `error`
+string. Callers must use unique request identifiers, validate the response
+source and origin, and apply a timeout.
+
+The current host adapter exposes:
+
+- `navigate` with a `destination` of `terminal`, `preview`, `control`, or
+  `recordings`.
+- `import-artifact` with a declared slice `jobId`, output `filename`, and
+  optional `artifactPath`. The plugin must declare a matching runtime artifact
+  import policy.
+- `print-artifact` with the same payload. WPrint imports the artifact into its
+  G-code library and starts it through the active printer's normal print job
+  service.
+
+Unsupported actions or payloads fail closed. A plugin cannot use this bridge
+to call an arbitrary host API route; each action remains implemented and
+authorized by the host. The protocol is intentionally implementable by other
+embedding applications, which may advertise a smaller action set.
 
 ## Example Use Cases
 

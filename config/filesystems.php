@@ -15,6 +15,12 @@ return [
 
     'default' => env('FILESYSTEM_DISK', 'local'),
 
+    'gcode_upload' => [
+        // Compressed uploads are expanded before they enter the print queue so
+        // every downstream reader continues to consume plain-text G-code.
+        'max_expanded_bytes' => (int) env('GCODE_MAX_EXPANDED_UPLOAD_BYTES', 1073741824),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Filesystem Disks

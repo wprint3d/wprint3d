@@ -35,6 +35,8 @@ interface GCodePreviewHandle {
   processGCode:  (gcode: string | string[]) => void;
   clear:         () => void;
   resize:        () => void;
+  setNozzlePosition: (position: { x: number; y: number; z: number }) => void;
+  setNozzleVisible: (visible: boolean) => void;
 }
 
 function GCodePreviewUI(
@@ -53,6 +55,7 @@ function GCodePreviewUI(
     renderTravel = true
   } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const nozzleRef = useRef<THREE.Group | null>(null);
   const [preview, setPreview] = useState<GCodePreview.WebGLPreview>();
 
   const resizePreview = () => {
@@ -78,6 +81,30 @@ function GCodePreviewUI(
     );
   };
 
+  const ensureNozzle = () => {
+    if (!preview) { return null; }
+    if (!nozzleRef.current) {
+      const group = new THREE.Group();
+      group.name = 'wprint-live-nozzle';
+      const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(3.2, 8, 18),
+        new THREE.MeshBasicMaterial({ color: 0xff8a3d })
+      );
+      cone.rotation.z = Math.PI;
+      cone.position.y = 5;
+      const tip = new THREE.Mesh(
+        new THREE.SphereGeometry(1.6, 14, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffd166 })
+      );
+      group.add(cone, tip);
+      nozzleRef.current = group;
+    }
+    if (nozzleRef.current.parent !== preview.scene) {
+      preview.scene.add(nozzleRef.current);
+    }
+    return nozzleRef.current;
+  };
+
   useImperativeHandle(ref, () => ({
     getLayerCount() {
       return preview?.layers.length as number;
@@ -91,6 +118,19 @@ function GCodePreviewUI(
     },
     resize() {
       resizePreview();
+    },
+    setNozzlePosition(position) {
+      const nozzle = ensureNozzle();
+      if (!nozzle) { return; }
+      nozzle.position.set(
+        position.x - (buildVolume.x / 2),
+        position.z + 1.6,
+        (buildVolume.y / 2) - position.y
+      );
+    },
+    setNozzleVisible(visible) {
+      const nozzle = ensureNozzle();
+      if (nozzle) { nozzle.visible = visible; }
     }
   }));
 

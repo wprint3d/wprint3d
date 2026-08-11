@@ -71,10 +71,12 @@ class PluginDependencyService
             'host' => $host,
             'warnings' => array_values(array_unique($warnings)),
             'runtime' => $state['runtime'] ?? [],
+            'activation' => $state['activation'] ?? [],
+            'preparation' => $state['preparation'] ?? [],
             'images' => array_map(function (array $image) use ($state) {
-                $imageState = $state['images'][$image['id']] ?? [];
+                $imageState = $this->stateForImage($state, (string) $image['id']);
 
-                return array_merge($image, $imageState);
+                return array_replace_recursive($image, $imageState);
             }, $images),
         ];
     }
@@ -128,8 +130,9 @@ class PluginDependencyService
                 : '';
             $networkName = (string) ($serviceState['networkName'] ?? ($legacyNetwork !== '' ? $legacyNetwork : config('plugins.container.network', '')));
             $networkAlias = (string) ($serviceState['networkAlias'] ?? $service['networkAlias'] ?? $containerName);
+            $authTokenCiphertext = data_get($state, 'runtime.authTokenCiphertext');
             $expectedSpecHash = $networkName !== ''
-                ? $this->serviceConfigFingerprint($image, $service, $networkName, $networkAlias)
+                ? $this->serviceConfigFingerprint($image, $service, $networkName, $networkAlias, $authTokenCiphertext)
                 : null;
             $entry['container']['name'] = $containerName;
             $entry['container']['expectedSpecHash'] = $expectedSpecHash;
@@ -198,7 +201,9 @@ class PluginDependencyService
             $this->runOrFail([$this->containerCli, 'pull', $image['image']], "Unable to pull plugin image {$image['image']}.", $pullTimeout);
             $this->assertPulledDigest($image, $manifest, $pullTimeout);
 
+            $existingImageState = $this->stateForImage($state, (string) $image['id']);
             $imageState = [
+                ...(! empty($existingImageState['service']) ? ['service' => $existingImageState['service']] : []),
                 'pulled' => true,
                 'pulledAt' => now()->toAtomString(),
             ];
@@ -225,7 +230,31 @@ class PluginDependencyService
             $preparedImages[$image['id']] = $imageState;
         }
 
-        return $this->summarize($manifest, ['images' => $preparedImages]);
+        $nextState = $state;
+        $nextState['images'] = $preparedImages;
+
+        return $this->summarize($manifest, $nextState);
+    }
+
+    /** @return array<string, mixed> */
+    private function stateForImage(array $state, string $imageId): array
+    {
+        $images = is_array($state['images'] ?? null) ? $state['images'] : [];
+        if (is_array($images[$imageId] ?? null)) {
+            return $images[$imageId];
+        }
+
+        foreach ($images as $stateKey => $imageState) {
+            if (! is_array($imageState)) {
+                continue;
+            }
+
+            if ((string) ($imageState['id'] ?? $stateKey) === $imageId) {
+                return $imageState;
+            }
+        }
+
+        return [];
     }
 
     public function activate(array $plugin, array $state = []): array
@@ -259,7 +288,14 @@ class PluginDependencyService
             $networkAlias = $canonicalNetworkAlias;
             $inspect = $this->run([$this->containerCli, 'inspect', $canonicalContainerName, '--format', '{{.State.Running}}']);
             $candidate = false;
-            $expectedConfig = $this->serviceConfigFingerprint($managedImage, $service, $networkName, $canonicalNetworkAlias);
+            $runtimeAuth = $this->runtimeAuthState($runtime, $state);
+            $expectedConfig = $this->serviceConfigFingerprint(
+                $managedImage,
+                $service,
+                $networkName,
+                $canonicalNetworkAlias,
+                $runtimeAuth['ciphertext'] ?? null,
+            );
 
             if (($inspect['successful'] ?? false) && trim((string) ($inspect['output'] ?? '')) === 'true') {
                 $labels = $this->run([$this->containerCli, 'inspect', $canonicalContainerName, '--format', '{{index .Config.Labels "wprint3d.plugin.config"}}']);
@@ -268,14 +304,13 @@ class PluginDependencyService
                     // Keep the healthy canonical container serving traffic while
                     // the new digest starts on an isolated candidate alias.
                     $candidate = true;
-                    $containerName = $canonicalContainerName.'-candidate-'.substr($expectedConfig, 0, 12);
-                    $networkAlias = $canonicalNetworkAlias.'-candidate';
+                    $candidateSuffix = substr($expectedConfig, 0, 12);
+                    $containerName = $canonicalContainerName.'-candidate-'.$candidateSuffix;
+                    $networkAlias = $canonicalNetworkAlias.'-candidate-'.$candidateSuffix;
                     $this->run([$this->containerCli, 'rm', '-f', $containerName]);
                     $inspect = ['successful' => false];
                 }
             }
-
-            $runtimeAuth = $this->runtimeAuthState($runtime, $state);
 
             if (! ($inspect['successful'] ?? false) || trim((string) ($inspect['output'] ?? '')) !== 'true') {
                 $command = $this->buildServiceRunCommand(
@@ -299,7 +334,13 @@ class PluginDependencyService
                     'networkName' => $networkName,
                     'networkAlias' => $networkAlias,
                     'port' => (int) $service['port'],
-                    'configFingerprint' => $this->serviceConfigFingerprint($managedImage, $service, $networkName, $networkAlias),
+                    'configFingerprint' => $this->serviceConfigFingerprint(
+                        $managedImage,
+                        $service,
+                        $networkName,
+                        $networkAlias,
+                        $runtimeAuth['ciphertext'] ?? null,
+                    ),
                     ...($candidate ? [
                         'candidateContainerName' => $containerName,
                         'candidateNetworkAlias' => $networkAlias,
@@ -371,8 +412,22 @@ class PluginDependencyService
                 throw new PluginRuntimeException('Managed runtime candidate is missing promotion metadata.');
             }
 
+            $candidateAlias = (string) ($serviceState['candidateNetworkAlias'] ?? '');
             $this->runOrFail(
-                [$this->containerCli, 'network', 'connect', '--alias', $alias, $network, $candidate],
+                [$this->containerCli, 'network', 'disconnect', $network, $candidate],
+                "Unable to detach managed runtime candidate {$candidate} before alias promotion."
+            );
+            $this->runOrFail(
+                array_values(array_filter([
+                    $this->containerCli,
+                    'network',
+                    'connect',
+                    ...($candidateAlias !== '' ? ['--alias', $candidateAlias] : []),
+                    '--alias',
+                    $alias,
+                    $network,
+                    $candidate,
+                ], static fn (string $argument): bool => $argument !== '')),
                 "Unable to attach managed runtime candidate {$candidate} to the live network alias."
             );
             $image = collect($manifest['images'] ?? [])->firstWhere('id', (string) $imageId);
@@ -395,6 +450,7 @@ class PluginDependencyService
                     $image['service'] ?? [],
                     $network,
                     $alias,
+                    data_get($state, 'runtime.authTokenCiphertext'),
                 );
             }
             unset($serviceState['candidateContainerName'], $serviceState['candidateNetworkAlias'], $serviceState['canonicalContainerName'], $serviceState['canonicalNetworkAlias']);
@@ -600,7 +656,13 @@ class PluginDependencyService
         if ($modernRuntime && (($service['resources'] ?? []) !== [] || ($service['storage'] ?? []) !== [] || ($service['security'] ?? []) !== [] || $runtimeAuth !== null)) {
             $command = array_merge($command, [
                 '--label',
-                'wprint3d.plugin.config='.$this->serviceConfigFingerprint($image, $service, $networkName, $networkAlias),
+                'wprint3d.plugin.config='.$this->serviceConfigFingerprint(
+                    $image,
+                    $service,
+                    $networkName,
+                    $networkAlias,
+                    $runtimeAuth['ciphertext'] ?? null,
+                ),
             ]);
         }
 
@@ -675,8 +737,13 @@ class PluginDependencyService
         return array_merge($command, $this->normalizeCommand($service['args'] ?? []));
     }
 
-    private function serviceConfigFingerprint(array $image, array $service, string $networkName, string $networkAlias): string
-    {
+    private function serviceConfigFingerprint(
+        array $image,
+        array $service,
+        string $networkName,
+        string $networkAlias,
+        mixed $authTokenCiphertext = null,
+    ): string {
         unset($service['network']);
 
         return hash('sha256', json_encode([
@@ -684,6 +751,9 @@ class PluginDependencyService
             'service' => $service,
             'network' => $networkName,
             'alias' => $networkAlias,
+            'auth' => is_string($authTokenCiphertext) && $authTokenCiphertext !== ''
+                ? hash('sha256', $authTokenCiphertext)
+                : null,
         ], JSON_THROW_ON_ERROR));
     }
 

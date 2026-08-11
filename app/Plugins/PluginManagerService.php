@@ -3,12 +3,15 @@
 namespace App\Plugins;
 
 use App\Enums\DataType;
+use App\Jobs\PreparePluginRuntime;
 use App\Models\Configuration;
 use App\Models\Plugin;
+use App\Models\Printer;
 use App\Models\User;
 use App\Plugins\Contracts\PluginManager;
 use App\Plugins\Exceptions\PluginRuntimeException;
 use App\Plugins\Runtimes\BridgePluginRuntimeAdapter;
+use App\Services\PrinterSlicingConfigurationService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
@@ -150,12 +153,32 @@ class PluginManagerService implements PluginManager
         $plugin = Plugin::firstOrNew(['plugin_id' => $package->manifest['id']]);
         $wasExisting = $plugin->exists;
         $previousState = $wasExisting ? $this->pluginStateSnapshot($plugin) : null;
+        $queueBackgroundPreparation = false;
 
         try {
             // Image pulls/digest checks happen before the model is changed. If
             // any dependency fails, the staged package and prior DB state are
             // removed/restored together; retained runtime volumes are untouched.
-            $dependencyState = $this->dependencyService->prepare($package->manifest);
+            $backgroundPreparation = $this->usesBackgroundPreparation($package->manifest)
+                && (! $wasExisting || ! (bool) $plugin->enabled);
+            $existingDependencyState = $wasExisting && is_array($plugin->dependency_state)
+                ? $plugin->dependency_state
+                : [];
+            $dependencyState = $backgroundPreparation
+                ? $this->dependencyService->summarize($package->manifest)
+                : $this->dependencyService->prepare($package->manifest, $existingDependencyState);
+            [$requirementsBlocked, $dependencyState] = $this->evaluateActivationRequirements(
+                $package->manifest,
+                $dependencyState,
+            );
+            if ($backgroundPreparation) {
+                $dependencyState['preparation'] = [
+                    'status' => $requirementsBlocked ? 'requirements_unmet' : 'queued',
+                    'queuedAt' => now()->toAtomString(),
+                    'version' => $package->manifest['version'],
+                ];
+                $queueBackgroundPreparation = ! $requirementsBlocked;
+            }
 
             $versions = $plugin->versions ?? [];
             $versions[$package->manifest['version']] = [
@@ -189,9 +212,16 @@ class PluginManagerService implements PluginManager
                 ),
                 'state' => is_array($plugin->state) ? $plugin->state : [],
                 'logs' => is_array($plugin->logs) ? $plugin->logs : [],
-                'load_status' => ($wasExisting && $plugin->enabled) ? 'ready' : 'disabled',
+                'load_status' => ($wasExisting && $plugin->enabled)
+                    ? 'ready'
+                    : ($backgroundPreparation
+                        ? ($requirementsBlocked ? 'requirements_unmet' : 'preparing')
+                        : 'disabled'),
                 'load_error_at' => null,
-                'automatic_update_enabled' => $this->defaultAutomaticUpdatesEnabledForSource($sourceType),
+                'automatic_update_enabled' => $this->defaultAutomaticUpdatesEnabledForSource(
+                    $sourceType,
+                    $package->manifest,
+                ),
                 'update_available' => false,
                 'latest_version' => $package->manifest['version'],
                 'last_update_checked_at' => null,
@@ -218,6 +248,13 @@ class PluginManagerService implements PluginManager
             "Installed plugin {$package->manifest['name']} {$package->manifest['version']}.",
             ['sourceType' => $sourceType]
         );
+
+        if ($queueBackgroundPreparation) {
+            PreparePluginRuntime::dispatch(
+                $package->manifest['id'],
+                $package->manifest['version'],
+            )->onQueue('default');
+        }
 
         return $this->serializePlugin($plugin->fresh());
     }
@@ -262,7 +299,22 @@ class PluginManagerService implements PluginManager
         $plugin = Plugin::firstOrNew(['plugin_id' => $package->manifest['id']]);
         $storagePath = config('plugins.paths.runtime').DIRECTORY_SEPARATOR.$package->manifest['id'];
         @mkdir($storagePath, 0777, true);
-        $dependencyState = $this->dependencyService->prepare($package->manifest);
+        $backgroundPreparation = $this->usesBackgroundPreparation($package->manifest)
+            && (! $plugin->exists || ! (bool) $plugin->enabled);
+        $dependencyState = $backgroundPreparation
+            ? $this->dependencyService->summarize($package->manifest)
+            : $this->dependencyService->prepare($package->manifest);
+        [$requirementsBlocked, $dependencyState] = $this->evaluateActivationRequirements(
+            $package->manifest,
+            $dependencyState,
+        );
+        if ($backgroundPreparation) {
+            $dependencyState['preparation'] = [
+                'status' => $requirementsBlocked ? 'requirements_unmet' : 'queued',
+                'queuedAt' => now()->toAtomString(),
+                'version' => $package->manifest['version'],
+            ];
+        }
 
         $source = [
             'type' => 'development_mount',
@@ -305,7 +357,11 @@ class PluginManagerService implements PluginManager
             'state' => is_array($plugin->state) ? $plugin->state : [],
             'last_error' => null,
             'logs' => is_array($plugin->logs) ? $plugin->logs : [],
-            'load_status' => ($plugin->exists && $plugin->enabled) ? 'ready' : 'disabled',
+            'load_status' => ($plugin->exists && $plugin->enabled)
+                ? 'ready'
+                : ($backgroundPreparation
+                    ? ($requirementsBlocked ? 'requirements_unmet' : 'preparing')
+                    : 'disabled'),
             'load_error_at' => null,
             'automatic_update_enabled' => false,
             'update_available' => false,
@@ -321,20 +377,68 @@ class PluginManagerService implements PluginManager
             ['path' => $resolvedPath]
         );
 
+        if ($backgroundPreparation && ! $requirementsBlocked) {
+            PreparePluginRuntime::dispatch(
+                $package->manifest['id'],
+                $package->manifest['version'],
+            )->onQueue('default');
+        }
+
         return $this->serializePlugin($plugin->fresh());
     }
 
-    public function enable(string $pluginId): array
+    public function enable(string $pluginId, bool $overrideRequirements = false, ?string $overrideBy = null): array
     {
         $plugin = $this->requireModel($pluginId);
         $this->lifecycleLogStore->append($plugin, 'info', 'startup', 'Plugin startup requested.');
 
         try {
-            $payload = $this->serializePlugin($plugin);
-
             if (! $this->currentRuntimePathIsAvailable($plugin)) {
                 throw new PluginRuntimeException("Plugin {$pluginId} runtime path is unavailable.");
             }
+
+            $manifest = $this->decodedManifest($plugin);
+            [$requirementsBlocked, $dependencyState] = $this->evaluateActivationRequirements(
+                $manifest,
+                is_array($plugin->dependency_state) ? $plugin->dependency_state : [],
+                $overrideRequirements,
+                $overrideBy,
+            );
+            $plugin->dependency_state = $dependencyState;
+            $plugin->warnings = $this->mergeWarnings($plugin->warnings ?? [], $dependencyState['warnings'] ?? []);
+
+            if ($requirementsBlocked) {
+                $plugin->enabled = false;
+                $plugin->load_status = 'requirements_unmet';
+                $plugin->last_error = null;
+                $plugin->load_error_at = null;
+                $plugin->save();
+                $this->lifecycleLogStore->append(
+                    $plugin,
+                    'warning',
+                    'startup',
+                    'Plugin activation was blocked because the host does not meet its declared requirements.',
+                );
+
+                return $this->serializePlugin($plugin->fresh() ?? $plugin);
+            }
+
+            if (
+                $this->usesBackgroundPreparation($manifest)
+                && data_get($dependencyState, 'preparation.status') !== 'ready'
+            ) {
+                $dependencyState = $this->dependencyService->prepare($manifest, $dependencyState);
+                $dependencyState['preparation'] = [
+                    'status' => 'ready',
+                    'preparedAt' => now()->toAtomString(),
+                    'version' => $plugin->current_version,
+                ];
+                $plugin->dependency_state = $dependencyState;
+                $plugin->load_status = 'prepared';
+                $plugin->save();
+            }
+
+            $payload = $this->serializePlugin($plugin->fresh() ?? $plugin);
 
             $dependencyState = $this->dependencyService->activate($payload, $plugin->dependency_state ?? []);
             $plugin->dependency_state = $dependencyState;
@@ -368,9 +472,13 @@ class PluginManagerService implements PluginManager
             return $this->serializePlugin($plugin->fresh());
         } catch (\Throwable $exception) {
             try {
-                $failedPayload = $this->serializePlugin($plugin->fresh() ?? $plugin);
-                if ($this->dependencyService->hasCandidate($failedPayload['dependency_state'] ?? [])) {
-                    $this->dependencyService->discardCandidate($failedPayload['dependency_state'] ?? []);
+                $failedPlugin = $plugin->fresh() ?? $plugin;
+                $failedPayload = $this->serializePlugin($failedPlugin);
+                $failedDependencyState = is_array($failedPlugin->dependency_state)
+                    ? $failedPlugin->dependency_state
+                    : [];
+                if ($this->dependencyService->hasCandidate($failedDependencyState)) {
+                    $this->dependencyService->discardCandidate($failedDependencyState);
                 } else {
                     $this->dependencyService->deactivate($failedPayload);
                 }
@@ -395,6 +503,110 @@ class PluginManagerService implements PluginManager
         }
     }
 
+    public function prepareRuntime(string $pluginId, string $expectedVersion): array
+    {
+        $plugin = $this->requireModel($pluginId);
+
+        if ((string) $plugin->current_version !== $expectedVersion) {
+            return array_merge($this->serializePlugin($plugin), [
+                'preparationStatus' => 'stale',
+            ]);
+        }
+
+        $manifest = $this->decodedManifest($plugin);
+        if (! $this->usesBackgroundPreparation($manifest)) {
+            return array_merge($this->serializePlugin($plugin), [
+                'preparationStatus' => 'not_required',
+            ]);
+        }
+
+        [$requirementsBlocked, $dependencyState] = $this->evaluateActivationRequirements(
+            $manifest,
+            is_array($plugin->dependency_state) ? $plugin->dependency_state : [],
+        );
+
+        if ($requirementsBlocked) {
+            $dependencyState['preparation'] = [
+                'status' => 'requirements_unmet',
+                'checkedAt' => now()->toAtomString(),
+                'version' => $expectedVersion,
+            ];
+            $plugin->dependency_state = $dependencyState;
+            $plugin->enabled = false;
+            $plugin->load_status = 'requirements_unmet';
+            $plugin->save();
+
+            return array_merge($this->serializePlugin($plugin->fresh() ?? $plugin), [
+                'preparationStatus' => 'requirements_unmet',
+            ]);
+        }
+
+        try {
+            $dependencyState['preparation'] = [
+                'status' => 'preparing',
+                'startedAt' => now()->toAtomString(),
+                'version' => $expectedVersion,
+            ];
+            $plugin->dependency_state = $dependencyState;
+            $plugin->load_status = 'preparing';
+            $plugin->save();
+
+            $dependencyState = $this->dependencyService->prepare($manifest, $dependencyState);
+            $dependencyState['preparation'] = [
+                'status' => 'ready',
+                'preparedAt' => now()->toAtomString(),
+                'version' => $expectedVersion,
+            ];
+            $plugin->dependency_state = $dependencyState;
+            $plugin->load_status = 'prepared';
+            $plugin->last_error = null;
+            $plugin->load_error_at = null;
+            $plugin->warnings = $this->mergeWarnings($plugin->warnings ?? [], $dependencyState['warnings'] ?? []);
+            $plugin->save();
+            $this->lifecycleLogStore->append(
+                $plugin,
+                'info',
+                'prepare',
+                "Prepared plugin runtime dependencies for {$expectedVersion}.",
+            );
+
+            if ((bool) data_get($manifest, 'activation.autoEnableWhenReady', false)) {
+                return array_merge($this->enable($pluginId), [
+                    'preparationStatus' => 'ready',
+                ]);
+            }
+
+            return array_merge($this->serializePlugin($plugin->fresh() ?? $plugin), [
+                'preparationStatus' => 'ready',
+            ]);
+        } catch (\Throwable $exception) {
+            $dependencyState['preparation'] = [
+                'status' => 'failed',
+                'failedAt' => now()->toAtomString(),
+                'version' => $expectedVersion,
+                'error' => $exception->getMessage(),
+            ];
+            $plugin->dependency_state = $dependencyState;
+            $plugin->enabled = false;
+            $plugin->load_status = 'failed';
+            $plugin->last_error = $exception->getMessage();
+            $plugin->load_error_at = now()->toAtomString();
+            $plugin->warnings = $this->mergeWarnings($plugin->warnings ?? [], [$exception->getMessage()]);
+            $plugin->save();
+            $this->lifecycleLogStore->append(
+                $plugin,
+                'error',
+                'prepare',
+                $exception->getMessage(),
+                ['exception' => $exception::class],
+            );
+
+            return array_merge($this->serializePlugin($plugin->fresh() ?? $plugin), [
+                'preparationStatus' => 'failed',
+            ]);
+        }
+    }
+
     public function disable(string $pluginId): array
     {
         $plugin = $this->requireModel($pluginId);
@@ -414,7 +626,7 @@ class PluginManagerService implements PluginManager
      */
     private function healthcheckBridgeWithRetry(BridgePluginRuntimeAdapter $adapter, array $payload): void
     {
-        $attempts = max(1, (int) config('plugins.runtime.healthcheck_retries', 30));
+        $attempts = max(1, (int) config('plugins.runtime.healthcheck_retries', 120));
         $delayMicroseconds = max(0, (int) config('plugins.runtime.healthcheck_delay_ms', 500)) * 1000;
 
         for ($attempt = 1; $attempt <= $attempts; $attempt++) {
@@ -805,6 +1017,7 @@ class PluginManagerService implements PluginManager
                     'pluginId' => $payload['id'],
                     'pluginName' => $payload['name'],
                     'pluginTrustLevel' => $payload['trustLevel'],
+                    'runtimeArtifactImports' => data_get($payload, 'manifest.runtime.artifactImports', []),
                     'warnings' => array_values(array_filter([
                         $payload['trustLevel'] === 'unsigned' ? 'Unsigned sideloaded plugin' : null,
                         in_array($extension['mode'] ?? 'declarative', ['webview', 'custom_bundle'], true)
@@ -836,7 +1049,7 @@ class PluginManagerService implements PluginManager
         $proxyEnabled = (bool) config('plugins.rollout.runtime_proxy_enabled', true)
             && (bool) data_get($payload, 'manifest.runtime.proxy.enabled', false);
         $context = [
-            'apiVersion' => '1.0',
+            'apiVersion' => '2.0',
             'pluginId' => $pluginId,
             'hostMode' => 'embedded',
             'runtimeBase' => $proxyEnabled ? $runtimeBase : null,
@@ -844,18 +1057,47 @@ class PluginManagerService implements PluginManager
                 ? "/backend/api/plugins/{$pluginId}/runtime-artifacts"
                 : null,
             'locale' => $this->normalizeLocale($locale ?: (string) config('app.locale', 'en')),
+            'presentation' => 'split-pane',
+            'themeTokens' => (object) [],
             'features' => [
                 'printerRead' => isset($permissions['printer.read']),
                 'storageRead' => isset($permissions['storage.read']),
                 'storageWrite' => isset($permissions['storage.write']),
             ],
+            'hostActions' => $this->embeddedHostActions($permissions),
+            'currentPrinterId' => null,
+            'currentPrinter' => null,
         ];
 
         if (isset($permissions['printer.read']) && $user) {
             $context['currentPrinterId'] = $user->getActivePrinterId();
+            $printer = $user->getActivePrinter('_id', 'node', 'machine', 'slicing');
+            if ($printer instanceof Printer) {
+                $context['currentPrinterId'] = (string) $printer->getKey();
+                $context['currentPrinter'] = app(PrinterSlicingConfigurationService::class)
+                    ->hostPrinterContext($printer);
+            }
         }
 
         return $context;
+    }
+
+    private function embeddedHostActions(array $permissions): array
+    {
+        $printerRead = isset($permissions['printer.read']);
+        $storageWrite = isset($permissions['storage.write']);
+
+        return [
+            ['id' => 'printer.slicing.open', 'version' => 2, 'available' => $printerRead],
+            ['id' => 'files.open', 'version' => 2, 'available' => true],
+            ['id' => 'preview.open', 'version' => 2, 'available' => $printerRead],
+            ['id' => 'artifact.import', 'version' => 2, 'available' => $storageWrite],
+            ['id' => 'artifact.print', 'version' => 2, 'available' => $storageWrite && $printerRead],
+            ['id' => 'fullscreen.enter', 'version' => 2, 'available' => true],
+            ['id' => 'fullscreen.exit', 'version' => 2, 'available' => true],
+            ['id' => 'transfer.progress', 'version' => 2, 'available' => true],
+            ['id' => 'transfer.result', 'version' => 2, 'available' => true],
+        ];
     }
 
     public function invokeAction(string $pluginId, string $actionId, array $payload = [], array $context = []): array
@@ -1108,6 +1350,74 @@ class PluginManagerService implements PluginManager
         if (version_compare($coreVersion, $minCoreVersion, '<')) {
             throw new PluginRuntimeException("Plugin {$manifest['id']} requires WPrint3D {$minCoreVersion} or newer.");
         }
+    }
+
+    private function usesBackgroundPreparation(array $manifest): bool
+    {
+        return (int) ($manifest['sdkRevision'] ?? 0) >= 6
+            && data_get($manifest, 'activation.prepare') === 'background';
+    }
+
+    /**
+     * @return array{0: bool, 1: array<string, mixed>}
+     */
+    private function evaluateActivationRequirements(
+        array $manifest,
+        array $state,
+        bool $acceptOverride = false,
+        ?string $overrideBy = null,
+    ): array {
+        $summary = $this->dependencyService->summarize($manifest, $state);
+        $requirements = is_array($manifest['requirements'] ?? null) ? $manifest['requirements'] : [];
+        $enforced = (int) ($manifest['sdkRevision'] ?? 0) >= 6
+            && ($requirements['policy'] ?? null) === 'disable-by-default-when-unmet';
+
+        if (! $enforced) {
+            return [false, $summary];
+        }
+
+        $meetsRequirements = (bool) data_get($summary, 'host.meetsRequirements', false);
+        $allowAdminOverride = (bool) ($requirements['allowAdminOverride'] ?? false);
+        $existingOverride = data_get($state, 'activation.requirementsOverride', []);
+        $overrideAccepted = $allowAdminOverride
+            && is_array($existingOverride)
+            && ($existingOverride['accepted'] ?? false) === true;
+
+        if ($acceptOverride && ! $allowAdminOverride) {
+            throw new PluginRuntimeException('This plugin does not allow an administrator requirement override.');
+        }
+
+        if ($acceptOverride && ! $meetsRequirements) {
+            $existingOverride = [
+                'accepted' => true,
+                'acceptedAt' => now()->toAtomString(),
+                'acceptedBy' => $overrideBy,
+            ];
+            $overrideAccepted = true;
+        }
+
+        $blocked = ! $meetsRequirements && ! $overrideAccepted;
+        $activation = is_array($summary['activation'] ?? null) ? $summary['activation'] : [];
+        $activation['requirementsBlocked'] = $blocked;
+        $activation['requirementsCheckedAt'] = now()->toAtomString();
+        if ($overrideAccepted) {
+            $activation['requirementsOverride'] = $existingOverride;
+        }
+        $summary['activation'] = $activation;
+
+        if ($blocked) {
+            $summary['warnings'] = $this->mergeWarnings(
+                $summary['warnings'] ?? [],
+                ['Activation is disabled until this host meets the declared requirements or an administrator accepts the override.'],
+            );
+        } elseif ($overrideAccepted && ! $meetsRequirements) {
+            $summary['warnings'] = $this->mergeWarnings(
+                $summary['warnings'] ?? [],
+                ['Administrator requirement override is active while this host remains below the declared minimum.'],
+            );
+        }
+
+        return [$blocked, $summary];
     }
 
     private function requireModel(string $pluginId): Plugin
@@ -1475,11 +1785,26 @@ class PluginManagerService implements PluginManager
 
     private function supportsAutomaticUpdates(Plugin $plugin): bool
     {
+        $manifest = $this->decodedManifest($plugin);
+        if (
+            (int) ($manifest['sdkRevision'] ?? 0) >= 6
+            && data_get($manifest, 'updates.managedByCore') === true
+        ) {
+            return false;
+        }
+
         return in_array($plugin->install_source['type'] ?? null, ['official_registry', 'trusted_registry'], true);
     }
 
-    private function defaultAutomaticUpdatesEnabledForSource(string $sourceType): bool
+    private function defaultAutomaticUpdatesEnabledForSource(string $sourceType, array $manifest = []): bool
     {
+        if (
+            (int) ($manifest['sdkRevision'] ?? 0) >= 6
+            && data_get($manifest, 'updates.managedByCore') === true
+        ) {
+            return false;
+        }
+
         return in_array($sourceType, ['official_registry', 'trusted_registry'], true)
             && $this->globalAutomaticUpdatesEnabled();
     }

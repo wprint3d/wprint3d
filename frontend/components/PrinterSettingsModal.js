@@ -5,12 +5,13 @@ import { useEffect, useState } from "react";
 
 import PrinterSettingsModalDetails from "./PrinterSettingsModalDetails";
 import PrinterSettingsModalLinking from "./PrinterSettingsModalLinking";
+import PrinterSettingsModalSlicing from "./PrinterSettingsModalSlicing";
 import { useQuery } from "@tanstack/react-query";
 import API from "../includes/API";
 import BackButton from "./modules/BackButton";
 import { LocalizationContext, useLocalization } from "../includes/LocalizationProvider";
 
-const PrinterSettingsModal = ({ isVisible, setIsVisible, printer, isSmallTablet }) => {
+const PrinterSettingsModal = ({ isVisible, setIsVisible, printer, isSmallTablet, defaultTabKey = "details" }) => {
     const theme = useTheme();
     const localization = useLocalization();
     const { effectiveLanguage, t } = localization;
@@ -57,7 +58,7 @@ const PrinterSettingsModal = ({ isVisible, setIsVisible, printer, isSmallTablet 
                     }}
                 >
                     {isSmallTablet && <BackButton onPress={() => setIsVisible(false)} />}
-                    <TabsProvider key={`printer-settings-tabs:${effectiveLanguage}`} defaultIndex={0}>
+                    <TabsProvider key={`printer-settings-tabs:${effectiveLanguage}:${defaultTabKey}`} defaultIndex={defaultTabKey === "slicing" ? 2 : (defaultTabKey === "linking" ? 1 : 0)}>
                         <Tabs
                             style={{
                                 backgroundColor: theme.colors.elevation.level1,
@@ -75,6 +76,11 @@ const PrinterSettingsModal = ({ isVisible, setIsVisible, printer, isSmallTablet 
                             <TabScreen key={`linking:${effectiveLanguage}`} label={t("settings.linkingTab")} icon="link">
                                 <LocalizationContext.Provider value={localization}>
                                     <PrinterSettingsModalLinking details={details} isLoading={loading} error={error} printer={printer} />
+                                </LocalizationContext.Provider>
+                            </TabScreen>
+                            <TabScreen key={`slicing:${effectiveLanguage}`} label={t("settings.slicing.tab")} icon="layers-triple-outline">
+                                <LocalizationContext.Provider value={localization}>
+                                    <PrinterSettingsModalSlicing printer={printer} />
                                 </LocalizationContext.Provider>
                             </TabScreen>
                         </Tabs>

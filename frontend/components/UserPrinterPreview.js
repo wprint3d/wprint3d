@@ -30,6 +30,7 @@ import SliderTag from "./modules/SliderTag";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { useLastTerminalMessage } from "../hooks/useLastTerminalMessage";
 import { useLocalization } from "../includes/LocalizationProvider";
+import { createLivePreviewEngine } from "../utils/livePreviewEngine";
 
 export default function UserPrinterPreview({ printerId, isSmallTablet = false }) {
     const { t } = useLocalization();
@@ -44,7 +45,7 @@ export default function UserPrinterPreview({ printerId, isSmallTablet = false })
 
     const [ currentLayer,  setCurrentLayer ]  = useState(null);
     const [ maxLayer,      setMaxLayer     ]  = useState(0);
-    const [ buffer,        setBuffer       ]  = useState([]);
+    const movementBuffer = useRef([]);
     const [ selectedLayer, setSelectedLayer ] = useState(null);
     const [ sliderValue,   setSliderValue   ] = useState(0);
     const [ sliderLayout,  setSliderLayout  ] = useState(null);
@@ -94,6 +95,7 @@ export default function UserPrinterPreview({ printerId, isSmallTablet = false })
     });
 
     const gcodePreview = useRef(null);
+    const livePreviewEngine = useRef(createLivePreviewEngine());
 
     const parseMovement = line => {
         let parsed = line.trim().replace('> ', '');
@@ -108,17 +110,15 @@ export default function UserPrinterPreview({ printerId, isSmallTablet = false })
 
         setIsDownloading(false);
 
-        if (buffer.length) {
-            console.debug('UserPrinterPreview: private: listen: buffer:', buffer);
+        if (movementBuffer.current.length) {
+            const bufferedCommands = movementBuffer.current;
+            movementBuffer.current = [];
+            console.debug('UserPrinterPreview: private: listen: buffer:', bufferedCommands);
 
-            gcodePreview.current.processGCode(buffer.join('\n'));
-
-            setBuffer([]);
+            bufferedCommands.forEach(command => livePreviewEngine.current.ingest(command));
+            gcodePreview.current.processGCode(bufferedCommands.join('\n'));
         }
 
-        if (gcodePreview.current) {
-            gcodePreview.current.clear();
-        }
     };
 
     const downloadGCode = () => {
@@ -128,7 +128,7 @@ export default function UserPrinterPreview({ printerId, isSmallTablet = false })
             gcodePreview.current.clear();
         }
 
-        setBuffer([]);
+        movementBuffer.current = [];
         setIsDownloading(true);
 
         baseGcodeQuery.refetch().finally(handleFetchComplete);
@@ -168,7 +168,7 @@ export default function UserPrinterPreview({ printerId, isSmallTablet = false })
     useEffect(() => {
         console.debug('UserPrinterPreview: baseGcodeQuery:', baseGcodeQuery);
 
-        if (!baseGcodeQuery.isSuccess || !gcodePreview || isDownloading) return;
+        if (!baseGcodeQuery.isSuccess || !gcodePreview.current || isDownloading) return;
 
         const gcode = baseGcodeQuery.data.data;
 
@@ -176,7 +176,9 @@ export default function UserPrinterPreview({ printerId, isSmallTablet = false })
 
         if (!gcode) return;
 
+        livePreviewEngine.current.bootstrap(gcode, { live: selectedLayer === null });
         gcodePreview.current.processGCode(gcode);
+        gcodePreview.current.setNozzlePosition(livePreviewEngine.current.getAnimatedNozzlePosition());
     }, [ baseGcodeQuery.data, gcodePreview, isDownloading ]);
 
     useEffect(() => {
@@ -247,6 +249,9 @@ export default function UserPrinterPreview({ printerId, isSmallTablet = false })
     useEffect(() => {
         console.debug('UserPrinterPreview: selectedLayer:', selectedLayer);
 
+        livePreviewEngine.current.setSelectedLayer(selectedLayer);
+        livePreviewEngine.current.setMode(selectedLayer === null ? 'live' : 'scrubbed');
+        gcodePreview.current?.setNozzleVisible(selectedLayer === null && isPrinting);
         downloadGCode();
     }, [ selectedLayer ]);
 
@@ -269,16 +274,34 @@ export default function UserPrinterPreview({ printerId, isSmallTablet = false })
             if (!command) return;
 
             if (isDownloading || baseGcodeQuery.isFetching || !baseGcodeQuery.isFetched || !baseGcodeQuery.isSuccess) {
-                const nextBuffer = buffer;
-
-                nextBuffer.push(command);
-
-                setBuffer(nextBuffer);
+                movementBuffer.current.push(command);
             } else if (selectedLayer === null) {
+                livePreviewEngine.current.ingest(command);
                 gcodePreview.current.processGCode(command);
             }
         });
     }, [ gcodePreview, isDownloading, lastUpdate ]);
+
+    useEffect(() => {
+        let animationFrame;
+        const requestFrame = globalThis.requestAnimationFrame;
+        const cancelFrame = globalThis.cancelAnimationFrame;
+        if (typeof requestFrame !== 'function' || typeof cancelFrame !== 'function') {
+            return undefined;
+        }
+        const animateNozzle = timestamp => {
+            if (selectedLayer === null && isPrinting && gcodePreview.current) {
+                livePreviewEngine.current.tick(timestamp);
+                gcodePreview.current.setNozzleVisible(true);
+                gcodePreview.current.setNozzlePosition(livePreviewEngine.current.getAnimatedNozzlePosition());
+            } else {
+                gcodePreview.current?.setNozzleVisible(false);
+            }
+            animationFrame = requestFrame(animateNozzle);
+        };
+        animationFrame = requestFrame(animateNozzle);
+        return () => cancelFrame(animationFrame);
+    }, [ isPrinting, selectedLayer ]);
 
     return (
         <View style={{

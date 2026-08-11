@@ -22,10 +22,27 @@ class PluginReconcileRuntime extends Command
         ])->all());
 
         foreach ($results as $result) {
+            $plugin = Plugin::query()->where('plugin_id', $result['id'] ?? null)->first();
+
             if (($result['status'] ?? null) === 'failed') {
+                if ($plugin) {
+                    $plugin->load_status = 'failed';
+                    $plugin->last_error = $result['error'] ?? 'Runtime reconciliation failed.';
+                    $plugin->load_error_at = now()->toAtomString();
+                    $plugin->save();
+                }
                 $this->error(($result['id'] ?? 'plugin').': '.($result['error'] ?? 'reconciliation failed'));
 
                 continue;
+            }
+
+            if ($plugin && is_array($result['state'] ?? null)) {
+                $plugin->dependency_state = $result['state'];
+                $plugin->load_status = 'ready';
+                $plugin->last_error = null;
+                $plugin->load_error_at = null;
+                $plugin->last_healthcheck_at = now()->toAtomString();
+                $plugin->save();
             }
 
             $this->info(($result['id'] ?? 'plugin').': ready');

@@ -2,13 +2,21 @@
 
 namespace Tests\Feature\Plugins;
 
+use App\Exceptions\PrintJobException;
 use App\Models\Plugin;
+use App\Models\Printer;
+use App\Models\User;
 use App\Plugins\Contracts\PluginManager;
 use App\Plugins\Exceptions\PluginRuntimeException;
 use App\Plugins\PluginDependencyService;
+use App\Services\PrintJobService;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
 
@@ -166,7 +174,7 @@ class PluginManagementApiTest extends TestCase
         $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
         $manager->shouldReceive('enable')
             ->once()
-            ->with('acme.demo')
+            ->with('acme.demo', false, null)
             ->andReturn([
                 'id' => 'acme.demo',
                 'enabled' => true,
@@ -179,6 +187,25 @@ class PluginManagementApiTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('id', 'acme.demo')
+            ->assertJsonPath('enabled', true);
+    }
+
+    public function test_it_forwards_an_explicit_requirement_override_when_enabling_a_plugin(): void
+    {
+        $manager = Mockery::mock(PluginManager::class);
+        $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
+        $manager->shouldReceive('enable')
+            ->once()
+            ->with('acme.demo', true, null)
+            ->andReturn([
+                'id' => 'acme.demo',
+                'enabled' => true,
+            ]);
+        $this->app->instance(PluginManager::class, $manager);
+
+        $this->withoutMiddleware()
+            ->postJson('/api/plugins/acme.demo/enable', ['overrideRequirements' => true])
+            ->assertOk()
             ->assertJsonPath('enabled', true);
     }
 
@@ -233,15 +260,21 @@ class PluginManagementApiTest extends TestCase
             $response = $this->withoutMiddleware()->withHeaders([
                 'X-WPrint-User-Id' => 'spoofed-browser-user',
                 'Accept' => 'application/json',
-            ])->get('/api/plugins/'.$pluginId.'/runtime/api/v1/capabilities');
+            ])->get('/api/plugins/'.$pluginId.'/runtime/api/v1/capabilities?package_type=plugin&limit=100&search=bed%20leveling');
 
             $response->assertOk();
             $this->assertSame('{"status":"ok"}', $response->streamedContent());
-            Http::assertSent(function (\Illuminate\Http\Client\Request $request): bool {
-                return $request->hasHeader('Authorization', 'Bearer runtime-secret')
-                    && $request->hasHeader('x-wprint-plugin-id')
-                    && $request->hasHeader('x-wprint-user-id', 'wprint-user');
-            });
+            $recorded = Http::recorded();
+            $this->assertCount(1, $recorded);
+            /** @var \Illuminate\Http\Client\Request $outbound */
+            $outbound = $recorded->first()[0];
+            parse_str((string) parse_url($outbound->url(), PHP_URL_QUERY), $query);
+            $this->assertSame('plugin', $query['package_type'] ?? null);
+            $this->assertSame('100', $query['limit'] ?? null);
+            $this->assertSame('bed leveling', $query['search'] ?? null);
+            $this->assertTrue($outbound->hasHeader('Authorization', 'Bearer runtime-secret'));
+            $this->assertTrue($outbound->hasHeader('x-wprint-plugin-id'));
+            $this->assertTrue($outbound->hasHeader('x-wprint-user-id', 'wprint-user'));
         } finally {
             Plugin::where('plugin_id', $pluginId)->delete();
         }
@@ -280,6 +313,426 @@ class PluginManagementApiTest extends TestCase
             Http::assertSent(fn (\Illuminate\Http\Client\Request $request): bool => $request->body() === '{"apiVersion":"1.1","models":[]}');
         } finally {
             Plugin::where('plugin_id', $pluginId)->delete();
+        }
+    }
+
+    public function test_runtime_proxy_rebuilds_parsed_multipart_uploads_as_bounded_streams(): void
+    {
+        $pluginId = 'acme.proxy-multipart-'.uniqid();
+        Plugin::query()->create([
+            'plugin_id' => $pluginId,
+            'name' => 'Multipart proxy fixture',
+            'enabled' => true,
+            'manifest' => [
+                'sdkVersion' => 1,
+                'sdkRevision' => 5,
+                'runtime' => [
+                    'type' => 'bridge',
+                    'proxy' => ['enabled' => true, 'allowedPaths' => ['/api/v1'], 'methods' => ['POST']],
+                    'httpProxy' => ['pathPrefix' => '/api/v1', 'methods' => ['POST'], 'maxUploadMb' => 2],
+                ],
+            ],
+            'dependency_state' => [
+                'runtime' => [
+                    'baseUrl' => 'http://cura-gateway:9311',
+                    'authTokenCiphertext' => Crypt::encryptString('runtime-secret'),
+                ],
+            ],
+        ]);
+        Http::fake(['http://cura-gateway:9311/*' => Http::response(['uploadId' => 'upload-1'], 201)]);
+        $stl = "solid proxy-audit\nvertex 1 2 3\nendsolid proxy-audit\n";
+        $temporaryFile = tempnam(sys_get_temp_dir(), 'runtime-proxy-upload-');
+        if ($temporaryFile === false || file_put_contents($temporaryFile, $stl) === false) {
+            $this->fail('Unable to create the multipart proxy fixture.');
+        }
+
+        try {
+            $response = $this->withoutMiddleware()
+                ->withHeader('Content-Type', 'multipart/form-data; boundary=browser-fixture')
+                ->post('/api/plugins/'.$pluginId.'/runtime/api/v1/uploads', [
+                    'file' => new UploadedFile($temporaryFile, 'audit cube.stl', 'model/stl', UPLOAD_ERR_OK, true),
+                    'metadata' => ['label' => 'Audit cube'],
+                    'tags' => ['small', 'watertight'],
+                ]);
+
+            $response->assertCreated();
+            $this->assertSame('upload-1', json_decode($response->streamedContent(), true, flags: JSON_THROW_ON_ERROR)['uploadId']);
+            $recorded = Http::recorded();
+            $this->assertCount(1, $recorded);
+            /** @var \Illuminate\Http\Client\Request $outbound */
+            $outbound = $recorded->first()[0];
+            $headers = array_change_key_case($outbound->headers(), CASE_LOWER);
+            $contentType = $headers['content-type'][0] ?? '';
+            preg_match('/boundary=([^;]+)/', $contentType, $matches);
+            $boundary = $matches[1] ?? '';
+            $body = $outbound->body();
+
+            $this->assertTrue($outbound->hasHeader('Authorization', 'Bearer runtime-secret'));
+            $this->assertNotSame('', $boundary);
+            $this->assertStringContainsString('--'.$boundary, $body);
+            $this->assertStringContainsString('name="file"; filename="audit cube.stl"', $body);
+            $this->assertStringContainsString('Content-Type: model/stl', $body);
+            $this->assertStringContainsString($stl, $body);
+            $this->assertStringContainsString('name="metadata[label]"', $body);
+            $this->assertStringContainsString('Audit cube', $body);
+            $this->assertStringContainsString('name="tags[0]"', $body);
+            $this->assertStringContainsString('small', $body);
+            $this->assertSame(strlen($body), (int) ($headers['content-length'][0] ?? 0));
+        } finally {
+            Plugin::where('plugin_id', $pluginId)->delete();
+            if (is_file($temporaryFile)) {
+                unlink($temporaryFile);
+            }
+        }
+    }
+
+    public function test_runtime_proxy_enforces_declared_limit_on_rebuilt_multipart_body(): void
+    {
+        $pluginId = 'acme.proxy-multipart-limit-'.uniqid();
+        Plugin::query()->create([
+            'plugin_id' => $pluginId,
+            'name' => 'Multipart limit proxy fixture',
+            'enabled' => true,
+            'manifest' => [
+                'sdkVersion' => 1,
+                'sdkRevision' => 5,
+                'runtime' => [
+                    'type' => 'bridge',
+                    'proxy' => ['enabled' => true, 'allowedPaths' => ['/api/v1'], 'methods' => ['POST']],
+                    'httpProxy' => ['pathPrefix' => '/api/v1', 'methods' => ['POST'], 'maxUploadMb' => 1],
+                ],
+            ],
+            'dependency_state' => [
+                'runtime' => ['baseUrl' => 'http://cura-gateway:9311'],
+            ],
+        ]);
+        Http::fake();
+
+        try {
+            $this->withoutMiddleware()
+                ->withHeader('Content-Type', 'multipart/form-data; boundary=browser-fixture')
+                ->post('/api/plugins/'.$pluginId.'/runtime/api/v1/uploads', [
+                    'files' => [
+                        UploadedFile::fake()->createWithContent('one.stl', str_repeat('a', 600 * 1024)),
+                        UploadedFile::fake()->createWithContent('two.stl', str_repeat('b', 600 * 1024)),
+                    ],
+                ])->assertStatus(413);
+            Http::assertNothingSent();
+        } finally {
+            Plugin::where('plugin_id', $pluginId)->delete();
+        }
+    }
+
+    public function test_runtime_proxy_raw_multipart_fallback_terminates_at_eof(): void
+    {
+        $pluginId = 'acme.proxy-raw-multipart-'.uniqid();
+        Plugin::query()->create([
+            'plugin_id' => $pluginId,
+            'name' => 'Raw multipart proxy fixture',
+            'enabled' => true,
+            'manifest' => [
+                'sdkVersion' => 1,
+                'sdkRevision' => 5,
+                'runtime' => [
+                    'type' => 'bridge',
+                    'proxy' => ['enabled' => true, 'allowedPaths' => ['/api/v1'], 'methods' => ['POST']],
+                    'httpProxy' => ['pathPrefix' => '/api/v1', 'methods' => ['POST'], 'maxUploadMb' => 1],
+                ],
+            ],
+            'dependency_state' => [
+                'runtime' => ['baseUrl' => 'http://cura-gateway:9311'],
+            ],
+        ]);
+        Http::fake(['http://cura-gateway:9311/*' => Http::response(['detail' => 'invalid fixture'], 422)]);
+        $body = "--fixture\r\nContent-Disposition: form-data; name=\"label\"\r\n\r\naudit\r\n--fixture--\r\n";
+
+        try {
+            $response = $this->withoutMiddleware()->call(
+                'POST',
+                '/api/plugins/'.$pluginId.'/runtime/api/v1/uploads',
+                [],
+                [],
+                [],
+                [
+                    'CONTENT_TYPE' => 'multipart/form-data; boundary=fixture',
+                    'CONTENT_LENGTH' => (string) strlen($body),
+                ],
+                $body,
+            );
+
+            $response->assertStatus(422);
+            $recorded = Http::recorded();
+            $this->assertCount(1, $recorded);
+            /** @var \Illuminate\Http\Client\Request $outbound */
+            $outbound = $recorded->first()[0];
+            $this->assertSame($body, $outbound->body());
+        } finally {
+            Plugin::where('plugin_id', $pluginId)->delete();
+        }
+    }
+
+    public function test_runtime_proxy_maps_sidecar_connection_failures_to_bad_gateway(): void
+    {
+        $pluginId = 'acme.proxy-unavailable-'.uniqid();
+        Plugin::query()->create([
+            'plugin_id' => $pluginId,
+            'name' => 'Unavailable proxy fixture',
+            'enabled' => true,
+            'manifest' => [
+                'sdkVersion' => 1,
+                'sdkRevision' => 5,
+                'runtime' => [
+                    'type' => 'bridge',
+                    'proxy' => ['enabled' => true, 'allowedPaths' => ['/api/v1']],
+                    'httpProxy' => ['pathPrefix' => '/api/v1', 'methods' => ['GET']],
+                ],
+            ],
+            'dependency_state' => [
+                'runtime' => ['baseUrl' => 'http://unavailable-gateway:9311'],
+            ],
+        ]);
+        Http::fake(fn () => throw new ConnectionException('cURL error 7: Connection refused'));
+
+        try {
+            $this->withoutMiddleware()
+                ->get('/api/plugins/'.$pluginId.'/runtime/api/v1/health')
+                ->assertStatus(502)
+                ->assertSee('Plugin runtime is unavailable.');
+        } finally {
+            Plugin::where('plugin_id', $pluginId)->delete();
+        }
+    }
+
+    public function test_runtime_proxy_rejects_requests_for_disabled_plugins(): void
+    {
+        $pluginId = 'acme.proxy-disabled-plugin-'.uniqid();
+        Plugin::query()->create([
+            'plugin_id' => $pluginId,
+            'name' => 'Disabled runtime fixture',
+            'enabled' => false,
+            'manifest' => [
+                'sdkVersion' => 1,
+                'sdkRevision' => 5,
+                'runtime' => [
+                    'type' => 'bridge',
+                    'proxy' => ['enabled' => true, 'allowedPaths' => ['/api/v1']],
+                    'httpProxy' => ['pathPrefix' => '/api/v1', 'methods' => ['GET']],
+                ],
+            ],
+        ]);
+        Http::fake();
+
+        try {
+            $this->withoutMiddleware()->withoutExceptionHandling();
+            $this->expectException(PluginRuntimeException::class);
+            $this->expectExceptionMessage("Plugin {$pluginId} is not enabled.");
+            $this->get('/api/plugins/'.$pluginId.'/runtime/api/v1/health');
+        } finally {
+            Plugin::where('plugin_id', $pluginId)->delete();
+            Http::assertNothingSent();
+        }
+    }
+
+    public function test_runtime_artifact_import_enforces_declared_path_and_content_type(): void
+    {
+        $pluginId = 'acme.proxy-artifact-policy-'.uniqid();
+        Plugin::query()->create([
+            'plugin_id' => $pluginId,
+            'name' => 'Artifact policy fixture',
+            'enabled' => true,
+            'manifest' => [
+                'sdkVersion' => 1,
+                'sdkRevision' => 5,
+                'runtime' => [
+                    'type' => 'bridge',
+                    'proxy' => ['enabled' => true, 'allowedPaths' => ['/api/v1']],
+                    'httpProxy' => ['pathPrefix' => '/api/v1', 'methods' => ['GET']],
+                    'artifactImports' => [[
+                        'id' => 'gcode',
+                        'pathPattern' => '^/api/v1/jobs/[A-Za-z0-9_-]+/gcode$',
+                        'contentTypes' => ['text/x-gcode'],
+                        'maxSizeMb' => 1,
+                    ]],
+                ],
+            ],
+            'dependency_state' => [
+                'runtime' => ['baseUrl' => 'http://cura-gateway:9311'],
+            ],
+        ]);
+
+        try {
+            $this->withoutMiddleware()->withoutExceptionHandling();
+            try {
+                $this->postJson('/api/plugins/'.$pluginId.'/runtime-artifacts/gcode', [
+                    'jobId' => 'job-1',
+                    'artifactPath' => '/api/v1/packages/private',
+                ]);
+                $this->fail('An undeclared artifact path was accepted.');
+            } catch (PluginRuntimeException $exception) {
+                $this->assertSame('Runtime artifact path does not match the declared import pattern.', $exception->getMessage());
+            }
+
+            Http::fake(['http://cura-gateway:9311/*' => Http::response('archive bytes', 200, ['Content-Type' => 'application/zip'])]);
+            try {
+                $this->postJson('/api/plugins/'.$pluginId.'/runtime-artifacts/gcode', [
+                    'jobId' => 'job-1',
+                    'artifactPath' => '/api/v1/jobs/job-1/gcode',
+                ]);
+                $this->fail('An undeclared artifact content type was accepted.');
+            } catch (PluginRuntimeException $exception) {
+                $this->assertSame('Runtime artifact content type is not allowed by the plugin manifest.', $exception->getMessage());
+            }
+        } finally {
+            Plugin::where('plugin_id', $pluginId)->delete();
+        }
+    }
+
+    public function test_runtime_artifact_can_be_imported_and_started_on_the_active_printer(): void
+    {
+        Storage::fake('gcode');
+        $pluginId = 'acme.proxy-artifact-print-'.uniqid();
+        $plugin = Plugin::query()->create([
+            'plugin_id' => $pluginId,
+            'name' => 'Artifact print fixture',
+            'enabled' => true,
+            'manifest' => [
+                'sdkVersion' => 1,
+                'sdkRevision' => 5,
+                'runtime' => [
+                    'type' => 'bridge',
+                    'proxy' => ['enabled' => true, 'allowedPaths' => ['/api/v1']],
+                    'httpProxy' => ['pathPrefix' => '/api/v1', 'methods' => ['GET']],
+                    'artifactImports' => [[
+                        'id' => 'gcode',
+                        'pathPattern' => '^/api/v1/jobs/[A-Za-z0-9_-]+/gcode$',
+                        'contentTypes' => ['text/x-gcode'],
+                        'maxSizeMb' => 1,
+                    ]],
+                ],
+            ],
+            'dependency_state' => [
+                'runtime' => ['baseUrl' => 'http://cura-gateway:9311'],
+            ],
+        ]);
+        $user = new User;
+        $user->name = 'artifact-user';
+        $user->email = uniqid().'@example.test';
+        $user->password = Hash::make('password');
+        $user->firstLogin = false;
+        $user->save();
+        $printer = new Printer;
+        $printer->connected = true;
+        $printer->machine = ['uuid' => 'artifact-printer-'.uniqid(), 'machineType' => 'Test printer'];
+        $printer->save();
+
+        try {
+            $this->actingAs($user);
+            $user->setActivePrinterId((string) $printer->_id);
+            Http::fake([
+                'http://cura-gateway:9311/*' => Http::response("G90\nG1 X10 Y10\n", 200, ['Content-Type' => 'text/x-gcode']),
+            ]);
+            $jobs = Mockery::mock(PrintJobService::class);
+            $jobs->shouldReceive('start')
+                ->once()
+                ->withArgs(fn (User $owner, Printer $target, string $path) => (
+                    (string) $owner->_id === (string) $user->_id
+                    && (string) $target->_id === (string) $printer->_id
+                    && str_starts_with($path, 'cura/')
+                    && str_ends_with($path, '-benchy.gcode')
+                ));
+            $this->app->instance(PrintJobService::class, $jobs);
+
+            $response = $this->withoutMiddleware()->postJson('/api/plugins/'.$pluginId.'/runtime-artifacts/gcode', [
+                'jobId' => 'job-1',
+                'filename' => 'benchy.gcode',
+                'artifactPath' => '/api/v1/jobs/job-1/gcode',
+                'startPrint' => true,
+            ]);
+
+            $response
+                ->assertOk()
+                ->assertJsonPath('name', 'benchy.gcode')
+                ->assertJsonPath('printing', true)
+                ->assertJsonPath('printerId', (string) $printer->_id);
+            Storage::disk('gcode')->assertExists($response->json('path'));
+        } finally {
+            $plugin->delete();
+            $printer->delete();
+            $user->delete();
+        }
+    }
+
+    public function test_runtime_artifact_remains_in_files_when_starting_the_print_fails(): void
+    {
+        Storage::fake('gcode');
+        $pluginId = 'acme.proxy-artifact-busy-'.uniqid();
+        $plugin = Plugin::query()->create([
+            'plugin_id' => $pluginId,
+            'name' => 'Artifact busy fixture',
+            'enabled' => true,
+            'manifest' => [
+                'sdkVersion' => 1,
+                'sdkRevision' => 6,
+                'runtime' => [
+                    'type' => 'bridge',
+                    'proxy' => ['enabled' => true, 'allowedPaths' => ['/api/v2']],
+                    'httpProxy' => ['pathPrefix' => '/api/v2', 'methods' => ['GET']],
+                    'artifactImports' => [[
+                        'id' => 'gcode-v2',
+                        'pathPattern' => '^/api/v2/slice-jobs/[A-Za-z0-9_-]+/artifacts/gcode$',
+                        'contentTypes' => ['text/x-gcode'],
+                        'maxSizeMb' => 1,
+                    ]],
+                ],
+            ],
+            'dependency_state' => [
+                'runtime' => ['baseUrl' => 'http://cura-gateway:9311'],
+            ],
+        ]);
+        $user = new User;
+        $user->name = 'artifact-busy-user';
+        $user->email = uniqid().'@example.test';
+        $user->password = Hash::make('password');
+        $user->firstLogin = false;
+        $user->save();
+        $printer = new Printer;
+        $printer->connected = true;
+        $printer->machine = ['uuid' => 'artifact-busy-printer-'.uniqid(), 'machineType' => 'Test printer'];
+        $printer->save();
+
+        try {
+            $this->actingAs($user);
+            $user->setActivePrinterId((string) $printer->_id);
+            Http::fake([
+                'http://cura-gateway:9311/*' => Http::response("G90\nG1 X10 Y10\n", 200, ['Content-Type' => 'text/x-gcode']),
+            ]);
+            $jobs = Mockery::mock(PrintJobService::class);
+            $jobs->shouldReceive('start')
+                ->once()
+                ->andThrow(new PrintJobException('busy', 'The printer is already printing.'));
+            $this->app->instance(PrintJobService::class, $jobs);
+
+            $response = $this->withoutMiddleware()->postJson('/api/plugins/'.$pluginId.'/runtime-artifacts/gcode-v2', [
+                'jobId' => 'job-busy',
+                'filename' => 'benchy.gcode',
+                'artifactPath' => '/api/v2/slice-jobs/job-busy/artifacts/gcode',
+                'startPrint' => true,
+            ]);
+
+            $response
+                ->assertConflict()
+                ->assertJsonPath('message', 'The printer is already printing.')
+                ->assertJsonPath('error.code', 'busy')
+                ->assertJsonPath('artifact.name', 'benchy.gcode')
+                ->assertJsonPath('artifact.printing', false);
+            $artifactPath = $response->json('artifact.path');
+            $this->assertIsString($artifactPath);
+            Storage::disk('gcode')->assertExists($artifactPath);
+            $this->assertSame("G90\nG1 X10 Y10\n", Storage::disk('gcode')->get($artifactPath));
+        } finally {
+            $plugin->delete();
+            $printer->delete();
+            $user->delete();
         }
     }
 
@@ -464,9 +917,9 @@ class PluginManagementApiTest extends TestCase
         $manager->shouldReceive('sdkMetadata')->zeroOrMoreTimes();
         $manager->shouldReceive('hostContext')
             ->once()
-            ->with('acme.demo', null, 'es')
+            ->with('acme.demo', null, 'es_AR')
             ->andReturn([
-                'apiVersion' => '1.0',
+                'apiVersion' => '2.0',
                 'pluginId' => 'acme.demo',
                 'hostMode' => 'embedded',
                 'runtimeBase' => '/backend/api/plugins/acme.demo/runtime',

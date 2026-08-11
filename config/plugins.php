@@ -9,18 +9,18 @@ $defaultDevelopmentMountPaths = array_values(array_unique(array_filter([
 
 return [
     'sdk_version' => 1,
-    'sdk_revision' => 5,
+    'sdk_revision' => 6,
 
     'sdk' => [
         'current' => [
             'version' => 1,
-            'revision' => 5,
+            'revision' => 6,
         ],
         'versions' => [
             1 => [
                 'label' => 'WPrint3D Plugin SDK 1',
                 'status' => 'active',
-                'defaultRevision' => 5,
+                'defaultRevision' => 6,
                 'deprecatedAfter' => null,
                 'revisions' => [
                     0 => [
@@ -65,7 +65,7 @@ return [
                     ],
                     4 => [
                         'releasedAt' => '2026-03-14',
-                        'status' => 'current',
+                        'status' => 'supported',
                         'summary' => 'Expanded host component registry for declarative plugin UI.',
                         'changes' => [
                             'Added stable host.* declarative component aliases for common React Native Paper and layout primitives.',
@@ -75,7 +75,7 @@ return [
                     ],
                     5 => [
                         'releasedAt' => '2026-08-06',
-                        'status' => 'current',
+                        'status' => 'supported',
                         'summary' => 'Managed service lifecycle, runtime proxy, artifact import, and built-in heavyweight plugin packaging.',
                         'changes' => [
                             'Added resource, storage, security, and bridge authentication declarations for managed services.',
@@ -83,12 +83,22 @@ return [
                             'Added integrity metadata and built-in plugin inventory metadata for heavyweight packages.',
                         ],
                     ],
+                    6 => [
+                        'releasedAt' => '2026-08-10',
+                        'status' => 'current',
+                        'summary' => 'Background preparation, enforced host requirements, and core-managed release lifecycle.',
+                        'changes' => [
+                            'Added background dependency preparation with automatic activation after readiness.',
+                            'Added disable-by-default host requirement policy with an explicit persistent administrator override.',
+                            'Added core-managed update declarations so built-in heavyweight plugins cannot update independently of WPrint releases.',
+                        ],
+                    ],
                 ],
             ],
         ],
     ],
 
-    'core_version' => env('APP_VERSION', '1.0.0'),
+    'core_version' => env('APP_VERSION', '1.1.0'),
 
     'paths' => [
         'root' => storage_path('app/plugins'),
@@ -121,7 +131,7 @@ return [
     'runtime' => [
         'timeout_secs' => (int) env('PLUGIN_RUNTIME_TIMEOUT_SECS', 10),
         'bridge_timeout_secs' => (int) env('PLUGIN_BRIDGE_TIMEOUT_SECS', 5),
-        'healthcheck_retries' => (int) env('PLUGIN_HEALTHCHECK_RETRIES', 30),
+        'healthcheck_retries' => (int) env('PLUGIN_HEALTHCHECK_RETRIES', 120),
         'healthcheck_delay_ms' => (int) env('PLUGIN_HEALTHCHECK_DELAY_MS', 500),
         'blue_green_updates' => filter_var(env('PLUGIN_BLUE_GREEN_UPDATES', true), FILTER_VALIDATE_BOOL),
         'max_payload_bytes' => (int) env('PLUGIN_RUNTIME_MAX_PAYLOAD_BYTES', 262144),
@@ -131,11 +141,21 @@ return [
         'max_proxy_timeout_secs' => (int) env('PLUGIN_RUNTIME_MAX_PROXY_TIMEOUT_SECS', 300),
         'max_proxy_stream_timeout_secs' => (int) env('PLUGIN_RUNTIME_MAX_PROXY_STREAM_TIMEOUT_SECS', 1800),
         'proxy_rate_limits' => [
-            'metadata_per_minute' => (int) env('PLUGIN_RUNTIME_METADATA_RATE_LIMIT', 120),
-            'upload_per_minute' => (int) env('PLUGIN_RUNTIME_UPLOAD_RATE_LIMIT', 10),
-            'artifact_per_minute' => (int) env('PLUGIN_RUNTIME_ARTIFACT_RATE_LIMIT', 30),
+            'metadata_per_minute' => (int) env('PLUGIN_RUNTIME_METADATA_RATE_LIMIT', 3000),
+            'preview_per_minute' => (int) env('PLUGIN_RUNTIME_PREVIEW_RATE_LIMIT', 60000),
+            'sse_per_minute' => (int) env('PLUGIN_RUNTIME_SSE_RATE_LIMIT', 120),
+            'upload_per_minute' => (int) env('PLUGIN_RUNTIME_UPLOAD_RATE_LIMIT', 120),
+            'mutation_per_minute' => (int) env('PLUGIN_RUNTIME_MUTATION_RATE_LIMIT', 60),
         ],
+        'preview_max_concurrent' => (int) env('PLUGIN_RUNTIME_PREVIEW_MAX_CONCURRENT', 32),
+        'preview_concurrency_ttl_seconds' => (int) env('PLUGIN_RUNTIME_PREVIEW_CONCURRENCY_TTL_SECONDS', 300),
+        'concurrency_cache_store' => env('PLUGIN_RUNTIME_CONCURRENCY_CACHE_STORE', 'redis'),
         'runtime_token_key' => env('PLUGIN_RUNTIME_TOKEN_KEY'),
+    ],
+
+    'integrations' => [
+        'slicer_plugin_id' => env('WPRINT3D_SLICER_PLUGIN_ID', 'cura-web-ui'),
+        'slicer_resource_version' => '5.12.1',
     ],
 
     'logs' => [

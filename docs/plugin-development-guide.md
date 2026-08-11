@@ -101,7 +101,7 @@ Legacy ids like `section`, `text`, `button`, `progress_cluster`, and `remote_com
   "name": "Hello World",
   "version": "0.1.0",
   "sdkVersion": 1,
-  "sdkRevision": 5,
+  "sdkRevision": 6,
   "homepageUrl": "https://github.com/acme/hello-world-plugin",
   "documentationUrl": "https://github.com/acme/hello-world-plugin#readme",
   "sourceUrl": "https://github.com/acme/hello-world-plugin",
@@ -125,6 +125,8 @@ Legacy ids like `section`, `text`, `button`, `progress_cluster`, and `remote_com
       "surface": "settings_tab",
       "mode": "declarative",
       "title": "Hello World",
+      "navigationLabel": "Hello",
+      "icon": "cube-scan",
       "schema": {
         "component": "host.section",
         "children": [
@@ -158,6 +160,8 @@ Legacy ids like `section`, `text`, `button`, `progress_cluster`, and `remote_com
 }
 ```
 
+`icon` is an optional Material Community Icons name used by host navigation. `navigationLabel` is an optional compact label of at most 24 characters. Hosts fall back to the extension title and the `puzzle` icon, so both fields are backward compatible with older packages.
+
 For public releases, treat `homepageUrl`, `documentationUrl`, and `sourceUrl` as canonical metadata. Registry entries and landing pages should read from those fields instead of guessing repository links from wherever the plugin happened to be developed.
 
 ## Plugin Translations
@@ -187,6 +191,7 @@ Each translation file can override:
 - `plugin.description`
 - `actions.<actionId>.label`
 - `uiExtensions.<extensionId>.title`
+- `uiExtensions.<extensionId>.navigationLabel`
 - `uiExtensions.<extensionId>.schema`
 - `components.<componentId>.schema`
 
@@ -245,7 +250,7 @@ You can still use it non-interactively:
 ./plugin.sh make acme.hello-world "Hello World" --shape=bridge-custom-bundle --image=ghcr.io/acme/hello-world-service:0.1.0@sha256:0000000000000000000000000000000000000000000000000000000000000000 --memory=1024 --cpu=2
 ```
 
-Replace the all-zero digest with the digest resolved from the registry before installing the scaffold; revision-5 WPrint rejects mutable or placeholder image references at install time.
+Replace the all-zero digest with the digest resolved from the registry before installing the scaffold; revision-5-and-later WPrint rejects mutable or placeholder image references at install time. Revision 6 heavyweight plugins should also declare requirement policy, background activation, and Core-managed updates as shown in `docs/plugin-sdk-reference.md`.
 
 The scaffold emits the current SDK pair:
 

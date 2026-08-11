@@ -46,6 +46,8 @@ class PluginManifestValidatorTest extends TestCase
                     'surface' => 'settings_tab',
                     'mode' => 'declarative',
                     'title' => 'Demo',
+                    'navigationLabel' => 'Demo',
+                    'icon' => 'cube-scan',
                     'schema' => [
                         'component' => 'section',
                         'children' => [
@@ -90,8 +92,60 @@ class PluginManifestValidatorTest extends TestCase
         $this->assertSame(1, $manifest['sdkRevision']);
         $this->assertSame('app.boot', array_key_first($manifest['hooks']));
         $this->assertSame('settings_tab', $manifest['uiExtensions'][0]['surface']);
+        $this->assertSame('cube-scan', $manifest['uiExtensions'][0]['icon']);
+        $this->assertSame('Demo', $manifest['uiExtensions'][0]['navigationLabel']);
         $this->assertSame('navbar_widget', $manifest['uiExtensions'][1]['surface']);
         $this->assertSame('gauges', $manifest['uiExtensions'][1]['mobilePresentation']);
+    }
+
+    public function test_it_rejects_invalid_ui_extension_navigation_metadata(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
+
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('icon must be a Material Community icon name');
+
+        $validator->validate([
+            'id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'sdkRevision' => 1,
+            'runtime' => ['type' => 'php', 'entry' => 'plugin.php'],
+            'uiExtensions' => [[
+                'id' => 'page',
+                'surface' => 'page',
+                'mode' => 'declarative',
+                'title' => 'Demo',
+                'icon' => '../unsafe-icon',
+                'schema' => ['component' => 'text', 'text' => 'Demo'],
+            ]],
+        ]);
+    }
+
+    public function test_it_rejects_an_overlong_ui_extension_navigation_label(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 1);
+
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('navigationLabel must contain between 1 and 24 characters');
+
+        $validator->validate([
+            'id' => 'acme.demo',
+            'name' => 'ACME Demo',
+            'version' => '1.2.3',
+            'sdkVersion' => 1,
+            'sdkRevision' => 1,
+            'runtime' => ['type' => 'php', 'entry' => 'plugin.php'],
+            'uiExtensions' => [[
+                'id' => 'page',
+                'surface' => 'page',
+                'mode' => 'declarative',
+                'title' => 'Demo',
+                'navigationLabel' => str_repeat('x', 25),
+                'schema' => ['component' => 'text', 'text' => 'Demo'],
+            ]],
+        ]);
     }
 
     public function test_it_rejects_detached_mobile_presentation_outside_navbar_widgets(): void
@@ -1076,5 +1130,81 @@ class PluginManifestValidatorTest extends TestCase
         ]);
 
         $this->assertSame('legacy-network', $manifest['images'][0]['service']['network']);
+        $this->assertArrayNotHasKey('activation', $manifest);
+        $this->assertArrayNotHasKey('updates', $manifest);
+        $this->assertSame($manifest, $validator->validate($manifest));
+    }
+
+    public function test_revision_six_normalizes_background_activation_and_core_managed_updates(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 6);
+        $manifest = $validator->validate([
+            'id' => 'cura.web-ui',
+            'name' => 'Cura Web UI',
+            'version' => '0.1.0-rc.9',
+            'sdkVersion' => 1,
+            'sdkRevision' => 6,
+            'minCoreVersion' => '1.1.0',
+            'runtime' => [
+                'type' => 'bridge',
+                'managedImageId' => 'gateway',
+            ],
+            'requirements' => [
+                'memoryMb' => 4096,
+                'cpuCores' => 1,
+                'policy' => 'disable-by-default-when-unmet',
+                'allowAdminOverride' => true,
+            ],
+            'activation' => [
+                'prepare' => 'background',
+                'autoEnableWhenReady' => true,
+            ],
+            'updates' => ['managedByCore' => true],
+            'images' => [[
+                'id' => 'gateway',
+                'image' => 'docker.io/wprint3d/cura-web-ui-gateway:0.1.0-rc.9@sha256:'.str_repeat('a', 64),
+                'service' => ['port' => 9311],
+            ]],
+        ]);
+
+        $this->assertSame(4096, $manifest['requirements']['memoryMb']);
+        $this->assertTrue($manifest['requirements']['allowAdminOverride']);
+        $this->assertSame('background', $manifest['activation']['prepare']);
+        $this->assertTrue($manifest['activation']['autoEnableWhenReady']);
+        $this->assertTrue($manifest['updates']['managedByCore']);
+    }
+
+    public function test_revision_five_rejects_revision_six_lifecycle_fields(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 5);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('activation requires SDK revision 6');
+
+        $validator->validate([
+            'id' => 'acme.bridge',
+            'name' => 'ACME Bridge',
+            'version' => '1.0.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 5,
+            'runtime' => ['type' => 'php', 'entry' => 'plugin.php'],
+            'activation' => ['prepare' => 'background'],
+        ]);
+    }
+
+    public function test_revision_six_cannot_opt_out_of_core_managed_updates(): void
+    {
+        $validator = new PluginManifestValidator(null, null, null, null, 1, 6);
+        $this->expectException(InvalidPluginManifestException::class);
+        $this->expectExceptionMessage('core-managed updates');
+
+        $validator->validate([
+            'id' => 'acme.bridge',
+            'name' => 'ACME Bridge',
+            'version' => '1.0.0',
+            'sdkVersion' => 1,
+            'sdkRevision' => 6,
+            'runtime' => ['type' => 'php', 'entry' => 'plugin.php'],
+            'updates' => ['managedByCore' => false],
+        ]);
     }
 }

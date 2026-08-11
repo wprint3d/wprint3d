@@ -30,10 +30,11 @@ export default ({
             }
         )
     ),
-    post: (url, data) => (
+    post: (url, data, options = {}) => (
         axios.postForm(
             `${BACKEND_BASE_URL}${url}`, // url
-            data                         // data
+            data,                        // data
+            options
         )
     ),
     delete: (url, data) => (

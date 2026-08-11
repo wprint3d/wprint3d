@@ -81,9 +81,11 @@ Route::middleware(['auth:sanctum', 'native.api', 'password.ensure_changed'])->gr
         Route::get('/{pluginId}/host-context', [PluginController::class, 'hostContext']);
         Route::match(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], '/{pluginId}/runtime/{runtimePath?}', [PluginRuntimeProxyController::class, 'forward'])
             ->where('runtimePath', '.*')
-            ->middleware('throttle:plugin-runtime');
+            ->middleware(['throttle:plugin-runtime', 'plugin-runtime.concurrent'])
+            ->withoutMiddleware('throttle:1500,1');
         Route::post('/{pluginId}/runtime-artifacts/{importId}', [PluginRuntimeProxyController::class, 'importArtifact'])
-            ->middleware('throttle:plugin-runtime');
+            ->middleware('throttle:plugin-runtime')
+            ->withoutMiddleware('throttle:1500,1');
         Route::get('/{pluginId}/assets/{assetPath}', [PluginController::class, 'asset'])->where('assetPath', '.*');
         Route::get('/{pluginId}/settings', [PluginController::class, 'settings']);
         Route::put('/{pluginId}/settings', [PluginController::class, 'updateSettings']);
@@ -141,12 +143,16 @@ Route::middleware(['auth:sanctum', 'native.api', 'password.ensure_changed'])->gr
             Route::post('/{pluginId}/update', [PluginController::class, 'update']);
             Route::delete('/{pluginId}', [PluginController::class, 'delete']);
         });
+
+        Route::put('/printer/{printerId}/slicing', [PrinterController::class, 'updateSlicing']);
     });
 
     Route::get('/recorder/options', [ConfigurationController::class, 'recorderOptions']);
 
     Route::get('/printers', [PrinterController::class, 'index']);
     Route::get('/printer/{id}', [PrinterController::class, 'get']);
+    Route::get('/printer/{printerId}/slicing', [PrinterController::class, 'getSlicing']);
+    Route::get('/printer/{printerId}/slicing/candidates', [PrinterController::class, 'getSlicingCandidates']);
     Route::delete('/printer/{id}', [PrinterController::class, 'delete']);
 
     Route::get('/cameras', [CameraController::class, 'index']);

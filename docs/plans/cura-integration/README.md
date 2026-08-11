@@ -1,5 +1,7 @@
 # Cura Web UI Integration Plan Set
 
+> **Active successor:** the implementation and release criteria for `v0.1.0-rc.9` are defined in the sibling repository's [Cura 5.12.1 parity remediation plan](../../../../cura-web-ui/docs/plans/cura-parity-remediation/README.md). Where the plans conflict, the rc.9 remediation plan is authoritative.
+
 **Audience:** This plan is intentionally explicit enough for a smaller implementation model. Follow it in order. Do not collapse phases, rename contracts, or substitute a different architecture without recording the decision in `01-architecture-and-contracts.md` first.
 
 **Goal:** Ship Cura Web UI as a signed, built-in WPrint 3D plugin whose `.w3dp` contains the browser UI and the complete declaration needed for WPrint 3D to pull, secure, start, update, stop, and diagnose a CuraEngine-backed Docker sidecar.

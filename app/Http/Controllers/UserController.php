@@ -16,6 +16,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use MongoDB\BSON\ObjectId;
 use stdClass;
@@ -297,29 +298,109 @@ class UserController extends Controller
         $request->validate([
             'files' => 'required|array',
             'files.*' => 'required|file',
+            'subDirectory' => 'nullable|string',
         ]);
 
         $disk = Storage::disk('gcode');
 
-        $subDirectory = $request->get('subDirectory');
+        $subDirectory = trim((string) $request->get('subDirectory', ''), '/');
 
         $uploadedFiles = [];
 
         foreach ($request->file('files') as $file) {
-            $baseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            [$baseName, $contents] = $this->prepareGcodeUpload($file);
 
-            $storedFileName = "{$subDirectory}/{$baseName}";
+            $storedFileName = $subDirectory === '' ? $baseName : "{$subDirectory}/{$baseName}";
 
             if ($disk->exists($storedFileName)) {
+                fclose($contents);
                 throw ValidationException::withMessages(['files' => __('server.files.upload_already_exists')]);
             }
 
-            $disk->put($storedFileName, $file->get());
+            $temporaryFileName = $storedFileName.'.'.Str::uuid()->toString().'.part';
+            try {
+                if (! $disk->put($temporaryFileName, $contents)) {
+                    throw ValidationException::withMessages(['files' => 'The G-code upload could not be stored.']);
+                }
+                if ($disk->exists($storedFileName) || ! $disk->move($temporaryFileName, $storedFileName)) {
+                    throw ValidationException::withMessages(['files' => __('server.files.upload_already_exists')]);
+                }
+            } finally {
+                fclose($contents);
+                if ($disk->exists($temporaryFileName)) {
+                    $disk->delete($temporaryFileName);
+                }
+            }
 
             $uploadedFiles[] = $baseName;
         }
 
         return $uploadedFiles;
+    }
+
+    /**
+     * @return array{0: string, 1: resource}
+     */
+    private function prepareGcodeUpload(mixed $file): array
+    {
+        $originalName = basename(str_replace('\\', '/', (string) $file->getClientOriginalName()));
+        $safeName = preg_replace('/[^A-Za-z0-9._ -]+/', '_', $originalName) ?: 'upload.gcode';
+        $lowerName = strtolower($safeName);
+        $isGzip = str_ends_with($lowerName, '.gcode.gz');
+
+        if (! $isGzip && ! str_ends_with($lowerName, '.gcode') && ! str_ends_with($lowerName, '.gco')) {
+            throw ValidationException::withMessages([
+                'files' => 'Only .gcode, .gco, and .gcode.gz files can be uploaded.',
+            ]);
+        }
+
+        if (! $isGzip) {
+            $stream = fopen($file->getRealPath(), 'rb');
+            if (! is_resource($stream)) {
+                throw ValidationException::withMessages(['files' => 'The G-code upload could not be read.']);
+            }
+
+            return [$safeName, $stream];
+        }
+
+        $storedName = substr($safeName, 0, -3);
+        $compressed = gzopen($file->getRealPath(), 'rb');
+        $expanded = tmpfile();
+        if (! is_resource($compressed) || ! is_resource($expanded)) {
+            if (is_resource($compressed)) {
+                gzclose($compressed);
+            }
+            if (is_resource($expanded)) {
+                fclose($expanded);
+            }
+            throw ValidationException::withMessages(['files' => 'The compressed G-code upload could not be opened.']);
+        }
+
+        $expandedBytes = 0;
+        $maxExpandedBytes = max(1, (int) config('filesystems.gcode_upload.max_expanded_bytes', 1073741824));
+        try {
+            while (! gzeof($compressed)) {
+                $chunk = gzread($compressed, 1024 * 1024);
+                if ($chunk === false || ($chunk === '' && ! gzeof($compressed))) {
+                    throw ValidationException::withMessages(['files' => 'The compressed G-code upload is invalid.']);
+                }
+                $expandedBytes += strlen($chunk);
+                if ($expandedBytes > $maxExpandedBytes) {
+                    throw ValidationException::withMessages(['files' => 'The expanded G-code upload exceeds the configured size limit.']);
+                }
+                if ($chunk !== '' && fwrite($expanded, $chunk) !== strlen($chunk)) {
+                    throw ValidationException::withMessages(['files' => 'The compressed G-code upload could not be processed.']);
+                }
+            }
+            rewind($expanded);
+        } catch (\Throwable $exception) {
+            fclose($expanded);
+            throw $exception;
+        } finally {
+            gzclose($compressed);
+        }
+
+        return [$storedName, $expanded];
     }
 
     public function createDirectory(Request $request)

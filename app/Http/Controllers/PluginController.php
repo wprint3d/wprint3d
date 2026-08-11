@@ -158,9 +158,19 @@ class PluginController extends Controller
         ]);
     }
 
-    public function enable(string $pluginId): array
+    public function enable(string $pluginId, Request $request): array
     {
-        return $this->browserSafePayload($this->pluginManager->enable($pluginId));
+        $validated = $request->validate([
+            'overrideRequirements' => ['sometimes', 'boolean'],
+        ]);
+
+        return $this->browserSafePayload($this->pluginManager->enable(
+            $pluginId,
+            (bool) ($validated['overrideRequirements'] ?? false),
+            optional($request->user())->_id !== null
+                ? (string) optional($request->user())->_id
+                : null,
+        ));
     }
 
     public function disable(string $pluginId): array
@@ -247,7 +257,7 @@ class PluginController extends Controller
         return $this->pluginManager->hostContext(
             pluginId: $pluginId,
             user: $user instanceof \App\Models\User ? $user : null,
-            locale: $request->getPreferredLanguage(['en', 'es']) ?: null,
+            locale: $request->getPreferredLanguage(['en', 'es-AR', 'es', 'fr', 'pt', 'it', 'de']) ?: null,
         );
     }
 

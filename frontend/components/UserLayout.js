@@ -16,7 +16,7 @@ import { BottomNavigation, Text } from "react-native-paper";
 import JobRecoveryModal from "./JobRecoveryModal";
 import UserPaneLoadingIndicator from "./UserPaneLoadingIndicator";
 import UserMobileLayout from "./UserMobileLayout";
-import { getUserLayoutRootStyle } from "../utils/userLayout";
+import { getDesktopWorkspaceStyle, getUserLayoutRootStyle } from "../utils/userLayout";
 
 export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop }) {
     const dimensions = useWindowDimensions();
@@ -109,7 +109,7 @@ export default function UserLayout({ navbarHeight, isSmallTablet, isSmallLaptop 
                     isSmallTablet={isSmallTablet}
                 />
                 : (
-                    <View style={{ flexGrow: 1, gap: 8, flexDirection: 'row', maxHeight: '100%', maxWidth: '100%' }}>
+                    <View style={getDesktopWorkspaceStyle()}>
                         <UserLeftPane
                             isLoadingPrinter={selectedPrinter.isLoading}
                             printerId={printerId}

@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import * as userLayout from "../utils/userLayout.js";
 
 test("user layout keeps the left pane full width on small tablets", () => {
-    assert.equal(userLayout.getLeftPaneWidth(768), "100%");
+    assert.equal(userLayout.getLeftPaneWidth(767), "100%");
+    assert.equal(userLayout.getLeftPaneWidth(768), "45%");
 });
 
 test("user layout keeps the left pane roomy on laptops", () => {
@@ -29,6 +30,8 @@ test("user layout stacks the mobile shell vertically on small tablets", () => {
     assert.equal(style.flexDirection, "column");
     assert.equal(style.alignItems, "stretch");
     assert.equal(style.padding, 0);
+    assert.equal(style.minHeight, 0);
+    assert.equal(style.overflow, "hidden");
 });
 
 test("user layout keeps the desktop panes side by side on larger screens", () => {
@@ -41,4 +44,16 @@ test("user layout keeps the desktop panes side by side on larger screens", () =>
 
     assert.equal(style.flexDirection, "row");
     assert.equal(style.padding, 8);
+    assert.equal(style.minHeight, 0);
+    assert.equal(style.overflow, "hidden");
+});
+
+test("desktop workspace contains pane scrolling at short landscape heights", () => {
+    const style = userLayout.getDesktopWorkspaceStyle();
+
+    assert.equal(style.flex, 1);
+    assert.equal(style.minHeight, 0);
+    assert.equal(style.minWidth, 0);
+    assert.equal(style.overflow, "hidden");
+    assert.equal(style.flexDirection, "row");
 });

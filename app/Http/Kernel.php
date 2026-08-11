@@ -71,6 +71,7 @@ class Kernel extends HttpKernel
         'auth.session' => \Illuminate\Session\Middleware\AuthenticateSession::class,
         'auth.ensure_admin' => \App\Http\Middleware\EnsureAdministrator::class,
         'native.api' => \App\Http\Middleware\EnsureNativeApiAccess::class,
+        'plugin-runtime.concurrent' => \App\Http\Middleware\LimitPluginRuntimeConcurrency::class,
         'octoprint.auth' => \App\Http\Middleware\AuthenticateOctoPrint::class,
         'octoprint.ability' => \App\Http\Middleware\EnsureOctoPrintAbility::class,
         'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
