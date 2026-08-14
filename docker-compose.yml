@@ -19,6 +19,7 @@ services:
       - backend
   backend:
     image: docker.io/wprint3d/wprint3d:latest
+    init: true
     restart: always
     logging:
       driver: none
@@ -42,7 +43,6 @@ services:
       - /dev/bus/usb:/dev/bus/usb
       - /dev:/dev
       - /var/run/docker.sock:/var/run/docker.sock
-      - /proc:/proc
       - storage:/var/www/storage
       - proxy:/var/www/proxy/internal
       - startup:/var/www/internal/startup

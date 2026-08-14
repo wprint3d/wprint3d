@@ -409,7 +409,7 @@ else
 
             # Start supervisord in foreground (blocks, keeps container alive)
             echo "Starting supervisord with roles: ${ROLE}"
-            supervisord -c /var/www/internal/supervisor/supervisord.conf
+            exec supervisord -c /var/www/internal/supervisor/supervisord.conf
 
         elif [[ "$ROLE" == 'server' ]]; then
             if ! bootstrapServerRuntime false; then
@@ -433,7 +433,7 @@ else
             bash /var/www/internal/generate-supervisor-configs.sh concurrency-scheduler
 
             echo 'Starting supervisord...';
-            supervisord -c /var/www/internal/supervisor/supervisord.conf;
+            exec supervisord -c /var/www/internal/supervisor/supervisord.conf;
         elif [[ "$ROLE" == 'ws-server' ]]; then
             while true; do
                 php artisan reverb:start --host 0.0.0.0 --port 6001;

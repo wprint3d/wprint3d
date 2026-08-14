@@ -19,7 +19,10 @@ use App\Plugins\Runtime\PluginRuntimeHttpClient;
 use App\Plugins\Runtimes\BridgePluginRuntimeAdapter;
 use App\Plugins\Runtimes\PhpPluginRuntimeAdapter;
 use App\Support\FakeSerial\FakeSerialManager;
+use FacuM\EfficientQueues\Events\ObserverBooting;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
@@ -38,6 +41,26 @@ class AppServiceProvider extends ServiceProvider
         }
 
         return $runningInConsole || $dispatchOnHttp;
+    }
+
+    public static function isEfficientQueueCommand(array $arguments): bool
+    {
+        foreach (array_slice($arguments, 1) as $argument) {
+            if ($argument === 'queue:cow-work') {
+                return true;
+            }
+
+            if (! str_starts_with((string) $argument, '-')) {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    public static function shouldDeferPluginAppBoot(bool $runningInConsole, array $arguments): bool
+    {
+        return $runningInConsole && self::isEfficientQueueCommand($arguments);
     }
 
     /**
@@ -84,6 +107,10 @@ class AppServiceProvider extends ServiceProvider
 
         Model::preventSilentlyDiscardingAttributes(app()->isLocal());
 
+        Gate::define('viewEfficientQueues', function ($user = null) {
+            return (bool) config('efficient-queues.dashboard.enabled', false);
+        });
+
         Http::macro('docker', function () {
             return
                 Http::withHeader('Accept', 'application/json')
@@ -97,6 +124,19 @@ class AppServiceProvider extends ServiceProvider
                     ->baseUrl('https://api.github.com');
         });
 
+        Event::listen(ObserverBooting::class, function () {
+            if (! self::shouldDispatchPluginAppBoot(
+                isTestingEnvironment: app()->environment('testing'),
+                hasMongoExtension: extension_loaded('mongodb'),
+                runningInConsole: true,
+                dispatchOnHttp: false,
+            )) {
+                return;
+            }
+
+            $this->dispatchPluginAppBoot();
+        });
+
         $this->app->booted(function () {
             if (! self::shouldDispatchPluginAppBoot(
                 isTestingEnvironment: app()->environment('testing'),
@@ -107,11 +147,20 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            app(PluginHookDispatcher::class)->dispatch('app.boot', [
-                'appVersion' => config('plugins.core_version'),
-                'environment' => app()->environment(),
-                'runningInConsole' => app()->runningInConsole(),
-            ]);
+            if (self::shouldDeferPluginAppBoot(app()->runningInConsole(), $_SERVER['argv'] ?? [])) {
+                return;
+            }
+
+            $this->dispatchPluginAppBoot();
         });
+    }
+
+    private function dispatchPluginAppBoot(): void
+    {
+        app(PluginHookDispatcher::class)->dispatch('app.boot', [
+            'appVersion' => config('plugins.core_version'),
+            'environment' => app()->environment(),
+            'runningInConsole' => app()->runningInConsole(),
+        ]);
     }
 }

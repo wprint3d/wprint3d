@@ -45,12 +45,19 @@ autorestart=true
 $(supervisor_log_options "$SUPERVISOR_LOG_DIR/poll-serial-connections.log")
 EOF
 
-            cat > "$SUPERVISOR_CONF_DIR/refresh-printer-workers.conf" <<EOF
-[program:refresh-printer-workers]
-command=php artisan concurrent:run-indefinitely --services=RefreshPrinterWorkers
+            cat > "$SUPERVISOR_CONF_DIR/efficient-queues.conf" <<EOF
+[program:efficient-queues]
+command=php /var/www/artisan queue:cow-work redis --sleep=${SLEEP:-5} --timeout=0
 directory=/var/www
+autostart=true
 autorestart=true
-$(supervisor_log_options "$SUPERVISOR_LOG_DIR/refresh-printer-workers.log")
+numprocs=1
+user=root
+stopsignal=TERM
+stopasgroup=true
+killasgroup=true
+stopwaitsecs=2147483647
+$(supervisor_log_options "$SUPERVISOR_LOG_DIR/efficient-queues.log")
 EOF
 
             cat > "$SUPERVISOR_CONF_DIR/reconcile-active-prints.conf" <<EOF

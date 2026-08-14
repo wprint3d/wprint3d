@@ -247,6 +247,66 @@ run_docker_compose_up() {
     run_docker_compose "${compose_args[@]}"
 }
 
+drain_existing_queue_master() {
+    local compose_args=("$@")
+    local backend_id
+    local supervisor_status
+
+    backend_id="$(run_docker_compose "${compose_args[@]}" ps -q backend 2> /dev/null | tail -n 1)"
+
+    if [[ -z "$backend_id" ]] || [[ "$(docker inspect --format '{{.State.Running}}' "$backend_id" 2> /dev/null || true)" != 'true' ]]; then
+        return 0
+    fi
+
+    if ! supervisor_status="$(run_docker_compose "${compose_args[@]}" exec -T backend supervisorctl status 2>&1)"; then
+        echo 'Cannot inspect the running backend queue processes; refusing to recreate it without a verified drain.' >&2
+        echo "$supervisor_status" >&2
+
+        return 1
+    fi
+
+    if grep -q '^efficient-queues[[:space:]]\+\(RUNNING\|STOPPING\)' <<< "$supervisor_status"; then
+        echo 'Stopping the existing efficient queue master and waiting for active prints to drain...'
+        run_docker_compose "${compose_args[@]}" exec -T backend supervisorctl stop efficient-queues
+
+        return $?
+    fi
+
+    if grep -Eq '^app-.*-worker' <<< "$supervisor_status"; then
+        echo 'Legacy queue workers detected. Waiting for active prints to finish or be cancelled before the first efficient-queues deployment...'
+
+        while true; do
+            run_docker_compose "${compose_args[@]}" exec -T backend php -r '
+                $app = require "/var/www/bootstrap/app.php";
+                $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+                $kernel->bootstrap();
+                exit(App\Models\Printer::where("hasActiveJob", true)->where("activeFile", "!=", null)->exists() ? 42 : 0);
+            '
+            local active_status=$?
+
+            if [[ "$active_status" -eq 0 ]]; then
+                if grep -q '^refresh-printer-workers[[:space:]]' <<< "$supervisor_status"; then
+                    run_docker_compose "${compose_args[@]}" exec -T backend supervisorctl stop refresh-printer-workers || return 1
+                fi
+
+                while read -r legacy_worker; do
+                    [[ -z "$legacy_worker" ]] && continue
+                    run_docker_compose "${compose_args[@]}" exec -T backend supervisorctl stop "$legacy_worker" || return 1
+                done < <(awk '/^app-.*-worker/ { print $1 }' <<< "$supervisor_status")
+
+                return 0
+            fi
+            if [[ "$active_status" -ne 42 ]]; then
+                echo 'Failed to verify active prints in the legacy backend; deployment cancelled.' >&2
+
+                return "$active_status"
+            fi
+
+            sleep 5
+        done
+    fi
+}
+
 ensure_docker_runtime || exit 1;
 run_docker_compose version > /dev/null || exit 1;
 
@@ -376,12 +436,15 @@ if [[ "$ENV" == 'dev' ]]; then
     echo 'Starting development environment...';
 
     if [[ -f 'docker-compose.override.yml' ]]; then
+        drain_existing_queue_master -f docker-compose-development.yml -f docker-compose.override.yml || exit 1
         run_docker_compose_up -f docker-compose-development.yml -f docker-compose.override.yml up -d --remove-orphans;
     else
+        drain_existing_queue_master -f docker-compose-development.yml || exit 1
         run_docker_compose_up -f docker-compose-development.yml up -d --remove-orphans;
     fi;
 elif [[ "$ENV" == 'production' ]]; then
     echo 'Starting production environment...';
 
+    drain_existing_queue_master || exit 1
     run_docker_compose_up up -d --remove-orphans;
 fi;

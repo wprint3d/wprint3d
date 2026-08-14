@@ -10,7 +10,7 @@ cleanup() {
     rm -f /tmp/supervisor/cron.conf \
           /tmp/supervisor/poll-serial-connections.conf \
           /tmp/supervisor/reconcile-active-prints.conf \
-          /tmp/supervisor/refresh-printer-workers.conf \
+          /tmp/supervisor/efficient-queues.conf \
           /tmp/supervisor/server.conf \
           /tmp/supervisor/reverb.conf
 }
@@ -46,7 +46,7 @@ WPRINT3D_RUNTIME_LOG_DIR="$TMP_RUNTIME" \
 for conf in /tmp/supervisor/cron.conf \
             /tmp/supervisor/poll-serial-connections.conf \
             /tmp/supervisor/reconcile-active-prints.conf \
-            /tmp/supervisor/refresh-printer-workers.conf \
+            /tmp/supervisor/efficient-queues.conf \
             /tmp/supervisor/server.conf \
             /tmp/supervisor/reverb.conf; do
     contents="$(cat "$conf")"
@@ -60,25 +60,24 @@ done
 
 poll_contents="$(cat /tmp/supervisor/poll-serial-connections.conf)"
 reconcile_contents="$(cat /tmp/supervisor/reconcile-active-prints.conf)"
-refresh_contents="$(cat /tmp/supervisor/refresh-printer-workers.conf)"
+queue_contents="$(cat /tmp/supervisor/efficient-queues.conf)"
 
 assert_contains "$poll_contents" 'command=php artisan concurrent:run-indefinitely --services=PollSerialConnections' 'poll serial supervisor command'
 assert_contains "$reconcile_contents" 'command=php artisan concurrent:run-indefinitely --services=ReconcileActivePrints' 'active print reconciler supervisor command'
-assert_contains "$refresh_contents" 'command=php artisan concurrent:run-indefinitely --services=RefreshPrinterWorkers' 'refresh workers supervisor command'
+assert_contains "$queue_contents" 'command=php /var/www/artisan queue:cow-work redis --sleep=5 --timeout=0' 'efficient queue supervisor command'
+assert_contains "$queue_contents" 'numprocs=1' 'efficient queue process count'
+assert_contains "$queue_contents" 'stopsignal=TERM' 'efficient queue stop signal'
+assert_contains "$queue_contents" 'stopasgroup=true' 'efficient queue stop group'
+assert_contains "$queue_contents" 'killasgroup=true' 'efficient queue kill group'
+assert_contains "$queue_contents" 'stopwaitsecs=2147483647' 'efficient queue unlimited drain wait'
 assert_contains "$poll_contents" 'stdout_logfile='"$TMP_RUNTIME"'/supervisor/poll-serial-connections.log' 'poll serial supervisor log'
 assert_contains "$reconcile_contents" 'stdout_logfile='"$TMP_RUNTIME"'/supervisor/reconcile-active-prints.log' 'active print reconciler supervisor log'
-assert_contains "$refresh_contents" 'stdout_logfile='"$TMP_RUNTIME"'/supervisor/refresh-printer-workers.log' 'refresh workers supervisor log'
-
-refresh_source="$(cat "$ROOT_DIR/app/Console/Services/Concurrent/RefreshPrinterWorkers.php")"
-
-assert_contains "$refresh_source" "env('WPRINT3D_RUNTIME_LOG_DIR'" 'dynamic worker runtime log env'
-assert_contains "$refresh_source" 'stdout_logfile_maxbytes=512KB' 'dynamic worker max log size'
-assert_contains "$refresh_source" 'stdout_logfile_backups=1' 'dynamic worker log backups'
-assert_not_contains "$refresh_source" '/var/www/storage/logs/' 'dynamic worker persistent log path'
+assert_contains "$queue_contents" 'stdout_logfile='"$TMP_RUNTIME"'/supervisor/efficient-queues.log' 'efficient queue supervisor log'
 
 run_source="$(cat "$ROOT_DIR/internal/run.sh")"
 
 assert_contains "$run_source" 'setupRuntimeLogs' 'runtime log setup'
 assert_contains "$run_source" 'find "$runtime_log_dir" -type f -size +512k' 'runtime log truncator'
+assert_contains "$run_source" 'exec supervisord -c /var/www/internal/supervisor/supervisord.conf' 'supervisor exec handoff'
 
 echo 'supervisor runtime logging checks passed'

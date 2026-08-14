@@ -15,6 +15,8 @@ return [
 
     'default' => env('QUEUE_CONNECTION', 'redis'),
 
+    'worker_pools' => env('QUEUES', 'default:1,recordings:1,broadcasts:2,prints:1,previews,snapshots'),
+
     /*
     |--------------------------------------------------------------------------
     | Queue Connections

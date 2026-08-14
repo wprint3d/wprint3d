@@ -42,4 +42,19 @@ class AppServiceProviderTest extends TestCase
             )
         );
     }
+
+    public function test_it_recognizes_only_the_efficient_queue_artisan_command(): void
+    {
+        $this->assertTrue(AppServiceProvider::isEfficientQueueCommand(['artisan', 'queue:cow-work', 'redis']));
+        $this->assertTrue(AppServiceProvider::isEfficientQueueCommand(['artisan', '--ansi', 'queue:cow-work']));
+        $this->assertFalse(AppServiceProvider::isEfficientQueueCommand(['artisan', 'queue:work', 'redis']));
+        $this->assertFalse(AppServiceProvider::isEfficientQueueCommand(['artisan', 'migrate', '--queue=queue:cow-work']));
+    }
+
+    public function test_it_defers_plugin_boot_only_for_the_efficient_queue_console_command(): void
+    {
+        $this->assertTrue(AppServiceProvider::shouldDeferPluginAppBoot(true, ['artisan', 'queue:cow-work', 'redis']));
+        $this->assertFalse(AppServiceProvider::shouldDeferPluginAppBoot(true, ['artisan', 'migrate']));
+        $this->assertFalse(AppServiceProvider::shouldDeferPluginAppBoot(false, ['artisan', 'queue:cow-work']));
+    }
 }

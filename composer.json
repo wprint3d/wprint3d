@@ -8,6 +8,7 @@
         "php": "^8.0.2",
         "bayfrontmedia/php-mime-types": "^2.0",
         "bensampo/laravel-enum": "^6.2",
+        "facum/laravel-efficient-queues": "^0.2",
         "guzzlehttp/guzzle": "^7.2",
         "guzzlehttp/psr7": "^2.4",
         "laravel/framework": "^11.0",
@@ -79,6 +80,10 @@
         }
     },
     "repositories": {
+        "efficient-queues": {
+            "url": "https://github.com/FacuM/laravel-efficient-queues.git",
+            "type": "vcs"
+        },
         "ffmpeg": {
             "url": "https://github.com/wprint3d/PHP-FFMpeg.git",
             "type": "git"
