@@ -2,6 +2,8 @@
 
 namespace App\Contracts\Auth;
 
+use App\Models\Concerns\SerializesLegacyMongoId;
+
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Auth\MustVerifyEmail;
 use Illuminate\Auth\Passwords\CanResetPassword;
@@ -18,5 +20,5 @@ class AuthenticatableUser extends Model implements
     AuthorizableContract,
     CanResetPasswordContract
 {
-    use Authenticatable, Authorizable, CanResetPassword, MustVerifyEmail;
+    use Authenticatable, Authorizable, CanResetPassword, MustVerifyEmail, SerializesLegacyMongoId;
 }

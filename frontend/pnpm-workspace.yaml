@@ -1,2 +1,6 @@
 onlyBuiltDependencies:
   - "react-native-paper-snackbar-stack@https://codeload.github.com/wprint3d/react-native-paper-snackbar-stack/tar.gz/99ede7d0e2d510c6f8dbe0f532ba4208ed1baeec"
+overrides:
+  "eslint@>=9.0.0 <9.39.5": "^9.39.5"
+  "postcss@>=8.0.0 <8.5.23": "^8.5.23"
+  "@ronradtke/react-native-markdown-display>markdown-it": "^14.3.3"

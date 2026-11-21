@@ -8,6 +8,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SerializesLegacyMongoId;
+
 use MongoDB\Laravel\Eloquent\Builder;
 use MongoDB\Laravel\Eloquent\Model;
 
@@ -17,6 +19,8 @@ use Illuminate\Notifications\DatabaseNotificationCollection;
 
 class DatabaseNotification extends Model
 {
+    use SerializesLegacyMongoId;
+
     /** @use HasCollection<DatabaseNotificationCollection> */
     use HasCollection;
 
@@ -62,6 +66,30 @@ class DatabaseNotification extends Model
      * The type of collection that should be used for the model.
      */
     protected static string $collectionClass = DatabaseNotificationCollection::class;
+
+    /**
+     * Set the keys for a save (update or delete) query.
+     *
+     * Notifications stored by mongodb/laravel-mongodb 4.x keep their UUID in
+     * an "id" field next to an ObjectId "_id". Since 5.0, the "id" key is
+     * compiled to "_id", so writes must target the stored "_id" of those
+     * legacy documents instead.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    protected function setKeysForSaveQuery($query)
+    {
+        $legacyKey = $this->getOriginal('_id');
+
+        if ($legacyKey !== null && (string) $legacyKey !== (string) $this->getKeyForSaveQuery()) {
+            $query->where('_id', '=', $legacyKey);
+
+            return $query;
+        }
+
+        return parent::setKeysForSaveQuery($query);
+    }
 
     /**
      * Get the notifiable entity that the notification belongs to.
@@ -149,7 +177,7 @@ class DatabaseNotification extends Model
      */
     public function scopeById(Builder $query, $id)
     {
-        return $query->where('id', $id);
+        return $query->byIds([$id]);
     }
 
     /**
@@ -162,6 +190,21 @@ class DatabaseNotification extends Model
      */
     public function scopeByIds(Builder $query, array $ids)
     {
-        return $query->whereIn('id', $ids);
+        $ids = array_values($ids);
+
+        /*
+         * Since mongodb/laravel-mongodb 5.0, a root "id" column is compiled to
+         * "_id". Notifications stored by older versions keep their UUID in a
+         * separate "id" field (next to an ObjectId "_id"), while newer ones
+         * store it in "_id", so match both fields explicitly.
+         */
+        $filter = [
+            '$or' => [
+                ['id' => ['$in' => $ids]],
+                ['_id' => ['$in' => $ids]],
+            ],
+        ];
+
+        return $query->whereRaw($filter);
     }
 }

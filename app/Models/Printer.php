@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PauseReason;
+use App\Models\Concerns\SerializesLegacyMongoId;
 
 use App\Events\CommandQueued;
 
@@ -22,7 +23,7 @@ use Exception;
 
 class Printer extends Model
 {
-    use HasFactory;
+    use HasFactory, SerializesLegacyMongoId;
 
     const CACHE_TTL = 600;
 

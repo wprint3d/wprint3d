@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DataType;
+use App\Models\Concerns\SerializesLegacyMongoId;
 
 use App\Exceptions\InitializationException;
 
@@ -12,7 +13,7 @@ use MongoDB\Laravel\Eloquent\Model;
 
 class Configuration extends Model
 {
-    use HasFactory;
+    use HasFactory, SerializesLegacyMongoId;
 
     protected $fillable = [ 'key', 'value' ];
 

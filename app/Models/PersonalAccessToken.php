@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SerializesLegacyMongoId;
+
 use Laravel\Sanctum\Contracts\HasAbilities;
 use MongoDB\Laravel\Eloquent\Model;
 
 class PersonalAccessToken extends Model implements HasAbilities
 {
+    use SerializesLegacyMongoId;
+
     /**
      * The attributes that should be cast to native types.
      *
