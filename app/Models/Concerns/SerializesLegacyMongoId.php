@@ -15,14 +15,24 @@ namespace App\Models\Concerns;
  */
 trait SerializesLegacyMongoId
 {
+    /**
+     * Convert the model's attributes to an array, exposing "_id" again.
+     *
+     * @return array<string, mixed>
+     */
     public function attributesToArray()
     {
         $attributes = parent::attributesToArray();
 
-        if (array_key_exists('id', $attributes) && ! array_key_exists('_id', $attributes)) {
-            $attributes = ['_id' => $attributes['id']] + $attributes;
+        $hasId = (array_key_exists('id', $attributes) === true);
+        $hasLegacyId = (array_key_exists('_id', $attributes) === true);
+
+        if ($hasId === true && $hasLegacyId === false) {
+            $attributes = (['_id' => $attributes['id']] + $attributes);
         }
 
         return $attributes;
-    }
-}
+
+    }// end attributesToArray()
+
+}// end trait
