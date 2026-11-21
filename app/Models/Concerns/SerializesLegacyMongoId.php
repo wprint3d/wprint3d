@@ -33,6 +33,5 @@ trait SerializesLegacyMongoId
 
         return $attributes;
 
-    }// end attributesToArray()
-
-}// end trait
+    }
+}
