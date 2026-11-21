@@ -61,4 +61,29 @@ class DatabaseNotificationLookupTest extends TestCase
         $this->assertNotNull($notification);
         $this->assertSame('legacy', $notification->type);
     }
+
+    public function test_mark_as_read_and_delete_update_legacy_and_current_documents(): void
+    {
+        $legacyKey = new ObjectId;
+        $legacyId = (string) Str::uuid();
+        $currentId = (string) Str::uuid();
+
+        $collection = DatabaseNotification::raw();
+
+        $collection->insertOne(['_id' => $legacyKey, 'id' => $legacyId, 'type' => 'legacy', 'read_at' => null]);
+        $collection->insertOne(['_id' => $currentId, 'type' => 'current', 'read_at' => null]);
+
+        DatabaseNotification::query()->byIds([$legacyId, $currentId])->each(function ($notification) {
+            $notification->markAsRead();
+        });
+
+        $this->assertNotNull($collection->findOne(['_id' => $legacyKey])['read_at']);
+        $this->assertNotNull($collection->findOne(['_id' => $currentId])['read_at']);
+        $this->assertSame(2, $collection->countDocuments());
+
+        DatabaseNotification::query()->byId($legacyId)->first()->delete();
+        DatabaseNotification::query()->byId($currentId)->first()->delete();
+
+        $this->assertSame(0, $collection->countDocuments());
+    }
 }

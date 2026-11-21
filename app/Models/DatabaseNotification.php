@@ -68,6 +68,30 @@ class DatabaseNotification extends Model
     protected static string $collectionClass = DatabaseNotificationCollection::class;
 
     /**
+     * Set the keys for a save (update or delete) query.
+     *
+     * Notifications stored by mongodb/laravel-mongodb 4.x keep their UUID in
+     * an "id" field next to an ObjectId "_id". Since 5.0, the "id" key is
+     * compiled to "_id", so writes must target the stored "_id" of those
+     * legacy documents instead.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    protected function setKeysForSaveQuery($query)
+    {
+        $legacyKey = $this->getOriginal('_id');
+
+        if ($legacyKey !== null && (string) $legacyKey !== (string) $this->getKeyForSaveQuery()) {
+            $query->where('_id', '=', $legacyKey);
+
+            return $query;
+        }
+
+        return parent::setKeysForSaveQuery($query);
+    }
+
+    /**
      * Get the notifiable entity that the notification belongs to.
      *
      * @return \Illuminate\Database\Eloquent\Relations\MorphTo<\Illuminate\Database\Eloquent\Model, $this>
