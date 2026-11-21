@@ -198,11 +198,13 @@ class DatabaseNotification extends Model
          * separate "id" field (next to an ObjectId "_id"), while newer ones
          * store it in "_id", so match both fields explicitly.
          */
-        return $query->whereRaw([
+        $filter = [
             '$or' => [
                 ['id' => ['$in' => $ids]],
                 ['_id' => ['$in' => $ids]],
             ],
-        ]);
+        ];
+
+        return $query->whereRaw($filter);
     }
 }

@@ -9,20 +9,31 @@ use Tests\TestCase;
 
 class DatabaseNotificationLookupTest extends TestCase
 {
+    /**
+     * Start every test with an empty notifications collection.
+     */
     protected function setUp(): void
     {
         parent::setUp();
 
         DatabaseNotification::truncate();
+
     }
 
+    /**
+     * Leave the notifications collection empty after every test.
+     */
     protected function tearDown(): void
     {
         DatabaseNotification::truncate();
 
         parent::tearDown();
+
     }
 
+    /**
+     * byIds() must match documents stored by laravel-mongodb 4.x and 5.x.
+     */
     public function test_by_ids_matches_legacy_and_current_notification_documents(): void
     {
         $legacyId = (string) Str::uuid();
@@ -48,8 +59,12 @@ class DatabaseNotificationLookupTest extends TestCase
             ->all();
 
         $this->assertSame(['current', 'legacy'], $types);
+
     }
 
+    /**
+     * byId() must match a document stored by laravel-mongodb 4.x.
+     */
     public function test_by_id_matches_a_legacy_notification_document(): void
     {
         $legacyId = (string) Str::uuid();
@@ -60,8 +75,12 @@ class DatabaseNotificationLookupTest extends TestCase
 
         $this->assertNotNull($notification);
         $this->assertSame('legacy', $notification->type);
+
     }
 
+    /**
+     * Saving and deleting must target the stored document for both layouts.
+     */
     public function test_mark_as_read_and_delete_update_legacy_and_current_documents(): void
     {
         $legacyKey = new ObjectId;
@@ -73,9 +92,11 @@ class DatabaseNotificationLookupTest extends TestCase
         $collection->insertOne(['_id' => $legacyKey, 'id' => $legacyId, 'type' => 'legacy', 'read_at' => null]);
         $collection->insertOne(['_id' => $currentId, 'type' => 'current', 'read_at' => null]);
 
-        DatabaseNotification::query()->byIds([$legacyId, $currentId])->each(function ($notification) {
+        $notifications = DatabaseNotification::query()->byIds([$legacyId, $currentId])->get();
+
+        foreach ($notifications as $notification) {
             $notification->markAsRead();
-        });
+        }
 
         $this->assertNotNull($collection->findOne(['_id' => $legacyKey])['read_at']);
         $this->assertNotNull($collection->findOne(['_id' => $currentId])['read_at']);
@@ -85,5 +106,6 @@ class DatabaseNotificationLookupTest extends TestCase
         DatabaseNotification::query()->byId($currentId)->first()->delete();
 
         $this->assertSame(0, $collection->countDocuments());
+
     }
 }
