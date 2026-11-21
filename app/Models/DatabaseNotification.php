@@ -8,6 +8,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SerializesLegacyMongoId;
+
 use MongoDB\Laravel\Eloquent\Builder;
 use MongoDB\Laravel\Eloquent\Model;
 
@@ -17,6 +19,8 @@ use Illuminate\Notifications\DatabaseNotificationCollection;
 
 class DatabaseNotification extends Model
 {
+    use SerializesLegacyMongoId;
+
     /** @use HasCollection<DatabaseNotificationCollection> */
     use HasCollection;
 

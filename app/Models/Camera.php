@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SerializesLegacyMongoId;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use MongoDB\Laravel\Eloquent\Builder;
@@ -9,7 +11,7 @@ use MongoDB\Laravel\Eloquent\Model;
 
 class Camera extends Model
 {
-    use HasFactory;
+    use HasFactory, SerializesLegacyMongoId;
 
     protected $fillable = [
         'connected',

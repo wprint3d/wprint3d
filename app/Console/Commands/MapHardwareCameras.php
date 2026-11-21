@@ -112,7 +112,7 @@ class MapHardwareCameras extends Command
         }
 
         return
-            DB::collection((new Camera)->getTable())
+            DB::table((new Camera)->getTable())
                 ->where('index', $index)
                 ->where('node', $node)
                 ->where('requiresLibCamera', $requiresLibCamera)

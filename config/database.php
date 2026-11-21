@@ -43,6 +43,8 @@ return [
             'options'   => [
                 'appname' => env('APP_NAME', 'WPrint 3D'),
             ],
+            // Keep embedded "_id" fields as-is (laravel-mongodb 5.x renames them to "id" by default).
+            'rename_embedded_id_field' => false,
         ],
 
     ],

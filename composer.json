@@ -10,7 +10,7 @@
         "bensampo/laravel-enum": "^6.2",
         "guzzlehttp/guzzle": "^7.2",
         "guzzlehttp/psr7": "^2.4",
-        "laravel/framework": "^11.0",
+        "laravel/framework": "^12.71",
         "laravel/octane": "^2.9",
         "laravel/reverb": "^1.4",
         "laravel/sanctum": "^4.0",
@@ -18,7 +18,7 @@
         "league/csv": "^9.21",
         "maennchen/zipstream-php": "^3.1",
         "martbock/laravel-diceware": "^2.1",
-        "mongodb/laravel-mongodb": "^4.0",
+        "mongodb/laravel-mongodb": "^5.2",
         "n-hor/pcntl-parallel": "*",
         "nelexa/zip": "^4.0",
         "php-ffmpeg/php-ffmpeg": "dev-master",
@@ -33,8 +33,8 @@
         "laravel/pint": "^1.0",
         "laravel/sail": "^1.0.1",
         "mockery/mockery": "^1.4.4",
-        "nunomaduro/collision": "^8.1",
-        "phpunit/phpunit": "^10.0",
+        "nunomaduro/collision": "^8.6",
+        "phpunit/phpunit": "^11.5.50",
         "spatie/laravel-ignition": "^2.0"
     },
     "autoload": {
