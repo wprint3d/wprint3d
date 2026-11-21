@@ -153,7 +153,7 @@ class DatabaseNotification extends Model
      */
     public function scopeById(Builder $query, $id)
     {
-        return $query->where('id', $id);
+        return $query->byIds([$id]);
     }
 
     /**
@@ -166,6 +166,19 @@ class DatabaseNotification extends Model
      */
     public function scopeByIds(Builder $query, array $ids)
     {
-        return $query->whereIn('id', $ids);
+        $ids = array_values($ids);
+
+        /*
+         * Since mongodb/laravel-mongodb 5.0, a root "id" column is compiled to
+         * "_id". Notifications stored by older versions keep their UUID in a
+         * separate "id" field (next to an ObjectId "_id"), while newer ones
+         * store it in "_id", so match both fields explicitly.
+         */
+        return $query->whereRaw([
+            '$or' => [
+                ['id' => ['$in' => $ids]],
+                ['_id' => ['$in' => $ids]],
+            ],
+        ]);
     }
 }
